@@ -1,0 +1,292 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Dark theme (default) ─────────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-base: #000000;
+  --bg-s1:   #080808;
+  --bg-s2:   #101018;
+  --bg-s3:   #18181F;
+
+  /* Borders */
+  --bd:       #1A1A28;
+  --bd-strong:#252540;
+
+  /* Text */
+  --tx1:  #F4F4FF;
+  --tx2:  #8B8AB0;
+  --tx3:  #48486A;
+  --txd:  #28283A;
+
+  /* Accent — cyan */
+  --ac:       #00D4FF;
+  --ach:      #00B8E6;
+  --acs:      #001F2E;
+  --ac-bg:    rgba(0, 212, 255, 0.08);
+  --ac-bd:    rgba(0, 212, 255, 0.18);
+  --ac-glow:  rgba(0, 212, 255, 0.30);
+
+  /* Status — green */
+  --sg:       #22C55E;
+  --sg-bg:    rgba(34, 197,  94, 0.08);
+  --sg-bd:    rgba(34, 197,  94, 0.22);
+  --sg-glow:  rgba(34, 197,  94, 0.50);
+  /* Status — red */
+  --sr:       #EF4444;
+  --sr-bg:    rgba(239,  68,  68, 0.08);
+  --sr-bd:    rgba(239,  68,  68, 0.22);
+  /* Status — yellow */
+  --sy:       #EAB308;
+  --sy-bg:    rgba(234, 179,   8, 0.08);
+  --sy-bd:    rgba(234, 179,   8, 0.22);
+  /* Status — gray */
+  --sgr:      #64748B;
+  --sgr-bg:   rgba(100, 116, 139, 0.08);
+  --sgr-bd:   rgba(100, 116, 139, 0.18);
+
+  /* Glass */
+  --glass-bg: rgba(2, 2, 6, 0.97);
+  --glass-bd: rgba(0, 212, 255, 0.14);
+
+  /* Structural */
+  --sidebar-from:   #0A0A12;
+  --sidebar-to:     #000000;
+  --header-bg:      rgba(0, 0, 0, 0.88);
+  --nav-active-bg:  rgba(0, 212, 255, 0.08);
+  --nav-active-bd:  rgba(0, 212, 255, 0.15);
+  --card-hover-bd:  rgba(0, 212, 255, 0.14);
+
+  /* Skeleton */
+  --skel-from: #101018;
+  --skel-to:   #18181F;
+
+  /* Scrollbar */
+  --scroll-track: #080808;
+  --scroll-thumb: #252540;
+  --scroll-hover: #00D4FF;
+
+  /* Select option bg */
+  --select-bg: #101018;
+
+  /* Dot grid */
+  --dot-color: rgba(0, 212, 255, 0.04);
+
+  /* Shadows */
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.50), 0 0 0 1px rgba(255,255,255,0.02);
+  --shadow-glass: 0 8px 32px rgba(0,0,0,0.70), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-modal: 0 24px 80px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ── Light theme — "Nordic Slate" ─────────────────────────────────────────── */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-base: #F4F5FB;
+  --bg-s1:   #FFFFFF;
+  --bg-s2:   #EEF0F8;
+  --bg-s3:   #E3E6F2;
+
+  /* Borders */
+  --bd:       #DDE1EF;
+  --bd-strong:#C4C9DA;
+
+  /* Text */
+  --tx1:  #0D1024;
+  --tx2:  #4A5170;
+  --tx3:  #8490A8;
+  --txd:  #B8C0D0;
+
+  /* Accent — electric blue */
+  --ac:       #0066E0;
+  --ach:      #0052B3;
+  --acs:      #EBF2FF;
+  --ac-bg:    rgba(0, 102, 224, 0.06);
+  --ac-bd:    rgba(0, 102, 224, 0.16);
+  --ac-glow:  rgba(0, 102, 224, 0.20);
+
+  /* Status — adjusted for white bg readability */
+  --sg:       #16A34A;
+  --sg-bg:    rgba(22, 163,  74, 0.07);
+  --sg-bd:    rgba(22, 163,  74, 0.20);
+  --sg-glow:  rgba(22, 163,  74, 0.40);
+  --sr:       #DC2626;
+  --sr-bg:    rgba(220,  38,  38, 0.07);
+  --sr-bd:    rgba(220,  38,  38, 0.20);
+  --sy:       #B45309;
+  --sy-bg:    rgba(180,  83,   9, 0.07);
+  --sy-bd:    rgba(180,  83,   9, 0.20);
+  --sgr:      #6B7280;
+  --sgr-bg:   rgba(107, 114, 128, 0.07);
+  --sgr-bd:   rgba(107, 114, 128, 0.18);
+
+  /* Glass — white frosted */
+  --glass-bg: rgba(255, 255, 255, 0.96);
+  --glass-bd: rgba(0, 102, 224, 0.14);
+
+  /* Structural */
+  --sidebar-from:   #ECEEF8;
+  --sidebar-to:     #F4F5FB;
+  --header-bg:      rgba(255, 255, 255, 0.88);
+  --nav-active-bg:  rgba(0, 102, 224, 0.07);
+  --nav-active-bd:  rgba(0, 102, 224, 0.14);
+  --card-hover-bd:  rgba(0, 102, 224, 0.12);
+
+  /* Skeleton */
+  --skel-from: #E3E6F2;
+  --skel-to:   #D4D8E8;
+
+  /* Scrollbar */
+  --scroll-track: #EEF0F8;
+  --scroll-thumb: #C4C9DA;
+  --scroll-hover: #0066E0;
+
+  /* Select */
+  --select-bg: #FFFFFF;
+
+  /* Dot grid */
+  --dot-color: rgba(0, 102, 224, 0.025);
+
+  /* Shadows — softer for light */
+  --shadow-card:  0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-glass: 0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.05);
+  --shadow-modal: 0 12px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06);
+}
+
+/* ── Global theme transition (only during switch) ─────────────────────────── */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition:
+    background-color 250ms ease,
+    border-color     250ms ease,
+    color            250ms ease,
+    fill             250ms ease,
+    box-shadow       250ms ease !important;
+}
+
+/* ── Base layer ───────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    background-color: var(--bg-base);
+    color-scheme: dark light;
+  }
+
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--tx1);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Subtle dot-grid atmosphere */
+    background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track  { background: var(--scroll-track); }
+  ::-webkit-scrollbar-thumb  { background: var(--scroll-thumb); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
+
+  select option { background-color: var(--select-bg); color: var(--tx1); }
+}
+
+/* ── Component utilities ──────────────────────────────────────────────────── */
+@layer components {
+
+  /* Skeleton shimmer */
+  .skeleton {
+    background: linear-gradient(90deg, var(--skel-from) 25%, var(--skel-to) 50%, var(--skel-from) 75%);
+    background-size: 400px 100%;
+    animation: skeleton-shimmer 1.8s ease-in-out infinite;
+    border-radius: 4px;
+  }
+
+  /* Glass modal — renders correctly in both themes */
+  .glass-modal {
+    background:              var(--glass-bg);
+    backdrop-filter:         blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border:                  1px solid var(--glass-bd);
+    box-shadow:              var(--shadow-modal);
+  }
+
+  /* Dark input — theme-aware */
+  .input-dark {
+    @apply w-full rounded-lg px-3 py-2 text-sm
+           focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent
+           transition-colors duration-150;
+    background-color: var(--bg-s2);
+    border:           1px solid var(--bd);
+    color:            var(--tx1);
+  }
+  .input-dark::placeholder { color: var(--tx3); }
+
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg
+           text-sm font-medium text-white transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    background-color: var(--ac);
+  }
+  .btn-primary:hover:not(:disabled) { background-color: var(--ach); }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg
+           text-sm font-medium transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    background-color: transparent;
+    border:           1px solid var(--bd);
+    color:            var(--tx2);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--bg-s3);
+    color:            var(--tx1);
+  }
+
+  /* Card — theme-aware */
+  .card-dark {
+    background-color: var(--bg-s1);
+    border:           1px solid var(--bd);
+    border-radius:    0.75rem;
+    box-shadow:       var(--shadow-card);
+    transition:       border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .card-dark:hover {
+    border-color: var(--card-hover-bd);
+  }
+
+  /* Running status dot with pulse */
+  .status-dot-running {
+    width:            8px;
+    height:           8px;
+    border-radius:    50%;
+    background-color: var(--sg);
+    flex-shrink:      0;
+    animation:        pulse-ring 2s ease-in-out infinite;
+  }
+
+  /* Dark table — theme-aware */
+  .table-dark          { @apply w-full; }
+  .table-dark thead tr {
+    background-color: var(--bg-s2);
+    border-bottom:    1px solid var(--bd);
+  }
+  .table-dark thead th {
+    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap;
+    color: var(--tx3);
+  }
+  .table-dark tbody tr {
+    border-bottom: 1px solid var(--bd);
+    transition:    background-color 150ms ease;
+  }
+  .table-dark tbody tr:hover { background-color: var(--bg-s2); }
+  .table-dark tbody td       { @apply px-4 py-3; }
+}
