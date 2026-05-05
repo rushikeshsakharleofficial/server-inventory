@@ -170,22 +170,22 @@ export default function ProvidersPage({ onAddCredential }: Props) {
                             onClick={() => toggleMutation.mutate(cred.id)}
                             disabled={toggleMutation.isPending}
                             aria-label={cred.is_active ? 'Disable' : 'Enable'}
-                            className="inline-flex items-center gap-1.5 transition-colors"
+                            className="inline-flex items-center gap-1.5 p-1 transition-colors"
                           >
                             {cred.is_active
                               ? <>
-                                  <ToggleRight size={18} className="text-status-green" />
+                                  <ToggleRight size={24} className="text-status-green" />
                                   <span
-                                    className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+                                    className="text-xs font-medium px-2 py-1 rounded"
                                     style={{ background: 'var(--sg-bg)', color: 'var(--sg)', border: '1px solid var(--sg-bd)' }}
                                   >
                                     Active
                                   </span>
                                 </>
                               : <>
-                                  <ToggleLeft size={18} className="text-ink-muted" />
+                                  <ToggleLeft size={24} className="text-ink-muted" />
                                   <span
-                                    className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+                                    className="text-xs font-medium px-2 py-1 rounded"
                                     style={{ background: 'var(--sgr-bg)', color: 'var(--sgr)', border: '1px solid var(--sgr-bd)' }}
                                   >
                                     Disabled
