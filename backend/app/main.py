@@ -1,5 +1,6 @@
 import asyncio
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
@@ -12,11 +13,23 @@ from .routers.settings import router as settings_router
 from .routers.crons import router as crons_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
+from .auth import SECRET_KEY
 from .database import DATABASE_URL
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Server Inventory API", version="1.0.0", docs_url="/docs")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    manager.set_loop(asyncio.get_event_loop())
+    _seed_admin()
+    _cleanup_stale_syncs()
+    _seed_default_settings()
+    sched_module.start(DATABASE_URL)
+    yield
+    sched_module.shutdown()
+
+
+app = FastAPI(title="Server Inventory API", version="1.0.0", docs_url="/docs", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,30 +49,16 @@ app.include_router(settings_router)
 app.include_router(crons_router)
 
 
-@app.on_event("startup")
-async def on_startup() -> None:
-    manager.set_loop(asyncio.get_event_loop())
-    _seed_admin()
-    _cleanup_stale_syncs()
-    _seed_default_settings()
-    sched_module.start(DATABASE_URL)
-
-
-@app.on_event("shutdown")
-async def on_shutdown() -> None:
-    sched_module.shutdown()
-
-
 def _cleanup_stale_syncs() -> None:
     """Mark any 'running' syncs as failed — they were orphaned by a restart."""
-    from datetime import datetime
+    from datetime import datetime, timezone
     db = SessionLocal()
     try:
         stale = db.query(models.SyncLog).filter(models.SyncLog.status == "running").all()
         for log in stale:
             log.status = "failed"
             log.error_message = "Server restarted — sync orphaned"
-            log.completed_at = datetime.utcnow()
+            log.completed_at = datetime.now(timezone.utc)
         if stale:
             db.commit()
     finally:
@@ -105,8 +104,6 @@ def _seed_admin() -> None:
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket, token: str = Query(...)) -> None:
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-CHANGE-in-production")
-
     # Authenticate token before accepting
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])

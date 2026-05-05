@@ -3,7 +3,7 @@ import concurrent.futures
 from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from .. import models, schemas
 from ..database import get_db, DATABASE_URL
 from ..providers import get_provider
@@ -85,12 +85,12 @@ def _run_sync(provider_name: Optional[str], db_url: str) -> None:
                         for k, v in srv.items():
                             if hasattr(existing, k):
                                 setattr(existing, k, v)
-                        existing.last_synced = datetime.utcnow()
+                        existing.last_synced = datetime.now(timezone.utc)
                         updated += 1
                     else:
                         allowed = {c.key for c in models.Server.__table__.columns}
                         new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed})
-                        new_srv.last_synced = datetime.utcnow()
+                        new_srv.last_synced = datetime.now(timezone.utc)
                         db.add(new_srv)
                         added += 1
 
@@ -112,7 +112,7 @@ def _run_sync(provider_name: Optional[str], db_url: str) -> None:
             log.servers_added = added
             log.servers_updated = updated
             log.error_message = error
-            log.completed_at  = datetime.utcnow()
+            log.completed_at  = datetime.now(timezone.utc)
             db.commit()
 
             manager.broadcast({
@@ -147,7 +147,7 @@ def stop_sync(
     _: models.User = Depends(require_write),
 ):
     """Stop one or all running syncs."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     stopped_ids = []
 
     if log_id:

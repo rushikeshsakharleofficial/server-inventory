@@ -3,6 +3,10 @@ from sqlalchemy.sql import func
 from .database import Base
 
 
+def _empty_json_dict() -> dict:
+    return {}
+
+
 class Server(Base):
     __tablename__ = "servers"
 
@@ -20,8 +24,8 @@ class Server(Base):
     memory_gb     = Column(Float,       nullable=True)
     storage_gb    = Column(Float,       nullable=True)
     os            = Column(String(255), nullable=True)
-    tags          = Column(JSON,        default=dict)
-    extra         = Column(JSON,        default=dict)
+    tags          = Column(JSON,        default=_empty_json_dict)
+    extra         = Column(JSON,        default=_empty_json_dict)
     datacenter    = Column(String(128), nullable=True)
     hostname      = Column(String(255), nullable=True)
     notes         = Column(Text,        nullable=True)
@@ -120,7 +124,7 @@ class ServerSnapshot(Base):
     total       = Column(Integer, default=0)
     running     = Column(Integer, default=0)
     stopped     = Column(Integer, default=0)
-    by_provider = Column(JSON, default=dict)
+    by_provider = Column(JSON, default=_empty_json_dict)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

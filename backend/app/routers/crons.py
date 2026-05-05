@@ -143,7 +143,7 @@ def run_cron_now(
         try:
             j = sess.query(models.CronJob).filter(models.CronJob.id == job_id).first()
             if j:
-                j.last_run_at = datetime.utcnow()
+                j.last_run_at = datetime.now(timezone.utc)
                 j.last_run_status = status
                 sess.commit()
         finally:
@@ -151,7 +151,7 @@ def run_cron_now(
 
     threading.Thread(target=_go, daemon=True).start()
 
-    job.last_run_at = datetime.utcnow()
+    job.last_run_at = datetime.now(timezone.utc)
     job.last_run_status = "running"
     db.commit()
     db.refresh(job)

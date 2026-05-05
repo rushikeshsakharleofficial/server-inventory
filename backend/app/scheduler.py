@@ -44,7 +44,7 @@ def _run_cron(job_id: int, db_url: str) -> None:
             return
 
         # Mark as running
-        job.last_run_at = datetime.utcnow()
+        job.last_run_at = datetime.now(timezone.utc)
         job.last_run_status = "running"
         # Update next_run_at
         nxt = _next_fire(job.cron_expr)
@@ -156,7 +156,7 @@ def _housekeeping(db_url: str) -> None:
     from datetime import timedelta
     from . import models
 
-    cutoff = datetime.utcnow() - timedelta(days=365)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=365)
     engine = create_engine(db_url, pool_pre_ping=True)
     db = sessionmaker(bind=engine)()
     try:
@@ -165,7 +165,7 @@ def _housekeeping(db_url: str) -> None:
             .filter(models.SyncLog.started_at < cutoff)
             .delete(synchronize_session=False)
         )
-        cutoff_str = (datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%d")
+        cutoff_str = (datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%d")
         deleted_snaps = (
             db.query(models.ServerSnapshot)
             .filter(models.ServerSnapshot.date < cutoff_str)

@@ -1,6 +1,7 @@
 import io
 import asyncio
-from datetime import datetime
+import os
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -9,6 +10,15 @@ from ..database import get_db
 from ..auth import get_current_user, require_write
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
+
+
+def _escape_like(value: str) -> str:
+    return (
+        value
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
 
 
 @router.get("", response_model=List[schemas.ServerResponse])
@@ -25,11 +35,12 @@ def list_servers(
     if status:
         q = q.filter(models.Server.status == status)
     if search:
+        like = f"%{_escape_like(search)}%"
         q = q.filter(
-            models.Server.name.ilike(f"%{search}%")
-            | models.Server.public_ip.ilike(f"%{search}%")
-            | models.Server.private_ip.ilike(f"%{search}%")
-            | models.Server.hostname.ilike(f"%{search}%")
+            models.Server.name.ilike(like, escape="\\")
+            | models.Server.public_ip.ilike(like, escape="\\")
+            | models.Server.private_ip.ilike(like, escape="\\")
+            | models.Server.hostname.ilike(like, escape="\\")
         )
     return q.order_by(models.Server.name).all()
 
@@ -129,8 +140,14 @@ async def ssh_sync_server(
         import paramiko, socket, re
         for cred in ssh_creds:
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             try:
+                known_hosts = os.getenv("SSH_KNOWN_HOSTS")
+                if known_hosts:
+                    client.load_host_keys(os.path.expanduser(known_hosts))
+                else:
+                    client.load_system_host_keys()
+                client.set_missing_host_key_policy(paramiko.RejectPolicy())
+
                 connect_kwargs: dict = {
                     "hostname": host,
                     "port": cred.port or 22,
@@ -188,7 +205,7 @@ async def ssh_sync_server(
                     "kernel":       uname_r or None,
                     "hostname":     hostname_f or None,
                     "os_release":   os_info.get("PRETTY_NAME") or os_info.get("NAME"),
-                    "last_ssh_sync": datetime.utcnow().isoformat(),
+                    "last_ssh_sync": datetime.now(timezone.utc).isoformat(),
                 }
                 client.close()
                 return ssh_info, None

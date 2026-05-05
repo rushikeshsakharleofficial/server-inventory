@@ -1,5 +1,6 @@
 import os
-from datetime import datetime, timedelta
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -9,7 +10,35 @@ from sqlalchemy.orm import Session
 from . import models
 from .database import get_db
 
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-CHANGE-in-production")
+_INSECURE_SECRET_VALUES = {
+    "dev-secret-key-" + "CHANGE-in-production",
+    "generate-a-long-random-string-here",
+}
+_PRODUCTION_ENVS = {"prod", "production"}
+
+
+def _is_production() -> bool:
+    env_name = (
+        os.getenv("ENVIRONMENT")
+        or os.getenv("APP_ENV")
+        or os.getenv("ENV")
+        or ""
+    ).lower()
+    return env_name in _PRODUCTION_ENVS
+
+
+def _load_secret_key() -> str:
+    secret_key = os.getenv("SECRET_KEY")
+    if secret_key and secret_key not in _INSECURE_SECRET_VALUES:
+        return secret_key
+    if _is_production():
+        raise RuntimeError(
+            "SECRET_KEY must be set to a strong unique value in production"
+        )
+    return secrets.token_urlsafe(32)
+
+
+SECRET_KEY = _load_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8          # 8 hours (default)
 ACCESS_TOKEN_EXPIRE_REMEMBER = 60 * 24 * 90  # 90 days (remember me)
@@ -36,7 +65,7 @@ def create_access_token(
             minutes=ACCESS_TOKEN_EXPIRE_REMEMBER if remember else ACCESS_TOKEN_EXPIRE_MINUTES
         )
     to_encode = {**data, "remember": remember}
-    to_encode["exp"] = datetime.utcnow() + expires_delta
+    to_encode["exp"] = datetime.now(timezone.utc) + expires_delta
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 

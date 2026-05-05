@@ -1,56 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
-from .. import models
+from typing import List
+from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 
 router = APIRouter(prefix="/api/ssh-credentials", tags=["ssh-credentials"])
 
 
-# ---------------------------------------------------------------------------
-# Pydantic schemas (local — SSH credentials are not in the shared schemas.py)
-# ---------------------------------------------------------------------------
-
-class SSHCredentialCreate(BaseModel):
-    name: str
-    username: str
-    auth_method: str = "password"  # password | key
-    password: Optional[str] = None
-    private_key: Optional[str] = None
-    port: int = 22
-    is_default: bool = False
-    notes: Optional[str] = None
-
-
-class SSHCredentialUpdate(BaseModel):
-    name: Optional[str] = None
-    username: Optional[str] = None
-    auth_method: Optional[str] = None
-    password: Optional[str] = None
-    private_key: Optional[str] = None
-    port: Optional[int] = None
-    is_default: Optional[bool] = None
-    notes: Optional[str] = None
-
-
-class SSHCredentialResponse(BaseModel):
-    id: int
-    name: str
-    username: str
-    auth_method: str
-    password: Optional[str] = None   # masked as "***" if set
-    private_key: Optional[str] = None  # masked as "***" if set
-    port: int
-    is_default: bool
-    notes: Optional[str] = None
-
-    model_config = {"from_attributes": True}
-
-
-def _mask(cred: models.SSHCredential) -> SSHCredentialResponse:
-    return SSHCredentialResponse(
+def _mask(cred: models.SSHCredential) -> schemas.SSHCredentialResponse:
+    return schemas.SSHCredentialResponse(
         id=cred.id,
         name=cred.name,
         username=cred.username,
@@ -60,6 +19,8 @@ def _mask(cred: models.SSHCredential) -> SSHCredentialResponse:
         port=cred.port,
         is_default=cred.is_default,
         notes=cred.notes,
+        created_at=cred.created_at,
+        updated_at=cred.updated_at,
     )
 
 
@@ -67,7 +28,7 @@ def _mask(cred: models.SSHCredential) -> SSHCredentialResponse:
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=List[SSHCredentialResponse])
+@router.get("", response_model=List[schemas.SSHCredentialResponse])
 def list_ssh_credentials(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
@@ -76,9 +37,9 @@ def list_ssh_credentials(
     return [_mask(c) for c in creds]
 
 
-@router.post("", response_model=SSHCredentialResponse, status_code=201)
+@router.post("", response_model=schemas.SSHCredentialResponse, status_code=201)
 def create_ssh_credential(
-    payload: SSHCredentialCreate,
+    payload: schemas.SSHCredentialCreate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
 ):
@@ -93,10 +54,10 @@ def create_ssh_credential(
     return _mask(cred)
 
 
-@router.put("/{cred_id}", response_model=SSHCredentialResponse)
+@router.put("/{cred_id}", response_model=schemas.SSHCredentialResponse)
 def update_ssh_credential(
     cred_id: int,
-    payload: SSHCredentialUpdate,
+    payload: schemas.SSHCredentialUpdate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
 ):
@@ -133,7 +94,7 @@ def delete_ssh_credential(
     db.commit()
 
 
-@router.patch("/{cred_id}/set-default", response_model=SSHCredentialResponse)
+@router.patch("/{cred_id}/set-default", response_model=schemas.SSHCredentialResponse)
 def set_default_ssh_credential(
     cred_id: int,
     db: Session = Depends(get_db),

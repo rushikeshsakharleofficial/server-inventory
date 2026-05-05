@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -16,8 +16,8 @@ class ServerBase(BaseModel):
     memory_gb: Optional[float] = None
     storage_gb: Optional[float] = None
     os: Optional[str] = None
-    tags: Dict[str, Any] = {}
-    extra: Dict[str, Any] = {}
+    tags: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
     datacenter: Optional[str] = None
     hostname: Optional[str] = None
     notes: Optional[str] = None
@@ -63,7 +63,7 @@ class CredentialResponse(BaseModel):
     name: str
     provider: str
     is_active: bool
-    config: Dict[str, Any] = {}
+    config: Dict[str, Any] = Field(default_factory=dict)
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
@@ -158,7 +158,7 @@ class ServerSnapshotResponse(BaseModel):
     total: int
     running: int
     stopped: int
-    by_provider: Dict[str, int] = {}
+    by_provider: Dict[str, int] = Field(default_factory=dict)
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
