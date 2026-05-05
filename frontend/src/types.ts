@@ -79,4 +79,17 @@ export interface ServerSnapshot {
   created_at?: string
 }
 
-export type View = 'dashboard' | 'servers' | 'providers' | 'sync-logs' | 'ssh' | 'settings'
+export interface CronJob {
+  id: number
+  name: string
+  cron_expr: string
+  provider?: string
+  is_active: boolean
+  last_run_at?: string
+  last_run_status?: string
+  next_run_at?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export type View = 'dashboard' | 'servers' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings'

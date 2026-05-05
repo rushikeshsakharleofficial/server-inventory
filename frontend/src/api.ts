@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot } from './types'
+import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob } from './types'
 
 export const http = axios.create({ baseURL: '' })
 
@@ -87,6 +87,24 @@ export const statsApi = {
     http.get<ServerSnapshot[]>('/api/stats/history', { params: { days } }).then(r => r.data),
 
   snapshot: () => http.post('/api/stats/snapshot').then(r => r.data),
+}
+
+export const cronsApi = {
+  list: () => http.get<CronJob[]>('/api/crons').then(r => r.data),
+
+  create: (data: Omit<CronJob, 'id' | 'created_at' | 'updated_at' | 'last_run_at' | 'last_run_status' | 'next_run_at'>) =>
+    http.post<CronJob>('/api/crons', data).then(r => r.data),
+
+  update: (id: number, data: Partial<Pick<CronJob, 'name' | 'cron_expr' | 'provider' | 'is_active'>>) =>
+    http.put<CronJob>(`/api/crons/${id}`, data).then(r => r.data),
+
+  delete: (id: number) => http.delete(`/api/crons/${id}`),
+
+  toggle: (id: number) =>
+    http.patch<CronJob>(`/api/crons/${id}/toggle`).then(r => r.data),
+
+  runNow: (id: number) =>
+    http.post<CronJob>(`/api/crons/${id}/run-now`).then(r => r.data),
 }
 
 export const settingsApi = {

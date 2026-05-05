@@ -16,6 +16,7 @@ import SyncLogsPage from './components/SyncLogsPage'
 import DashboardPage from './components/DashboardPage'
 import SSHPage from './components/SSHPage'
 import SettingsPage from './components/SettingsPage'
+import CronsPage from './components/CronsPage'
 import ServerDetailModal from './components/ServerDetailModal'
 import type { View, Server } from './types'
 
@@ -30,6 +31,7 @@ const PATH_TO_VIEW: Record<string, View> = {
   '/dashboard':  'dashboard',
   '/providers':  'providers',
   '/sync-logs':  'sync-logs',
+  '/crons':      'crons',
   '/ssh':        'ssh',
   '/settings':   'settings',
 }
@@ -39,6 +41,7 @@ const VIEW_TO_PATH: Record<View, string> = {
   'servers':    '/',
   'providers':  '/providers',
   'sync-logs':  '/sync-logs',
+  'crons':      '/crons',
   'ssh':        '/ssh',
   'settings':   '/settings',
 }
@@ -78,44 +81,52 @@ function AppContent() {
       onManageCredentials={() => setShowCredentials(true)}
       onManageUsers={() => setShowUsers(true)}
     >
-      {view === 'dashboard' && (
-        <div className="animate-fade-in">
-          <DashboardPage />
-        </div>
-      )}
+      <div key={view} className="contents">
+        {view === 'dashboard' && (
+          <div className="animate-fade-in">
+            <DashboardPage />
+          </div>
+        )}
 
-      {view === 'servers' && (
-        <div className="space-y-5 animate-fade-in">
-          <ServerTable
-            onAddServer={() => setShowAddServer(true)}
-            onServerClick={setSelectedServer}
-          />
-        </div>
-      )}
+        {view === 'servers' && (
+          <div className="space-y-5 animate-fade-in">
+            <ServerTable
+              onAddServer={() => setShowAddServer(true)}
+              onServerClick={setSelectedServer}
+            />
+          </div>
+        )}
 
-      {view === 'providers' && (
-        <div className="animate-fade-in">
-          <ProvidersPage onAddCredential={() => setShowCredentials(true)} />
-        </div>
-      )}
+        {view === 'providers' && (
+          <div className="animate-fade-in">
+            <ProvidersPage onAddCredential={() => setShowCredentials(true)} />
+          </div>
+        )}
 
-      {view === 'sync-logs' && (
-        <div className="animate-fade-in">
-          <SyncLogsPage />
-        </div>
-      )}
+        {view === 'sync-logs' && (
+          <div className="animate-fade-in">
+            <SyncLogsPage />
+          </div>
+        )}
 
-      {view === 'ssh' && (
-        <div className="animate-fade-in">
-          <SSHPage />
-        </div>
-      )}
+        {view === 'crons' && (
+          <div className="animate-fade-in">
+            <CronsPage />
+          </div>
+        )}
 
-      {view === 'settings' && (
-        <div className="animate-fade-in">
-          <SettingsPage />
-        </div>
-      )}
+        {view === 'ssh' && (
+          <div className="animate-fade-in">
+            <SSHPage />
+          </div>
+        )}
+
+        {view === 'settings' && (
+          <div className="animate-fade-in">
+            <SettingsPage />
+          </div>
+        )}
+      </div>
 
       {showAddServer  && canWrite  && <AddServerModal    onClose={() => setShowAddServer(false)}    />}
       {showCredentials             && <CredentialsModal  onClose={() => setShowCredentials(false)}  />}

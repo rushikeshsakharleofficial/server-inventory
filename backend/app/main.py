@@ -9,8 +9,10 @@ from .routers.auth import router as auth_router
 from .routers.ssh_credentials import router as ssh_credentials_router
 from .routers.stats import router as stats_router
 from .routers.settings import router as settings_router
+from .routers.crons import router as crons_router
 from .ws_manager import manager
-from . import models
+from . import models, scheduler as sched_module
+from .database import DATABASE_URL
 
 Base.metadata.create_all(bind=engine)
 
@@ -31,6 +33,7 @@ app.include_router(sync.router)
 app.include_router(ssh_credentials_router)
 app.include_router(stats_router)
 app.include_router(settings_router)
+app.include_router(crons_router)
 
 
 @app.on_event("startup")
@@ -39,6 +42,12 @@ async def on_startup() -> None:
     _seed_admin()
     _cleanup_stale_syncs()
     _seed_default_settings()
+    sched_module.start(DATABASE_URL)
+
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    sched_module.shutdown()
 
 
 def _cleanup_stale_syncs() -> None:

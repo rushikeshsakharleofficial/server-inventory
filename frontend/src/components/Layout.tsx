@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Server, Cloud, Activity, RefreshCw, Plus,
   Menu, X, Settings, Wifi, Users, LogOut, Shield, PencilLine, Eye,
-  CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal,
+  CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal, Timer,
 } from 'lucide-react'
 import { syncApi } from '../api'
 import { useToast } from '../hooks/useToast'
@@ -22,11 +22,12 @@ interface LayoutProps {
 }
 
 const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
-  { id: 'dashboard',  label: 'Dashboard',      Icon: LayoutDashboard },
-  { id: 'servers',    label: 'Servers',         Icon: Server          },
-  { id: 'providers',  label: 'Cloud Providers', Icon: Cloud           },
-  { id: 'sync-logs',  label: 'Sync Logs',       Icon: Activity        },
-  { id: 'ssh',        label: 'SSH',             Icon: Terminal        },
+  { id: 'dashboard',  label: 'Dashboard',      Icon: LayoutDashboard   },
+  { id: 'servers',    label: 'Servers',         Icon: Server            },
+  { id: 'providers',  label: 'Cloud Providers', Icon: Cloud             },
+  { id: 'sync-logs',  label: 'Sync Logs',       Icon: Activity          },
+  { id: 'crons',      label: 'Cron Jobs',       Icon: Timer             },
+  { id: 'ssh',        label: 'SSH',             Icon: Terminal          },
   { id: 'settings',   label: 'Settings',        Icon: SlidersHorizontal },
 ]
 
@@ -35,6 +36,7 @@ const VIEW_TITLE: Record<View, string> = {
   servers:     'Server Inventory',
   providers:   'Cloud Providers',
   'sync-logs': 'Sync Logs',
+  crons:       'Cron Jobs',
   ssh:         'SSH Credentials',
   settings:    'Settings',
 }

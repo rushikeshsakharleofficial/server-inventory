@@ -173,3 +173,32 @@ class AppSettingResponse(BaseModel):
 
 class SettingUpdate(BaseModel):
     value: str
+
+
+class CronJobCreate(BaseModel):
+    name: str
+    cron_expr: str
+    provider: Optional[str] = None
+    is_active: bool = True
+
+
+class CronJobUpdate(BaseModel):
+    name: Optional[str] = None
+    cron_expr: Optional[str] = None
+    provider: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class CronJobResponse(BaseModel):
+    id: int
+    name: str
+    cron_expr: str
+    provider: Optional[str] = None
+    is_active: bool
+    last_run_at: Optional[datetime] = None
+    last_run_status: Optional[str] = None
+    next_run_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
