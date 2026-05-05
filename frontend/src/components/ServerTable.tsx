@@ -4,6 +4,7 @@ import {
   Search,
   Plus,
   Trash2,
+  Pencil,
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
@@ -40,9 +41,11 @@ function fmt(d?: string) {
 export default function ServerTable({
   onAddServer,
   onServerClick,
+  onEditServer,
 }: {
   onAddServer: () => void
   onServerClick?: (server: Server) => void
+  onEditServer?: (server: Server) => void
 }) {
   const [search, setSearch]         = useState('')
   const [debounced, setDebounced]   = useState('')
@@ -338,16 +341,27 @@ export default function ServerTable({
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setDeletingId(server.id)}
-                        aria-label={`Delete ${server.name}`}
-                        className="p-1.5 text-ink-dim hover:text-status-red rounded-lg transition-colors"
-                        style={{ transition: 'color 150ms' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-bg)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = '')}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        {onEditServer && server.provider === 'custom_dc' && (
+                          <button
+                            onClick={() => onEditServer(server)}
+                            aria-label={`Edit ${server.name}`}
+                            className="p-1.5 text-ink-dim hover:text-accent rounded-lg transition-colors hover:bg-surface-3"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setDeletingId(server.id)}
+                          aria-label={`Delete ${server.name}`}
+                          className="p-1.5 text-ink-dim hover:text-status-red rounded-lg transition-colors"
+                          style={{ transition: 'color 150ms' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-bg)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -32,6 +32,8 @@ class ServerUpdate(BaseModel):
     status: Optional[str] = None
     public_ip: Optional[str] = None
     private_ip: Optional[str] = None
+    hostname: Optional[str] = None
+    datacenter: Optional[str] = None
     notes: Optional[str] = None
     tags: Optional[Dict[str, Any]] = None
     instance_type: Optional[str] = None

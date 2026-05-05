@@ -36,8 +36,10 @@ export const serversApi = {
 
   delete: (id: number) => http.delete(`/api/servers/${id}`),
 
-  sshSync: (id: number) =>
-    http.post<Server>(`/api/servers/${id}/ssh-sync`).then(r => r.data),
+  sshSync: (id: number, sshCredentialId: number) =>
+    http
+      .post<Server>(`/api/servers/${id}/ssh-sync`, null, { params: { ssh_credential_id: sshCredentialId } })
+      .then(r => r.data),
 }
 
 export const credentialsApi = {
@@ -70,10 +72,10 @@ export const syncApi = {
 export const sshCredentialsApi = {
   list: () => http.get<SSHCredential[]>('/api/ssh-credentials').then(r => r.data),
 
-  create: (data: Omit<SSHCredential, 'id' | 'created_at'>) =>
+  create: (data: Omit<SSHCredential, 'id' | 'created_at' | 'updated_at'>) =>
     http.post<SSHCredential>('/api/ssh-credentials', data).then(r => r.data),
 
-  update: (id: number, data: Partial<Omit<SSHCredential, 'id' | 'created_at'>>) =>
+  update: (id: number, data: Partial<Omit<SSHCredential, 'id' | 'created_at' | 'updated_at'>>) =>
     http.put<SSHCredential>(`/api/ssh-credentials/${id}`, data).then(r => r.data),
 
   delete: (id: number) => http.delete(`/api/ssh-credentials/${id}`),

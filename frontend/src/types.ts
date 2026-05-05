@@ -67,6 +67,7 @@ export interface SSHCredential {
   is_default: boolean
   notes?: string
   created_at?: string
+  updated_at?: string
 }
 
 export interface ServerSnapshot {

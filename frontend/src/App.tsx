@@ -56,6 +56,7 @@ function AppContent() {
   const [showCredentials, setShowCredentials] = useState(false)
   const [showUsers, setShowUsers]             = useState(false)
   const [selectedServer, setSelectedServer]   = useState<Server | null>(null)
+  const [editingServer, setEditingServer]     = useState<Server | null>(null)
 
   useEffect(() => {
     const handler = () =>
@@ -93,6 +94,7 @@ function AppContent() {
             <ServerTable
               onAddServer={() => setShowAddServer(true)}
               onServerClick={setSelectedServer}
+              onEditServer={canWrite ? setEditingServer : undefined}
             />
           </div>
         )}
@@ -129,12 +131,19 @@ function AppContent() {
       </div>
 
       {showAddServer  && canWrite  && <AddServerModal    onClose={() => setShowAddServer(false)}    />}
+      {editingServer  && canWrite  && (
+        <AddServerModal
+          server={editingServer}
+          onClose={() => setEditingServer(null)}
+        />
+      )}
       {showCredentials             && <CredentialsModal  onClose={() => setShowCredentials(false)}  />}
       {showUsers      && user.role === 'admin' && <UsersModal onClose={() => setShowUsers(false)} />}
       {selectedServer && (
         <ServerDetailModal
           server={selectedServer}
           onClose={() => setSelectedServer(null)}
+          onServerUpdated={setSelectedServer}
         />
       )}
     </Layout>

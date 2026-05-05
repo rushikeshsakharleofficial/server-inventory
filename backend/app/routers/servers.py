@@ -116,6 +116,7 @@ def update_server(
 @router.post("/{server_id}/ssh-sync", response_model=schemas.ServerResponse)
 async def ssh_sync_server(
     server_id: int,
+    ssh_credential_id: int = Query(...),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
 ):
@@ -128,99 +129,102 @@ async def ssh_sync_server(
     if not host:
         raise HTTPException(status_code=400, detail="Server has no IP address configured")
 
-    ssh_creds = (
+    ssh_cred = (
         db.query(models.SSHCredential)
-        .order_by(models.SSHCredential.is_default.desc(), models.SSHCredential.id)
-        .all()
+        .filter(models.SSHCredential.id == ssh_credential_id)
+        .first()
     )
-    if not ssh_creds:
-        raise HTTPException(status_code=400, detail="No SSH credentials configured — add them in the SSH page")
+    if not ssh_cred:
+        raise HTTPException(status_code=404, detail="SSH credential not found")
 
     def _do_ssh():
         import paramiko, socket, re
-        for cred in ssh_creds:
-            client = paramiko.SSHClient()
-            try:
-                known_hosts = os.getenv("SSH_KNOWN_HOSTS")
-                if known_hosts:
-                    client.load_host_keys(os.path.expanduser(known_hosts))
-                else:
-                    client.load_system_host_keys()
-                client.set_missing_host_key_policy(paramiko.RejectPolicy())
+        client = paramiko.SSHClient()
+        try:
+            known_hosts = os.getenv("SSH_KNOWN_HOSTS")
+            if known_hosts:
+                client.load_host_keys(os.path.expanduser(known_hosts))
+            else:
+                client.load_system_host_keys()
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
-                connect_kwargs: dict = {
-                    "hostname": host,
-                    "port": cred.port or 22,
-                    "username": cred.username,
-                    "timeout": 10,
-                    "banner_timeout": 10,
-                }
-                if cred.auth_method == "key" and cred.private_key:
-                    connect_kwargs["pkey"] = paramiko.RSAKey.from_private_key(
-                        io.StringIO(cred.private_key)
-                    )
-                elif cred.password:
-                    connect_kwargs["password"] = cred.password
-                    connect_kwargs["look_for_keys"] = False
-                    connect_kwargs["allow_agent"] = False
+            connect_kwargs: dict = {
+                "hostname": host,
+                "port": ssh_cred.port or 22,
+                "username": ssh_cred.username,
+                "timeout": 10,
+                "banner_timeout": 10,
+            }
+            if ssh_cred.auth_method == "key":
+                if not ssh_cred.private_key:
+                    return None, "Selected SSH credential has no private key"
+                connect_kwargs["pkey"] = paramiko.RSAKey.from_private_key(
+                    io.StringIO(ssh_cred.private_key)
+                )
+            elif ssh_cred.password:
+                connect_kwargs["password"] = ssh_cred.password
+                connect_kwargs["look_for_keys"] = False
+                connect_kwargs["allow_agent"] = False
+            else:
+                return None, "Selected SSH credential has no password"
 
-                client.connect(**connect_kwargs)
+            client.connect(**connect_kwargs)
 
-                def run(cmd):
-                    _, stdout, _ = client.exec_command(cmd, timeout=10)
-                    return stdout.read().decode("utf-8", errors="replace").strip()
+            def run(cmd):
+                _, stdout, _ = client.exec_command(cmd, timeout=10)
+                return stdout.read().decode("utf-8", errors="replace").strip()
 
-                # Gather data
-                ip_a        = run("ip a 2>/dev/null || ip addr 2>/dev/null")
-                nproc       = run("nproc 2>/dev/null")
-                free_m      = run("free -m 2>/dev/null")
-                uname_r     = run("uname -r 2>/dev/null")
-                hostname_f  = run("hostname -f 2>/dev/null")
-                os_release  = run("cat /etc/os-release 2>/dev/null")
+            # Gather data
+            ip_a        = run("ip a 2>/dev/null || ip addr 2>/dev/null")
+            nproc       = run("nproc 2>/dev/null")
+            free_m      = run("free -m 2>/dev/null")
+            uname_r     = run("uname -r 2>/dev/null")
+            hostname_f  = run("hostname -f 2>/dev/null")
+            os_release  = run("cat /etc/os-release 2>/dev/null")
 
-                # Parse IPs from `ip a`
-                all_ips = re.findall(r'inet6?\s+([\da-f:.]+/\d+)', ip_a)
-                all_ips = [ip for ip in all_ips if not ip.startswith('127.') and ip != '::1/128']
+            # Parse IPs from `ip a`
+            all_ips = re.findall(r'inet6?\s+([\da-f:.]+/\d+)', ip_a)
+            all_ips = [ip for ip in all_ips if not ip.startswith('127.') and ip != '::1/128']
 
-                # Parse memory (MemTotal from free -m)
-                mem_mb = None
-                for line in free_m.splitlines():
-                    if line.startswith("Mem:"):
-                        parts = line.split()
-                        if len(parts) > 1:
-                            mem_mb = int(parts[1])
-                        break
+            # Parse memory (MemTotal from free -m)
+            mem_mb = None
+            for line in free_m.splitlines():
+                if line.startswith("Mem:"):
+                    parts = line.split()
+                    if len(parts) > 1:
+                        mem_mb = int(parts[1])
+                    break
 
-                # Parse OS from /etc/os-release
-                os_info: dict = {}
-                for line in os_release.splitlines():
-                    if "=" in line:
-                        k, _, v = line.partition("=")
-                        os_info[k.strip()] = v.strip().strip('"')
+            # Parse OS from /etc/os-release
+            os_info: dict = {}
+            for line in os_release.splitlines():
+                if "=" in line:
+                    k, _, v = line.partition("=")
+                    os_info[k.strip()] = v.strip().strip('"')
 
-                ssh_info = {
-                    "all_ips":      all_ips,
-                    "cpu_count":    int(nproc) if nproc.isdigit() else None,
-                    "memory_mb":    mem_mb,
-                    "kernel":       uname_r or None,
-                    "hostname":     hostname_f or None,
-                    "os_release":   os_info.get("PRETTY_NAME") or os_info.get("NAME"),
-                    "last_ssh_sync": datetime.now(timezone.utc).isoformat(),
-                }
-                client.close()
-                return ssh_info, None
+            ssh_info = {
+                "all_ips":      all_ips,
+                "cpu_count":    int(nproc) if nproc.isdigit() else None,
+                "memory_mb":    mem_mb,
+                "kernel":       uname_r or None,
+                "hostname":     hostname_f or None,
+                "os_release":   os_info.get("PRETTY_NAME") or os_info.get("NAME"),
+                "credential_id": ssh_cred.id,
+                "credential_name": ssh_cred.name,
+                "last_ssh_sync": datetime.now(timezone.utc).isoformat(),
+            }
+            client.close()
+            return ssh_info, None
 
-            except paramiko.AuthenticationException:
-                client.close()
-                continue
-            except (socket.timeout, paramiko.SSHException, OSError) as e:
-                client.close()
-                return None, str(e)
-            except Exception as e:
-                client.close()
-                return None, str(e)
-
-        return None, "All SSH credentials failed authentication"
+        except paramiko.AuthenticationException:
+            client.close()
+            return None, "Selected SSH credential failed authentication"
+        except (socket.timeout, paramiko.SSHException, OSError) as e:
+            client.close()
+            return None, str(e)
+        except Exception as e:
+            client.close()
+            return None, str(e)
 
     ssh_info, err = await asyncio.get_event_loop().run_in_executor(None, _do_ssh)
     if err and not ssh_info:
