@@ -14,3 +14,9 @@ class CloudProvider(ABC):
     @abstractmethod
     def provider_name(self) -> str:
         pass
+
+    def fetch_databases(self) -> List[Dict[str, Any]]:
+        return []
+
+    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+        return []

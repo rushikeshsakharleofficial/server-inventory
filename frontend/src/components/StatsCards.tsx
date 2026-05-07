@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { Server, Activity, Power } from 'lucide-react'
 import { serversApi } from '../api'
 import { SkeletonCard } from './Skeleton'
-import ProviderLogo from './ProviderLogo'
 
 const PROVIDER_COLORS: Record<string, string> = {
   aws:          '#FF9900',
@@ -19,56 +17,38 @@ const PROVIDER_LABELS: Record<string, string> = {
   gcp:          'GCP',
   azure:        'Azure',
   linode:       'Linode',
-  digitalocean: 'DigitalOcean',
-  ovh:          'OVH Cloud',
-  custom_dc:    'Custom DC',
+  digitalocean: 'DO',
+  ovh:          'OVH',
+  custom_dc:    'Custom',
 }
 
-function DonutChart({
-  data,
-}: {
-  data: Array<{ label: string; value: number; color: string }>
-}) {
+function DonutSVG({ data }: { data: Array<{ value: number; color: string }> }) {
   const total = data.reduce((s, d) => s + d.value, 0)
-  if (total === 0) {
-    return (
-      <div
-        className="w-24 h-24 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-ink-muted"
-        style={{ background: 'var(--bg-s2)' }}
-        role="img"
-        aria-label="No provider data"
-      >
-        —
-      </div>
-    )
-  }
+  if (total === 0) return <circle cx="18" cy="18" r="16" fill="none" stroke="#1A1A28" strokeWidth="4" />
 
-  let acc = 0
-  const segments = data
-    .filter(d => d.value > 0)
-    .map(d => {
-      const pct = (d.value / total) * 100
-      const seg = { ...d, from: acc, to: acc + pct }
-      acc += pct
-      return seg
-    })
-
-  const gradient = segments
-    .map(s => `${s.color} ${s.from.toFixed(2)}% ${s.to.toFixed(2)}%`)
-    .join(', ')
-
+  let offset = 0
+  const circumference = 2 * Math.PI * 16
   return (
-    <div
-      className="w-24 h-24 rounded-full relative flex-shrink-0"
-      style={{ background: `conic-gradient(${gradient})` }}
-      role="img"
-      aria-label="Provider distribution chart"
-    >
-      <div
-        className="absolute rounded-full"
-        style={{ inset: '28%', background: 'var(--bg-s1)' }}
-      />
-    </div>
+    <>
+      <circle cx="18" cy="18" r="16" fill="none" stroke="#1A1A28" strokeWidth="4" />
+      {data.filter(d => d.value > 0).map((d, i) => {
+        const pct = d.value / total
+        const dash = pct * circumference
+        const el = (
+          <circle
+            key={i}
+            cx="18" cy="18" r="16"
+            fill="none"
+            stroke={d.color}
+            strokeWidth="4"
+            strokeDasharray={`${dash} ${circumference - dash}`}
+            strokeDashoffset={-offset}
+          />
+        )
+        offset += dash
+        return el
+      })}
+    </>
   )
 }
 
@@ -93,102 +73,77 @@ export default function StatsCards() {
   const runPct  = total > 0 ? Math.round((running / total) * 100) : 0
 
   const providerData = Object.entries(stats?.by_provider ?? {})
-    .map(([p, v]) => ({
-      label: PROVIDER_LABELS[p] ?? p,
-      key:   p,
-      value: v,
-      color: PROVIDER_COLORS[p] ?? '#4B4B72',
-    }))
+    .map(([p, v]) => ({ key: p, label: PROVIDER_LABELS[p] ?? p, value: v, color: PROVIDER_COLORS[p] ?? '#4B4B72' }))
     .sort((a, b) => b.value - a.value)
 
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
       {/* Total */}
-      <div className="card-dark p-5 flex items-center gap-4">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'var(--ac-bg)', border: '1px solid var(--ac-bd)' }}
-        >
-          <Server size={19} className="text-accent" />
+      <div className="card-dark p-6">
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Total Servers</span>
+          <svg className="w-4 h-4 text-ink-muted opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 6h14M5 18h14" />
+          </svg>
         </div>
-        <div className="min-w-0">
-          <p className="text-[11px] text-ink-muted font-medium uppercase tracking-widest">
-            Total Servers
-          </p>
-          <p className="text-2xl font-bold text-ink-primary tabular-nums mt-0.5">{total}</p>
-          <p className="text-xs text-ink-muted mt-0.5">
-            {Object.keys(stats?.by_provider ?? {}).length} provider
-            {Object.keys(stats?.by_provider ?? {}).length !== 1 ? 's' : ''}
-          </p>
-        </div>
+        <p className="font-display text-4xl font-extrabold text-ink-primary tabular-nums leading-none">{total}</p>
+        <p className="mt-2 text-[10px] font-mono text-ink-muted">
+          {Object.keys(stats?.by_provider ?? {}).length} provider{Object.keys(stats?.by_provider ?? {}).length !== 1 ? 's' : ''}
+        </p>
       </div>
 
       {/* Running */}
-      <div className="card-dark p-5 flex items-center gap-4">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'var(--sg-bg)', border: '1px solid var(--sg-bd)' }}
-        >
-          <Activity size={19} className="text-status-green" />
+      <div className="card-dark p-6">
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Running</span>
+          <span className="status-dot-running flex-shrink-0" aria-hidden="true" />
         </div>
-        <div className="min-w-0">
-          <p className="text-[11px] text-ink-muted font-medium uppercase tracking-widest">
-            Running
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-2xl font-bold text-ink-primary tabular-nums">{running}</p>
-            <span className="status-dot-running" aria-hidden="true" />
-          </div>
-          <p className="text-xs text-ink-muted mt-0.5">{runPct}% of fleet</p>
-        </div>
+        <p className="font-display text-4xl font-extrabold tabular-nums leading-none" style={{ color: 'var(--sg)' }}>{running}</p>
+        <p className="mt-2 text-[10px] font-mono" style={{ color: 'var(--sg)' }}>
+          {runPct}% of fleet healthy
+        </p>
       </div>
 
       {/* Stopped */}
-      <div className="card-dark p-5 flex items-center gap-4">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'var(--sr-bg)', border: '1px solid var(--sr-bd)' }}
-        >
-          <Power size={19} className="text-status-red" />
+      <div className="card-dark p-6">
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Stopped</span>
+          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--sr)' }} aria-hidden="true" />
         </div>
-        <div className="min-w-0">
-          <p className="text-[11px] text-ink-muted font-medium uppercase tracking-widest">
-            Stopped
-          </p>
-          <p className="text-2xl font-bold text-ink-primary tabular-nums mt-0.5">{stopped}</p>
-          <p className="text-xs text-ink-muted mt-0.5">
-            {total > 0 ? `${100 - runPct}% idle` : 'No servers'}
-          </p>
-        </div>
+        <p className="font-display text-4xl font-extrabold tabular-nums leading-none" style={{ color: 'var(--sr)' }}>{stopped}</p>
+        <p className="mt-2 text-[10px] font-mono" style={{ color: 'var(--sr)' }}>
+          {total > 0 ? `${100 - runPct}% idle` : 'No servers'}
+        </p>
       </div>
 
       {/* Provider Distribution */}
-      <div className="card-dark p-5 flex items-center gap-4 col-span-1">
-        <DonutChart data={providerData} />
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <p className="text-[11px] text-ink-muted font-medium uppercase tracking-widest">
-            By Provider
-          </p>
-          {providerData.length === 0 ? (
-            <p className="text-xs text-ink-muted">No providers yet</p>
-          ) : (
-            providerData.slice(0, 5).map(d => (
-              <div key={d.key} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: d.color }}
-                    aria-hidden="true"
-                  />
-                  <span className="text-xs text-ink-secondary truncate">{d.label}</span>
-                </div>
-                <span className="text-xs font-mono text-ink-primary font-medium tabular-nums">
-                  {d.value}
-                </span>
-              </div>
-            ))
-          )}
+      <div className="card-dark p-6">
+        <div className="flex items-start justify-between mb-3">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Providers</span>
+          <span className="text-[10px] font-mono text-ink-muted">Live</span>
         </div>
+        {providerData.length === 0 ? (
+          <p className="text-xs text-ink-muted mt-4">No providers yet</p>
+        ) : (
+          <div className="flex items-center gap-4">
+            <div className="relative w-16 h-16 flex-shrink-0">
+              <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                <DonutSVG data={providerData} />
+              </svg>
+            </div>
+            <div className="flex-1 space-y-1.5 min-w-0">
+              {providerData.slice(0, 4).map(d => (
+                <div key={d.key} className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+                    <span className="text-[10px] text-ink-primary font-mono truncate">{d.label}</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-ink-secondary tabular-nums">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

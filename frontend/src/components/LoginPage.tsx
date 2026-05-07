@@ -63,7 +63,7 @@ export default function LoginPage() {
             <Wifi size={22} className="text-accent" style={{ filter: 'drop-shadow(0 0 6px rgba(0,212,255,0.6))' }} />
           </div>
           <h1 className="text-2xl font-display font-bold text-ink-primary tracking-tight">ServerInventory</h1>
-          <p className="text-xs text-ink-muted mt-1 font-mono tracking-widest uppercase">Infrastructure Manager</p>
+          <p className="text-[10px] text-accent mt-1 font-mono tracking-widest uppercase">Infrastructure Manager</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
@@ -86,7 +86,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="username"
-              className="block text-xs font-medium text-ink-secondary mb-1.5"
+              className="block text-[10px] font-medium text-ink-secondary mb-1.5 uppercase tracking-wider"
             >
               Username
             </label>
@@ -107,7 +107,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-xs font-medium text-ink-secondary mb-1.5"
+              className="block text-[10px] font-medium text-ink-secondary mb-1.5 uppercase tracking-wider"
             >
               Password
             </label>
@@ -168,7 +168,11 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !username.trim() || !password}
-            className="btn-primary w-full justify-center py-2.5"
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-bold
+                       transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-2"
+            style={{ background: 'var(--ac)', color: 'var(--btn-primary-fg)' }}
+            onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = 'var(--ach)' }}
+            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--ac)'}
           >
             {loading ? (
               <>

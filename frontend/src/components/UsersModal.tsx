@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Plus, Trash2, ToggleLeft, ToggleRight, Shield } from 'lucide-react'
+import { X, Plus, Trash2, Shield } from 'lucide-react'
+import Toggle from './Toggle'
 import { usersApi, type ApiUser } from '../api'
 import { useToast } from '../hooks/useToast'
 
@@ -161,16 +162,11 @@ export default function UsersModal({ onClose }: Props) {
                   </div>
                 ) : (
                   <>
-                    <button
-                      onClick={() => toggleMutation.mutate(user.id)}
+                    <Toggle
+                      checked={user.is_active}
+                      onChange={() => toggleMutation.mutate(user.id)}
                       aria-label={user.is_active ? 'Disable user' : 'Enable user'}
-                      className="p-1.5 rounded-lg hover:bg-surface-3 transition-colors"
-                    >
-                      {user.is_active
-                        ? <ToggleRight size={19} className="text-status-green" />
-                        : <ToggleLeft  size={19} className="text-ink-muted"    />
-                      }
-                    </button>
+                    />
                     <button
                       onClick={() => setConfirmId(user.id)}
                       aria-label={`Delete ${user.username}`}

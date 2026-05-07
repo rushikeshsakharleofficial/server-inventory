@@ -72,3 +72,120 @@ class GCPProvider(CloudProvider):
                     },
                 })
         return servers
+
+    def fetch_databases(self) -> List[Dict[str, Any]]:
+        import json
+        import requests
+
+        sa = self.config.get("service_account_json", {})
+        if isinstance(sa, str):
+            sa = json.loads(sa)
+        project_id = sa.get("project_id") or self.config.get("project_id")
+        if not project_id:
+            return []
+        try:
+            from google.oauth2 import service_account
+            from google.auth.transport.requests import Request as GRequest
+
+            creds = service_account.Credentials.from_service_account_info(
+                sa, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            creds.refresh(GRequest())
+            token = creds.token
+        except Exception:
+            return []
+
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"https://sqladmin.googleapis.com/v1/projects/{project_id}/instances"
+        resp = requests.get(url, headers=headers, timeout=30)
+        if not resp.ok:
+            return []
+
+        result = []
+        status_map = {
+            "RUNNABLE": "running",
+            "SUSPENDED": "stopped",
+            "PENDING_DELETE": "terminated",
+            "PENDING_CREATE": "pending",
+            "MAINTENANCE": "pending",
+            "FAILED": "stopped",
+        }
+        for inst in resp.json().get("items", []):
+            settings = inst.get("settings", {})
+            ip_addrs = inst.get("ipAddresses", [])
+            endpoint = next((a["ipAddress"] for a in ip_addrs if a.get("type") == "PRIMARY"), None)
+            result.append({
+                "cloud_id": inst["name"],
+                "name": inst["name"],
+                "provider": "gcp",
+                "region": inst.get("region"),
+                "engine": inst.get("databaseVersion", "").split("_")[0].lower(),
+                "engine_version": inst.get("databaseVersion"),
+                "status": status_map.get(inst.get("state", ""), "unknown"),
+                "endpoint": endpoint,
+                "port": None,
+                "storage_gb": settings.get("dataDiskSizeGb"),
+                "instance_type": settings.get("tier"),
+                "tags": settings.get("userLabels", {}),
+                "extra": {
+                    "project": project_id,
+                    "availability_type": settings.get("availabilityType"),
+                },
+            })
+        return result
+
+    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+        import json
+        import requests
+
+        sa = self.config.get("service_account_json", {})
+        if isinstance(sa, str):
+            sa = json.loads(sa)
+        project_id = sa.get("project_id") or self.config.get("project_id")
+        if not project_id:
+            return []
+        try:
+            from google.oauth2 import service_account
+            from google.auth.transport.requests import Request as GRequest
+
+            creds = service_account.Credentials.from_service_account_info(
+                sa, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            creds.refresh(GRequest())
+            token = creds.token
+        except Exception:
+            return []
+
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"https://container.googleapis.com/v1/projects/{project_id}/locations/-/clusters"
+        resp = requests.get(url, headers=headers, timeout=30)
+        if not resp.ok:
+            return []
+
+        result = []
+        status_map = {
+            "RUNNING": "running",
+            "PROVISIONING": "pending",
+            "STOPPING": "pending",
+            "ERROR": "stopped",
+            "DEGRADED": "stopped",
+            "RECONCILING": "pending",
+        }
+        for cluster in resp.json().get("clusters", []):
+            node_count = sum(p.get("initialNodeCount", 0) for p in cluster.get("nodePools", []))
+            result.append({
+                "cloud_id": cluster.get("selfLink", cluster["name"]),
+                "name": cluster["name"],
+                "provider": "gcp",
+                "region": cluster.get("location"),
+                "version": cluster.get("currentMasterVersion"),
+                "status": status_map.get(cluster.get("status", ""), "unknown"),
+                "node_count": node_count or cluster.get("currentNodeCount"),
+                "endpoint": cluster.get("endpoint"),
+                "tags": cluster.get("resourceLabels", {}),
+                "extra": {
+                    "zone": cluster.get("zone"),
+                    "network": cluster.get("network"),
+                },
+            })
+        return result

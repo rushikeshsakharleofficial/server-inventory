@@ -141,10 +141,12 @@ export default function DashboardPage() {
       <StatsCards />
 
       {/* Server Growth */}
-      <div className="card-dark p-5">
-        <div className="mb-4">
-          <p className="text-sm font-semibold text-ink-primary">Server Growth</p>
-          <p className="text-xs text-ink-muted mt-0.5">Total server count over the last 30 days</p>
+      <div className="card-dark p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-xl font-extrabold text-ink-primary">Server Growth</h3>
+            <p className="text-xs text-ink-muted mt-1">Infrastructure scaling over the last 30 days</p>
+          </div>
         </div>
 
         {histLoading ? (
@@ -188,10 +190,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Provider Breakdown */}
-      <div className="card-dark p-5">
-        <div className="mb-4">
-          <p className="text-sm font-semibold text-ink-primary">Provider Breakdown</p>
-          <p className="text-xs text-ink-muted mt-0.5">Server count per cloud provider</p>
+      <div className="card-dark p-6">
+        <div className="mb-6">
+          <h3 className="font-display text-xl font-extrabold text-ink-primary">Provider Breakdown</h3>
+          <p className="text-xs text-ink-muted mt-1">Server count per cloud provider</p>
         </div>
 
         {statsLoading ? (

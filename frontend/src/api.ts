@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob } from './types'
+import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob, DatabaseInstance, KubernetesCluster } from './types'
 
 export const http = axios.create({ baseURL: '' })
 
@@ -107,6 +107,28 @@ export const cronsApi = {
 
   runNow: (id: number) =>
     http.post<CronJob>(`/api/crons/${id}/run-now`).then(r => r.data),
+}
+
+export const resourceMapApi = {
+  server:     (id: number) => http.get(`/api/resource-map/server/${id}`).then(r => r.data),
+  database:   (id: number) => http.get(`/api/resource-map/database/${id}`).then(r => r.data),
+  kubernetes: (id: number) => http.get(`/api/resource-map/kubernetes/${id}`).then(r => r.data),
+}
+
+export const databasesApi = {
+  list: (params?: { provider?: string; status?: string; search?: string }) =>
+    http.get<DatabaseInstance[]>('/api/databases', { params }).then(r => r.data),
+
+  sync: (provider?: string) =>
+    http.post('/api/databases/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+}
+
+export const kubernetesApi = {
+  list: (params?: { provider?: string; status?: string; search?: string }) =>
+    http.get<KubernetesCluster[]>('/api/kubernetes', { params }).then(r => r.data),
+
+  sync: (provider?: string) =>
+    http.post('/api/kubernetes/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const settingsApi = {

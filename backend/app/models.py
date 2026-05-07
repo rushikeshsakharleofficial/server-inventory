@@ -163,3 +163,56 @@ class CronJob(Base):
     __table_args__ = (
         Index("ix_cron_jobs_is_active", "is_active"),
     )
+
+
+class DatabaseInstance(Base):
+    __tablename__ = "database_instances"
+
+    id             = Column(Integer, primary_key=True)
+    cloud_id       = Column(String(255), nullable=True)
+    name           = Column(String(255), nullable=False)
+    provider       = Column(String(64),  nullable=False)
+    region         = Column(String(128), nullable=True)
+    engine         = Column(String(64),  nullable=True)   # postgres, mysql, redis, mongodb
+    engine_version = Column(String(32),  nullable=True)
+    status         = Column(String(32),  default="unknown")
+    endpoint       = Column(String(255), nullable=True)   # hostname
+    port           = Column(Integer,     nullable=True)
+    storage_gb     = Column(Float,       nullable=True)
+    instance_type  = Column(String(128), nullable=True)
+    tags           = Column(JSON, default=_empty_json_dict)
+    extra          = Column(JSON, default=_empty_json_dict)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at     = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_synced    = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_db_provider", "provider"),
+        Index("ix_db_status", "status"),
+        Index("ix_db_cloud_id_provider", "cloud_id", "provider"),
+    )
+
+
+class KubernetesCluster(Base):
+    __tablename__ = "kubernetes_clusters"
+
+    id          = Column(Integer, primary_key=True)
+    cloud_id    = Column(String(255), nullable=True)
+    name        = Column(String(255), nullable=False)
+    provider    = Column(String(64),  nullable=False)
+    region      = Column(String(128), nullable=True)
+    version     = Column(String(32),  nullable=True)     # k8s version e.g. 1.29
+    status      = Column(String(32),  default="unknown")
+    node_count  = Column(Integer,     nullable=True)
+    endpoint    = Column(String(255), nullable=True)
+    tags        = Column(JSON, default=_empty_json_dict)
+    extra       = Column(JSON, default=_empty_json_dict)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_synced = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_k8s_provider", "provider"),
+        Index("ix_k8s_status", "status"),
+        Index("ix_k8s_cloud_id_provider", "cloud_id", "provider"),
+    )

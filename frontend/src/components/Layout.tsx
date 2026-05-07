@@ -4,6 +4,7 @@ import {
   Server, Cloud, Activity, RefreshCw, Plus,
   Menu, X, Settings, Wifi, Users, LogOut, Shield, PencilLine, Eye,
   CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal, Timer,
+  Layers, Database, Box, ChevronDown,
 } from 'lucide-react'
 import { syncApi } from '../api'
 import { useToast } from '../hooks/useToast'
@@ -21,9 +22,16 @@ interface LayoutProps {
   children: React.ReactNode
 }
 
+const INVENTORY_VIEWS: View[] = ['servers', 'databases', 'kubernetes']
+
+const INVENTORY_SUB: { id: View; label: string; Icon: React.ElementType }[] = [
+  { id: 'servers',    label: 'Servers',    Icon: Server   },
+  { id: 'databases',  label: 'Databases',  Icon: Database },
+  { id: 'kubernetes', label: 'Kubernetes', Icon: Box      },
+]
+
 const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',      Icon: LayoutDashboard   },
-  { id: 'servers',    label: 'Servers',         Icon: Server            },
   { id: 'providers',  label: 'Cloud Providers', Icon: Cloud             },
   { id: 'sync-logs',  label: 'Sync Logs',       Icon: Activity          },
   { id: 'crons',      label: 'Cron Jobs',       Icon: Timer             },
@@ -34,6 +42,8 @@ const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
 const VIEW_TITLE: Record<View, string> = {
   dashboard:   'Dashboard',
   servers:     'Server Inventory',
+  databases:   'Databases',
+  kubernetes:  'Kubernetes',
   providers:   'Cloud Providers',
   'sync-logs': 'Sync Logs',
   crons:       'Cron Jobs',
@@ -58,6 +68,8 @@ export default function Layout({
   onManageCredentials, onManageUsers, children,
 }: LayoutProps) {
   const [open, setOpen] = useState(true)
+  const isInventoryView = INVENTORY_VIEWS.includes(currentView)
+  const [inventoryOpen, setInventoryOpen] = useState(() => INVENTORY_VIEWS.includes(currentView))
   const qc = useQueryClient()
   const { toast } = useToast()
   const { user, logout } = useAuth()
@@ -149,41 +161,90 @@ export default function Layout({
         aria-label="Sidebar navigation"
       >
         {/* Logo */}
-        <div className="px-4 py-5 flex items-center gap-3 border-b border-border">
+        <div className="px-6 py-6 flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--ac-bg)', border: '1px solid var(--ac-bd)' }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'var(--ac)' }}
           >
-            <Wifi size={16} className="text-accent" />
+            <Wifi size={15} className="text-black" />
           </div>
           <div className="overflow-hidden">
-            <p className="text-sm font-display font-bold text-ink-primary tracking-tight truncate">ServerInventory</p>
-            <p className="text-[10px] text-ink-muted font-mono truncate mt-0.5 tracking-widest uppercase">Infra Manager</p>
+            <p className="text-[15px] font-display font-bold text-accent tracking-tight truncate">ServerInventory</p>
+            <p className="text-[9px] text-ink-muted font-mono truncate mt-0.5 tracking-[0.2em] uppercase">Infrastructure Console</p>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-2.5 space-y-0.5 overflow-y-auto" role="navigation">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto py-2" role="navigation">
+          {/* Dashboard */}
+          <button
+            onClick={() => onViewChange('dashboard')}
+            aria-current={currentView === 'dashboard' ? 'page' : undefined}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 ${
+              currentView === 'dashboard'
+                ? 'text-accent font-bold border-l-2 border-accent'
+                : 'text-ink-secondary hover:text-accent hover:bg-surface-3 border-l-2 border-transparent'
+            }`}
+            style={currentView === 'dashboard' ? { background: 'var(--nav-active-bg)' } : {}}
+          >
+            <LayoutDashboard size={16} className="flex-shrink-0" />
+            <span className="truncate">Dashboard</span>
+          </button>
+
+          {/* ── Inventory group ── */}
+          <div>
+            <button
+              onClick={() => setInventoryOpen(o => !o)}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150
+                border-l-2 ${isInventoryView
+                  ? 'text-accent font-bold border-accent'
+                  : 'text-ink-secondary hover:text-accent hover:bg-surface-3 border-transparent'
+                }`}
+              style={isInventoryView ? { background: 'var(--nav-active-bg)' } : {}}
+            >
+              <Layers size={16} className="flex-shrink-0" />
+              <span className="flex-1 text-left truncate">Inventory</span>
+              <ChevronDown
+                size={13}
+                className={`flex-shrink-0 transition-transform duration-150 ${inventoryOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {inventoryOpen && (
+              <div className="ml-4 border-l border-border pl-1 space-y-0.5 py-0.5">
+                {INVENTORY_SUB.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => onViewChange(id)}
+                    aria-current={currentView === id ? 'page' : undefined}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-[13px] rounded-lg
+                               transition-colors duration-150 ${
+                                 currentView === id
+                                   ? 'text-accent font-bold bg-[var(--nav-active-bg)]'
+                                   : 'text-ink-secondary hover:text-accent hover:bg-surface-3'
+                               }`}
+                  >
+                    <Icon size={14} className="flex-shrink-0" />
+                    <span className="truncate">{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Rest of nav */}
           {NAV.map(({ id, label, Icon }) => (
             <button
               key={id}
               onClick={() => onViewChange(id)}
               aria-current={currentView === id ? 'page' : undefined}
-              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
-                         transition-colors duration-150 ${
-                           currentView === id
-                             ? 'text-accent font-medium'
-                             : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-3'
-                         }`}
-              style={currentView === id
-                ? { background: 'var(--nav-active-bg)', border: '1px solid var(--nav-active-bd)' }
-                : {}}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 ${
+                currentView === id
+                  ? 'text-accent font-bold border-l-2 border-accent'
+                  : 'text-ink-secondary hover:text-accent hover:bg-surface-3 border-l-2 border-transparent'
+              }`}
+              style={currentView === id ? { background: 'var(--nav-active-bg)' } : {}}
             >
-              {currentView === id && (
-                <span className="absolute left-0 inset-y-0 flex items-center">
-                  <span className="w-0.5 h-5 rounded-r-full bg-accent" />
-                </span>
-              )}
               <Icon size={16} className="flex-shrink-0" />
               <span className="truncate">{label}</span>
             </button>
@@ -191,11 +252,11 @@ export default function Layout({
         </nav>
 
         {/* Footer */}
-        <div className="p-2.5 border-t border-border space-y-0.5">
+        <div className="pb-4 border-t border-border pt-2 space-y-0.5">
           <button
             onClick={onManageCredentials}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
-                       text-ink-secondary hover:text-ink-primary hover:bg-surface-3 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm
+                       text-ink-secondary hover:text-accent hover:bg-surface-3 transition-colors border-l-2 border-transparent"
           >
             <Settings size={16} className="flex-shrink-0" />
             <span className="truncate">Manage Credentials</span>
@@ -204,8 +265,8 @@ export default function Layout({
           {isAdmin && (
             <button
               onClick={onManageUsers}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
-                         text-ink-secondary hover:text-ink-primary hover:bg-surface-3 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm
+                         text-ink-secondary hover:text-accent hover:bg-surface-3 transition-colors border-l-2 border-transparent"
             >
               <Users size={16} className="flex-shrink-0" />
               <span className="truncate">Manage Users</span>
@@ -229,7 +290,7 @@ export default function Layout({
             >
               {open ? <X size={17} /> : <Menu size={17} />}
             </button>
-            <h1 className="text-[15px] font-display font-semibold text-ink-primary tracking-tight">
+            <h1 className="text-[15px] font-display font-bold text-ink-primary tracking-tight">
               {VIEW_TITLE[currentView]}
             </h1>
           </div>
@@ -294,7 +355,7 @@ export default function Layout({
                 <button
                   onClick={() => syncMutation.mutate()}
                   disabled={isSyncing || syncMutation.isPending}
-                  className="btn-ghost"
+                  className="btn-primary"
                   aria-label="Sync all cloud providers"
                 >
                   <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} aria-hidden="true" />

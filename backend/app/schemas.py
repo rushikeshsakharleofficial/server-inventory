@@ -204,3 +204,42 @@ class CronJobResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class DatabaseInstanceResponse(BaseModel):
+    id: int
+    cloud_id: Optional[str] = None
+    name: str
+    provider: str
+    region: Optional[str] = None
+    engine: Optional[str] = None
+    engine_version: Optional[str] = None
+    status: str
+    endpoint: Optional[str] = None
+    port: Optional[int] = None
+    storage_gb: Optional[float] = None
+    instance_type: Optional[str] = None
+    tags: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[datetime] = None
+    last_synced: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class KubernetesClusterResponse(BaseModel):
+    id: int
+    cloud_id: Optional[str] = None
+    name: str
+    provider: str
+    region: Optional[str] = None
+    version: Optional[str] = None
+    status: str
+    node_count: Optional[int] = None
+    endpoint: Optional[str] = None
+    tags: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[datetime] = None
+    last_synced: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}

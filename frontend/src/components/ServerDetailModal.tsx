@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X, RefreshCw } from 'lucide-react'
+import { X, RefreshCw, Map } from 'lucide-react'
 import { serversApi, sshCredentialsApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
+import ResourceMapModal from './ResourceMapModal'
 import type { Server, ServerStatus } from '../types'
 
 interface Props {
@@ -53,6 +54,7 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated }: 
   const qc = useQueryClient()
   const { toast } = useToast()
   const [selectedCredentialId, setSelectedCredentialId] = useState('')
+  const [showMap, setShowMap] = useState(false)
 
   const statusCfg = STATUS_CFG[server.status] ?? STATUS_CFG.unknown
 
@@ -88,6 +90,7 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated }: 
       : []
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)' }}
@@ -282,9 +285,28 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated }: 
               </button>
             </>
           )}
+          <button
+            onClick={() => setShowMap(true)}
+            className="btn-ghost"
+          >
+            <Map size={14} />
+            Resource Map
+          </button>
           <button onClick={onClose} className="btn-ghost">Close</button>
         </div>
       </div>
     </div>
+
+    {showMap && (
+      <ResourceMapModal
+        resourceId={server.id}
+        resourceType="server"
+        resourceName={server.name}
+        provider={server.provider}
+        region={server.region}
+        onClose={() => setShowMap(false)}
+      />
+    )}
+    </>
   )
 }

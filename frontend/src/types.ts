@@ -93,4 +93,39 @@ export interface CronJob {
   updated_at?: string
 }
 
-export type View = 'dashboard' | 'servers' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings'
+export type View = 'dashboard' | 'servers' | 'databases' | 'kubernetes' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings'
+
+export interface DatabaseInstance {
+  id: number
+  cloud_id?: string
+  name: string
+  provider: string
+  region?: string
+  engine?: string
+  engine_version?: string
+  status: string
+  endpoint?: string
+  port?: number
+  storage_gb?: number
+  instance_type?: string
+  tags: Record<string, string>
+  extra: Record<string, unknown>
+  created_at?: string
+  last_synced?: string
+}
+
+export interface KubernetesCluster {
+  id: number
+  cloud_id?: string
+  name: string
+  provider: string
+  region?: string
+  version?: string
+  status: string
+  node_count?: number
+  endpoint?: string
+  tags: Record<string, string>
+  extra: Record<string, unknown>
+  created_at?: string
+  last_synced?: string
+}

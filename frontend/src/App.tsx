@@ -14,10 +14,13 @@ import UsersModal from './components/UsersModal'
 import ProvidersPage from './components/ProvidersPage'
 import SyncLogsPage from './components/SyncLogsPage'
 import DashboardPage from './components/DashboardPage'
+import DatabasesPage from './components/DatabasesPage'
+import KubernetesPage from './components/KubernetesPage'
 import SSHPage from './components/SSHPage'
 import SettingsPage from './components/SettingsPage'
 import CronsPage from './components/CronsPage'
 import ServerDetailModal from './components/ServerDetailModal'
+import { GooeyFilter } from './components/Toggle'
 import type { View, Server } from './types'
 
 const queryClient = new QueryClient({
@@ -27,18 +30,24 @@ const queryClient = new QueryClient({
 })
 
 const PATH_TO_VIEW: Record<string, View> = {
-  '/':           'servers',
-  '/dashboard':  'dashboard',
-  '/providers':  'providers',
-  '/sync-logs':  'sync-logs',
-  '/crons':      'crons',
-  '/ssh':        'ssh',
-  '/settings':   'settings',
+  '/':                    'servers',
+  '/dashboard':           'dashboard',
+  '/inventory':           'servers',
+  '/inventory/servers':   'servers',
+  '/inventory/databases': 'databases',
+  '/inventory/kubernetes':'kubernetes',
+  '/providers':           'providers',
+  '/sync-logs':           'sync-logs',
+  '/crons':               'crons',
+  '/ssh':                 'ssh',
+  '/settings':            'settings',
 }
 
 const VIEW_TO_PATH: Record<View, string> = {
   'dashboard':  '/dashboard',
-  'servers':    '/',
+  'servers':    '/inventory/servers',
+  'databases':  '/inventory/databases',
+  'kubernetes': '/inventory/kubernetes',
   'providers':  '/providers',
   'sync-logs':  '/sync-logs',
   'crons':      '/crons',
@@ -99,6 +108,9 @@ function AppContent() {
           </div>
         )}
 
+        {view === 'databases' && <DatabasesPage />}
+        {view === 'kubernetes' && <KubernetesPage />}
+
         {view === 'providers' && (
           <div className="animate-fade-in">
             <ProvidersPage onAddCredential={() => setShowCredentials(true)} />
@@ -152,15 +164,18 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-    <ToastProvider>
-      <AuthProvider>
-        <QueryClientProvider client={queryClient}>
-          <AppContent />
-        </QueryClientProvider>
-      </AuthProvider>
-      <ToastContainer />
-    </ToastProvider>
-    </ThemeProvider>
+    <>
+      <ThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <QueryClientProvider client={queryClient}>
+              <AppContent />
+            </QueryClientProvider>
+          </AuthProvider>
+          <ToastContainer />
+        </ToastProvider>
+      </ThemeProvider>
+      <GooeyFilter />
+    </>
   )
 }

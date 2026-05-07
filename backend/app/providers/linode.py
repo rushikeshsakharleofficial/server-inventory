@@ -67,3 +67,109 @@ class LinodeProvider(CloudProvider):
             page += 1
 
         return servers
+
+    def fetch_databases(self) -> List[Dict[str, Any]]:
+        import requests
+
+        token = self.config.get("api_token")
+        headers = {"Authorization": f"Bearer {token}"}
+        result = []
+        for engine_path in ["mysql", "postgresql"]:
+            url = f"https://api.linode.com/v4/databases/{engine_path}/instances"
+            page = 1
+            while True:
+                resp = requests.get(
+                    url,
+                    headers=headers,
+                    params={"page": page, "page_size": 100},
+                    timeout=30,
+                )
+                if not resp.ok:
+                    break
+                data = resp.json()
+                status_map = {
+                    "active": "running",
+                    "provisioning": "pending",
+                    "suspending": "pending",
+                    "suspended": "stopped",
+                    "resuming": "pending",
+                    "restoring": "pending",
+                    "failed": "stopped",
+                    "degraded": "stopped",
+                }
+                for db in data.get("data", []):
+                    hosts = db.get("hosts", {})
+                    result.append({
+                        "cloud_id": str(db["id"]),
+                        "name": db["label"],
+                        "provider": "linode",
+                        "region": db.get("region"),
+                        "engine": engine_path,
+                        "engine_version": db.get("version"),
+                        "status": status_map.get(db.get("status", ""), "unknown"),
+                        "endpoint": hosts.get("primary"),
+                        "port": db.get("port"),
+                        "storage_gb": db.get("total_disk_size_gb"),
+                        "instance_type": db.get("type"),
+                        "tags": {t: t for t in db.get("tags", [])},
+                        "extra": {
+                            "cluster_size": db.get("cluster_size"),
+                            "replication_type": db.get("replication_type"),
+                        },
+                    })
+                if page >= data.get("pages", 1):
+                    break
+                page += 1
+        return result
+
+    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+        import requests
+
+        token = self.config.get("api_token")
+        headers = {"Authorization": f"Bearer {token}"}
+        page = 1
+        result = []
+        while True:
+            resp = requests.get(
+                "https://api.linode.com/v4/lke/clusters",
+                headers=headers,
+                params={"page": page, "page_size": 100},
+                timeout=30,
+            )
+            if not resp.ok:
+                break
+            data = resp.json()
+            status_map = {
+                "ready": "running",
+                "not_ready": "pending",
+            }
+            for cluster in data.get("data", []):
+                node_count = 0
+                try:
+                    pools_resp = requests.get(
+                        f"https://api.linode.com/v4/lke/clusters/{cluster['id']}/pools",
+                        headers=headers,
+                        timeout=15,
+                    )
+                    if pools_resp.ok:
+                        node_count = sum(p.get("count", 0) for p in pools_resp.json().get("data", []))
+                except Exception:
+                    pass
+                result.append({
+                    "cloud_id": str(cluster["id"]),
+                    "name": cluster["label"],
+                    "provider": "linode",
+                    "region": cluster.get("region"),
+                    "version": cluster.get("k8s_version"),
+                    "status": status_map.get(cluster.get("status", ""), "unknown"),
+                    "node_count": node_count,
+                    "endpoint": None,
+                    "tags": {t: t for t in cluster.get("tags", [])},
+                    "extra": {
+                        "control_plane": cluster.get("control_plane"),
+                    },
+                })
+            if page >= data.get("pages", 1):
+                break
+            page += 1
+        return result

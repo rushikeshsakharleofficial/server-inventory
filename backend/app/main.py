@@ -11,6 +11,9 @@ from .routers.ssh_credentials import router as ssh_credentials_router
 from .routers.stats import router as stats_router
 from .routers.settings import router as settings_router
 from .routers.crons import router as crons_router
+from .routers.databases import router as databases_router
+from .routers.kubernetes_clusters import router as kubernetes_router
+from .routers.resource_map import router as resource_map_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -47,6 +50,9 @@ app.include_router(ssh_credentials_router)
 app.include_router(stats_router)
 app.include_router(settings_router)
 app.include_router(crons_router)
+app.include_router(databases_router)
+app.include_router(kubernetes_router)
+app.include_router(resource_map_router)
 
 
 def _cleanup_stale_syncs() -> None:

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Trash2, ToggleLeft, ToggleRight, Plus, Eye, EyeOff } from 'lucide-react'
+import { X, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
+import Toggle from './Toggle'
 import { credentialsApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
@@ -190,16 +191,11 @@ export default function CredentialsModal({ onClose }: Props) {
                     </div>
                   ) : (
                     <>
-                      <button
-                        onClick={() => toggleMutation.mutate(cred.id)}
+                      <Toggle
+                        checked={cred.is_active}
+                        onChange={() => toggleMutation.mutate(cred.id)}
                         aria-label={cred.is_active ? 'Disable credential' : 'Enable credential'}
-                        className="p-1.5 transition-colors rounded-lg hover:bg-surface-3"
-                      >
-                        {cred.is_active
-                          ? <ToggleRight size={20} className="text-status-green" />
-                          : <ToggleLeft  size={20} className="text-ink-muted" />
-                        }
-                      </button>
+                      />
                       <button
                         onClick={() => setConfirmId(cred.id)}
                         aria-label={`Delete ${cred.name}`}

@@ -114,7 +114,7 @@ export default function ServerTable({
   }: { label: string; field?: SortField; center?: boolean }) => (
     <th
       onClick={field ? () => toggleSort(field) : undefined}
-      className={`px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider whitespace-nowrap select-none ${
+      className={`px-6 py-3 text-left text-[10px] font-bold text-ink-muted uppercase tracking-widest whitespace-nowrap select-none ${
         field ? 'cursor-pointer hover:text-ink-secondary transition-colors' : ''
       } ${center ? 'text-center' : ''}`}
     >
@@ -134,7 +134,7 @@ export default function ServerTable({
   return (
     <div className="card-dark overflow-hidden">
       {/* Toolbar */}
-      <div className="p-4 border-b border-border flex flex-wrap gap-3 items-center bg-surface-1">
+      <div className="px-6 py-4 border-b border-border flex flex-wrap gap-3 items-center" style={{ background: 'var(--bg-s1)' }}>
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
           <input
@@ -185,8 +185,8 @@ export default function ServerTable({
           </button>
         )}
 
-        <span className="ml-auto text-xs text-ink-muted tabular-nums">
-          {servers.length} server{servers.length !== 1 ? 's' : ''}
+        <span className="ml-auto text-xs text-ink-muted font-mono tabular-nums">
+          <span className="text-accent font-bold">{servers.length}</span> server{servers.length !== 1 ? 's' : ''} found
         </span>
 
         <button onClick={onAddServer} className="btn-primary">
@@ -243,9 +243,9 @@ export default function ServerTable({
                 >
                   {/* Name */}
                   <td>
-                    <p className="text-sm font-medium text-ink-primary">{server.name}</p>
+                    <p className="text-sm font-bold text-ink-primary">{server.name}</p>
                     {server.hostname && (
-                      <p className="text-xs text-ink-muted font-mono">{server.hostname}</p>
+                      <p className="text-[10px] text-ink-muted font-mono mt-0.5">{server.hostname}</p>
                     )}
                   </td>
 
@@ -267,7 +267,7 @@ export default function ServerTable({
                   {/* Status */}
                   <td>
                     <span
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium"
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight w-fit"
                       style={{ color: cfg.text, backgroundColor: cfg.bg, border: `1px solid ${cfg.border}` }}
                     >
                       {cfg.dot === 'running' ? (

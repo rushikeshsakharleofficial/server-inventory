@@ -19,6 +19,7 @@ export const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function applyTheme(t: Theme) {
   document.documentElement.setAttribute('data-theme', t)
+  document.documentElement.style.colorScheme = t
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

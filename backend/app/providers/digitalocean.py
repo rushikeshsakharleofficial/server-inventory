@@ -68,3 +68,88 @@ class DigitalOceanProvider(CloudProvider):
             params = {}
 
         return servers
+
+    def fetch_databases(self) -> List[Dict[str, Any]]:
+        import requests
+
+        token = self.config["api_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = requests.get(
+            "https://api.digitalocean.com/v2/databases",
+            headers=headers,
+            params={"per_page": 200},
+            timeout=30,
+        )
+        if not resp.ok:
+            return []
+        result = []
+        status_map = {
+            "online": "running",
+            "creating": "pending",
+            "migrating": "pending",
+            "forking": "pending",
+            "resizing": "pending",
+            "configuring_log_forwarder": "pending",
+        }
+        for db in resp.json().get("databases", []):
+            conn = db.get("connection", {})
+            result.append({
+                "cloud_id": db["id"],
+                "name": db["name"],
+                "provider": "digitalocean",
+                "region": db.get("region"),
+                "engine": db.get("engine"),
+                "engine_version": db.get("version"),
+                "status": status_map.get(db.get("status", ""), "unknown"),
+                "endpoint": conn.get("host"),
+                "port": conn.get("port"),
+                "storage_gb": db.get("storage_size_mib", 0) / 1024 if db.get("storage_size_mib") else None,
+                "instance_type": db.get("size"),
+                "tags": {t: t for t in db.get("tags", [])},
+                "extra": {
+                    "num_nodes": db.get("num_nodes"),
+                    "db_names": db.get("db_names", []),
+                },
+            })
+        return result
+
+    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+        import requests
+
+        token = self.config["api_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = requests.get(
+            "https://api.digitalocean.com/v2/kubernetes/clusters",
+            headers=headers,
+            params={"per_page": 200},
+            timeout=30,
+        )
+        if not resp.ok:
+            return []
+        result = []
+        status_map = {
+            "running": "running",
+            "provisioning": "pending",
+            "degraded": "stopped",
+            "error": "stopped",
+            "deleting": "terminated",
+            "invalid": "stopped",
+        }
+        for cluster in resp.json().get("kubernetes_clusters", []):
+            node_count = sum(p.get("count", 0) for p in cluster.get("node_pools", []))
+            result.append({
+                "cloud_id": cluster["id"],
+                "name": cluster["name"],
+                "provider": "digitalocean",
+                "region": cluster.get("region"),
+                "version": cluster.get("version"),
+                "status": status_map.get(cluster.get("status", {}).get("state", ""), "unknown"),
+                "node_count": node_count,
+                "endpoint": cluster.get("endpoint"),
+                "tags": {t: t for t in cluster.get("tags", [])},
+                "extra": {
+                    "auto_upgrade": cluster.get("auto_upgrade"),
+                    "surge_upgrade": cluster.get("surge_upgrade"),
+                },
+            })
+        return result

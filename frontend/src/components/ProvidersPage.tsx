@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Trash2, ToggleLeft, ToggleRight, Plus, Cloud, ChevronDown, ChevronRight } from 'lucide-react'
+import { RefreshCw, Trash2, Plus, Cloud, ChevronDown, ChevronRight } from 'lucide-react'
+import Toggle from './Toggle'
 import { credentialsApi, syncApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
@@ -165,34 +166,24 @@ export default function ProvidersPage({ onAddCredential }: Props) {
                         </td>
 
                         {/* Status */}
-                        <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={() => toggleMutation.mutate(cred.id)}
-                            disabled={toggleMutation.isPending}
-                            aria-label={cred.is_active ? 'Disable' : 'Enable'}
-                            className="inline-flex items-center gap-1.5 p-1 transition-colors"
-                          >
-                            {cred.is_active
-                              ? <>
-                                  <ToggleRight size={24} className="text-status-green" />
-                                  <span
-                                    className="text-xs font-medium px-2 py-1 rounded"
-                                    style={{ background: 'var(--sg-bg)', color: 'var(--sg)', border: '1px solid var(--sg-bd)' }}
-                                  >
-                                    Active
-                                  </span>
-                                </>
-                              : <>
-                                  <ToggleLeft size={24} className="text-ink-muted" />
-                                  <span
-                                    className="text-xs font-medium px-2 py-1 rounded"
-                                    style={{ background: 'var(--sgr-bg)', color: 'var(--sgr)', border: '1px solid var(--sgr-bd)' }}
-                                  >
-                                    Disabled
-                                  </span>
-                                </>
-                            }
-                          </button>
+                        <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            <Toggle
+                              checked={cred.is_active}
+                              onChange={() => toggleMutation.mutate(cred.id)}
+                              disabled={toggleMutation.isPending}
+                              aria-label={cred.is_active ? 'Disable' : 'Enable'}
+                            />
+                            <span
+                              className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
+                              style={cred.is_active
+                                ? { background: 'var(--sg-bg)', color: 'var(--sg)', border: '1px solid var(--sg-bd)' }
+                                : { background: 'var(--sgr-bg)', color: 'var(--sgr)', border: '1px solid var(--sgr-bd)' }
+                              }
+                            >
+                              {cred.is_active ? 'Active' : 'Off'}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Actions */}

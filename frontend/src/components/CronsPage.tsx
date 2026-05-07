@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, Trash2, Play, ToggleLeft, ToggleRight,
+  Plus, Trash2, Play,
   Clock, CheckCircle2, XCircle, Loader, AlertCircle,
 } from 'lucide-react'
+import Toggle from './Toggle'
 import { cronsApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
@@ -392,18 +393,13 @@ export default function CronsPage() {
                       </td>
 
                       {/* Active toggle */}
-                      <td className="px-4 py-3.5 text-center">
-                        <button
-                          onClick={() => toggleMutation.mutate(job.id)}
+                      <td className="px-4 py-3.5">
+                        <Toggle
+                          checked={job.is_active}
+                          onChange={() => toggleMutation.mutate(job.id)}
                           disabled={toggleMutation.isPending}
                           aria-label={job.is_active ? 'Disable' : 'Enable'}
-                          className="transition-colors"
-                        >
-                          {job.is_active
-                            ? <ToggleRight size={22} className="text-status-green" />
-                            : <ToggleLeft  size={22} className="text-ink-muted"    />
-                          }
-                        </button>
+                        />
                       </td>
 
                       {/* Actions */}

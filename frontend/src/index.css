@@ -51,6 +51,9 @@
   --glass-bg: rgba(2, 2, 6, 0.97);
   --glass-bd: rgba(0, 212, 255, 0.14);
 
+  /* Button primary text — black on bright cyan */
+  --btn-primary-fg: #000000;
+
   /* Structural */
   --sidebar-from:   #0A0A12;
   --sidebar-to:     #000000;
@@ -125,6 +128,9 @@
   --glass-bg: rgba(255, 255, 255, 0.96);
   --glass-bd: rgba(0, 102, 224, 0.14);
 
+  /* Button primary text — white on dark blue */
+  --btn-primary-fg: #ffffff;
+
   /* Structural */
   --sidebar-from:   #ECEEF8;
   --sidebar-to:     #F4F5FB;
@@ -171,7 +177,10 @@
 @layer base {
   html {
     background-color: var(--bg-base);
-    color-scheme: dark light;
+    color-scheme: dark;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
   }
 
   body {
@@ -231,9 +240,10 @@
   /* Primary button */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg
-           text-sm font-medium text-white transition-colors duration-150
+           text-sm font-bold transition-colors duration-150
            disabled:opacity-40 disabled:cursor-not-allowed;
     background-color: var(--ac);
+    color: var(--btn-primary-fg);
   }
   .btn-primary:hover:not(:disabled) { background-color: var(--ach); }
 
@@ -280,7 +290,7 @@
     border-bottom:    1px solid var(--bd);
   }
   .table-dark thead th {
-    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap;
+    @apply px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest whitespace-nowrap;
     color: var(--tx3);
   }
   .table-dark tbody tr {
@@ -288,5 +298,5 @@
     transition:    background-color 150ms ease;
   }
   .table-dark tbody tr:hover { background-color: var(--bg-s2); }
-  .table-dark tbody td       { @apply px-4 py-3; }
+  .table-dark tbody td       { @apply px-6 py-4; }
 }

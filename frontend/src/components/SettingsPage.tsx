@@ -4,6 +4,7 @@ import { Save, Lock, Github, RefreshCw } from 'lucide-react'
 import { settingsApi } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
+import Toggle from './Toggle'
 
 function SkeletonField() {
   return (
@@ -80,21 +81,12 @@ function ToggleField({ label, description, settingKey, readOnly, checked, onSave
         <p className="text-xs font-medium text-ink-secondary">{label}</p>
         {description && <p className="text-[11px] text-ink-muted mt-0.5">{description}</p>}
       </div>
-      <button
-        role="switch"
-        aria-checked={checked}
+      <Toggle
+        checked={checked}
+        onChange={() => onSave(settingKey, checked ? 'false' : 'true')}
         disabled={readOnly}
-        onClick={() => !readOnly && onSave(settingKey, checked ? 'false' : 'true')}
-        className={`relative flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-          checked ? 'bg-accent' : 'bg-surface-3'
-        }`}
-        style={{ width: 40, height: 22 }}
-      >
-        <span
-          className="absolute top-[3px] w-4 h-4 rounded-full bg-white shadow transition-transform"
-          style={{ transform: checked ? 'translateX(20px)' : 'translateX(3px)' }}
-        />
-      </button>
+        aria-label={label}
+      />
     </div>
   )
 }
