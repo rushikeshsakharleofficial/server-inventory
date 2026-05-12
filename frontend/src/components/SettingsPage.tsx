@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Save, Lock, Github, RefreshCw } from 'lucide-react'
+import { Save, Lock, GitFork, RefreshCw } from 'lucide-react'
 import { settingsApi } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
@@ -197,7 +197,7 @@ export default function SettingsPage() {
               target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1 text-accent hover:underline"
             >
-              <Github size={12} />
+              <GitFork size={12} />
               GitHub
             </a>
           </div>
