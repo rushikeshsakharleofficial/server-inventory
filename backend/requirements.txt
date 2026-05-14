@@ -13,7 +13,7 @@ boto3>=1.43.6
 google-cloud-compute>=1.47.0
 azure-mgmt-compute>=38.0.0
 azure-mgmt-network>=25.0.0
-azure-identity>=1.18.0
+azure-identity>=1.25.3
 requests>=2.32.3
 ovh>=1.0.0
 python-dotenv==1.2.2
