@@ -15,7 +15,7 @@ azure-mgmt-compute>=38.0.0
 azure-mgmt-network>=25.0.0
 azure-identity>=1.18.0
 requests>=2.32.3
-ovh>=1.0.0
+ovh>=1.2.0
 python-dotenv==1.2.2
 httpx>=0.27.0
 paramiko>=3.4.0
