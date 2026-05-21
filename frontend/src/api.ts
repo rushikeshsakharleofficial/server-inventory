@@ -168,6 +168,11 @@ export const usersApi = {
   toggle: (id: number) => http.patch<ApiUser>(`/api/users/${id}/toggle`).then(r => r.data),
 }
 
+export const authApi = {
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    http.put('/api/auth/change-password', data),
+}
+
 /** Shape of a single Pydantic v2 validation error item */
 interface PydanticErrorItem {
   loc?: Array<string | number>
