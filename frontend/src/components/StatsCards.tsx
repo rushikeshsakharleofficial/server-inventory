@@ -24,13 +24,13 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 function DonutSVG({ data }: { data: Array<{ value: number; color: string }> }) {
   const total = data.reduce((s, d) => s + d.value, 0)
-  if (total === 0) return <circle cx="18" cy="18" r="16" fill="none" stroke="#1A1A28" strokeWidth="4" />
+  if (total === 0) return <circle cx="18" cy="18" r="16" fill="none" stroke="var(--bd)" strokeWidth="4" />
 
   let offset = 0
   const circumference = 2 * Math.PI * 16
   return (
     <>
-      <circle cx="18" cy="18" r="16" fill="none" stroke="#1A1A28" strokeWidth="4" />
+      <circle cx="18" cy="18" r="16" fill="none" stroke="var(--bd)" strokeWidth="4" />
       {data.filter(d => d.value > 0).map((d, i) => {
         const pct = d.value / total
         const dash = pct * circumference

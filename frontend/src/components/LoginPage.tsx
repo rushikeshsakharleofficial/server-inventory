@@ -168,11 +168,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !username.trim() || !password}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-bold
-                       transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-2"
-            style={{ background: 'var(--ac)', color: 'var(--btn-primary-fg)' }}
-            onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = 'var(--ach)' }}
-            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--ac)'}
+            className="btn-primary w-full py-3 justify-center gap-2 mt-2"
           >
             {loading ? (
               <>
