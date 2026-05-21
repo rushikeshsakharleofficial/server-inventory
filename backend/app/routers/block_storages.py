@@ -85,8 +85,8 @@ def list_block_storages(
 
 @router.post("/sync")
 def sync_block_storages(
-    provider: str | None = Query(None),
     background_tasks: BackgroundTasks,
+    provider: str | None = Query(None),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
 ) -> dict[str, str]:

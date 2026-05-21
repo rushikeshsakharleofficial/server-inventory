@@ -85,8 +85,8 @@ def list_databases(
 
 @router.post("/sync")
 def sync_databases(
-    provider: str | None = Query(None),
     background_tasks: BackgroundTasks,
+    provider: str | None = Query(None),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
 ) -> dict[str, str]:
