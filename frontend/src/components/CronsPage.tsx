@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, Trash2, Play,
+  Plus, Trash2, Play, Pencil,
   Clock, CheckCircle2, XCircle, Loader, AlertCircle,
 } from 'lucide-react'
 import Toggle from './Toggle'
@@ -473,6 +473,16 @@ export default function CronsPage() {
                           >
                             <Play size={11} style={{ marginRight: '4px' }} />
                             Run
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            intent="ghost"
+                            onClick={() => openEdit(job)}
+                            style={{ padding: '6px' }}
+                            title={`Edit ${job.name}`}
+                          >
+                            <Pencil size={14} />
                           </Button>
 
                           {confirmId === job.id ? (
