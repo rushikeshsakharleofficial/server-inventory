@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { X, Plus, Trash2 } from 'lucide-react'
-import { serversApi } from '../api'
+import { styled } from '../stitches.config'
+import { serversApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
 import type { Server, ServerStatus } from '../types'
+import { Card, Input, Button, Flex, Grid, Heading, Text, Select, Textarea } from './StitchUI'
 
 interface Props {
   server?: Server
@@ -62,6 +64,93 @@ const FIELD_GROUPS = [
   },
 ] as const
 
+const ModalBackdrop = styled('div', {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 50,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '$4',
+  backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  backdropFilter: 'blur(8px)',
+  animation: 'fadeIn 200ms ease-out',
+  '@keyframes fadeIn': {
+    from: { opacity: 0 },
+    to: { opacity: 1 },
+  },
+});
+
+const ModalContent = styled(Card, {
+  width: '100%',
+  maxWidth: '640px',
+  maxHeight: '90vh',
+  display: 'flex',
+  flexDirection: 'column',
+  padding: 0,
+  overflow: 'hidden',
+  boxShadow: '$modal',
+  animation: 'slideUp 250ms cubic-bezier(0.16, 1, 0.3, 1)',
+  '@keyframes slideUp': {
+    from: { transform: 'translateY(16px)', opacity: 0 },
+    to: { transform: 'translateY(0)', opacity: 1 },
+  },
+});
+
+const ModalHeader = styled(Flex, {
+  padding: '$4 $6',
+  borderBottom: '1px solid $border',
+});
+
+const ScrollableForm = styled('form', {
+  flex: 1,
+  overflowY: 'auto',
+  padding: '$6',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$5',
+});
+
+const ModalFooter = styled(Flex, {
+  padding: '$4 $6',
+  borderTop: '1px solid $border',
+  backgroundColor: '$bgS2',
+});
+
+const FormGroup = styled('div', {
+  border: '1px solid $border',
+  borderRadius: '$lg',
+  padding: '$5',
+  backgroundColor: '$bgS1',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$4',
+  transition: 'border-color 200ms ease',
+  '&:hover': {
+    borderColor: '$cardHoverBorder',
+  },
+});
+
+const FieldWrapper = styled('div', {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$1.5',
+});
+
+const RequiredAsterisk = styled('span', {
+  color: '$statusRed',
+  marginLeft: '$1',
+});
+
+const TagRowContainer = styled(Flex, {
+  backgroundColor: '$bgS2',
+  padding: '$2',
+  borderRadius: '$md',
+  border: '1px solid $border',
+  gap: '$2',
+  alignItems: 'center',
+});
+
 function valueOf(value: string | number | undefined | null) {
   return value == null ? '' : String(value)
 }
@@ -105,7 +194,8 @@ export default function AddServerModal({ server, onClose }: Props) {
       qc.invalidateQueries({ queryKey: ['stats'] })
       onClose()
     },
-    onError: () => toast.error(isEditing ? 'Failed to update server' : 'Failed to add server'),
+    onError: (error: any) =>
+      toast.error((isEditing ? 'Failed to update server: ' : 'Failed to add server: ') + getErrorMessage(error)),
   })
 
   function set(field: FieldId, value: string) {
@@ -116,6 +206,55 @@ export default function AddServerModal({ server, onClose }: Props) {
     e.preventDefault()
     const errs: string[] = []
     if (!form.name.trim()) errs.push('Server name is required')
+
+    // Validate positive integer vcpu
+    if (form.vcpu.trim()) {
+      const vcpuVal = Number(form.vcpu)
+      if (isNaN(vcpuVal) || vcpuVal <= 0 || !Number.isInteger(vcpuVal)) {
+        errs.push('vCPU must be a positive integer')
+      }
+    }
+
+    // Validate positive float memory_gb
+    if (form.memory_gb.trim()) {
+      const memVal = Number(form.memory_gb)
+      if (isNaN(memVal) || memVal <= 0) {
+        errs.push('Memory must be a positive number')
+      }
+    }
+
+    // Validate positive float storage_gb
+    if (form.storage_gb.trim()) {
+      const storageVal = Number(form.storage_gb)
+      if (isNaN(storageVal) || storageVal <= 0) {
+        errs.push('Storage must be a positive number')
+      }
+    }
+
+    // Validate IP/Hostname format
+    const ipOrHostRegex = /^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+$/
+    const ipv4Regex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/
+    
+    if (form.public_ip.trim()) {
+      const ip = form.public_ip.trim()
+      const isIpv4 = ipv4Regex.test(ip)
+      const isIpv6 = ip.includes(':') && ip.length > 2
+      const isDomain = ipOrHostRegex.test(ip)
+      if (!isIpv4 && !isIpv6 && !isDomain) {
+        errs.push('Public IP / Hostname format is invalid')
+      }
+    }
+
+    if (form.private_ip.trim()) {
+      const ip = form.private_ip.trim()
+      const isIpv4 = ipv4Regex.test(ip)
+      const isIpv6 = ip.includes(':') && ip.length > 2
+      const isDomain = ipOrHostRegex.test(ip)
+      if (!isIpv4 && !isIpv6 && !isDomain) {
+        errs.push('Private IP / Hostname format is invalid')
+      }
+    }
+
     if (errs.length) {
       setErrors(errs)
       return
@@ -148,145 +287,159 @@ export default function AddServerModal({ server, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)' }}
+    <ModalBackdrop
       role="dialog"
       aria-modal="true"
       aria-label={isEditing ? 'Edit server' : 'Add custom server'}
     >
-      <div className="glass-modal w-full max-w-2xl max-h-[90vh] rounded-2xl flex flex-col animate-slide-up">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
-          <div>
-            <h2 className="text-base font-semibold text-ink-primary">
+      <ModalContent modal>
+        {/* Header */}
+        <ModalHeader align="center" justify="between">
+          <Flex direction="column" gap={1}>
+            <Heading level="h2" style={{ fontSize: '1rem' }}>
               {isEditing ? 'Edit Custom DC Server' : 'Add Custom DC Server'}
-            </h2>
-            <p className="text-xs text-ink-muted mt-0.5">
+            </Heading>
+            <Text variant="smallMuted">
               {isEditing ? server?.name : 'Manually register a bare-metal or on-prem server'}
-            </p>
-          </div>
-          <button
+            </Text>
+          </Flex>
+          <Button
+            intent="ghost"
+            size="sm"
             onClick={onClose}
             aria-label="Close"
-            className="p-1.5 text-ink-muted hover:text-ink-primary hover:bg-surface-3 rounded-lg transition-colors"
+            style={{ padding: '0.375rem', borderRadius: '8px' }}
           >
-            <X size={17} />
-          </button>
-        </div>
+            <X size={16} />
+          </Button>
+        </ModalHeader>
 
-        <form onSubmit={submit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Scrollable Form */}
+        <ScrollableForm onSubmit={submit}>
           {errors.map(e => (
             <div
               key={e}
-              className="text-sm px-3 py-2 rounded-lg"
-              style={{ background: 'var(--sr-bg)', color: 'var(--sr)', border: '1px solid var(--sr-bd)' }}
+              style={{
+                fontSize: '0.875rem',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '8px',
+                background: 'var(--sr-bg)',
+                color: 'var(--sr)',
+                border: '1px solid var(--sr-bd)',
+              }}
             >
               {e}
             </div>
           ))}
 
           {FIELD_GROUPS.map(group => (
-            <div key={group.title}>
-              <p className="text-[11px] text-ink-muted font-semibold uppercase tracking-widest mb-3">
+            <FormGroup key={group.title}>
+              <Text variant="label" style={{ color: 'var(--tx3)' }}>
                 {group.title}
-              </p>
-              <div className="grid grid-cols-2 gap-3">
+              </Text>
+              <Grid columns={2} gap={3}>
                 {group.fields.map(f => (
-                  <div key={f.id}>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1.5">
+                  <FieldWrapper key={f.id}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--tx2)' }}>
                       {f.label}
-                      {f.required && <span className="text-status-red ml-1">*</span>}
+                      {f.required && <RequiredAsterisk>*</RequiredAsterisk>}
                     </label>
                     {(f as { type?: FieldType }).type === 'select' ? (
-                      <select
+                      <Select
                         value={form[f.id as FieldId]}
                         onChange={e => set(f.id as FieldId, e.target.value)}
-                        className="input-dark"
                       >
                         {STATUSES.map(status => (
                           <option key={status} value={status}>
                             {status.charAt(0).toUpperCase() + status.slice(1)}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     ) : (
-                      <input
+                      <Input
                         type={(f as { type?: string }).type ?? 'text'}
                         value={form[f.id as FieldId]}
                         onChange={e => set(f.id as FieldId, e.target.value)}
                         placeholder={f.placeholder}
-                        className="input-dark"
                       />
                     )}
-                  </div>
+                  </FieldWrapper>
                 ))}
-              </div>
-            </div>
+              </Grid>
+            </FormGroup>
           ))}
 
-          <div>
-            <p className="text-[11px] text-ink-muted font-semibold uppercase tracking-widest mb-3">Tags</p>
-            <div className="space-y-2">
+          {/* Tags Section */}
+          <FormGroup>
+            <Text variant="label" style={{ color: 'var(--tx3)' }}>Tags</Text>
+            <Flex direction="column" gap={2}>
               {tags.map((tag, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <input
+                <TagRowContainer key={i}>
+                  <Input
                     type="text"
                     value={tag.key}
                     onChange={e => setTags(t => t.map((r, j) => j === i ? { ...r, key: e.target.value } : r))}
                     placeholder="Key"
-                    className="input-dark flex-1"
+                    style={{ flex: 1 }}
                   />
-                  <input
+                  <Input
                     type="text"
                     value={tag.value}
                     onChange={e => setTags(t => t.map((r, j) => j === i ? { ...r, value: e.target.value } : r))}
                     placeholder="Value"
-                    className="input-dark flex-1"
+                    style={{ flex: 1 }}
                   />
-                  <button
+                  <Button
                     type="button"
+                    intent="ghost"
+                    size="sm"
                     onClick={() => setTags(t => t.filter((_, j) => j !== i))}
                     aria-label="Remove tag"
-                    className="p-1.5 text-ink-muted hover:text-status-red transition-colors rounded-lg"
+                    style={{ color: 'var(--sr)', borderColor: 'transparent' }}
                   >
                     <Trash2 size={14} />
-                  </button>
-                </div>
+                  </Button>
+                </TagRowContainer>
               ))}
-              <button
+              <Button
                 type="button"
+                intent="ghost"
+                size="sm"
                 onClick={() => setTags(t => [...t, { key: '', value: '' }])}
-                className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-accent transition-colors"
+                style={{ width: 'fit-content', borderStyle: 'dashed' }}
               >
                 <Plus size={13} />
-                Add tag
-              </button>
-            </div>
-          </div>
+                Add Tag
+              </Button>
+            </Flex>
+          </FormGroup>
 
-          <div>
-            <label className="block text-xs font-medium text-ink-secondary mb-1.5">Notes</label>
-            <textarea
+          {/* Notes Section */}
+          <FormGroup>
+            <label style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--tx2)' }}>Notes</label>
+            <Textarea
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
               rows={3}
               placeholder="Additional context about this server..."
-              className="input-dark resize-none"
+              style={{ resize: 'none' }}
             />
-          </div>
-        </form>
+          </FormGroup>
+        </ScrollableForm>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/[0.07]">
-          <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
-          <button
+        {/* Footer */}
+        <ModalFooter justify="end" gap={3}>
+          <Button type="button" intent="ghost" onClick={onClose}>Cancel</Button>
+          <Button
             onClick={submit}
             disabled={mutation.isPending}
-            className="btn-primary"
+            intent="primary"
           >
             {mutation.isPending ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Server'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </ModalBackdrop>
   )
 }
+

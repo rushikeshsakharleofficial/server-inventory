@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { serversApi } from '../api'
 import { SkeletonCard } from './Skeleton'
+import { Grid, Card, Flex, Text, StatusDot } from './StitchUI'
 
 const PROVIDER_COLORS: Record<string, string> = {
   aws:          '#FF9900',
@@ -61,9 +62,9 @@ export default function StatsCards() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <Grid columns={{ '@initial': 2, '@xl': 4 }} gap={4}>
         {[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
-      </div>
+      </Grid>
     )
   }
 
@@ -77,74 +78,75 @@ export default function StatsCards() {
     .sort((a, b) => b.value - a.value)
 
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+    <Grid columns={{ '@initial': 2, '@xl': 4 }} gap={4}>
       {/* Total */}
-      <div className="card-dark p-6">
-        <div className="flex justify-between items-start mb-4">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Total Servers</span>
-          <svg className="w-4 h-4 text-ink-muted opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <Card hoverable>
+        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
+          <Text variant="label">Total Servers</Text>
+          <svg style={{ width: '16px', height: '16px', color: 'var(--tx3)', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 6h14M5 18h14" />
           </svg>
-        </div>
-        <p className="font-display text-4xl font-extrabold text-ink-primary tabular-nums leading-none">{total}</p>
-        <p className="mt-2 text-[10px] font-mono text-ink-muted">
+        </Flex>
+        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--tx1)', fontFamily: 'DM Sans', lineHeight: 1 }}>{total}</Text>
+        <Text variant="smallMuted" style={{ marginTop: '8px', fontFamily: 'monospace' }}>
           {Object.keys(stats?.by_provider ?? {}).length} provider{Object.keys(stats?.by_provider ?? {}).length !== 1 ? 's' : ''}
-        </p>
-      </div>
+        </Text>
+      </Card>
 
       {/* Running */}
-      <div className="card-dark p-6">
-        <div className="flex justify-between items-start mb-4">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Running</span>
-          <span className="status-dot-running flex-shrink-0" aria-hidden="true" />
-        </div>
-        <p className="font-display text-4xl font-extrabold tabular-nums leading-none" style={{ color: 'var(--sg)' }}>{running}</p>
-        <p className="mt-2 text-[10px] font-mono" style={{ color: 'var(--sg)' }}>
+      <Card hoverable>
+        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
+          <Text variant="label">Running</Text>
+          <StatusDot running />
+        </Flex>
+        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--sg)', fontFamily: 'DM Sans', lineHeight: 1 }}>{running}</Text>
+        <Text style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--sg)' }}>
           {runPct}% of fleet healthy
-        </p>
-      </div>
+        </Text>
+      </Card>
 
       {/* Stopped */}
-      <div className="card-dark p-6">
-        <div className="flex justify-between items-start mb-4">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Stopped</span>
-          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--sr)' }} aria-hidden="true" />
-        </div>
-        <p className="font-display text-4xl font-extrabold tabular-nums leading-none" style={{ color: 'var(--sr)' }}>{stopped}</p>
-        <p className="mt-2 text-[10px] font-mono" style={{ color: 'var(--sr)' }}>
+      <Card hoverable>
+        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
+          <Text variant="label">Stopped</Text>
+          <StatusDot running={false} style={{ backgroundColor: 'var(--sr)' }} />
+        </Flex>
+        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--sr)', fontFamily: 'DM Sans', lineHeight: 1 }}>{stopped}</Text>
+        <Text style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--sr)' }}>
           {total > 0 ? `${100 - runPct}% idle` : 'No servers'}
-        </p>
-      </div>
+        </Text>
+      </Card>
 
       {/* Provider Distribution */}
-      <div className="card-dark p-6">
-        <div className="flex items-start justify-between mb-3">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">Providers</span>
-          <span className="text-[10px] font-mono text-ink-muted">Live</span>
-        </div>
+      <Card hoverable>
+        <Flex justify="between" align="start" style={{ marginBottom: '12px' }}>
+          <Text variant="label">Providers</Text>
+          <Text variant="small" style={{ fontFamily: 'monospace' }}>Live</Text>
+        </Flex>
         {providerData.length === 0 ? (
-          <p className="text-xs text-ink-muted mt-4">No providers yet</p>
+          <Text variant="muted" style={{ marginTop: '16px' }}>No providers yet</Text>
         ) : (
-          <div className="flex items-center gap-4">
-            <div className="relative w-16 h-16 flex-shrink-0">
-              <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+          <Flex align="center" gap={4}>
+            <div style={{ position: 'relative', width: '64px', height: '64px', flexShrink: 0 }}>
+              <svg style={{ width: '64px', height: '64px', transform: 'rotate(-90deg)' }} viewBox="0 0 36 36">
                 <DonutSVG data={providerData} />
               </svg>
             </div>
-            <div className="flex-1 space-y-1.5 min-w-0">
+            <Flex direction="column" gap={1} style={{ flex: 1, minWidth: 0 }}>
               {providerData.slice(0, 4).map(d => (
-                <div key={d.key} className="flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                    <span className="text-[10px] text-ink-primary font-mono truncate">{d.label}</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-ink-secondary tabular-nums">{d.value}</span>
-                </div>
+                <Flex key={d.key} justify="between" align="center" gap={2} style={{ width: '100%' }}>
+                  <Flex align="center" gap={1} style={{ minWidth: 0 }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, backgroundColor: d.color }} />
+                    <span style={{ fontSize: '10px', color: 'var(--tx1)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
+                  </Flex>
+                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--tx2)' }}>{d.value}</span>
+                </Flex>
               ))}
-            </div>
-          </div>
+            </Flex>
+          </Flex>
         )}
-      </div>
-    </div>
+      </Card>
+    </Grid>
   )
 }
+

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { X, RefreshCw, AlertCircle, Shield, Network, Cpu, HardDrive, Globe, Tag } from 'lucide-react'
+import { styled } from '../stitches.config'
 import { resourceMapApi } from '../api'
+import { Card, Button, Flex, Grid, Heading, Text } from './StitchUI'
 
 type ResourceType = 'server' | 'database' | 'kubernetes'
 
@@ -46,6 +48,163 @@ const NODE_ICON: Record<string, string> = {
   maintenance_policy:'📅', backup:'🗄️',
 }
 
+const ModalBackdrop = styled('div', {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 60,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '$4',
+  backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  backdropFilter: 'blur(6px)',
+  animation: 'fadeIn 200ms ease-out',
+  '@keyframes fadeIn': {
+    from: { opacity: 0 },
+    to: { opacity: 1 },
+  },
+});
+
+const ModalContent = styled(Card, {
+  width: '100%',
+  maxWidth: '1024px',
+  maxHeight: '92vh',
+  display: 'flex',
+  flexDirection: 'column',
+  padding: 0,
+  overflow: 'hidden',
+  boxShadow: '$modal',
+  animation: 'slideUp 250ms cubic-bezier(0.16, 1, 0.3, 1)',
+  '@keyframes slideUp': {
+    from: { transform: 'translateY(16px)', opacity: 0 },
+    to: { transform: 'translateY(0)', opacity: 1 },
+  },
+});
+
+const ModalHeader = styled(Flex, {
+  padding: '$4 $6',
+  borderBottom: '1px solid $border',
+});
+
+const ModalBody = styled(Flex, {
+  flex: 1,
+  overflow: 'hidden',
+  minHeight: 0,
+});
+
+const Sidebar = styled('div', {
+  width: '200px',
+  flexShrink: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  borderRight: '1px solid $border',
+  padding: '$3 0',
+  overflowY: 'auto',
+  backgroundColor: '$bgS1',
+});
+
+const CanvasArea = styled('div', {
+  flex: 1,
+  overflowY: 'auto',
+  padding: '$6',
+  backgroundColor: '$bgBase',
+  backgroundImage: 'radial-gradient(circle, var(--dot-color, rgba(255,255,255,0.05)) 1px, transparent 1px)',
+  backgroundSize: '24px 24px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$6',
+});
+
+const ModalFooter = styled(Flex, {
+  padding: '$3 $6',
+  borderTop: '1px solid $border',
+  backgroundColor: '$bgS2',
+  fontSize: '10px',
+  fontFamily: 'monospace',
+  color: '$tx3',
+});
+
+const SidebarFilterButton = styled('button', {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '$2',
+  padding: '$2 $4',
+  fontSize: '13px',
+  textAlign: 'left',
+  border: 'none',
+  borderLeft: '2px solid transparent',
+  cursor: 'pointer',
+  transition: 'all 150ms ease',
+  variants: {
+    active: {
+      true: {
+        backgroundColor: '$accentBg',
+        borderColor: '$accent',
+        color: '$accent',
+      },
+      false: {
+        backgroundColor: 'transparent',
+        color: '$tx2',
+        '&:hover': {
+          backgroundColor: '$bgS2',
+          color: '$tx1',
+        },
+      },
+    },
+  },
+});
+
+const NodeBadge = styled('span', {
+  display: 'inline-block',
+  marginTop: '$1',
+  fontSize: '9px',
+  fontFamily: 'monospace',
+  padding: '0.125rem 0.375rem',
+  borderRadius: '$sm',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+});
+
+const RootResourceCard = styled('div', {
+  borderRadius: '$xl',
+  border: '1px solid $accentBorder',
+  padding: '$4',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$4',
+  width: '100%',
+  maxWidth: '380px',
+  margin: '0 auto',
+  backgroundColor: '$bgS1',
+  boxShadow: '0 0 24px var(--ac-glow)',
+});
+
+const RootIconWrapper = styled('div', {
+  width: '48px',
+  height: '48px',
+  borderRadius: '$md',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '1.25rem',
+  flexShrink: 0,
+  backgroundColor: '$accentBg',
+  border: '1px solid $accentBorder',
+});
+
+const StyledNodeCard = styled('div', {
+  borderRadius: '$lg',
+  border: '1px solid $border',
+  transition: 'all 150ms ease',
+  cursor: 'pointer',
+  userSelect: 'none',
+  backgroundColor: '$bgS2',
+  '&:hover': {
+    borderColor: '$cardHoverBorder',
+  },
+});
+
 function NodeCard({ node, edgeLabel }: { node: MapNode; edgeLabel?: string }) {
   const [expanded, setExpanded] = useState(false)
   const cat = CATEGORY_CFG[node.category] ?? CATEGORY_CFG.config
@@ -53,67 +212,57 @@ function NodeCard({ node, edgeLabel }: { node: MapNode; edgeLabel?: string }) {
   const props = Object.entries(node.properties).filter(([, v]) => v != null && v !== '' && v !== false)
 
   return (
-    <div
-      className="rounded-xl border transition-all duration-150 cursor-pointer select-none"
-      style={{ background: 'var(--bg-s2)', borderColor: expanded ? cat.color + '60' : 'var(--bd)' }}
+    <StyledNodeCard
+      style={{ borderColor: expanded ? cat.color + '60' : 'var(--bd)' }}
       onClick={() => setExpanded(e => !e)}
     >
-      <div className="flex items-start gap-2.5 p-3">
-        <span className="text-sm leading-none mt-0.5 flex-shrink-0">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-ink-primary truncate">{node.label}</p>
-          <p className="text-[10px] text-ink-muted font-mono mt-0.5 truncate">{node.type.replace(/_/g, ' ')}</p>
+      <Flex align="start" gap={2} style={{ padding: '0.75rem' }}>
+        <span style={{ fontSize: '0.875rem', lineHeight: 1, marginTop: '0.125rem', flexShrink: 0 }}>{icon}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="body" style={{ fontWeight: 700, fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {node.label}
+          </Text>
+          <Text variant="smallMuted" style={{ fontFamily: 'monospace', fontSize: '10px', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {node.type.replace(/_/g, ' ')}
+          </Text>
           {edgeLabel && !expanded && (
-            <span
-              className="inline-block mt-1 text-[9px] font-mono px-1.5 py-0.5 rounded uppercase tracking-wider"
-              style={{ color: cat.color, background: cat.bg }}
-            >
+            <NodeBadge style={{ color: cat.color, background: cat.bg }}>
               {edgeLabel}
-            </span>
+            </NodeBadge>
           )}
         </div>
-      </div>
+      </Flex>
 
       {expanded && props.length > 0 && (
-        <div className="px-3 pb-3 border-t border-border space-y-1.5 pt-2">
+        <div style={{ padding: '0 0.75rem 0.75rem 0.75rem', borderTop: '1px solid var(--bd)', paddingTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           {props.map(([k, v]) => (
-            <div key={k} className="flex items-start justify-between gap-2">
-              <span className="text-[10px] text-ink-muted capitalize flex-shrink-0">{k.replace(/_/g, ' ')}</span>
-              <span className="text-[10px] font-mono text-ink-secondary text-right break-all max-w-[180px]">
+            <Flex key={k} justify="between" align="start" gap={2}>
+              <Text variant="smallMuted" style={{ textTransform: 'capitalize', flexShrink: 0 }}>{k.replace(/_/g, ' ')}</Text>
+              <Text variant="small" style={{ fontFamily: 'monospace', color: 'var(--tx2)', textAlign: 'right', wordBreak: 'break-all', maxWidth: '180px' }}>
                 {Array.isArray(v) ? v.slice(0, 3).join(', ') : String(v).slice(0, 80)}
-              </span>
-            </div>
+              </Text>
+            </Flex>
           ))}
         </div>
       )}
-    </div>
+    </StyledNodeCard>
   )
 }
 
 function RootCard({ data }: { data: ResourceMap['resource'] }) {
   const icon = data.type === 'server' ? '🖥️' : data.type === 'database' ? '🗄️' : '☸️'
   return (
-    <div
-      className="rounded-2xl border p-4 flex items-center gap-4 w-full max-w-sm mx-auto"
-      style={{
-        background: 'var(--bg-s1)',
-        border: '1px solid var(--ac-bd)',
-        boxShadow: '0 0 24px var(--ac-glow)',
-      }}
-    >
-      <div
-        className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-        style={{ background: 'var(--ac-bg)', border: '1px solid var(--ac-bd)' }}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="font-display text-base font-bold text-ink-primary truncate">{data.name}</p>
-        <p className="text-[10px] font-mono text-accent mt-0.5 uppercase tracking-widest">
+    <RootResourceCard>
+      <RootIconWrapper>{icon}</RootIconWrapper>
+      <div style={{ minWidth: 0 }}>
+        <Text variant="body" style={{ fontWeight: 700, fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {data.name}
+        </Text>
+        <Text variant="small" style={{ fontFamily: 'monospace', color: 'var(--ac)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {data.provider} · {data.type}{data.region ? ` · ${data.region}` : ''}
-        </p>
+        </Text>
       </div>
-    </div>
+    </RootResourceCard>
   )
 }
 
@@ -148,144 +297,134 @@ export default function ResourceMapModal({ resourceId, resourceType, resourceNam
   })
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
-      role="dialog" aria-modal="true"
-    >
-      <div
-        className="glass-modal w-full max-w-5xl max-h-[92vh] rounded-2xl flex flex-col animate-slide-up overflow-hidden"
-      >
+    <ModalBackdrop role="dialog" aria-modal="true">
+      <ModalContent modal>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div>
-            <h2 className="font-display text-base font-bold text-ink-primary">Resource Map</h2>
-            <p className="text-[10px] font-mono text-accent mt-0.5">
+        <ModalHeader align="center" justify="between">
+          <Flex direction="column" gap={1}>
+            <Heading level="h2" style={{ fontSize: '1rem' }}>Resource Map</Heading>
+            <Text variant="small" style={{ fontFamily: 'monospace', color: 'var(--ac)' }}>
               {resourceName} · {provider}{region ? ` · ${region}` : ''}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
+            </Text>
+          </Flex>
+          <Flex align="center" gap={2}>
+            <Button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="btn-ghost px-2.5 py-1.5 text-xs"
+              intent="ghost"
+              size="sm"
             >
               <RefreshCw size={12} className={isFetching ? 'animate-spin' : ''} />
               Refresh
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={onClose}
-              className="p-1.5 text-ink-muted hover:text-ink-primary hover:bg-surface-3 rounded-lg transition-colors"
+              intent="ghost"
+              size="sm"
+              style={{ padding: '0.375rem', borderRadius: '8px' }}
             >
               <X size={16} />
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Flex>
+        </ModalHeader>
 
         {/* Body */}
-        <div className="flex flex-1 overflow-hidden min-h-0">
-
+        <ModalBody>
           {/* Sidebar */}
-          <div
-            className="w-48 flex-shrink-0 flex flex-col border-r border-border py-3 space-y-0.5 overflow-y-auto"
-            style={{ background: 'var(--bg-s1)' }}
-          >
-            <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted px-4 mb-2">Filter</p>
+          <Sidebar>
+            <Text variant="label" style={{ padding: '0 1rem', marginBottom: '8px' }}>Filter</Text>
 
             {['all', ...categories].map(cat => {
               const cfg   = cat === 'all' ? null : CATEGORY_CFG[cat]
               const count = cat === 'all' ? nodes.length : nodes.filter(n => n.category === cat).length
               const active = activeCategory === cat
               return (
-                <button
+                <SidebarFilterButton
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className="flex items-center justify-between gap-2 px-4 py-2 text-[13px] transition-colors text-left border-l-2"
+                  active={active}
                   style={{
-                    borderColor: active ? (cfg?.color ?? 'var(--ac)') : 'transparent',
-                    background:  active ? (cfg?.bg   ?? 'var(--ac-bg)') : 'transparent',
-                    color:       active ? (cfg?.color ?? 'var(--ac)') : 'var(--tx2)',
+                    borderLeftColor: active ? (cfg?.color ?? 'var(--ac)') : 'transparent',
+                    color: active ? (cfg?.color ?? 'var(--ac)') : 'var(--tx2)',
                   }}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {cfg ? <cfg.Icon size={13} className="flex-shrink-0" /> : <Globe size={13} className="flex-shrink-0" />}
-                    <span className="truncate">{cfg?.label ?? 'All'}</span>
-                  </div>
+                  <Flex align="center" gap={2} style={{ minWidth: 0 }}>
+                    {cfg ? <cfg.Icon size={13} style={{ flexShrink: 0 }} /> : <Globe size={13} style={{ flexShrink: 0 }} />}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cfg?.label ?? 'All'}</span>
+                  </Flex>
                   <span
-                    className="text-[10px] font-mono rounded-full px-1.5 py-0.5 flex-shrink-0"
                     style={{
+                      fontSize: '10px',
+                      fontFamily: 'monospace',
+                      padding: '0.125rem 0.375rem',
+                      borderRadius: '9999px',
+                      flexShrink: 0,
                       background: active ? (cfg?.color ?? 'var(--ac)') + '22' : 'var(--bg-s3)',
-                      color:      active ? (cfg?.color ?? 'var(--ac)') : 'var(--tx3)',
+                      color: active ? (cfg?.color ?? 'var(--ac)') : 'var(--tx3)',
                     }}
                   >
                     {count}
                   </span>
-                </button>
+                </SidebarFilterButton>
               )
             })}
 
             {/* Legend */}
             {nodes.length > 0 && (
-              <div className="px-4 pt-4 mt-2 border-t border-border">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-3">Legend</p>
-                <div className="space-y-2">
+              <div style={{ padding: '1rem', marginTop: '8px', borderTop: '1px solid var(--bd)' }}>
+                <Text variant="label" style={{ marginBottom: '12px' }}>Legend</Text>
+                <Flex direction="column" gap={2}>
                   {[['vpc / vnet','🌐'],['subnet','📡'],['security group','🛡️'],
                     ['IAM / role','👤'],['load balancer','⚖️'],['disk','💾']].map(([label, icon]) => (
-                    <div key={label} className="flex items-center gap-2">
-                      <span className="text-xs">{icon}</span>
-                      <span className="text-[10px] text-ink-muted capitalize">{label}</span>
-                    </div>
+                    <Flex key={label} align="center" gap={2}>
+                      <span style={{ fontSize: '0.75rem' }}>{icon}</span>
+                      <Text variant="smallMuted" style={{ textTransform: 'capitalize' }}>{label}</Text>
+                    </Flex>
                   ))}
-                </div>
+                </Flex>
               </div>
             )}
-          </div>
+          </Sidebar>
 
           {/* Main canvas */}
-          <div
-            className="flex-1 overflow-y-auto p-6 space-y-6 bg-base"
-            style={{
-              backgroundImage: 'radial-gradient(circle, var(--dot-color) 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
-            }}
-          >
+          <CanvasArea>
             {isLoading && (
-              <div className="flex flex-col items-center justify-center h-64 gap-4">
-                <RefreshCw size={28} className="animate-spin text-accent opacity-60" />
-                <p className="text-sm text-ink-muted">Fetching cloud topology…</p>
-              </div>
+              <Flex direction="column" align="center" justify="center" style={{ height: '240px', gap: '16px' }}>
+                <RefreshCw size={28} className="animate-spin text-accent" style={{ opacity: 0.6 }} />
+                <Text variant="muted">Fetching cloud topology…</Text>
+              </Flex>
             )}
 
             {!isLoading && error && (
-              <div className="flex flex-col items-center justify-center h-64 gap-3">
-                <AlertCircle size={28} className="text-status-red opacity-60" />
-                <p className="text-sm text-ink-muted">Failed to load resource map.</p>
-                <button onClick={() => refetch()} className="btn-ghost text-xs px-3 py-1.5">
+              <Flex direction="column" align="center" justify="center" style={{ height: '240px', gap: '12px' }}>
+                <AlertCircle size={28} style={{ color: 'var(--sr)', opacity: 0.6 }} />
+                <Text variant="muted">Failed to load resource map.</Text>
+                <Button onClick={() => refetch()} intent="ghost" size="sm">
                   <RefreshCw size={12} /> Retry
-                </button>
-              </div>
+                </Button>
+              </Flex>
             )}
 
             {!isLoading && !error && (
               <>
                 {/* Root */}
                 {data && (
-                  <div className="flex justify-center">
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <RootCard data={data.resource} />
                   </div>
                 )}
 
                 {Object.keys(grouped).length === 0 && nodes.length === 0 && (
-                  <div className="text-center py-16">
-                    <p className="text-ink-muted text-sm">
+                  <div style={{ textAlign: 'center', padding: '4rem 0' }}>
+                    <Text variant="muted">
                       No connected resources found. Provider may not support topology mapping for this resource.
-                    </p>
+                    </Text>
                   </div>
                 )}
 
                 {Object.keys(grouped).length === 0 && nodes.length > 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-ink-muted text-sm">No resources match selected category.</p>
+                  <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                    <Text variant="muted">No resources match selected category.</Text>
                   </div>
                 )}
 
@@ -294,44 +433,56 @@ export default function ResourceMapModal({ resourceId, resourceType, resourceNam
                   return (
                     <div key={cat}>
                       {/* Category divider */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="h-px flex-1" style={{ background: `linear-gradient(to right, ${cfg.color}40, transparent)` }} />
+                      <Flex align="center" gap={2} style={{ marginBottom: '12px' }}>
+                        <div style={{ height: '1px', flex: 1, background: `linear-gradient(to right, ${cfg.color}40, transparent)` }} />
                         <span
-                          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"
-                          style={{ color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.color}30` }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.1em',
+                            padding: '0.25rem 0.625rem',
+                            borderRadius: '9999px',
+                            color: cfg.color,
+                            background: cfg.bg,
+                            border: `1px solid ${cfg.color}30`,
+                          }}
                         >
                           <cfg.Icon size={11} />
                           {cfg.label}
-                          <span className="ml-1 px-1.5 rounded-full text-[9px]" style={{ background: cfg.color + '25' }}>
+                          <span style={{ marginLeft: '4px', padding: '0 0.375rem', borderRadius: '9999px', fontSize: '9px', background: cfg.color + '25' }}>
                             {catNodes.length}
                           </span>
                         </span>
-                        <div className="h-px flex-1" style={{ background: `linear-gradient(to left, ${cfg.color}40, transparent)` }} />
-                      </div>
+                        <div style={{ height: '1px', flex: 1, background: `linear-gradient(to left, ${cfg.color}40, transparent)` }} />
+                      </Flex>
 
                       {/* Node grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      <Grid columns="auto" gap={2}>
                         {catNodes.map(node => (
                           <NodeCard key={node.id} node={node} edgeLabel={edgeLabels[node.id]} />
                         ))}
-                      </div>
+                      </Grid>
                     </div>
                   )
                 })}
               </>
             )}
-          </div>
-        </div>
+          </CanvasArea>
+        </ModalBody>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-2.5 border-t border-border bg-surface-2 flex-shrink-0 text-[10px] font-mono text-ink-muted">
+        <ModalFooter justify="between" align="center">
           <span>
-            <span className="text-accent font-bold">{nodes.length}</span> resources ·{' '}
-            <span className="text-accent font-bold">{edges.length}</span> connections
+            <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{nodes.length}</span> resources ·{' '}
+            <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{edges.length}</span> connections
           </span>
           <span>Click any node to expand details</span>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+      </ModalContent>
+    </ModalBackdrop>
   )
 }

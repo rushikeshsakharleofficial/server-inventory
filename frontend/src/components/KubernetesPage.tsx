@@ -1,19 +1,36 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search, Box, Cpu, Map } from 'lucide-react'
-import { kubernetesApi } from '../api'
+import { kubernetesApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import ResourceMapModal from './ResourceMapModal'
 import { SkeletonTableRows } from './Skeleton'
 import type { KubernetesCluster } from '../types'
+import {
+  Card,
+  Flex,
+  Grid,
+  Heading,
+  Text,
+  Input,
+  Select,
+  Button,
+  Badge,
+  TableContainer,
+  Table,
+  THead,
+  TBody,
+  TH,
+  TD,
+} from './StitchUI'
 
-const STATUS_CFG: Record<string, { bg: string; text: string; border: string; dot?: 'pulse' | 'solid' }> = {
-  running:    { bg: 'var(--sg-bg)',  text: 'var(--sg)',  border: 'var(--sg-bd)',  dot: 'solid'  },
-  stopped:    { bg: 'var(--sr-bg)',  text: 'var(--sr)',  border: 'var(--sr-bd)',  dot: 'solid'  },
-  pending:    { bg: 'var(--sy-bg)',  text: 'var(--sy)',  border: 'var(--sy-bd)',  dot: 'pulse'  },
-  terminated: { bg: 'var(--sgr-bg)', text: 'var(--sgr)', border: 'var(--sgr-bd)' },
-  unknown:    { bg: 'var(--sgr-bg)', text: 'var(--sgr)', border: 'var(--sgr-bd)' },
+const STATUS_MAP: Record<string, 'green' | 'red' | 'yellow' | 'gray'> = {
+  running:    'green',
+  stopped:    'red',
+  pending:    'yellow',
+  terminated: 'gray',
+  unknown:    'gray',
 }
 
 function fmt(d?: string) {
@@ -28,7 +45,7 @@ export default function KubernetesPage() {
   const [provider, setProvider] = useState('')
   const [mapTarget, setMapTarget] = useState<KubernetesCluster | null>(null)
 
-  const { data: clusters = [], isLoading } = useQuery({
+  const { data: clusters = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['kubernetes', provider],
     queryFn: () => kubernetesApi.list({ provider: provider || undefined }),
     refetchInterval: 60_000,
@@ -40,7 +57,7 @@ export default function KubernetesPage() {
       toast.success('Kubernetes sync started')
       setTimeout(() => qc.invalidateQueries({ queryKey: ['kubernetes'] }), 4000)
     },
-    onError: () => toast.error('Sync failed'),
+    onError: (error: any) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
   })
 
   const filtered = clusters.filter(c =>
@@ -51,173 +68,238 @@ export default function KubernetesPage() {
   )
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <Flex direction="column" gap={5} className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <Flex justify="between" align="center">
         <div>
-          <h2 className="font-display text-3xl font-bold text-ink-primary tracking-tight">Kubernetes</h2>
-          <p className="text-ink-secondary text-sm mt-1">Managed cluster fleet across EKS, GKE, AKS, DOKS and LKE.</p>
+          <Heading level="h1">Kubernetes</Heading>
+          <Text variant="muted" style={{ marginTop: '4px' }}>
+            Managed cluster fleet across EKS, GKE, AKS, DOKS and LKE.
+          </Text>
         </div>
-        <button
+        <Button
+          intent="primary"
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
-          className="btn-primary"
         >
           <RefreshCw size={14} className={syncMutation.isPending ? 'animate-spin' : ''} />
           Sync All
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
       {/* Stats mini row */}
       {!isLoading && clusters.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Grid columns={{ '@initial': 2, '@md': 4 }} gap={4}>
           {[
             { label: 'Total Clusters', value: clusters.length },
             { label: 'Running',  value: clusters.filter(c => c.status === 'running').length,  color: 'var(--sg)' },
             { label: 'Pending',  value: clusters.filter(c => c.status === 'pending').length,  color: 'var(--sy)' },
             { label: 'Total Nodes', value: clusters.reduce((s, c) => s + (c.node_count ?? 0), 0) },
           ].map(stat => (
-            <div key={stat.label} className="card-dark p-4">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">{stat.label}</p>
-              <p
-                className="font-display text-3xl font-extrabold tabular-nums mt-2"
-                style={{ color: stat.color ?? 'var(--tx1)' }}
+            <Card key={stat.label} style={{ padding: '16px' }}>
+              <Text variant="label" style={{ fontSize: '10px' }}>{stat.label}</Text>
+              <Text
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '28px',
+                  fontWeight: 800,
+                  fontVariantNumeric: 'tabular-nums',
+                  marginTop: '8px',
+                  color: stat.color ?? 'var(--tx1)',
+                }}
               >
                 {stat.value}
-              </p>
-            </div>
+              </Text>
+            </Card>
           ))}
-        </div>
+        </Grid>
       )}
 
       {/* Table card */}
-      <div className="card-dark overflow-hidden">
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
         {/* Toolbar */}
-        <div className="px-6 py-4 border-b border-border flex flex-wrap gap-3 items-center" style={{ background: 'var(--bg-s1)' }}>
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-            <input
+        <Flex
+          wrap="true"
+          gap={3}
+          align="center"
+          style={{
+            padding: '16px 24px',
+            borderBottom: '1px solid var(--bd)',
+            backgroundColor: 'var(--bg-s1)',
+          }}
+        >
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search
+              size={14}
+              style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--tx3)',
+                pointerEvents: 'none',
+              }}
+            />
+            <Input
               type="text"
               placeholder="Search cluster name, region…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-dark pl-9"
+              style={{ paddingLeft: '36px' }}
             />
           </div>
 
-          <select
-            value={provider}
-            onChange={e => { setProvider(e.target.value); setSearch('') }}
-            className="bg-surface-2 border border-border text-ink-secondary text-sm rounded-lg px-3 py-2
-                       focus:outline-none focus:ring-1 focus:ring-accent appearance-none pr-8"
-          >
-            <option value="">All Providers</option>
-            {['aws','gcp','azure','linode','digitalocean'].map(p => (
-              <option key={p} value={p}>{p.toUpperCase()}</option>
-            ))}
-          </select>
+          <div style={{ width: '180px' }}>
+            <Select
+              value={provider}
+              onChange={e => {
+                setProvider(e.target.value)
+                setSearch('')
+              }}
+            >
+              <option value="">All Providers</option>
+              {['aws', 'gcp', 'azure', 'linode', 'digitalocean'].map(p => (
+                <option key={p} value={p}>
+                  {p.toUpperCase()}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-          <span className="ml-auto text-xs text-ink-muted font-mono">
-            <span className="text-accent font-bold">{filtered.length}</span> cluster{filtered.length !== 1 ? 's' : ''} found
-          </span>
-        </div>
+          <Text variant="smallMuted" style={{ marginLeft: 'auto', fontFamily: 'monospace' }}>
+            <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{filtered.length}</span> cluster
+            {filtered.length !== 1 ? 's' : ''} found
+          </Text>
+        </Flex>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="table-dark min-w-[700px]" aria-label="Kubernetes clusters">
-            <thead>
+        {/* Table container */}
+        <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+          <Table aria-label="Kubernetes clusters">
+            <THead>
               <tr>
-                <th>Cluster Name</th>
-                <th>Provider</th>
-                <th>Region</th>
-                <th>K8s Version</th>
-                <th>Status</th>
-                <th className="text-center">Nodes</th>
-                <th>Endpoint</th>
-                <th>Last Synced</th>
-                <th></th>
+                <TH>Cluster Name</TH>
+                <TH>Provider</TH>
+                <TH>Region</TH>
+                <TH>K8s Version</TH>
+                <TH>Status</TH>
+                <TH style={{ textAlign: 'center' }}>Nodes</TH>
+                <TH>Endpoint</TH>
+                <TH>Last Synced</TH>
+                <TH style={{ width: '48px' }}></TH>
               </tr>
-            </thead>
-            <tbody>
-              {isLoading && <SkeletonTableRows count={5} />}
-
-              {!isLoading && filtered.length === 0 && (
+            </THead>
+            <TBody>
+              {isError && (
                 <tr>
-                  <td colSpan={8} className="text-center py-20">
-                    <Box size={32} className="text-ink-muted mx-auto mb-3 opacity-40" />
-                    <p className="text-ink-muted text-sm">
-                      {clusters.length === 0
-                        ? 'No clusters found. Click "Sync All" to fetch from cloud providers.'
-                        : 'No clusters match your filters.'}
-                    </p>
+                  <td colSpan={9} style={{ padding: '64px 24px', textAlign: 'center' }}>
+                    <Flex direction="column" align="center" gap={3} style={{ maxWidth: '400px', margin: '0 auto' }}>
+                      <Text style={{ fontSize: '24px' }}>⚠️</Text>
+                      <Heading level="h4">Failed to fetch clusters</Heading>
+                      <Text variant="smallMuted">
+                        Check backend connectivity or cloud credentials. Details:{' '}
+                        {error instanceof Error ? error.message : 'Offline'}
+                      </Text>
+                      <Button size="sm" onClick={() => refetch()}>
+                        Retry Query
+                      </Button>
+                    </Flex>
                   </td>
                 </tr>
               )}
 
-              {filtered.map(cluster => {
-                const cfg = STATUS_CFG[cluster.status] ?? STATUS_CFG.unknown
-                return (
-                  <tr key={cluster.id}>
-                    <td>
-                      <p className="text-sm font-bold text-ink-primary">{cluster.name}</p>
-                      {cluster.cloud_id && cluster.cloud_id !== cluster.name && (
-                        <p className="text-[10px] font-mono text-ink-muted mt-0.5 truncate max-w-[220px]">
-                          {cluster.cloud_id}
-                        </p>
-                      )}
-                    </td>
-                    <td><ProviderBadge provider={cluster.provider} showLogo /></td>
-                    <td><span className="text-sm text-ink-secondary">{cluster.region ?? '—'}</span></td>
-                    <td>
-                      <span className="text-xs font-mono text-ink-secondary">
-                        {cluster.version ? `v${cluster.version}` : '—'}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight w-fit"
-                        style={{ color: cfg.text, background: cfg.bg, border: `1px solid ${cfg.border}` }}
+              {isLoading && !isError && <SkeletonTableRows count={5} />}
+
+              {!isLoading && !isError && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={9} style={{ padding: '80px 24px', textAlign: 'center' }}>
+                    <Box size={32} style={{ color: 'var(--tx3)', margin: '0 auto 12px auto', opacity: 0.4 }} />
+                    <Text variant="muted">
+                      {clusters.length === 0
+                        ? 'No clusters found. Click "Sync All" to fetch from cloud providers.'
+                        : 'No clusters match your filters.'}
+                    </Text>
+                  </td>
+                </tr>
+              )}
+
+              {filtered.map(cluster => (
+                <tr key={cluster.id}>
+                  <TD>
+                    <Text style={{ fontWeight: 700 }}>{cluster.name}</Text>
+                    {cluster.cloud_id && cluster.cloud_id !== cluster.name && (
+                      <Text
+                        variant="smallMuted"
+                        style={{
+                          fontFamily: 'monospace',
+                          marginTop: '2px',
+                          textOverflow: 'ellipsis',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '220px',
+                        }}
                       >
-                        {cfg.dot && (
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot === 'pulse' ? 'animate-pulse' : ''}`}
-                            style={{ background: cfg.text }}
-                          />
-                        )}
-                        {cluster.status}
-                      </span>
-                    </td>
-                    <td className="text-center">
-                      <div className="inline-flex items-center gap-1 text-sm font-mono text-ink-secondary tabular-nums">
-                        <Cpu size={12} className="text-ink-muted" />
+                        {cluster.cloud_id}
+                      </Text>
+                    )}
+                  </TD>
+                  <TD>
+                    <ProviderBadge provider={cluster.provider} showLogo />
+                  </TD>
+                  <TD>
+                    <Text style={{ fontSize: '13px' }}>{cluster.region ?? '—'}</Text>
+                  </TD>
+                  <TD>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {cluster.version ? `v${cluster.version}` : '—'}
+                    </Text>
+                  </TD>
+                  <TD>
+                    <Badge status={STATUS_MAP[cluster.status] ?? 'gray'}>{cluster.status}</Badge>
+                  </TD>
+                  <TD style={{ textAlign: 'center' }}>
+                    <Flex align="center" justify="center" gap={1}>
+                      <Cpu size={12} style={{ color: 'var(--tx3)' }} />
+                      <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
                         {cluster.node_count ?? '—'}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="text-xs font-mono text-ink-muted truncate max-w-[180px] block">
-                        {cluster.endpoint ?? '—'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-xs text-ink-muted tabular-nums">{fmt(cluster.last_synced)}</span>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => setMapTarget(cluster)}
-                        className="p-1.5 text-ink-dim hover:text-accent rounded-lg transition-colors hover:bg-surface-3"
-                        aria-label="Resource map"
-                        title="Resource Map"
-                      >
-                        <Map size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                      </Text>
+                    </Flex>
+                  </TD>
+                  <TD>
+                    <Text
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '12px',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '180px',
+                      }}
+                    >
+                      {cluster.endpoint ?? '—'}
+                    </Text>
+                  </TD>
+                  <TD>
+                    <Text variant="smallMuted" style={{ fontFamily: 'monospace' }}>
+                      {fmt(cluster.last_synced)}
+                    </Text>
+                  </TD>
+                  <TD>
+                    <Button
+                      size="sm"
+                      intent="ghost"
+                      onClick={() => setMapTarget(cluster)}
+                      style={{ padding: '6px' }}
+                      title="Resource Map"
+                    >
+                      <Map size={14} />
+                    </Button>
+                  </TD>
+                </tr>
+              ))}
+            </TBody>
+          </Table>
+        </TableContainer>
+      </Card>
 
       {mapTarget && (
         <ResourceMapModal
@@ -229,6 +311,6 @@ export default function KubernetesPage() {
           onClose={() => setMapTarget(null)}
         />
       )}
-    </div>
+    </Flex>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Wifi, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { Card, Input, Button, Flex, Text } from './StitchUI'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -49,7 +50,16 @@ export default function LoginPage() {
         aria-hidden="true"
       />
 
-      <div className="glass-modal rounded-2xl w-full max-w-[360px] p-8 animate-slide-up relative z-10">
+      <Card
+        modal
+        style={{
+          width: '100%',
+          maxWidth: '360px',
+          padding: '32px',
+          position: 'relative',
+          zIndex: 10,
+        }}
+      >
         {/* Logo */}
         <div className="text-center mb-8">
           <div
@@ -62,125 +72,123 @@ export default function LoginPage() {
           >
             <Wifi size={22} className="text-accent" style={{ filter: 'drop-shadow(0 0 6px rgba(0,212,255,0.6))' }} />
           </div>
-          <h1 className="text-2xl font-display font-bold text-ink-primary tracking-tight">ServerInventory</h1>
-          <p className="text-[10px] text-accent mt-1 font-mono tracking-widest uppercase">Infrastructure Manager</p>
+          <h1 className="text-2xl font-display font-bold text-ink-primary tracking-tight" style={{ margin: 0 }}>ServerInventory</h1>
+          <p className="text-[10px] text-accent mt-1 font-mono tracking-widest uppercase" style={{ margin: '4px 0 0 0' }}>Infrastructure Manager</p>
         </div>
 
-        <form onSubmit={submit} className="space-y-4">
-          {/* Error */}
-          {error && (
-            <div
-              className="text-sm px-3 py-2.5 rounded-lg text-center"
-              style={{
-                background: 'var(--sr-bg)',
-                color: 'var(--sr)',
-                border: '1px solid var(--sr-bd)',
-              }}
-              role="alert"
-            >
-              {error}
-            </div>
-          )}
+        <form onSubmit={submit}>
+          <Flex direction="column" gap={4}>
+            {/* Error */}
+            {error && (
+              <div
+                className="text-sm px-3 py-2.5 rounded-lg text-center"
+                style={{
+                  background: 'var(--sr-bg)',
+                  color: 'var(--sr)',
+                  border: '1px solid var(--sr-bd)',
+                }}
+                role="alert"
+              >
+                {error}
+              </div>
+            )}
 
-          {/* Username */}
-          <div>
-            <label
-              htmlFor="username"
-              className="block text-[10px] font-medium text-ink-secondary mb-1.5 uppercase tracking-wider"
-            >
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Enter username"
-              autoComplete="username"
-              autoFocus
-              className="input-dark"
-              aria-required="true"
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-[10px] font-medium text-ink-secondary mb-1.5 uppercase tracking-wider"
-            >
-              Password
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPass ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Enter password"
-                autoComplete="current-password"
-                className="input-dark pr-10"
+            {/* Username */}
+            <div>
+              <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>
+                Username
+              </Text>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Enter username"
+                autoComplete="username"
+                autoFocus
                 aria-required="true"
               />
-              <button
-                type="button"
-                onClick={() => setShowPass(s => !s)}
-                aria-label={showPass ? 'Hide password' : 'Show password'}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary transition-colors"
+            </div>
+
+            {/* Password */}
+            <div>
+              <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>
+                Password
+              </Text>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                  style={{ paddingRight: '40px' }}
+                  aria-required="true"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(s => !s)}
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary transition-colors"
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember me */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+              <div
+                className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                  rememberMe
+                    ? 'bg-accent border-accent'
+                    : 'bg-surface-2 border-border group-hover:border-border-strong'
+                }`}
+                role="checkbox"
+                aria-checked={rememberMe}
+                onClick={() => setRememberMe(r => !r)}
               >
-                {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
-          </div>
+                {rememberMe && (
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+                    <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="sr-only"
+                aria-label="Remember me for 90 days"
+              />
+              <Text variant="small">
+                Remember me{' '}
+                <span className="text-ink-muted">(stay signed in for 90 days)</span>
+              </Text>
+            </label>
 
-          {/* Remember me */}
-          <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-            <div
-              className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
-                rememberMe
-                  ? 'bg-accent border-accent'
-                  : 'bg-surface-2 border-border group-hover:border-border-strong'
-              }`}
-              role="checkbox"
-              aria-checked={rememberMe}
-              onClick={() => setRememberMe(r => !r)}
+            {/* Submit */}
+            <Button
+              type="submit"
+              intent="primary"
+              disabled={loading || !username.trim() || !password}
+              style={{ width: '100%', padding: '12px', marginTop: '8px' }}
             >
-              {rememberMe && (
-                <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
-                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              {loading ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" aria-hidden="true" />
+                  Signing in…
+                </>
+              ) : (
+                'Sign In'
               )}
-            </div>
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={e => setRememberMe(e.target.checked)}
-              className="sr-only"
-              aria-label="Remember me for 90 days"
-            />
-            <span className="text-xs text-ink-secondary">
-              Remember me{' '}
-              <span className="text-ink-muted">(stay signed in for 90 days)</span>
-            </span>
-          </label>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading || !username.trim() || !password}
-            className="btn-primary w-full py-3 justify-center gap-2 mt-2"
-          >
-            {loading ? (
-              <>
-                <RefreshCw size={14} className="animate-spin" aria-hidden="true" />
-                Signing in…
-              </>
-            ) : (
-              'Sign In'
-            )}
-          </button>
+            </Button>
+          </Flex>
         </form>
-      </div>
+      </Card>
     </div>
   )
 }
+

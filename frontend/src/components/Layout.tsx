@@ -6,19 +6,19 @@ import {
   CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal, Timer,
   Layers, Database, Box, ChevronDown,
 } from 'lucide-react'
-import { syncApi } from '../api'
+import { syncApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuth'
 import { useWebSocket, type SyncEvent } from '../hooks/useWebSocket'
 import ThemeToggle from './ThemeToggle'
 import type { View } from '../types'
+import { styled } from '../stitches.config'
+import { Flex, Button, Heading, Text } from './StitchUI'
 
 interface LayoutProps {
   currentView: View
   onViewChange: (v: View) => void
   onAddServer: () => void
-  onManageCredentials: () => void
-  onManageUsers: () => void
   children: React.ReactNode
 }
 
@@ -48,6 +48,7 @@ const VIEW_TITLE: Record<View, string> = {
   crons:       'Cron Jobs',
   ssh:         'SSH Credentials',
   settings:    'Settings',
+  users:       'User Management',
 }
 
 const ROLE_ICON: Record<string, React.ElementType> = {
@@ -62,9 +63,161 @@ const ROLE_COLOR: Record<string, string> = {
   read:  '#8B8AAE',
 }
 
+// ── Stitches Styled Shell ──────────────────────────────────────────────────
+
+const Container = styled('div', {
+  display: 'flex',
+  height: '100vh',
+  backgroundColor: '$bgBase',
+  overflow: 'hidden',
+});
+
+const Sidebar = styled('aside', {
+  display: 'flex',
+  flexDirection: 'column',
+  flexShrink: 0,
+  borderRight: '1px solid $border',
+  transition: 'width 200ms ease',
+  background: 'linear-gradient(180deg, var(--sidebar-from) 0%, var(--sidebar-to) 100%)',
+  variants: {
+    open: {
+      true: { width: '240px' },
+      false: { width: '0px', overflow: 'hidden', borderRight: 'none' },
+    },
+  },
+});
+
+const LogoContainer = styled('div', {
+  padding: '$6',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$3',
+});
+
+const LogoIconWrap = styled('div', {
+  width: '32px',
+  height: '32px',
+  borderRadius: '$md',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: '$accent',
+  flexShrink: 0,
+});
+
+const NavContainer = styled('nav', {
+  flex: 1,
+  padding: '0.5rem 0',
+  overflowY: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '2px',
+});
+
+const NavButton = styled('button', {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$3',
+  padding: '0.625rem $4',
+  fontSize: '$sm',
+  color: '$tx2',
+  backgroundColor: 'transparent',
+  border: 'none',
+  borderLeft: '2px solid transparent',
+  transition: 'all 150ms ease',
+  cursor: 'pointer',
+  textAlign: 'left',
+  outline: 'none',
+  '&:hover': {
+    color: '$accent',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  variants: {
+    active: {
+      true: {
+        color: '$accent',
+        fontWeight: 700,
+        borderLeftColor: '$accent',
+        backgroundColor: '$navActiveBg',
+      },
+    },
+  },
+});
+
+const SubNavContainer = styled('div', {
+  marginLeft: '$4',
+  borderLeft: '1px solid $border',
+  paddingLeft: '0.25rem',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '2px',
+  paddingTop: '2px',
+  paddingBottom: '2px',
+});
+
+const SubNavButton = styled('button', {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$3',
+  padding: '0.5rem $3',
+  fontSize: '13px',
+  borderRadius: '$md',
+  color: '$tx2',
+  backgroundColor: 'transparent',
+  border: 'none',
+  transition: 'all 150ms ease',
+  cursor: 'pointer',
+  textAlign: 'left',
+  outline: 'none',
+  '&:hover': {
+    color: '$accent',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  variants: {
+    active: {
+      true: {
+        color: '$accent',
+        fontWeight: 700,
+        backgroundColor: '$navActiveBg',
+      },
+    },
+  },
+});
+
+const SidebarFooter = styled('div', {
+  paddingBottom: '$4',
+  borderTop: '1px solid $border',
+  paddingTop: '$2',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '2px',
+});
+
+const MainArea = styled('div', {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  minWidth: 0,
+  overflow: 'hidden',
+});
+
+const Header = styled('header', {
+  height: '54px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 $5',
+  borderBottom: '1px solid $border',
+  backgroundColor: '$headerBg',
+  backdropFilter: 'blur(20px)',
+  webkitBackdropFilter: 'blur(20px)',
+  flexShrink: 0,
+});
+
 export default function Layout({
-  currentView, onViewChange, onAddServer,
-  onManageCredentials, onManageUsers, children,
+  currentView, onViewChange, onAddServer, children,
 }: LayoutProps) {
   const [open, setOpen] = useState(true)
   const isInventoryView = INVENTORY_VIEWS.includes(currentView)
@@ -132,10 +285,11 @@ export default function Layout({
 
   const syncMutation = useMutation({
     mutationFn: () => syncApi.trigger(),
-    onError: () => {
+    onError: (error: any) => {
       setSyncStatus('error')
-      setSyncSummary('Failed to start sync')
-      toast.error('Sync failed — check credentials in Cloud Providers')
+      const errorMsg = getErrorMessage(error)
+      setSyncSummary(`Failed to start sync: ${errorMsg}`)
+      toast.error(`Sync failed: ${errorMsg}`)
       setTimeout(() => setSyncStatus('idle'), 3000)
     },
   })
@@ -143,63 +297,44 @@ export default function Layout({
   const stopMutation = useMutation({
     mutationFn: () => syncApi.stop(),
     onSuccess: () => toast.info('Sync stopped'),
-    onError: () => toast.error('Failed to stop sync'),
+    onError: (error: any) => toast.error(`Failed to stop sync: ${getErrorMessage(error)}`),
   })
 
   const RoleIcon = user ? (ROLE_ICON[user.role] ?? Eye) : Eye
   const roleColor = user ? (ROLE_COLOR[user.role] ?? '#8B8AAE') : '#8B8AAE'
 
   return (
-    <div className="flex h-screen bg-base overflow-hidden">
+    <Container>
       {/* ── Sidebar ── */}
-      <aside
-        className={`flex-shrink-0 flex flex-col border-r border-border transition-all duration-200 ${
-          open ? 'w-60' : 'w-0 overflow-hidden'
-        }`}
-        style={{ background: 'linear-gradient(180deg, var(--sidebar-from) 0%, var(--sidebar-to) 100%)' }}
-        aria-label="Sidebar navigation"
-      >
+      <Sidebar open={open} aria-label="Sidebar navigation">
         {/* Logo */}
-        <div className="px-6 py-6 flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--ac)' }}
-          >
+        <LogoContainer>
+          <LogoIconWrap>
             <Wifi size={15} className="text-black" />
-          </div>
+          </LogoIconWrap>
           <div className="overflow-hidden">
-            <p className="text-[15px] font-display font-bold text-accent tracking-tight truncate">ServerInventory</p>
-            <p className="text-[9px] text-ink-muted font-mono truncate mt-0.5 tracking-[0.2em] uppercase">Infrastructure Console</p>
+            <p style={{ fontSize: '15px', fontFamily: 'DM Sans', fontWeight: 800, color: 'var(--ac)', margin: 0, letterSpacing: '-0.015em' }}>ServerInventory</p>
+            <p style={{ fontSize: '9px', color: 'var(--tx3)', fontFamily: 'monospace', margin: '2px 0 0 0', letterSpacing: '0.2em', uppercase: 'true' as any } as any}>INFRASTRUCTURE CONSOLE</p>
           </div>
-        </div>
+        </LogoContainer>
 
         {/* Nav */}
-        <nav className="flex-1 space-y-0.5 overflow-y-auto py-2" role="navigation">
+        <NavContainer role="navigation">
           {/* Dashboard */}
-          <button
+          <NavButton
             onClick={() => onViewChange('dashboard')}
+            active={currentView === 'dashboard'}
             aria-current={currentView === 'dashboard' ? 'page' : undefined}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 ${
-              currentView === 'dashboard'
-                ? 'text-accent font-bold border-l-2 border-accent'
-                : 'text-ink-secondary hover:text-accent hover:bg-surface-3 border-l-2 border-transparent'
-            }`}
-            style={currentView === 'dashboard' ? { background: 'var(--nav-active-bg)' } : {}}
           >
             <LayoutDashboard size={16} className="flex-shrink-0" />
             <span className="truncate">Dashboard</span>
-          </button>
+          </NavButton>
 
           {/* ── Inventory group ── */}
           <div>
-            <button
+            <NavButton
               onClick={() => setInventoryOpen(o => !o)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150
-                border-l-2 ${isInventoryView
-                  ? 'text-accent font-bold border-accent'
-                  : 'text-ink-secondary hover:text-accent hover:bg-surface-3 border-transparent'
-                }`}
-              style={isInventoryView ? { background: 'var(--nav-active-bg)' } : {}}
+              active={isInventoryView}
             >
               <Layers size={16} className="flex-shrink-0" />
               <span className="flex-1 text-left truncate">Inventory</span>
@@ -207,94 +342,97 @@ export default function Layout({
                 size={13}
                 className={`flex-shrink-0 transition-transform duration-150 ${inventoryOpen ? 'rotate-180' : ''}`}
               />
-            </button>
+            </NavButton>
 
             {inventoryOpen && (
-              <div className="ml-4 border-l border-border pl-1 space-y-0.5 py-0.5">
+              <SubNavContainer>
                 {INVENTORY_SUB.map(({ id, label, Icon }) => (
-                  <button
+                  <SubNavButton
                     key={id}
                     onClick={() => onViewChange(id)}
+                    active={currentView === id}
                     aria-current={currentView === id ? 'page' : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-[13px] rounded-lg
-                               transition-colors duration-150 ${
-                                 currentView === id
-                                   ? 'text-accent font-bold bg-[var(--nav-active-bg)]'
-                                   : 'text-ink-secondary hover:text-accent hover:bg-surface-3'
-                               }`}
                   >
                     <Icon size={14} className="flex-shrink-0" />
                     <span className="truncate">{label}</span>
-                  </button>
+                  </SubNavButton>
                 ))}
-              </div>
+              </SubNavContainer>
             )}
           </div>
 
           {/* Rest of nav */}
           {NAV.map(({ id, label, Icon }) => (
-            <button
+            <NavButton
               key={id}
               onClick={() => onViewChange(id)}
+              active={currentView === id}
               aria-current={currentView === id ? 'page' : undefined}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 ${
-                currentView === id
-                  ? 'text-accent font-bold border-l-2 border-accent'
-                  : 'text-ink-secondary hover:text-accent hover:bg-surface-3 border-l-2 border-transparent'
-              }`}
-              style={currentView === id ? { background: 'var(--nav-active-bg)' } : {}}
             >
               <Icon size={16} className="flex-shrink-0" />
               <span className="truncate">{label}</span>
-            </button>
+            </NavButton>
           ))}
-        </nav>
+        </NavContainer>
 
         {/* Footer */}
-        <div className="pb-4 border-t border-border pt-2 space-y-0.5">
-          <button
-            onClick={onManageCredentials}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm
-                       text-ink-secondary hover:text-accent hover:bg-surface-3 transition-colors border-l-2 border-transparent"
+        <SidebarFooter>
+          <NavButton
+            onClick={() => onViewChange('providers')}
+            active={currentView === 'providers'}
           >
             <Settings size={16} className="flex-shrink-0" />
             <span className="truncate">Manage Credentials</span>
-          </button>
+          </NavButton>
 
           {isAdmin && (
-            <button
-              onClick={onManageUsers}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm
-                         text-ink-secondary hover:text-accent hover:bg-surface-3 transition-colors border-l-2 border-transparent"
+            <NavButton
+              onClick={() => onViewChange('users')}
+              active={currentView === 'users'}
             >
               <Users size={16} className="flex-shrink-0" />
               <span className="truncate">Manage Users</span>
-            </button>
+            </NavButton>
           )}
-        </div>
-      </aside>
+        </SidebarFooter>
+      </Sidebar>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <MainArea>
         {/* Header */}
-        <header
-          className="flex-shrink-0 h-[54px] flex items-center justify-between px-5 border-b border-border"
-          style={{ background: 'var(--header-bg)', backdropFilter: 'blur(20px)' }}
-        >
-          <div className="flex items-center gap-3">
+        <Header>
+          <Flex align="center" gap={3}>
             <button
               onClick={() => setOpen(o => !o)}
               aria-label={open ? 'Close sidebar' : 'Open sidebar'}
-              className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-surface-3 transition-colors"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '6px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                color: 'var(--tx2)',
+                transition: 'all 150ms ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                e.currentTarget.style.color = 'var(--tx1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--tx2)';
+              }}
             >
               {open ? <X size={17} /> : <Menu size={17} />}
             </button>
-            <h1 className="text-[15px] font-display font-bold text-ink-primary tracking-tight">
+            <Heading level="h3" style={{ fontSize: '15px', color: 'var(--tx1)' }}>
               {VIEW_TITLE[currentView]}
-            </h1>
-          </div>
+            </Heading>
+          </Flex>
 
-          <div className="flex items-center gap-2">
+          <Flex align="center" gap={2}>
             {/* Role badge */}
             {user && (
               <div
@@ -310,14 +448,14 @@ export default function Layout({
 
             {/* Action buttons */}
             {currentView === 'servers' && canWrite && (
-              <button onClick={onAddServer} className="btn-primary">
+              <Button intent="primary" onClick={onAddServer}>
                 <Plus size={14} />
                 <span className="hidden sm:inline">Add Server</span>
-              </button>
+              </Button>
             )}
 
             {canWrite && (
-              <div className="flex items-center gap-2">
+              <Flex align="center" gap={2}>
                 {/* Live sync status pill */}
                 {syncStatus !== 'idle' && (
                   <div
@@ -338,31 +476,32 @@ export default function Layout({
 
                 {/* Stop sync button */}
                 {isSyncing && (
-                  <button
+                  <Button
+                    intent="ghost"
                     onClick={() => stopMutation.mutate()}
                     disabled={stopMutation.isPending}
-                    className="btn-ghost px-2.5 py-2 text-xs"
-                    style={{ color: 'var(--sr)' }}
+                    size="sm"
+                    style={{ color: 'var(--sr)', borderColor: 'var(--sr-bd)' }}
                     aria-label="Stop all syncs"
                     title="Stop all syncs"
                   >
                     <Square size={13} />
                     <span className="hidden sm:inline">Stop</span>
-                  </button>
+                  </Button>
                 )}
 
-                <button
+                <Button
+                  intent="primary"
                   onClick={() => syncMutation.mutate()}
                   disabled={isSyncing || syncMutation.isPending}
-                  className="btn-primary"
                   aria-label="Sync all cloud providers"
                 >
                   <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} aria-hidden="true" />
                   <span className="hidden sm:inline">
                     {isSyncing ? `Syncing${activeSyncs.size > 1 ? ` (${activeSyncs.size})` : ''}…` : 'Sync All'}
                   </span>
-                </button>
-              </div>
+                </Button>
+              </Flex>
             )}
 
             {/* Logout */}
@@ -370,18 +509,37 @@ export default function Layout({
               onClick={logout}
               aria-label="Sign out"
               title="Sign out"
-              className="p-2 rounded-lg text-ink-muted hover:text-status-red hover:bg-status-red/10 transition-colors"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                color: 'var(--tx2)',
+                transition: 'all 150ms ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                e.currentTarget.style.color = 'var(--sr)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--tx2)';
+              }}
             >
               <LogOut size={16} />
             </button>
-          </div>
-        </header>
+          </Flex>
+        </Header>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto p-6 bg-base" role="main">
+        <main style={{ flex: 1, overflow: 'auto', padding: '24px', backgroundColor: 'var(--bg-base)' }} role="main">
           {children}
         </main>
-      </div>
-    </div>
+      </MainArea>
+    </Container>
   )
 }
+

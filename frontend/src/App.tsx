@@ -9,9 +9,8 @@ import Layout from './components/Layout'
 import StatsCards from './components/StatsCards'
 import ServerTable from './components/ServerTable'
 import AddServerModal from './components/AddServerModal'
-import CredentialsModal from './components/CredentialsModal'
-import UsersModal from './components/UsersModal'
 import ProvidersPage from './components/ProvidersPage'
+import UsersPage from './components/UsersPage'
 import SyncLogsPage from './components/SyncLogsPage'
 import DashboardPage from './components/DashboardPage'
 import DatabasesPage from './components/DatabasesPage'
@@ -20,8 +19,39 @@ import SSHPage from './components/SSHPage'
 import SettingsPage from './components/SettingsPage'
 import CronsPage from './components/CronsPage'
 import ServerDetailModal from './components/ServerDetailModal'
+import ErrorBoundary from './components/ErrorBoundary'
 import { GooeyFilter } from './components/Toggle'
 import type { View, Server } from './types'
+import { styled } from './stitches.config'
+
+const SplitPane = styled('div', {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$5',
+  width: '100%',
+  alignItems: 'stretch',
+  '@lg': {
+    flexDirection: 'row',
+  },
+});
+
+const TablePane = styled('div', {
+  flex: 1,
+  minWidth: 0,
+});
+
+const DetailPane = styled('div', {
+  width: '100%',
+  flexShrink: 0,
+  '@lg': {
+    width: '450px',
+    position: 'sticky',
+    top: '0px',
+    height: 'calc(100vh - 102px)',
+    overflow: 'hidden',
+  },
+});
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +71,7 @@ const PATH_TO_VIEW: Record<string, View> = {
   '/crons':               'crons',
   '/ssh':                 'ssh',
   '/settings':            'settings',
+  '/users':               'users',
 }
 
 const VIEW_TO_PATH: Record<View, string> = {
@@ -53,6 +84,7 @@ const VIEW_TO_PATH: Record<View, string> = {
   'crons':      '/crons',
   'ssh':        '/ssh',
   'settings':   '/settings',
+  'users':      '/users',
 }
 
 function AppContent() {
@@ -62,8 +94,6 @@ function AppContent() {
     () => PATH_TO_VIEW[window.location.pathname] ?? 'servers',
   )
   const [showAddServer, setShowAddServer]     = useState(false)
-  const [showCredentials, setShowCredentials] = useState(false)
-  const [showUsers, setShowUsers]             = useState(false)
   const [selectedServer, setSelectedServer]   = useState<Server | null>(null)
   const [editingServer, setEditingServer]     = useState<Server | null>(null)
 
@@ -88,8 +118,6 @@ function AppContent() {
       currentView={view}
       onViewChange={navigate}
       onAddServer={() => setShowAddServer(true)}
-      onManageCredentials={() => setShowCredentials(true)}
-      onManageUsers={() => setShowUsers(true)}
     >
       <div key={view} className="contents">
         {view === 'dashboard' && (
@@ -100,11 +128,33 @@ function AppContent() {
 
         {view === 'servers' && (
           <div className="space-y-5 animate-fade-in">
-            <ServerTable
-              onAddServer={() => setShowAddServer(true)}
-              onServerClick={setSelectedServer}
-              onEditServer={canWrite ? setEditingServer : undefined}
-            />
+            {selectedServer ? (
+              <SplitPane>
+                <TablePane>
+                  <ServerTable
+                    onAddServer={() => setShowAddServer(true)}
+                    onServerClick={setSelectedServer}
+                    onEditServer={canWrite ? setEditingServer : undefined}
+                    compact={true}
+                    selectedServerId={selectedServer.id}
+                  />
+                </TablePane>
+                <DetailPane>
+                  <ServerDetailModal
+                    server={selectedServer}
+                    onClose={() => setSelectedServer(null)}
+                    onServerUpdated={setSelectedServer}
+                    inline={true}
+                  />
+                </DetailPane>
+              </SplitPane>
+            ) : (
+              <ServerTable
+                onAddServer={() => setShowAddServer(true)}
+                onServerClick={setSelectedServer}
+                onEditServer={canWrite ? setEditingServer : undefined}
+              />
+            )}
           </div>
         )}
 
@@ -113,7 +163,13 @@ function AppContent() {
 
         {view === 'providers' && (
           <div className="animate-fade-in">
-            <ProvidersPage onAddCredential={() => setShowCredentials(true)} />
+            <ProvidersPage />
+          </div>
+        )}
+
+        {view === 'users' && user.role === 'admin' && (
+          <div className="animate-fade-in">
+            <UsersPage />
           </div>
         )}
 
@@ -149,9 +205,7 @@ function AppContent() {
           onClose={() => setEditingServer(null)}
         />
       )}
-      {showCredentials             && <CredentialsModal  onClose={() => setShowCredentials(false)}  />}
-      {showUsers      && user.role === 'admin' && <UsersModal onClose={() => setShowUsers(false)} />}
-      {selectedServer && (
+      {selectedServer && view !== 'servers' && (
         <ServerDetailModal
           server={selectedServer}
           onClose={() => setSelectedServer(null)}
@@ -169,7 +223,9 @@ export default function App() {
         <ToastProvider>
           <AuthProvider>
             <QueryClientProvider client={queryClient}>
-              <AppContent />
+              <ErrorBoundary>
+                <AppContent />
+              </ErrorBoundary>
             </QueryClientProvider>
           </AuthProvider>
           <ToastContainer />

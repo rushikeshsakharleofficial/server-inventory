@@ -14,6 +14,7 @@ import {
 import { serversApi, http } from '../api'
 import StatsCards from './StatsCards'
 import type { ServerSnapshot } from '../types'
+import { Card, Flex, Heading, Text } from './StitchUI'
 
 const statsApi = {
   history: (days = 30) =>
@@ -83,8 +84,8 @@ function LineTooltipContent({ active, payload, label }: LineTooltipProps) {
         color:       'var(--tx1)',
       }}
     >
-      <p className="text-ink-muted text-xs mb-1">{label}</p>
-      <p className="font-semibold tabular-nums">{payload[0].value} servers</p>
+      <p className="text-ink-muted text-xs mb-1" style={{ color: 'var(--tx3)', margin: '0 0 4px 0' }}>{label}</p>
+      <p className="font-semibold tabular-nums" style={{ margin: 0 }}>{payload[0].value} servers</p>
     </div>
   )
 }
@@ -106,8 +107,8 @@ function BarTooltipContent({ active, payload }: BarTooltipProps) {
         color:      'var(--tx1)',
       }}
     >
-      <p className="text-ink-muted text-xs mb-1">{PROVIDER_LABELS[provider] ?? provider}</p>
-      <p className="font-semibold tabular-nums">{payload[0].value} servers</p>
+      <p className="text-ink-muted text-xs mb-1" style={{ color: 'var(--tx3)', margin: '0 0 4px 0' }}>{PROVIDER_LABELS[provider] ?? provider}</p>
+      <p className="font-semibold tabular-nums" style={{ margin: 0 }}>{payload[0].value} servers</p>
     </div>
   )
 }
@@ -137,17 +138,17 @@ export default function DashboardPage() {
     .sort((a, b) => b.count - a.count)
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <Flex direction="column" gap={5}>
       <StatsCards />
 
       {/* Server Growth */}
-      <div className="card-dark p-6">
-        <div className="mb-6 flex items-center justify-between">
+      <Card>
+        <Flex justify="between" align="center" style={{ marginBottom: '24px' }}>
           <div>
-            <h3 className="font-display text-xl font-extrabold text-ink-primary">Server Growth</h3>
-            <p className="text-xs text-ink-muted mt-1">Infrastructure scaling over the last 30 days</p>
+            <Heading level="h2">Server Growth</Heading>
+            <Text variant="muted" style={{ marginTop: '4px' }}>Infrastructure scaling over the last 30 days</Text>
           </div>
-        </div>
+        </Flex>
 
         {histLoading ? (
           <ChartSkeleton height={240} />
@@ -156,7 +157,7 @@ export default function DashboardPage() {
             className="flex items-center justify-center rounded-xl"
             style={{ height: 240, background: 'var(--bg-s2)', border: '1px solid var(--bd)' }}
           >
-            <p className="text-sm text-ink-muted">No historical data yet</p>
+            <Text variant="muted">No historical data yet</Text>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
@@ -187,13 +188,13 @@ export default function DashboardPage() {
             </LineChart>
           </ResponsiveContainer>
         )}
-      </div>
+      </Card>
 
       {/* Provider Breakdown */}
-      <div className="card-dark p-6">
-        <div className="mb-6">
-          <h3 className="font-display text-xl font-extrabold text-ink-primary">Provider Breakdown</h3>
-          <p className="text-xs text-ink-muted mt-1">Server count per cloud provider</p>
+      <Card>
+        <div style={{ marginBottom: '24px' }}>
+          <Heading level="h2">Provider Breakdown</Heading>
+          <Text variant="muted" style={{ marginTop: '4px' }}>Server count per cloud provider</Text>
         </div>
 
         {statsLoading ? (
@@ -203,7 +204,7 @@ export default function DashboardPage() {
             className="flex items-center justify-center rounded-xl"
             style={{ height: 240, background: 'var(--bg-s2)', border: '1px solid var(--bd)' }}
           >
-            <p className="text-sm text-ink-muted">No provider data yet</p>
+            <Text variant="muted">No provider data yet</Text>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={Math.max(180, barData.length * 44)}>
@@ -241,7 +242,8 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         )}
-      </div>
-    </div>
+      </Card>
+    </Flex>
   )
 }
+

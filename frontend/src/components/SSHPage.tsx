@@ -3,9 +3,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Star, Trash2, Plus, KeyRound, Lock } from 'lucide-react'
 import { useToast } from '../hooks/useToast'
 import type { SSHCredential } from '../types'
-
-// Typed shim — these endpoints are provided by the extended api surface
-import { http } from '../api'
+import { http, getErrorMessage } from '../api'
+import {
+  Card,
+  Flex,
+  Grid,
+  Heading,
+  Text,
+  Input,
+  Textarea,
+  Button,
+  Badge,
+  TableContainer,
+  Table,
+  THead,
+  TBody,
+  TH,
+  TD,
+} from './StitchUI'
 
 const sshCredentialsApi = {
   list: () => http.get<SSHCredential[]>('/api/ssh-credentials').then(r => r.data),
@@ -43,29 +58,35 @@ const EMPTY_FORM: FormState = {
 function AuthBadge({ method }: { method: AuthMethod }) {
   const isKey = method === 'key'
   return (
-    <span
-      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md"
-      style={
-        isKey
-          ? { background: 'var(--ac-bg)', color: 'var(--ac)', border: '1px solid var(--ac-bd)' }
-          : { background: 'var(--sgr-bg)', color: 'var(--sgr)', border: '1px solid var(--sgr-bd)' }
-      }
+    <Badge
+      status={isKey ? 'primary' : 'gray'}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        fontSize: '11px',
+      }}
     >
       {isKey ? <KeyRound size={10} /> : <Lock size={10} />}
       {isKey ? 'Key' : 'Password'}
-    </span>
+    </Badge>
   )
 }
 
 function DefaultBadge() {
   return (
-    <span
-      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md"
-      style={{ background: 'var(--ac-bg)', color: 'var(--ac)', border: '1px solid var(--ac-bd)' }}
+    <Badge
+      status="primary"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        fontSize: '11px',
+      }}
     >
       <Star size={10} fill="currentColor" />
       Default
-    </span>
+    </Badge>
   )
 }
 
@@ -77,7 +98,7 @@ export default function SSHPage() {
   const [form, setForm]               = useState<FormState>(EMPTY_FORM)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
-  const { data: creds = [], isLoading } = useQuery({
+  const { data: creds = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['ssh-credentials'],
     queryFn: sshCredentialsApi.list,
   })
@@ -90,7 +111,7 @@ export default function SSHPage() {
       setForm(EMPTY_FORM)
       setShowForm(false)
     },
-    onError: () => toast.error('Failed to save SSH credential'),
+    onError: (error: any) => toast.error(`Failed to save SSH credential: ${getErrorMessage(error)}`),
   })
 
   const deleteMutation = useMutation({
@@ -100,7 +121,7 @@ export default function SSHPage() {
       qc.invalidateQueries({ queryKey: ['ssh-credentials'] })
       setConfirmDeleteId(null)
     },
-    onError: () => toast.error('Failed to delete SSH credential'),
+    onError: (error: any) => toast.error(`Failed to delete SSH credential: ${getErrorMessage(error)}`),
   })
 
   const setDefaultMutation = useMutation({
@@ -109,7 +130,7 @@ export default function SSHPage() {
       toast.success('Default credential updated')
       qc.invalidateQueries({ queryKey: ['ssh-credentials'] })
     },
-    onError: () => toast.error('Failed to set default'),
+    onError: (error: any) => toast.error(`Failed to set default: ${getErrorMessage(error)}`),
   })
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -139,272 +160,287 @@ export default function SSHPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <Flex direction="column" gap={5} className="animate-fade-in">
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
+      <Flex justify="between" align="center">
         <div>
-          <h1 className="text-xl font-semibold text-ink-primary">SSH Credentials</h1>
-          <p className="text-sm text-ink-muted mt-0.5">
+          <Heading level="h1">SSH Credentials</Heading>
+          <Text variant="muted" style={{ marginTop: '4px' }}>
             Shared credentials for Custom DC server SSH access
-          </p>
+          </Text>
         </div>
         {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="btn-primary flex-shrink-0"
-          >
+          <Button intent="primary" onClick={() => setShowForm(true)}>
             <Plus size={14} />
             Add Credential
-          </button>
+          </Button>
         )}
-      </div>
+      </Flex>
 
-      {/* Credentials table */}
-      <div className="card-dark overflow-hidden">
-        {isLoading ? (
-          <div className="py-14 text-center text-ink-muted text-sm">Loading…</div>
+      {/* Credentials table or form container */}
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
+        {isError ? (
+          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+            <Flex direction="column" align="center" gap={3} style={{ maxWidth: '400px', margin: '0 auto' }}>
+              <Text style={{ fontSize: '24px' }}>⚠️</Text>
+              <Heading level="h4">Failed to fetch SSH credentials</Heading>
+              <Text variant="smallMuted">
+                Check backend connectivity or console logs. Details:{' '}
+                {error instanceof Error ? error.message : 'Offline'}
+              </Text>
+              <Button size="sm" onClick={() => refetch()}>
+                Retry Query
+              </Button>
+            </Flex>
+          </div>
+        ) : isLoading ? (
+          <div style={{ padding: '56px 24px', textAlign: 'center' }}>
+            <Text variant="muted">Loading SSH Credentials…</Text>
+          </div>
         ) : creds.length === 0 && !showForm ? (
-          <div
-            className="mx-6 my-8 flex flex-col items-center justify-center py-12 rounded-xl text-center"
-            style={{ border: '2px dashed var(--bd)' }}
-          >
-            <KeyRound size={28} className="text-ink-dim mb-3" />
-            <p className="text-sm font-medium text-ink-secondary">No SSH credentials yet</p>
-            <p className="text-xs text-ink-muted mt-1">
+          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+            <KeyRound size={28} style={{ color: 'var(--tx3)', margin: '0 auto 12px auto', opacity: 0.5 }} />
+            <Heading level="h3" style={{ marginBottom: '8px' }}>No SSH credentials yet</Heading>
+            <Text variant="muted" style={{ marginBottom: '24px' }}>
               Add a credential to enable SSH sync for Custom DC servers
-            </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="btn-primary mt-4"
-            >
+            </Text>
+            <Button intent="primary" onClick={() => setShowForm(true)} style={{ margin: '0 auto' }}>
               <Plus size={14} />
               Add Credential
-            </button>
+            </Button>
           </div>
-        ) : creds.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="table-dark min-w-[680px]" aria-label="SSH credentials">
-              <thead>
+        ) : creds.length > 0 && !showForm ? (
+          <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+            <Table aria-label="SSH credentials">
+              <THead>
                 <tr>
-                  <th>Name</th>
-                  <th>User</th>
-                  <th>Auth Method</th>
-                  <th>Port</th>
-                  <th>Default</th>
-                  <th>Actions</th>
+                  <TH>Name</TH>
+                  <TH>User</TH>
+                  <TH>Auth Method</TH>
+                  <TH>Port</TH>
+                  <TH>Default</TH>
+                  <TH style={{ width: '120px', textAlign: 'right' }}>Actions</TH>
                 </tr>
-              </thead>
-              <tbody>
+              </THead>
+              <TBody>
                 {creds.map(cred => (
                   <tr key={cred.id}>
-                    <td>
-                      <p className="text-sm font-medium text-ink-primary">{cred.name}</p>
+                    <TD>
+                      <Text style={{ fontWeight: 700 }}>{cred.name}</Text>
                       {cred.created_at && (
-                        <p className="text-[11px] text-ink-muted mt-0.5">
+                        <Text variant="smallMuted" style={{ marginTop: '2px' }}>
                           {new Date(cred.created_at).toLocaleDateString()}
-                        </p>
+                        </Text>
                       )}
-                    </td>
-                    <td>
-                      <span className="text-sm font-mono text-ink-secondary">{cred.username}</span>
-                    </td>
-                    <td>
+                    </TD>
+                    <TD>
+                      <Text style={{ fontFamily: 'monospace', fontSize: '13px' }}>{cred.username}</Text>
+                    </TD>
+                    <TD>
                       <AuthBadge method={cred.auth_method} />
-                    </td>
-                    <td>
-                      <span className="text-sm font-mono text-ink-secondary tabular-nums">
-                        {cred.port}
-                      </span>
-                    </td>
-                    <td>
-                      {cred.is_default ? (
-                        <DefaultBadge />
-                      ) : (
-                        <span className="text-ink-dim text-xs">—</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-1">
+                    </TD>
+                    <TD>
+                      <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{cred.port}</Text>
+                    </TD>
+                    <TD>
+                      {cred.is_default ? <DefaultBadge /> : <Text variant="smallMuted">—</Text>}
+                    </TD>
+                    <TD>
+                      <Flex align="center" justify="end" gap={2}>
                         {!cred.is_default && (
-                          <button
+                          <Button
+                            size="sm"
+                            intent="ghost"
                             onClick={() => setDefaultMutation.mutate(cred.id)}
                             disabled={setDefaultMutation.isPending}
-                            aria-label={`Set ${cred.name} as default`}
+                            style={{ padding: '6px' }}
                             title="Set as default"
-                            className="p-1.5 text-ink-dim hover:text-accent rounded-lg transition-colors disabled:opacity-40"
                           >
                             <Star size={14} />
-                          </button>
+                          </Button>
                         )}
+
                         {confirmDeleteId === cred.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-status-red whitespace-nowrap">Delete?</span>
-                            <button
+                          <Flex align="center" gap={2}>
+                            <Text style={{ fontSize: '11px', color: 'var(--sr)', fontWeight: 700 }}>Delete?</Text>
+                            <Button
+                              size="sm"
+                              intent="danger"
                               onClick={() => deleteMutation.mutate(cred.id)}
                               disabled={deleteMutation.isPending}
-                              className="text-[11px] px-2 py-1 rounded-lg disabled:opacity-50 transition-colors"
-                              style={{ background: 'var(--sr-bg)', color: 'var(--sr)', border: '1px solid var(--sr-bd)' }}
+                              style={{ padding: '2px 8px', fontSize: '10px' }}
                             >
                               Yes
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              size="sm"
+                              intent="ghost"
                               onClick={() => setConfirmDeleteId(null)}
-                              className="text-[11px] px-2 py-1 rounded-lg border border-border text-ink-muted hover:bg-surface-3 transition-colors"
+                              style={{ padding: '2px 8px', fontSize: '10px' }}
                             >
                               No
-                            </button>
-                          </div>
+                            </Button>
+                          </Flex>
                         ) : (
-                          <button
+                          <Button
+                            size="sm"
+                            intent="ghost"
                             onClick={() => setConfirmDeleteId(cred.id)}
-                            aria-label={`Delete ${cred.name}`}
-                            className="p-1.5 text-ink-dim hover:text-status-red rounded-lg transition-colors"
+                            style={{ padding: '6px' }}
+                            title={`Delete ${cred.name}`}
                           >
-                            <Trash2 size={14} />
-                          </button>
+                            <Trash2 size={14} style={{ color: 'var(--sr)' }} />
+                          </Button>
                         )}
-                      </div>
-                    </td>
+                      </Flex>
+                    </TD>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TBody>
+            </Table>
+          </TableContainer>
         ) : null}
 
         {/* Add form */}
         {showForm && (
-          <form
-            onSubmit={handleSubmit}
-            className="border-t border-border p-6 space-y-5"
-          >
-            <p className="text-[11px] font-semibold text-ink-secondary uppercase tracking-widest">
+          <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+            <Heading
+              level="h3"
+              style={{
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontSize: '12px',
+                borderBottom: '1px solid var(--bd)',
+                paddingBottom: '12px',
+                marginBottom: '20px',
+              }}
+            >
               New SSH Credential
-            </p>
+            </Heading>
 
-            <div className="grid grid-cols-2 gap-4">
+            <Grid columns={{ '@initial': 1, '@md': 2 }} gap={4} style={{ marginBottom: '16px' }}>
               <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-                  Name <span className="text-status-red">*</span>
-                </label>
-                <input
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>
+                  Name <span style={{ color: 'var(--sr)' }}>*</span>
+                </Text>
+                <Input
                   type="text"
                   value={form.name}
                   onChange={e => set('name', e.target.value)}
                   placeholder="Production DC"
-                  className="input-dark"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-                  Username <span className="text-status-red">*</span>
-                </label>
-                <input
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>
+                  Username <span style={{ color: 'var(--sr)' }}>*</span>
+                </Text>
+                <Input
                   type="text"
                   value={form.username}
                   onChange={e => set('username', e.target.value)}
                   placeholder="root"
-                  className="input-dark"
                 />
               </div>
-            </div>
+            </Grid>
 
-            <div className="grid grid-cols-2 gap-4">
+            <Grid columns={{ '@initial': 1, '@md': 2 }} gap={4} style={{ marginBottom: '20px' }}>
               <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5">Port</label>
-                <input
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>Port</Text>
+                <Input
                   type="number"
                   value={form.port}
                   onChange={e => set('port', e.target.value)}
                   min={1}
                   max={65535}
-                  className="input-dark"
                 />
               </div>
-              <div className="flex flex-col justify-end pb-0.5">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <Flex align="center" style={{ height: '100%', paddingTop: '20px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
                   <input
                     type="checkbox"
                     checked={form.is_default}
                     onChange={e => set('is_default', e.target.checked)}
-                    className="w-4 h-4 rounded accent-[color:var(--ac)] cursor-pointer"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '4px',
+                      accentColor: 'var(--ac)',
+                      cursor: 'pointer',
+                    }}
                   />
-                  <span className="text-sm text-ink-secondary">Set as default</span>
+                  <Text variant="body" style={{ fontSize: '13px' }}>Set as default SSH credential</Text>
                 </label>
-              </div>
-            </div>
+              </Flex>
+            </Grid>
 
-            {/* Auth method */}
-            <div>
-              <p className="text-xs font-medium text-ink-secondary mb-2">Auth Method</p>
-              <div className="flex items-center gap-4">
+            {/* Auth method selection */}
+            <div style={{ marginBottom: '20px' }}>
+              <Text variant="label" style={{ marginBottom: '8px', display: 'block' }}>Auth Method</Text>
+              <Flex gap={4}>
                 {(['password', 'key'] as AuthMethod[]).map(method => (
-                  <label key={method} className="flex items-center gap-2 cursor-pointer select-none">
+                  <label key={method} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
                     <input
                       type="radio"
                       name="auth_method"
                       value={method}
                       checked={form.auth_method === method}
                       onChange={() => set('auth_method', method)}
-                      className="accent-[color:var(--ac)] cursor-pointer"
+                      style={{
+                        accentColor: 'var(--ac)',
+                        cursor: 'pointer',
+                      }}
                     />
-                    <span className="text-sm text-ink-secondary capitalize">
-                      {method === 'key' ? 'SSH Key' : 'Password'}
-                    </span>
+                    <Text variant="body" style={{ textTransform: 'capitalize', fontSize: '13px' }}>
+                      {method === 'key' ? 'SSH Private Key' : 'Password Auth'}
+                    </Text>
                   </label>
                 ))}
-              </div>
+              </Flex>
             </div>
 
-            {/* Conditional secret field */}
+            {/* Conditional secret fields */}
             {form.auth_method === 'password' ? (
-              <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5">Password</label>
-                <input
+              <div style={{ marginBottom: '24px' }}>
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>Password</Text>
+                <Input
                   type="password"
                   value={form.password}
                   onChange={e => set('password', e.target.value)}
                   placeholder="Enter SSH password"
-                  className="input-dark"
                   autoComplete="new-password"
                 />
               </div>
             ) : (
-              <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-                  Private Key
-                </label>
-                <textarea
+              <div style={{ marginBottom: '24px' }}>
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>Private Key</Text>
+                <Textarea
                   value={form.private_key}
                   onChange={e => set('private_key', e.target.value)}
                   rows={8}
                   placeholder={'-----BEGIN OPENSSH PRIVATE KEY-----\n…\n-----END OPENSSH PRIVATE KEY-----'}
-                  className="input-dark resize-none font-mono text-xs leading-relaxed"
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    lineHeight: '1.5',
+                    resize: 'none',
+                  }}
                   spellCheck={false}
                 />
               </div>
             )}
 
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }}
-                className="btn-ghost"
-              >
+            <Flex gap={3} style={{ borderTop: '1px solid var(--bd)', paddingTop: '16px' }}>
+              <Button type="button" intent="ghost" onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending}
-                className="btn-primary"
-              >
-                {createMutation.isPending ? 'Saving…' : 'Save Credential'}
-              </button>
-            </div>
+              </Button>
+              <Button type="submit" intent="primary" disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Saving…' : 'Save SSH Credential'}
+              </Button>
+            </Flex>
           </form>
         )}
-      </div>
-    </div>
+      </Card>
+    </Flex>
   )
 }

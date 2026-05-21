@@ -1,20 +1,28 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search, Database, Map } from 'lucide-react'
-import { databasesApi } from '../api'
+import { databasesApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import ResourceMapModal from './ResourceMapModal'
 import { SkeletonTableRows } from './Skeleton'
 import type { DatabaseInstance } from '../types'
-
-const STATUS_CFG: Record<string, { bg: string; text: string; border: string; dot?: 'pulse' | 'solid' }> = {
-  running:    { bg: 'var(--sg-bg)',  text: 'var(--sg)',  border: 'var(--sg-bd)',  dot: 'solid'  },
-  stopped:    { bg: 'var(--sr-bg)',  text: 'var(--sr)',  border: 'var(--sr-bd)',  dot: 'solid'  },
-  pending:    { bg: 'var(--sy-bg)',  text: 'var(--sy)',  border: 'var(--sy-bd)',  dot: 'pulse'  },
-  terminated: { bg: 'var(--sgr-bg)', text: 'var(--sgr)', border: 'var(--sgr-bd)' },
-  unknown:    { bg: 'var(--sgr-bg)', text: 'var(--sgr)', border: 'var(--sgr-bd)' },
-}
+import {
+  Card,
+  Flex,
+  Heading,
+  Text,
+  Input,
+  Select,
+  Button,
+  Badge,
+  TableContainer,
+  Table,
+  THead,
+  TBody,
+  TH,
+  TD,
+} from './StitchUI'
 
 const ENGINE_COLORS: Record<string, string> = {
   postgres:   '#336791',
@@ -27,18 +35,36 @@ const ENGINE_COLORS: Record<string, string> = {
   aurora:     '#FF9900',
 }
 
+const STATUS_MAP: Record<string, 'green' | 'red' | 'yellow' | 'gray'> = {
+  running:    'green',
+  stopped:    'red',
+  pending:    'yellow',
+  terminated: 'gray',
+  unknown:    'gray',
+}
+
 function fmt(d?: string) {
   if (!d) return '—'
   return new Date(d).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
 }
 
 function EngineChip({ engine }: { engine?: string }) {
-  if (!engine) return <span className="text-ink-muted text-xs">—</span>
+  if (!engine) return <Text variant="muted">—</Text>
   const color = ENGINE_COLORS[engine.toLowerCase()] ?? '#8B8AB0'
   return (
     <span
-      className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight"
-      style={{ color, background: color + '18', border: `1px solid ${color}30` }}
+      style={{
+        display: 'inline-block',
+        padding: '2px 6px',
+        borderRadius: '4px',
+        fontSize: '10px',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.02em',
+        color,
+        background: color + '12',
+        border: `1px solid ${color}30`,
+      }}
     >
       {engine}
     </span>
@@ -52,7 +78,7 @@ export default function DatabasesPage() {
   const [provider, setProvider] = useState('')
   const [mapTarget, setMapTarget] = useState<DatabaseInstance | null>(null)
 
-  const { data: databases = [], isLoading } = useQuery({
+  const { data: databases = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['databases', provider],
     queryFn: () => databasesApi.list({ provider: provider || undefined }),
     refetchInterval: 60_000,
@@ -64,7 +90,7 @@ export default function DatabasesPage() {
       toast.success('Database sync started')
       setTimeout(() => qc.invalidateQueries({ queryKey: ['databases'] }), 4000)
     },
-    onError: () => toast.error('Sync failed'),
+    onError: (error: any) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
   })
 
   const filtered = databases.filter(db =>
@@ -75,150 +101,200 @@ export default function DatabasesPage() {
   )
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <Flex direction="column" gap={5} className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <Flex justify="between" align="center">
         <div>
-          <h2 className="font-display text-3xl font-bold text-ink-primary tracking-tight">Databases</h2>
-          <p className="text-ink-secondary text-sm mt-1">Managed database instances across all cloud providers.</p>
+          <Heading level="h1">Databases</Heading>
+          <Text variant="muted" style={{ marginTop: '4px' }}>
+            Managed database instances across all cloud providers.
+          </Text>
         </div>
-        <button
+        <Button
+          intent="primary"
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
-          className="btn-primary"
         >
           <RefreshCw size={14} className={syncMutation.isPending ? 'animate-spin' : ''} />
           Sync All
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
-      {/* Table card */}
-      <div className="card-dark overflow-hidden">
+      {/* Main content table card */}
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
         {/* Toolbar */}
-        <div className="px-6 py-4 border-b border-border flex flex-wrap gap-3 items-center" style={{ background: 'var(--bg-s1)' }}>
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-            <input
+        <Flex
+          wrap="true"
+          gap={3}
+          align="center"
+          style={{
+            padding: '16px 24px',
+            borderBottom: '1px solid var(--bd)',
+            backgroundColor: 'var(--bg-s1)',
+          }}
+        >
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search
+              size={14}
+              style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--tx3)',
+                pointerEvents: 'none',
+              }}
+            />
+            <Input
               type="text"
               placeholder="Search name, endpoint, engine…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-dark pl-9"
+              style={{ paddingLeft: '36px' }}
             />
           </div>
 
-          <select
-            value={provider}
-            onChange={e => { setProvider(e.target.value); setSearch('') }}
-            className="bg-surface-2 border border-border text-ink-secondary text-sm rounded-lg px-3 py-2
-                       focus:outline-none focus:ring-1 focus:ring-accent appearance-none pr-8"
-          >
-            <option value="">All Providers</option>
-            {['aws','gcp','azure','linode','digitalocean'].map(p => (
-              <option key={p} value={p}>{p.toUpperCase()}</option>
-            ))}
-          </select>
+          <div style={{ width: '180px' }}>
+            <Select
+              value={provider}
+              onChange={e => {
+                setProvider(e.target.value)
+                setSearch('')
+              }}
+            >
+              <option value="">All Providers</option>
+              {['aws', 'gcp', 'azure', 'linode', 'digitalocean'].map(p => (
+                <option key={p} value={p}>
+                  {p.toUpperCase()}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-          <span className="ml-auto text-xs text-ink-muted font-mono">
-            <span className="text-accent font-bold">{filtered.length}</span> instance{filtered.length !== 1 ? 's' : ''} found
-          </span>
-        </div>
+          <Text variant="smallMuted" style={{ marginLeft: 'auto', fontFamily: 'monospace' }}>
+            <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{filtered.length}</span> instance
+            {filtered.length !== 1 ? 's' : ''} found
+          </Text>
+        </Flex>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="table-dark min-w-[800px]" aria-label="Database instances">
-            <thead>
+        {/* Table wrapper */}
+        <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+          <Table aria-label="Database instances">
+            <THead>
               <tr>
-                <th>Name</th>
-                <th>Provider</th>
-                <th>Engine</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Endpoint</th>
-                <th className="text-center">Port</th>
-                <th className="text-center">Storage</th>
-                <th>Type</th>
-                <th>Last Synced</th>
-                <th></th>
+                <TH>Name</TH>
+                <TH>Provider</TH>
+                <TH>Engine</TH>
+                <TH>Version</TH>
+                <TH>Status</TH>
+                <TH>Endpoint</TH>
+                <TH style={{ textAlign: 'center' }}>Port</TH>
+                <TH style={{ textAlign: 'center' }}>Storage</TH>
+                <TH>Type</TH>
+                <TH>Last Synced</TH>
+                <TH style={{ width: '48px' }}></TH>
               </tr>
-            </thead>
-            <tbody>
-              {isLoading && <SkeletonTableRows count={6} />}
-
-              {!isLoading && filtered.length === 0 && (
+            </THead>
+            <TBody>
+              {isError && (
                 <tr>
-                  <td colSpan={10} className="text-center py-20">
-                    <Database size={32} className="text-ink-muted mx-auto mb-3 opacity-40" />
-                    <p className="text-ink-muted text-sm">
-                      {databases.length === 0
-                        ? 'No databases found. Click "Sync All" to fetch from cloud providers.'
-                        : 'No databases match your filters.'}
-                    </p>
+                  <td colSpan={11} style={{ padding: '64px 24px', textAlign: 'center' }}>
+                    <Flex direction="column" align="center" gap={3} style={{ maxWidth: '400px', margin: '0 auto' }}>
+                      <Text style={{ fontSize: '24px' }}>⚠️</Text>
+                      <Heading level="h4">Failed to fetch databases</Heading>
+                      <Text variant="smallMuted">
+                        Check backend connectivity or cloud credentials. Details:{' '}
+                        {error instanceof Error ? error.message : 'Offline'}
+                      </Text>
+                      <Button size="sm" onClick={() => refetch()}>
+                        Retry Query
+                      </Button>
+                    </Flex>
                   </td>
                 </tr>
               )}
 
-              {filtered.map(db => {
-                const cfg = STATUS_CFG[db.status] ?? STATUS_CFG.unknown
-                return (
-                  <tr key={db.id}>
-                    <td>
-                      <p className="text-sm font-bold text-ink-primary">{db.name}</p>
-                      {db.cloud_id && db.cloud_id !== db.name && (
-                        <p className="text-[10px] font-mono text-ink-muted mt-0.5">{db.cloud_id}</p>
-                      )}
-                    </td>
-                    <td><ProviderBadge provider={db.provider} showLogo /></td>
-                    <td><EngineChip engine={db.engine} /></td>
-                    <td><span className="text-xs font-mono text-ink-secondary">{db.engine_version ?? '—'}</span></td>
-                    <td>
-                      <span
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight w-fit"
-                        style={{ color: cfg.text, background: cfg.bg, border: `1px solid ${cfg.border}` }}
-                      >
-                        {cfg.dot && (
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot === 'pulse' ? 'animate-pulse' : ''}`}
-                            style={{ background: cfg.text }}
-                          />
-                        )}
-                        {db.status}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-xs font-mono text-ink-secondary">{db.endpoint ?? '—'}</span>
-                    </td>
-                    <td className="text-center">
-                      <span className="text-xs font-mono text-ink-secondary tabular-nums">{db.port ?? '—'}</span>
-                    </td>
-                    <td className="text-center">
-                      <span className="text-xs font-mono text-ink-secondary tabular-nums">
-                        {db.storage_gb != null ? `${db.storage_gb} GB` : '—'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-xs font-mono text-ink-muted">{db.instance_type ?? '—'}</span>
-                    </td>
-                    <td>
-                      <span className="text-xs text-ink-muted tabular-nums">{fmt(db.last_synced)}</span>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => setMapTarget(db)}
-                        className="p-1.5 text-ink-dim hover:text-accent rounded-lg transition-colors hover:bg-surface-3"
-                        aria-label="Resource map"
-                        title="Resource Map"
-                      >
-                        <Map size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              {isLoading && !isError && <SkeletonTableRows count={6} />}
+
+              {!isLoading && !isError && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={11} style={{ padding: '80px 24px', textAlign: 'center' }}>
+                    <Database size={32} style={{ color: 'var(--tx3)', margin: '0 auto 12px auto', opacity: 0.4 }} />
+                    <Text variant="muted">
+                      {databases.length === 0
+                        ? 'No databases found. Click "Sync All" to fetch from cloud providers.'
+                        : 'No databases match your filters.'}
+                    </Text>
+                  </td>
+                </tr>
+              )}
+
+              {filtered.map(db => (
+                <tr key={db.id}>
+                  <TD>
+                    <Text style={{ fontWeight: 700 }}>{db.name}</Text>
+                    {db.cloud_id && db.cloud_id !== db.name && (
+                      <Text variant="smallMuted" style={{ fontFamily: 'monospace', marginTop: '2px' }}>
+                        {db.cloud_id}
+                      </Text>
+                    )}
+                  </TD>
+                  <TD>
+                    <ProviderBadge provider={db.provider} showLogo />
+                  </TD>
+                  <TD>
+                    <EngineChip engine={db.engine} />
+                  </TD>
+                  <TD>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {db.engine_version ?? '—'}
+                    </Text>
+                  </TD>
+                  <TD>
+                    <Badge status={STATUS_MAP[db.status] ?? 'gray'}>{db.status}</Badge>
+                  </TD>
+                  <TD>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {db.endpoint ?? '—'}
+                    </Text>
+                  </TD>
+                  <TD style={{ textAlign: 'center' }}>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {db.port ?? '—'}
+                    </Text>
+                  </TD>
+                  <TD style={{ textAlign: 'center' }}>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {db.storage_gb != null ? `${db.storage_gb} GB` : '—'}
+                    </Text>
+                  </TD>
+                  <TD>
+                    <Text variant="smallMuted" style={{ fontFamily: 'monospace' }}>
+                      {db.instance_type ?? '—'}
+                    </Text>
+                  </TD>
+                  <TD>
+                    <Text variant="smallMuted" style={{ fontFamily: 'monospace' }}>
+                      {fmt(db.last_synced)}
+                    </Text>
+                  </TD>
+                  <TD>
+                    <Button
+                      size="sm"
+                      intent="ghost"
+                      onClick={() => setMapTarget(db)}
+                      style={{ padding: '6px' }}
+                      title="Resource Map"
+                    >
+                      <Map size={14} />
+                    </Button>
+                  </TD>
+                </tr>
+              ))}
+            </TBody>
+          </Table>
+        </TableContainer>
+      </Card>
 
       {mapTarget && (
         <ResourceMapModal
@@ -230,6 +306,6 @@ export default function DatabasesPage() {
           onClose={() => setMapTarget(null)}
         />
       )}
-    </div>
+    </Flex>
   )
 }

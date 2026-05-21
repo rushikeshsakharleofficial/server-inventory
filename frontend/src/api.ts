@@ -156,3 +156,30 @@ export const usersApi = {
 
   toggle: (id: number) => http.patch<ApiUser>(`/api/users/${id}/toggle`).then(r => r.data),
 }
+
+export function getErrorMessage(error: any): string {
+  if (!error) return 'An unknown error occurred.'
+  
+  if (error.response?.data) {
+    const data = error.response.data
+    if (data.detail) {
+      if (typeof data.detail === 'string') {
+        return data.detail
+      }
+      if (Array.isArray(data.detail)) {
+        return data.detail
+          .map((d: any) => {
+            const path = d.loc ? d.loc.filter((l: any) => l !== 'body').join('.') : ''
+            return `${path ? `'${path}': ` : ''}${d.msg}`
+          })
+          .join(', ')
+      }
+      return JSON.stringify(data.detail)
+    }
+    if (data.message) {
+      return String(data.message)
+    }
+  }
+  
+  return error.message || String(error)
+}

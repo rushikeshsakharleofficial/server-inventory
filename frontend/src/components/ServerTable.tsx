@@ -14,6 +14,20 @@ import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import { SkeletonTableRows } from './Skeleton'
 import type { Server, ServerStatus } from '../types'
+import {
+  Card,
+  Flex,
+  Input,
+  Select,
+  Button,
+  TableContainer,
+  Table,
+  THead,
+  TH,
+  TBody,
+  TD,
+  Text,
+} from './StitchUI'
 
 const STATUS_CFG: Record<
   ServerStatus,
@@ -42,10 +56,14 @@ export default function ServerTable({
   onAddServer,
   onServerClick,
   onEditServer,
+  compact = false,
+  selectedServerId,
 }: {
   onAddServer: () => void
   onServerClick?: (server: Server) => void
   onEditServer?: (server: Server) => void
+  compact?: boolean
+  selectedServerId?: number
 }) {
   const [search, setSearch]         = useState('')
   const [debounced, setDebounced]   = useState('')
@@ -66,7 +84,7 @@ export default function ServerTable({
 
   useEffect(() => { setPage(1) }, [debounced, provider, status])
 
-  const { data: servers = [], isLoading } = useQuery({
+  const { data: servers = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['servers', debounced, provider, status],
     queryFn: () =>
       serversApi.list({
@@ -103,55 +121,60 @@ export default function ServerTable({
   }
 
   function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronsUpDown size={12} className="text-ink-dim" />
+    if (sortField !== field) return <ChevronsUpDown size={12} style={{ color: 'var(--tx3)' }} />
     return sortDir === 'asc'
-      ? <ChevronUp   size={12} className="text-accent" />
-      : <ChevronDown size={12} className="text-accent" />
+      ? <ChevronUp   size={12} style={{ color: 'var(--ac)' }} />
+      : <ChevronDown size={12} style={{ color: 'var(--ac)' }} />
   }
 
-  const TH = ({
-    label, field, center = false,
-  }: { label: string; field?: SortField; center?: boolean }) => (
-    <th
+  const RenderTH = ({
+    label, field, center = false, width,
+  }: { label: string; field?: SortField; center?: boolean; width?: string }) => (
+    <TH
       onClick={field ? () => toggleSort(field) : undefined}
-      className={`px-6 py-3 text-left text-[10px] font-bold text-ink-muted uppercase tracking-widest whitespace-nowrap select-none ${
-        field ? 'cursor-pointer hover:text-ink-secondary transition-colors' : ''
-      } ${center ? 'text-center' : ''}`}
+      style={{
+        cursor: field ? 'pointer' : 'default',
+        textAlign: center ? 'center' : 'left',
+        width: compact ? width : undefined,
+      }}
     >
-      <span className="inline-flex items-center gap-1">
-        {label}
+      <Flex align="center" gap={1} style={{ justifyContent: center ? 'center' : 'flex-start' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
         {field && <SortIcon field={field} />}
-      </span>
-    </th>
+      </Flex>
+    </TH>
   )
 
-  const selectClass =
-    'bg-surface-2 border border-border text-ink-secondary text-sm rounded-lg px-3 py-2 ' +
-    'focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors appearance-none pr-8 ' +
-    'bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3E%3Cpath fill=\'%234B4B72\' d=\'M8 10L3 5h10z\'/%3E%3C/svg%3E")] ' +
-    'bg-no-repeat bg-[right_0.6rem_center] bg-[length:14px_14px]'
-
   return (
-    <div className="card-dark overflow-hidden">
+    <Card style={{ padding: 0, overflow: 'hidden' }}>
       {/* Toolbar */}
-      <div className="px-6 py-4 border-b border-border flex flex-wrap gap-3 items-center" style={{ background: 'var(--bg-s1)' }}>
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-          <input
+      <Flex
+        align="center"
+        wrap="true"
+        gap={3}
+        style={{
+          padding: '16px 24px',
+          borderBottom: '1px solid var(--bd)',
+          backgroundColor: 'var(--bg-s1)',
+        }}
+      >
+        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--tx3)' }} aria-hidden="true" />
+          <Input
             type="text"
             placeholder="Search name, IP, hostname…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="input-dark pl-9"
+            style={{ paddingLeft: '36px' }}
             aria-label="Search servers"
           />
         </div>
 
-        <select
+        <Select
           value={provider}
           onChange={e => setProvider(e.target.value)}
           aria-label="Filter by provider"
-          className={selectClass}
+          style={{ width: 'auto', minWidth: '150px' }}
         >
           <option value="">All Providers</option>
           {PROVIDERS.map(p => (
@@ -159,13 +182,13 @@ export default function ServerTable({
               {p.replace('_', ' ').toUpperCase()}
             </option>
           ))}
-        </select>
+        </Select>
 
-        <select
+        <Select
           value={status}
           onChange={e => setStatus(e.target.value)}
           aria-label="Filter by status"
-          className={selectClass}
+          style={{ width: 'auto', minWidth: '150px' }}
         >
           <option value="">All Statuses</option>
           {STATUSES.map(s => (
@@ -173,180 +196,273 @@ export default function ServerTable({
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </option>
           ))}
-        </select>
+        </Select>
 
         {(search || provider || status) && (
-          <button
+          <Button
+            intent="ghost"
             onClick={() => { setSearch(''); setProvider(''); setStatus('') }}
-            className="text-xs text-ink-muted hover:text-ink-secondary border border-border
-                       px-3 py-2 rounded-lg hover:bg-surface-3 transition-colors"
+            size="sm"
           >
             Clear
-          </button>
+          </Button>
         )}
 
-        <span className="ml-auto text-xs text-ink-muted font-mono tabular-nums">
-          <span className="text-accent font-bold">{servers.length}</span> server{servers.length !== 1 ? 's' : ''} found
-        </span>
+        <div style={{ marginLeft: 'auto' }}>
+          <Text variant="small" style={{ fontFamily: 'monospace' }}>
+            <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{servers.length}</span> server{servers.length !== 1 ? 's' : ''} found
+          </Text>
+        </div>
 
-        <button onClick={onAddServer} className="btn-primary">
+        <Button intent="primary" onClick={onAddServer}>
           <Plus size={14} />
           Custom DC
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="table-dark min-w-[960px]" aria-label="Server inventory">
-          <thead>
+      <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none', overflowX: compact ? 'hidden' : 'auto' }}>
+        <Table aria-label="Server inventory" style={{ tableLayout: compact ? 'fixed' : 'auto', width: '100%' }}>
+          <THead>
             <tr>
-              <TH label="Name"        field="name" />
-              <TH label="Provider"    field="provider" />
-              <TH label="Region"      field="region" />
-              <TH label="Type"        field="instance_type" />
-              <TH label="Status"      field="status" />
-              <TH label="Public IP"   field="public_ip" />
-              <TH label="Private IP"  field="private_ip" />
-              <TH label="vCPU"        field="vcpu"      center />
-              <TH label="RAM (GB)"    field="memory_gb" center />
-              <TH label="OS"          field="os" />
-              <TH label="Last Synced" field="last_synced" />
-              <TH label="" />
+              <RenderTH label="Name"        field="name" width="35%" />
+              <RenderTH label="Provider"    field="provider" width="15%" />
+              {!compact && <RenderTH label="Region"      field="region" />}
+              {!compact && <RenderTH label="Type"        field="instance_type" />}
+              <RenderTH label="Status"      field="status" width="15%" />
+              <RenderTH label="Public IP"   field="public_ip" width="20%" />
+              {!compact && <RenderTH label="Private IP"  field="private_ip" />}
+              {!compact && <RenderTH label="vCPU"        field="vcpu"      center />}
+              {!compact && <RenderTH label="RAM (GB)"    field="memory_gb" center />}
+              {!compact && <RenderTH label="OS"          field="os" />}
+              {!compact && <RenderTH label="Last Synced" field="last_synced" />}
+              <RenderTH label="" width="15%" />
             </tr>
-          </thead>
-          <tbody>
-            {isLoading && <SkeletonTableRows count={8} />}
-
-            {!isLoading && rows.length === 0 && (
+          </THead>
+          <TBody>
+            {isError && (
               <tr>
-                <td colSpan={12} className="text-center py-16">
-                  <p className="text-ink-muted text-sm">No servers found.</p>
+                <TD colSpan={compact ? 5 : 12} style={{ padding: '64px 0', textAlign: 'center' }}>
+                  <div className="flex flex-col items-center justify-center max-w-md mx-auto p-6 bg-[#EF4444]/5 border border-[#EF4444]/15 rounded-xl">
+                    <span className="text-[#EF4444] mb-2 text-xl">⚠️</span>
+                    <h3 className="text-sm font-bold text-[#F4F4FF] mb-1">Failed to fetch servers</h3>
+                    <p className="text-xs text-[#8B8AB0] mb-4">
+                      Check backend connectivity or console logs. Details: {error instanceof Error ? error.message : 'Offline'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => refetch()}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#101018] hover:bg-[#18181F] border border-[#252540] hover:border-[#00D4FF]/30 text-xs font-semibold text-[#F4F4FF] rounded-lg transition-all cursor-pointer"
+                    >
+                      Retry Query
+                    </button>
+                  </div>
+                </TD>
+              </tr>
+            )}
+
+            {isLoading && !isError && <SkeletonTableRows count={8} />}
+
+            {!isLoading && !isError && rows.length === 0 && (
+              <tr>
+                <TD colSpan={compact ? 5 : 12} style={{ textAlign: 'center', padding: '64px 0' }}>
+                  <Text variant="muted">No servers found.</Text>
                   {!search && !provider && !status && (
                     <button
                       onClick={onAddServer}
-                      className="mt-2 text-accent text-sm hover:underline"
+                      style={{ marginTop: '8px', color: 'var(--ac)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '14px' }}
+                      onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
                     >
                       Add your first custom server →
                     </button>
                   )}
-                </td>
+                </TD>
               </tr>
             )}
 
             {rows.map(server => {
               const cfg = STATUS_CFG[server.status] ?? STATUS_CFG.unknown
+              const isSelected = selectedServerId === server.id
               return (
                 <tr
                   key={server.id}
                   onClick={() => onServerClick?.(server)}
                   className={onServerClick ? 'cursor-pointer' : ''}
+                  style={{
+                    backgroundColor: isSelected ? 'rgba(0, 212, 255, 0.05)' : undefined,
+                    borderLeft: isSelected ? '3px solid var(--ac)' : undefined,
+                  }}
                 >
                   {/* Name */}
-                  <td>
-                    <p className="text-sm font-bold text-ink-primary">{server.name}</p>
+                  <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.name}>{server.name}</p>
                     {server.hostname && (
-                      <p className="text-[10px] text-ink-muted font-mono mt-0.5">{server.hostname}</p>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: 'var(--tx3)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.hostname}>{server.hostname}</p>
                     )}
-                  </td>
+                  </TD>
 
                   {/* Provider */}
-                  <td>
+                  <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <ProviderBadge provider={server.provider} />
-                  </td>
+                  </TD>
 
                   {/* Region */}
-                  <td>
-                    <span className="text-sm text-ink-secondary">{server.region ?? '—'}</span>
-                  </td>
+                  {!compact && (
+                    <TD>
+                      <span style={{ fontSize: '14px', color: 'var(--tx2)' }}>{server.region ?? '—'}</span>
+                    </TD>
+                  )}
 
                   {/* Type */}
-                  <td>
-                    <span className="text-xs font-mono text-ink-muted">{server.instance_type ?? '—'}</span>
-                  </td>
+                  {!compact && (
+                    <TD>
+                      <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx3)' }}>{server.instance_type ?? '—'}</span>
+                    </TD>
+                  )}
 
                   {/* Status */}
-                  <td>
+                  <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <span
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight w-fit"
-                      style={{ color: cfg.text, backgroundColor: cfg.bg, border: `1px solid ${cfg.border}` }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        color: cfg.text,
+                        backgroundColor: cfg.bg,
+                        border: `1px solid ${cfg.border}`,
+                        width: 'fit-content',
+                      }}
                     >
                       {cfg.dot === 'running' ? (
-                        <span className="status-dot-running" aria-hidden="true" />
+                        <span
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--sg)',
+                            boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.4)',
+                            animation: 'pulse-ring 2s ease-in-out infinite'
+                          }}
+                          aria-hidden="true"
+                        />
                       ) : (
                         <span
-                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot === 'pulse' ? 'animate-pulse' : ''}`}
-                          style={{ backgroundColor: cfg.text }}
+                          className={`${cfg.dot === 'pulse' ? 'animate-pulse' : ''}`}
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            flexShrink: 0,
+                            backgroundColor: cfg.text
+                          }}
                           aria-hidden="true"
                         />
                       )}
                       {server.status}
                     </span>
-                  </td>
+                  </TD>
 
                   {/* Public IP */}
-                  <td>
-                    <span className="text-xs font-mono text-ink-secondary">
+                  <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {server.public_ip ?? '—'}
                     </span>
-                  </td>
+                  </TD>
 
                   {/* Private IP */}
-                  <td>
-                    <span className="text-xs font-mono text-ink-muted">
-                      {server.private_ip ?? '—'}
-                    </span>
-                  </td>
+                  {!compact && (
+                    <TD>
+                      <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx3)' }}>
+                        {server.private_ip ?? '—'}
+                      </span>
+                    </TD>
+                  )}
 
                   {/* vCPU */}
-                  <td className="text-center">
-                    <span className="text-sm text-ink-secondary tabular-nums">
-                      {server.vcpu ?? '—'}
-                    </span>
-                  </td>
+                  {!compact && (
+                    <TD style={{ textAlign: 'center' }}>
+                      <span style={{ fontSize: '14px', color: 'var(--tx2)', fontFamily: 'monospace' }}>
+                        {server.vcpu ?? '—'}
+                      </span>
+                    </TD>
+                  )}
 
                   {/* RAM */}
-                  <td className="text-center">
-                    <span className="text-sm text-ink-secondary tabular-nums">
-                      {server.memory_gb ?? '—'}
-                    </span>
-                  </td>
+                  {!compact && (
+                    <TD style={{ textAlign: 'center' }}>
+                      <span style={{ fontSize: '14px', color: 'var(--tx2)', fontFamily: 'monospace' }}>
+                        {server.memory_gb ?? '—'}
+                      </span>
+                    </TD>
+                  )}
 
                   {/* OS */}
-                  <td>
-                    <span className="text-xs text-ink-muted">{server.os ?? '—'}</span>
-                  </td>
+                  {!compact && (
+                    <TD>
+                      <span style={{ fontSize: '12px', color: 'var(--tx3)' }}>{server.os ?? '—'}</span>
+                    </TD>
+                  )}
 
                   {/* Last Synced */}
-                  <td>
-                    <span className="text-xs text-ink-muted tabular-nums">{fmt(server.last_synced)}</span>
-                  </td>
+                  {!compact && (
+                    <TD>
+                      <span style={{ fontSize: '12px', color: 'var(--tx3)', fontFamily: 'monospace' }}>{fmt(server.last_synced)}</span>
+                    </TD>
+                  )}
 
                   {/* Actions */}
-                  <td onClick={e => e.stopPropagation()}>
+                  <TD onClick={e => e.stopPropagation()} style={{ overflow: 'hidden' }}>
                     {deletingId === server.id ? (
-                      <div className="flex items-center gap-1 whitespace-nowrap">
-                        <button
+                      <Flex align="center" gap={1} style={{ whiteSpace: 'nowrap' }}>
+                        <Button
                           onClick={() => deleteMutation.mutate(server.id)}
                           disabled={deleteMutation.isPending}
-                          className="text-[11px] px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-                          style={{ background: 'var(--sr-bg)', color: 'var(--sr)', border: '1px solid var(--sr-bd)' }}
+                          intent="danger"
+                          size="sm"
+                          style={{ padding: '4px 8px', fontSize: '11px' }}
                         >
                           Confirm
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => setDeletingId(null)}
-                          className="text-[11px] px-2 py-1 rounded-lg border border-border text-ink-muted hover:bg-surface-3 transition-colors"
+                          intent="ghost"
+                          size="sm"
+                          style={{ padding: '4px 8px', fontSize: '11px' }}
                         >
                           Cancel
-                        </button>
-                      </div>
+                        </Button>
+                      </Flex>
                     ) : (
-                      <div className="flex items-center justify-end gap-1">
+                      <Flex align="center" justify="end" gap={1}>
                         {onEditServer && server.provider === 'custom_dc' && (
                           <button
                             onClick={() => onEditServer(server)}
                             aria-label={`Edit ${server.name}`}
-                            className="p-1.5 text-ink-dim hover:text-accent rounded-lg transition-colors hover:bg-surface-3"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: 'var(--tx3)',
+                              transition: 'all 150ms ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                              e.currentTarget.style.color = 'var(--ac)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                              e.currentTarget.style.color = 'var(--tx3)';
+                            }}
                           >
                             <Pencil size={14} />
                           </button>
@@ -354,63 +470,110 @@ export default function ServerTable({
                         <button
                           onClick={() => setDeletingId(server.id)}
                           aria-label={`Delete ${server.name}`}
-                          className="p-1.5 text-ink-dim hover:text-status-red rounded-lg transition-colors"
-                          style={{ transition: 'color 150ms' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-bg)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = '')}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '6px',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'var(--tx3)',
+                            transition: 'all 150ms ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--sr-bg)';
+                            e.currentTarget.style.color = 'var(--sr)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.color = 'var(--tx3)';
+                          }}
                         >
                           <Trash2 size={14} />
                         </button>
-                      </div>
+                      </Flex>
                     )}
-                  </td>
+                  </TD>
                 </tr>
               )
             })}
-          </tbody>
-        </table>
-      </div>
+          </TBody>
+        </Table>
+      </TableContainer>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="px-4 py-3 border-t border-border flex items-center justify-between bg-surface-1">
-          <span className="text-xs text-ink-muted tabular-nums">
+        <Flex
+          align="center"
+          justify="between"
+          style={{
+            padding: '12px 24px',
+            borderTop: '1px solid var(--bd)',
+            backgroundColor: 'var(--bg-s1)',
+          }}
+        >
+          <Text variant="small" style={{ fontFamily: 'monospace' }}>
             Page {page} of {totalPages} · {servers.length} total
-          </span>
-          <div className="flex items-center gap-1">
-            <button
+          </Text>
+          <Flex align="center" gap={1}>
+            <Button
+              intent="ghost"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="btn-ghost px-3 py-1.5 text-xs"
+              size="sm"
+              style={{ padding: '6px 12px' }}
             >
               Prev
-            </button>
+            </Button>
             {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
               const p = i + 1
               return (
                 <button
                   key={p}
                   onClick={() => setPage(p)}
-                  className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
-                    page === p
-                      ? 'bg-accent text-white'
-                      : 'text-ink-muted hover:bg-surface-3 hover:text-ink-primary'
-                  }`}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    transition: 'all 150ms ease',
+                    backgroundColor: page === p ? 'var(--ac)' : 'transparent',
+                    color: page === p ? 'var(--btn-primary-fg)' : 'var(--tx2)',
+                  }}
+                  onMouseEnter={e => {
+                    if (page !== p) {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                      e.currentTarget.style.color = 'var(--tx1)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (page !== p) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = 'var(--tx2)';
+                    }
+                  }}
                 >
                   {p}
                 </button>
               )
             })}
-            <button
+            <Button
+              intent="ghost"
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="btn-ghost px-3 py-1.5 text-xs"
+              size="sm"
+              style={{ padding: '6px 12px' }}
             >
               Next
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Flex>
+        </Flex>
       )}
-    </div>
+    </Card>
   )
 }
+

@@ -1,13 +1,38 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Trash2, Plus, Cloud, ChevronDown, ChevronRight } from 'lucide-react'
+import { RefreshCw, Trash2, Plus, Cloud, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import Toggle from './Toggle'
-import { credentialsApi, syncApi } from '../api'
+import { credentialsApi, syncApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import ProviderLogo from './ProviderLogo'
+import type { Provider } from '../types'
+import {
+  Card,
+  Flex,
+  Grid,
+  Heading,
+  Text,
+  Input,
+  Select,
+  Textarea,
+  Button,
+  Badge,
+  TableContainer,
+  Table,
+  THead,
+  TBody,
+  TH,
+  TD,
+} from './StitchUI'
 
-interface Props { onAddCredential: () => void }
+interface FieldDef {
+  key: string
+  label: string
+  type?: string
+  hint?: string
+  options?: { value: string; label: string }[]
+}
 
 const PROVIDER_DESC: Record<string, string> = {
   aws:          'Amazon EC2 — multi-region instance discovery',
@@ -19,17 +44,75 @@ const PROVIDER_DESC: Record<string, string> = {
   custom_dc:    'Manually managed on-premise servers',
 }
 
+const PROVIDER_FIELDS: Record<string, FieldDef[]> = {
+  aws: [
+    { key: 'access_key_id',    label: 'Access Key ID',             hint: 'AKIA…'              },
+    { key: 'secret_access_key',label: 'Secret Access Key',         type: 'password'           },
+    { key: 'regions',          label: 'Regions (comma-separated)', hint: 'us-east-1,us-west-2'},
+  ],
+  gcp: [
+    { key: 'project_id',           label: 'Project ID',           hint: 'my-gcp-project' },
+    { key: 'service_account_json', label: 'Service Account JSON', type: 'textarea',
+      hint: 'Paste JSON key file content' },
+  ],
+  azure: [
+    { key: 'subscription_id', label: 'Subscription ID' },
+    { key: 'tenant_id',       label: 'Tenant ID'       },
+    { key: 'client_id',       label: 'Client ID (App)' },
+    { key: 'client_secret',   label: 'Client Secret',  type: 'password' },
+  ],
+  linode:       [{ key: 'api_token', label: 'API Token', type: 'password' }],
+  digitalocean: [{ key: 'api_token', label: 'API Token', type: 'password' }],
+  ovh: [
+    {
+      key: 'endpoint',
+      label: 'API Endpoint',
+      type: 'select',
+      options: [
+        { value: 'ovh-eu', label: 'OVH Europe  (ovh-eu)' },
+        { value: 'ovh-us', label: 'OVH US      (ovh-us)' },
+        { value: 'ovh-ca', label: 'OVH Canada  (ovh-ca)' },
+      ],
+    },
+    { key: 'application_key',    label: 'Application Key'                      },
+    { key: 'application_secret', label: 'Application Secret', type: 'password' },
+    { key: 'consumer_key',       label: 'Consumer Key',       type: 'password' },
+  ],
+}
+
+const PROVIDERS: Provider[] = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh']
 const SECRET_KEYS = new Set(['secret_access_key', 'client_secret', 'api_token', 'service_account_json', 'application_secret', 'consumer_key', 'private_key'])
 
-export default function ProvidersPage({ onAddCredential }: Props) {
+export default function ProvidersPage() {
   const qc = useQueryClient()
   const { toast } = useToast()
   const [expanded, setExpanded] = useState<number | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
 
+  // Creation State
+  const [adding, setAdding]           = useState(false)
+  const [selProvider, setSelProvider] = useState('aws')
+  const [credName, setCredName]       = useState('')
+  const [fields, setFields]           = useState<Record<string, string>>({})
+  const [errors, setErrors]           = useState<string[]>([])
+  const [visible, setVisible]         = useState<Set<string>>(new Set())
+
   const { data: creds = [], isLoading } = useQuery({
     queryKey: ['credentials'],
     queryFn: credentialsApi.list,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: credentialsApi.create,
+    onSuccess: () => {
+      toast.success('Credential saved')
+      qc.invalidateQueries({ queryKey: ['credentials'] })
+      setAdding(false)
+      setCredName('')
+      setFields({})
+      setErrors([])
+    },
+    onError: (error: any) => toast.error(`Failed to save credential: ${getErrorMessage(error)}`),
   })
 
   const deleteMutation = useMutation({
@@ -39,7 +122,7 @@ export default function ProvidersPage({ onAddCredential }: Props) {
       qc.invalidateQueries({ queryKey: ['credentials'] })
       setConfirmId(null)
     },
-    onError: () => toast.error('Failed to delete'),
+    onError: (error: any) => toast.error(`Failed to delete: ${getErrorMessage(error)}`),
   })
 
   const toggleMutation = useMutation({
@@ -48,6 +131,7 @@ export default function ProvidersPage({ onAddCredential }: Props) {
       toast.info(updated.is_active ? 'Credential enabled' : 'Credential disabled')
       qc.invalidateQueries({ queryKey: ['credentials'] })
     },
+    onError: (error: any) => toast.error(`Failed to toggle: ${getErrorMessage(error)}`),
   })
 
   const syncMutation = useMutation({
@@ -60,211 +144,401 @@ export default function ProvidersPage({ onAddCredential }: Props) {
         qc.invalidateQueries({ queryKey: ['sync-logs'] })
       }, 3000)
     },
-    onError: () => toast.error('Sync failed'),
+    onError: (error: any) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
   })
 
+  function toggleVisible(key: string) {
+    setVisible(prev => {
+      const s = new Set(prev)
+      s.has(key) ? s.delete(key) : s.add(key)
+      return s
+    })
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const errs: string[] = []
+    if (!credName.trim()) errs.push('Credential name is required')
+    if (errs.length) { setErrors(errs); return }
+    setErrors([])
+
+    const config: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(fields)) {
+      if (k === 'service_account_json') {
+        try { config[k] = JSON.parse(v) } catch { config[k] = v }
+      } else if (k === 'regions') {
+        config[k] = v.split(',').map(r => r.trim()).filter(Boolean)
+      } else {
+        config[k] = v
+      }
+    }
+    createMutation.mutate({ name: credName.trim(), provider: selProvider as Provider, config })
+  }
+
   return (
-    <div className="space-y-4">
+    <Flex direction="column" gap={4} className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <Flex justify="between" align="center">
         <div>
-          <p className="text-sm font-medium text-ink-primary">
-            {creds.length === 0 ? 'No credentials configured' : `${creds.length} credential${creds.length !== 1 ? 's' : ''}`}
-          </p>
-          <p className="text-xs text-ink-muted mt-0.5">
-            {creds.filter(c => c.is_active).length} active · {creds.filter(c => !c.is_active).length} disabled
-          </p>
+          <Heading level="h1">Cloud Credentials</Heading>
+          <Text variant="muted" style={{ marginTop: '4px' }}>
+            {creds.length === 0 ? 'No credentials configured' : `${creds.length} credential${creds.length !== 1 ? 's' : ''}`} (
+            {creds.filter(c => c.is_active).length} active · {creds.filter(c => !c.is_active).length} disabled)
+          </Text>
         </div>
-        <button onClick={onAddCredential} className="btn-primary">
-          <Plus size={15} />
-          Add Credential
-        </button>
-      </div>
+        {!adding && (
+          <Button intent="primary" onClick={() => setAdding(true)}>
+            <Plus size={15} />
+            Add Credential
+          </Button>
+        )}
+      </Flex>
+
+      {/* Inline Creation Card */}
+      {adding && (
+        <form onSubmit={submit}>
+          <Card style={{ borderColor: 'var(--ac-bd)', padding: '24px' }}>
+            <Flex justify="between" align="center" style={{ borderBottom: '1px solid var(--bd)', paddingBottom: '12px', marginBottom: '16px' }}>
+              <Heading level="h3" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '12px' }}>
+                Add Cloud Provider Credentials
+              </Heading>
+              <Button size="sm" intent="ghost" type="button" onClick={() => { setAdding(false); setErrors([]) }}>
+                Cancel
+              </Button>
+            </Flex>
+
+            {errors.map(e => (
+              <div
+                key={e}
+                style={{
+                  fontSize: '13px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: 'var(--sr-bg)',
+                  color: 'var(--sr)',
+                  border: '1px solid var(--sr-bd)',
+                  marginBottom: '16px',
+                }}
+              >
+                {e}
+              </div>
+            ))}
+
+            <Grid columns={{ '@initial': 1, '@md': 2 }} gap={4} style={{ marginBottom: '16px' }}>
+              <div>
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>Provider</Text>
+                <Select
+                  value={selProvider}
+                  onChange={e => {
+                    const p = e.target.value
+                    setSelProvider(p)
+                    const defaults: Record<string, string> = {}
+                    for (const f of PROVIDER_FIELDS[p] ?? []) {
+                      if (f.type === 'select' && f.options?.[0]) {
+                        defaults[f.key] = f.options[0].value
+                      }
+                    }
+                    setFields(defaults)
+                  }}
+                >
+                  {PROVIDERS.map(p => (
+                    <option key={p} value={p}>{p.toUpperCase().replace('_', ' ')}</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>
+                  Name <span style={{ color: 'var(--sr)' }}>*</span>
+                </Text>
+                <Input
+                  type="text"
+                  value={credName}
+                  onChange={e => setCredName(e.target.value)}
+                  placeholder={`My ${selProvider.toUpperCase()} Account`}
+                />
+              </div>
+            </Grid>
+
+            <Flex direction="column" gap={4} style={{ marginBottom: '24px' }}>
+              {(PROVIDER_FIELDS[selProvider] ?? []).map(f => (
+                <div key={f.key}>
+                  <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>{f.label}</Text>
+                  {f.type === 'select' && f.options ? (
+                    <Select
+                      value={fields[f.key] ?? f.options[0].value}
+                      onChange={e => setFields(p => ({ ...p, [f.key]: e.target.value }))}
+                    >
+                      {f.options.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </Select>
+                  ) : f.type === 'textarea' ? (
+                    <Textarea
+                      value={fields[f.key] ?? ''}
+                      onChange={e => setFields(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.hint}
+                      rows={4}
+                      style={{ resize: 'none', fontFamily: 'monospace', fontSize: '12px' }}
+                    />
+                  ) : f.type === 'password' ? (
+                    <div style={{ position: 'relative' }}>
+                      <Input
+                        type={visible.has(f.key) ? 'text' : 'password'}
+                        value={fields[f.key] ?? ''}
+                        onChange={e => setFields(p => ({ ...p, [f.key]: e.target.value }))}
+                        placeholder={f.hint}
+                        style={{ paddingRight: '40px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleVisible(f.key)}
+                        aria-label={visible.has(f.key) ? 'Hide' : 'Show'}
+                        style={{
+                          position: 'absolute',
+                          right: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--tx3)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {visible.has(f.key) ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  ) : (
+                    <Input
+                      type="text"
+                      value={fields[f.key] ?? ''}
+                      onChange={e => setFields(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.hint}
+                    />
+                  )}
+                </div>
+              ))}
+            </Flex>
+
+            <Flex gap={3} style={{ borderTop: '1px solid var(--bd)', paddingTop: '16px' }}>
+              <Button type="button" intent="ghost" onClick={() => { setAdding(false); setErrors([]) }}>
+                Cancel
+              </Button>
+              <Button type="submit" intent="primary" disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Saving…' : 'Save Credential'}
+              </Button>
+            </Flex>
+          </Card>
+        </form>
+      )}
 
       {/* Empty state */}
-      {!isLoading && creds.length === 0 && (
-        <div
-          className="rounded-2xl p-16 text-center"
-          style={{ border: '2px dashed var(--bd)' }}
-        >
-          <Cloud size={36} className="text-ink-dim mx-auto mb-4" />
-          <p className="text-ink-secondary text-sm font-medium">No cloud providers configured</p>
-          <p className="text-ink-muted text-xs mt-1 mb-4">
+      {!isLoading && creds.length === 0 && !adding && (
+        <Card style={{ borderStyle: 'dashed', padding: '64px 24px', textAlign: 'center' }}>
+          <Cloud size={36} style={{ color: 'var(--tx3)', margin: '0 auto 16px auto', opacity: 0.5 }} />
+          <Heading level="h3" style={{ marginBottom: '8px' }}>No cloud providers configured</Heading>
+          <Text variant="muted" style={{ marginBottom: '24px' }}>
             Add credentials to start syncing servers from AWS, GCP, Azure, and more
-          </p>
-          <button onClick={onAddCredential} className="btn-primary mx-auto">
+          </Text>
+          <Button intent="primary" onClick={() => setAdding(true)} style={{ margin: '0 auto' }}>
             <Plus size={14} />
             Add First Provider
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
-      {/* Table */}
+      {/* Credentials list table */}
       {(isLoading || creds.length > 0) && (
-        <div className="card-dark overflow-hidden">
-          <table className="table-dark w-full" aria-label="Cloud provider credentials">
-            <thead>
-              <tr>
-                <th className="w-8" />
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Provider</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider hidden md:table-cell">Description</th>
-                <th className="px-4 py-3 text-center text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading
-                ? Array.from({ length: 3 }).map((_, i) => (
+        <Card style={{ padding: 0, overflow: 'hidden' }}>
+          <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+            <Table aria-label="Cloud provider credentials">
+              <THead>
+                <tr>
+                  <TH style={{ width: '32px' }} />
+                  <TH>Provider</TH>
+                  <TH>Name</TH>
+                  <TH className="hidden-sm">Description</TH>
+                  <TH style={{ textAlign: 'center' }}>Status</TH>
+                  <TH style={{ textAlign: 'right' }}>Actions</TH>
+                </tr>
+              </THead>
+              <TBody>
+                {isLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
-                      {[...Array(6)].map((__, j) => (
-                        <td key={j} className="px-4 py-4">
-                          <div className="skeleton h-4 rounded" style={{ width: j === 0 ? 20 : j === 3 ? 140 : 80 }} />
-                        </td>
-                      ))}
+                      <TD />
+                      <TD><div className="skeleton h-5 rounded w-20" /></TD>
+                      <TD><div className="skeleton h-5 rounded w-32" /></TD>
+                      <TD className="hidden-sm"><div className="skeleton h-4 rounded w-48" /></TD>
+                      <TD><div className="skeleton h-5 rounded w-16 mx-auto" /></TD>
+                      <TD><div className="skeleton h-5 rounded w-24 ml-auto" /></TD>
                     </tr>
                   ))
-                : creds.map(cred => (
-                    <>
-                      <tr
-                        key={cred.id}
-                        className={`transition-colors ${!cred.is_active ? 'opacity-50' : ''}`}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setExpanded(expanded === cred.id ? null : cred.id)}
-                      >
-                        {/* Expand toggle */}
-                        <td className="pl-3 pr-0 py-3.5 text-ink-dim">
-                          {expanded === cred.id
-                            ? <ChevronDown size={14} />
-                            : <ChevronRight size={14} />
-                          }
-                        </td>
-
-                        {/* Provider */}
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <div
-                              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                              style={{ background: 'var(--bg-s2)', border: '1px solid var(--bd)' }}
+                ) : (
+                  creds.map(cred => (
+                    <tr key={cred.id} style={{ display: 'table-row' }}>
+                      <td colSpan={6} style={{ padding: 0 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <tbody>
+                            <tr
+                              style={{
+                                borderBottom: '1px solid var(--bd)',
+                                opacity: cred.is_active ? 1 : 0.6,
+                                cursor: 'pointer',
+                                transition: 'background-color 150ms ease',
+                              }}
+                              onClick={() => setExpanded(expanded === cred.id ? null : cred.id)}
                             >
-                              <ProviderLogo provider={cred.provider} size={16} />
-                            </div>
-                            <ProviderBadge provider={cred.provider} />
-                          </div>
-                        </td>
+                              {/* Toggle expand */}
+                              <TD style={{ width: '32px', color: 'var(--tx3)' }}>
+                                {expanded === cred.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </TD>
 
-                        {/* Name */}
-                        <td className="px-4 py-3.5">
-                          <span className="text-sm font-medium text-ink-primary">{cred.name}</span>
-                        </td>
+                              {/* Provider */}
+                              <TD style={{ width: '150px' }}>
+                                <Flex align="center" gap={2}>
+                                  <div
+                                    style={{
+                                      width: '28px',
+                                      height: '28px',
+                                      borderRadius: '8px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      backgroundColor: 'var(--bg-s2)',
+                                      border: '1px solid var(--bd)',
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    <ProviderLogo provider={cred.provider} size={16} />
+                                  </div>
+                                  <ProviderBadge provider={cred.provider} />
+                                </Flex>
+                              </TD>
 
-                        {/* Description */}
-                        <td className="px-4 py-3.5 hidden md:table-cell">
-                          <span className="text-xs text-ink-muted">
-                            {PROVIDER_DESC[cred.provider] ?? cred.provider}
-                          </span>
-                        </td>
+                              {/* Name */}
+                              <TD style={{ width: '180px' }}>
+                                <Text style={{ fontWeight: 700 }}>{cred.name}</Text>
+                              </TD>
 
-                        {/* Status */}
-                        <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-2">
-                            <Toggle
-                              checked={cred.is_active}
-                              onChange={() => toggleMutation.mutate(cred.id)}
-                              disabled={toggleMutation.isPending}
-                              aria-label={cred.is_active ? 'Disable' : 'Enable'}
-                            />
-                            <span
-                              className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
-                              style={cred.is_active
-                                ? { background: 'var(--sg-bg)', color: 'var(--sg)', border: '1px solid var(--sg-bd)' }
-                                : { background: 'var(--sgr-bg)', color: 'var(--sgr)', border: '1px solid var(--sgr-bd)' }
-                              }
-                            >
-                              {cred.is_active ? 'Active' : 'Off'}
-                            </span>
-                          </div>
-                        </td>
+                              {/* Description */}
+                              <TD className="hidden-sm">
+                                <Text variant="smallMuted">
+                                  {PROVIDER_DESC[cred.provider] ?? cred.provider}
+                                </Text>
+                              </TD>
 
-                        {/* Actions */}
-                        <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-1.5 justify-end">
-                            <button
-                              onClick={() => syncMutation.mutate(cred.provider)}
-                              disabled={syncMutation.isPending || !cred.is_active}
-                              className="btn-ghost px-2.5 py-1.5 text-xs"
-                              title="Sync this provider"
-                            >
-                              <RefreshCw size={12} className={syncMutation.isPending ? 'animate-spin' : ''} />
-                              Sync
-                            </button>
+                              {/* Status Toggle */}
+                              <TD style={{ width: '120px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                                <Flex align="center" justify="center" gap={2}>
+                                  <Toggle
+                                    checked={cred.is_active}
+                                    onChange={() => toggleMutation.mutate(cred.id)}
+                                    disabled={toggleMutation.isPending}
+                                  />
+                                  <Badge status={cred.is_active ? 'green' : 'gray'}>
+                                    {cred.is_active ? 'Active' : 'Off'}
+                                  </Badge>
+                                </Flex>
+                              </TD>
 
-                            {confirmId === cred.id ? (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => deleteMutation.mutate(cred.id)}
-                                  disabled={deleteMutation.isPending}
-                                  className="text-[11px] px-2 py-1 rounded-lg disabled:opacity-50"
-                                  style={{ background: 'var(--sr-bg)', color: 'var(--sr)', border: '1px solid var(--sr-bd)' }}
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  onClick={() => setConfirmId(null)}
-                                  className="text-[11px] px-2 py-1 rounded-lg border border-border text-ink-muted hover:bg-surface-3 transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setConfirmId(cred.id)}
-                                aria-label={`Delete ${cred.name}`}
-                                className="p-1.5 text-ink-muted hover:text-status-red rounded-lg transition-colors"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              {/* Actions */}
+                              <TD style={{ width: '180px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                                <Flex align="center" justify="end" gap={2}>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => syncMutation.mutate(cred.provider)}
+                                    disabled={syncMutation.isPending || !cred.is_active}
+                                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                                  >
+                                    <RefreshCw size={11} className={syncMutation.isPending ? 'animate-spin' : ''} />
+                                    Sync
+                                  </Button>
+
+                                  {confirmId === cred.id ? (
+                                    <Flex align="center" gap={1}>
+                                      <Button
+                                        size="sm"
+                                        intent="danger"
+                                        onClick={() => deleteMutation.mutate(cred.id)}
+                                        disabled={deleteMutation.isPending}
+                                        style={{ fontSize: '11px', padding: '4px 8px' }}
+                                      >
+                                        Confirm
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        intent="ghost"
+                                        onClick={() => setConfirmId(null)}
+                                        style={{ fontSize: '11px', padding: '4px 8px' }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </Flex>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      intent="ghost"
+                                      onClick={() => setConfirmId(cred.id)}
+                                      style={{ padding: '6px' }}
+                                      title="Delete credentials"
+                                    >
+                                      <Trash2 size={14} style={{ color: 'var(--sr)' }} />
+                                    </Button>
+                                  )}
+                                </Flex>
+                              </TD>
+                            </tr>
+
+                            {/* Config Detail Expanded */}
+                            {expanded === cred.id && (
+                              <tr style={{ backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                                <TD />
+                                <TD colSpan={5} style={{ padding: '0 16px 16px 16px' }}>
+                                  <div
+                                    style={{
+                                      backgroundColor: 'var(--bg-s2)',
+                                      border: '1px solid var(--bd)',
+                                      borderRadius: '8px',
+                                      padding: '12px 16px',
+                                      display: 'flex',
+                                      flexWrap: 'wrap',
+                                      columnGap: '24px',
+                                      rowGap: '6px',
+                                    }}
+                                  >
+                                    <Text variant="smallMuted" style={{ width: '100%', fontFamily: 'monospace', marginBottom: '4px' }}>
+                                      Configuration parameters:
+                                    </Text>
+                                    {Object.entries(cred.config ?? {})
+                                      .filter(([k]) => !SECRET_KEYS.has(k))
+                                      .map(([k, v]) => (
+                                        <span key={k} style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                                          <span style={{ color: 'var(--tx3)' }}>{k}:</span>{' '}
+                                          <span style={{ color: 'var(--tx2)' }}>
+                                            {Array.isArray(v) ? (v as string[]).join(', ') : String(v)}
+                                          </span>
+                                        </span>
+                                      ))}
+                                    {Object.keys(cred.config ?? {}).some(k => SECRET_KEYS.has(k)) && (
+                                      <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--tx3)', fontStyle: 'italic' }}>
+                                        • credentials contain active secret fields
+                                      </span>
+                                    )}
+                                  </div>
+                                </TD>
+                              </tr>
                             )}
-                          </div>
-                        </td>
-                      </tr>
-
-                      {/* Expanded config row */}
-                      {expanded === cred.id && (
-                        <tr key={`${cred.id}-detail`}>
-                          <td />
-                          <td colSpan={5} className="px-4 pb-4 pt-0">
-                            <div
-                              className="rounded-xl p-3 flex flex-wrap gap-x-6 gap-y-1.5"
-                              style={{ background: 'var(--bg-s2)', border: '1px solid var(--bd)' }}
-                            >
-                              <span className="text-[11px] text-ink-dim font-mono w-full mb-0.5">
-                                Configuration keys:
-                              </span>
-                              {Object.entries(cred.config ?? {})
-                                .filter(([k]) => !SECRET_KEYS.has(k))
-                                .map(([k, v]) => (
-                                  <span key={k} className="text-[11px] font-mono">
-                                    <span className="text-ink-muted">{k}:</span>{' '}
-                                    <span className="text-ink-secondary">
-                                      {Array.isArray(v) ? (v as string[]).join(', ') : String(v)}
-                                    </span>
-                                  </span>
-                                ))}
-                              {Object.keys(cred.config ?? {}).some(k => SECRET_KEYS.has(k)) && (
-                                <span className="text-[11px] text-ink-dim italic font-mono">• secret fields hidden</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
                   ))
-              }
-            </tbody>
-          </table>
-        </div>
+                )}
+              </TBody>
+            </Table>
+          </TableContainer>
+        </Card>
       )}
-    </div>
+    </Flex>
   )
 }

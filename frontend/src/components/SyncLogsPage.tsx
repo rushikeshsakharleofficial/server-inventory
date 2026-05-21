@@ -4,6 +4,20 @@ import { syncApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import type { SyncLog } from '../types'
+import {
+  Card,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  Badge,
+  TableContainer,
+  Table,
+  THead,
+  TBody,
+  TH,
+  TD,
+} from './StitchUI'
 
 function fmt(d?: string) {
   if (!d) return '—'
@@ -21,20 +35,11 @@ function duration(start?: string, end?: string) {
 
 const STATUS_CFG: Record<
   SyncLog['status'],
-  { Icon: React.ElementType; color: string; bg: string; border: string; label: string }
+  { Icon: React.ElementType; label: string; status: 'green' | 'red' | 'yellow' | 'gray' }
 > = {
-  success: {
-    Icon: CheckCircle2, label: 'Success',
-    color: 'var(--sg)', bg: 'var(--sg-bg)', border: 'var(--sg-bd)',
-  },
-  failed: {
-    Icon: XCircle, label: 'Failed',
-    color: 'var(--sr)', bg: 'var(--sr-bg)', border: 'var(--sr-bd)',
-  },
-  running: {
-    Icon: Loader, label: 'Running',
-    color: 'var(--sy)', bg: 'var(--sy-bg)', border: 'var(--sy-bd)',
-  },
+  success: { Icon: CheckCircle2, label: 'Success', status: 'green' },
+  failed:  { Icon: XCircle, label: 'Failed', status: 'red' },
+  running: { Icon: Loader, label: 'Running', status: 'yellow' },
 }
 
 export default function SyncLogsPage() {
@@ -57,46 +62,58 @@ export default function SyncLogsPage() {
   })
 
   return (
-    <div className="card-dark overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-1">
+    <Card style={{ padding: 0, overflow: 'hidden' }} className="animate-fade-in">
+      <Flex
+        justify="between"
+        align="center"
+        style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--bd)',
+          backgroundColor: 'var(--bg-s1)',
+        }}
+      >
         <div>
-          <p className="text-sm font-medium text-ink-primary">Sync History</p>
-          <p className="text-xs text-ink-muted mt-0.5">{logs.length} recent runs · auto-refreshes every 10s</p>
+          <Heading level="h3" style={{ fontSize: '14px', fontWeight: 700 }}>Sync History</Heading>
+          <Text variant="smallMuted" style={{ marginTop: '2px' }}>
+            {logs.length} recent runs · auto-refreshes every 10s
+          </Text>
         </div>
-        <button
+        <Button
+          intent="ghost"
+          size="sm"
           onClick={() => refetch()}
           disabled={isFetching}
-          className="btn-ghost px-3 py-1.5 text-xs"
-          aria-label="Refresh sync logs"
         >
           <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
           Refresh
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
       {isLoading ? (
-        <div className="py-16 text-center text-ink-muted text-sm">Loading…</div>
+        <div style={{ padding: '64px 20px', textAlign: 'center' }}>
+          <Text variant="muted">Loading sync runs…</Text>
+        </div>
       ) : logs.length === 0 ? (
-        <div className="py-16 text-center">
-          <p className="text-ink-secondary text-sm font-medium">No sync runs yet</p>
-          <p className="text-ink-muted text-xs mt-1">Click "Sync All" in the header or add credentials first</p>
+        <div style={{ padding: '64px 20px', textAlign: 'center' }}>
+          <Heading level="h4" style={{ marginBottom: '4px' }}>No sync runs yet</Heading>
+          <Text variant="muted">Click "Sync All" in the header or add credentials first</Text>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="table-dark min-w-[700px]" aria-label="Sync history">
-            <thead>
+        <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+          <Table aria-label="Sync history">
+            <THead>
               <tr>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Provider</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-center text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Added</th>
-                <th className="px-4 py-3 text-center text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Updated</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Started</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Duration</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Error</th>
-                <th className="px-4 py-3" />
+                <TH>Provider</TH>
+                <TH>Status</TH>
+                <TH style={{ textAlign: 'center' }}>Added</TH>
+                <TH style={{ textAlign: 'center' }}>Updated</TH>
+                <TH>Started</TH>
+                <TH>Duration</TH>
+                <TH>Error</TH>
+                <TH style={{ width: '80px' }} />
               </tr>
-            </thead>
-            <tbody>
+            </THead>
+            <TBody>
               {logs.map(log => {
                 const cfg = STATUS_CFG[log.status] ?? STATUS_CFG.failed
                 const Icon = cfg.Icon
@@ -104,82 +121,121 @@ export default function SyncLogsPage() {
 
                 return (
                   <tr key={log.id}>
-                    <td className="px-4 py-3.5">
-                      {log.provider
-                        ? <ProviderBadge provider={log.provider} />
-                        : <span className="text-xs text-ink-muted italic">All</span>
-                      }
-                    </td>
+                    <TD>
+                      {log.provider ? (
+                        <ProviderBadge provider={log.provider} />
+                      ) : (
+                        <Text variant="smallMuted" style={{ fontStyle: 'italic' }}>
+                          All
+                        </Text>
+                      )}
+                    </TD>
 
-                    <td className="px-4 py-3.5">
-                      <span
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium"
-                        style={{ color: cfg.color, backgroundColor: cfg.bg, border: `1px solid ${cfg.border}` }}
+                    <TD>
+                      <Badge
+                        status={cfg.status}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
                       >
-                        <Icon size={12} className={log.status === 'running' ? 'animate-spin' : ''} aria-hidden="true" />
+                        <Icon size={12} className={log.status === 'running' ? 'animate-spin' : ''} />
                         {cfg.label}
-                      </span>
-                    </td>
+                      </Badge>
+                    </TD>
 
-                    <td className="px-4 py-3.5 text-center">
-                      {log.servers_added > 0
-                        ? <span className="text-sm font-mono font-semibold text-status-green tabular-nums">+{log.servers_added}</span>
-                        : <span className="text-sm text-ink-dim tabular-nums">0</span>
-                      }
-                    </td>
+                    <TD style={{ textAlign: 'center' }}>
+                      {log.servers_added > 0 ? (
+                        <Text style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--sg)', fontSize: '13px' }}>
+                          +{log.servers_added}
+                        </Text>
+                      ) : (
+                        <Text variant="smallMuted" style={{ fontFamily: 'monospace' }}>0</Text>
+                      )}
+                    </TD>
 
-                    <td className="px-4 py-3.5 text-center">
-                      {log.servers_updated > 0
-                        ? <span className="text-sm font-mono font-semibold text-accent tabular-nums">{log.servers_updated}</span>
-                        : <span className="text-sm text-ink-dim tabular-nums">0</span>
-                      }
-                    </td>
+                    <TD style={{ textAlign: 'center' }}>
+                      {log.servers_updated > 0 ? (
+                        <Text style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--ac)', fontSize: '13px' }}>
+                          {log.servers_updated}
+                        </Text>
+                      ) : (
+                        <Text variant="smallMuted" style={{ fontFamily: 'monospace' }}>0</Text>
+                      )}
+                    </TD>
 
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs text-ink-secondary tabular-nums">{fmt(log.started_at)}</span>
-                    </td>
+                    <TD>
+                      <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                        {fmt(log.started_at)}
+                      </Text>
+                    </TD>
 
-                    <td className="px-4 py-3.5">
+                    <TD>
                       {dur ? (
                         <span
-                          className="text-xs font-mono px-2 py-0.5 rounded text-ink-secondary"
-                          style={{ background: 'var(--bg-s2)', border: '1px solid var(--bd)' }}
+                          style={{
+                            fontFamily: 'monospace',
+                            fontSize: '11px',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: 'var(--bg-s2)',
+                            border: '1px solid var(--bd)',
+                            color: 'var(--tx2)',
+                          }}
                         >
                           {dur}
                         </span>
                       ) : (
-                        <span className="text-xs text-ink-dim">—</span>
+                        <Text variant="smallMuted">—</Text>
                       )}
-                    </td>
+                    </TD>
 
-                    <td className="px-4 py-3.5 max-w-[220px]">
-                      {log.error_message
-                        ? <span className="text-xs text-status-red font-mono truncate block" title={log.error_message}>{log.error_message}</span>
-                        : <span className="text-xs text-ink-dim">—</span>
-                      }
-                    </td>
+                    <TD style={{ maxWidth: '220px' }}>
+                      {log.error_message ? (
+                        <Text
+                          style={{
+                            fontFamily: 'monospace',
+                            fontSize: '12px',
+                            color: 'var(--sr)',
+                            textOverflow: 'ellipsis',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            display: 'block',
+                          }}
+                          title={log.error_message}
+                        >
+                          {log.error_message}
+                        </Text>
+                      ) : (
+                        <Text variant="smallMuted">—</Text>
+                      )}
+                    </TD>
 
-                    <td className="px-4 py-3.5">
+                    <TD>
                       {log.status === 'running' && (
-                        <button
+                        <Button
+                          size="sm"
+                          intent="danger"
                           onClick={() => stopMutation.mutate(log.id)}
                           disabled={stopMutation.isPending}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-                          style={{ background: 'var(--sr-bg)', color: 'var(--sr)', border: '1px solid var(--sr-bd)' }}
-                          title="Stop this sync"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                          }}
                         >
-                          <Square size={10} />
+                          <Square size={10} style={{ marginRight: '4px' }} />
                           Stop
-                        </button>
+                        </Button>
                       )}
-                    </td>
+                    </TD>
                   </tr>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
+            </TBody>
+          </Table>
+        </TableContainer>
       )}
-    </div>
+    </Card>
   )
 }

@@ -5,10 +5,18 @@ import { settingsApi } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import Toggle from './Toggle'
+import {
+  Card,
+  Flex,
+  Heading,
+  Text,
+  Input,
+  Button,
+} from './StitchUI'
 
 function SkeletonField() {
   return (
-    <div className="space-y-1.5" aria-hidden="true">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }} aria-hidden="true">
       <div className="skeleton h-3 w-28 rounded" />
       <div className="skeleton h-9 w-full rounded-lg" />
     </div>
@@ -21,13 +29,22 @@ function SectionCard({ title, description, children }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="card-dark overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-border bg-surface-2">
-        <p className="text-sm font-semibold text-ink-primary">{title}</p>
-        {description && <p className="text-xs text-ink-muted mt-0.5">{description}</p>}
-      </div>
-      <div className="p-5 space-y-5">{children}</div>
-    </div>
+    <Card style={{ padding: 0, overflow: 'hidden' }}>
+      <Flex
+        direction="column"
+        style={{
+          padding: '14px 20px',
+          borderBottom: '1px solid var(--bd)',
+          backgroundColor: 'var(--bg-s2)',
+        }}
+      >
+        <Heading level="h3" style={{ fontSize: '14px', fontWeight: 700 }}>{title}</Heading>
+        {description && <Text variant="smallMuted" style={{ marginTop: '2px' }}>{description}</Text>}
+      </Flex>
+      <Flex direction="column" gap={4} style={{ padding: '20px' }}>
+        {children}
+      </Flex>
+    </Card>
   )
 }
 
@@ -40,34 +57,39 @@ function NumberField({ label, description, settingKey, unit, min, max, readOnly,
   const dirty = local !== currentValue
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
+    <Flex direction="column" gap={2}>
+      <Flex justify="between" align="center">
         <div>
-          <p className="text-xs font-medium text-ink-secondary">{label}</p>
-          {description && <p className="text-[11px] text-ink-muted mt-0.5">{description}</p>}
+          <Text style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx2)' }}>{label}</Text>
+          {description && <Text variant="smallMuted" style={{ marginTop: '2px' }}>{description}</Text>}
         </div>
-        {readOnly && <Lock size={12} className="text-ink-dim" />}
-      </div>
-      <div className="flex items-center gap-2">
-        <input
+        {readOnly && <Lock size={12} style={{ color: 'var(--tx3)' }} />}
+      </Flex>
+      <Flex align="center" gap={3}>
+        <Input
           type="number"
           value={local}
           onChange={e => setLocal(e.target.value)}
           disabled={readOnly}
           min={min}
           max={max}
-          className="input-dark w-36 tabular-nums disabled:opacity-60"
+          style={{ width: '144px', fontVariantNumeric: 'tabular-nums', opacity: readOnly ? 0.6 : 1 }}
         />
-        {unit && <span className="text-xs text-ink-muted">{unit}</span>}
+        {unit && <Text variant="smallMuted">{unit}</Text>}
         {!readOnly && dirty && (
-          <button onClick={() => onSave(settingKey, local)} disabled={isSaving} className="btn-primary px-3 py-2 text-xs">
+          <Button
+            intent="primary"
+            onClick={() => onSave(settingKey, local)}
+            disabled={isSaving}
+            style={{ fontSize: '12px', padding: '6px 12px' }}
+          >
             {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
             Save
-          </button>
+          </Button>
         )}
-        {readOnly && <span className="text-[11px] text-ink-dim italic">Admin only</span>}
-      </div>
-    </div>
+        {readOnly && <Text variant="smallMuted" style={{ fontStyle: 'italic' }}>Admin only</Text>}
+      </Flex>
+    </Flex>
   )
 }
 
@@ -76,10 +98,10 @@ function ToggleField({ label, description, settingKey, readOnly, checked, onSave
   readOnly: boolean; checked: boolean; onSave: (key: string, val: string) => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <Flex justify="between" align="center" gap={4}>
       <div>
-        <p className="text-xs font-medium text-ink-secondary">{label}</p>
-        {description && <p className="text-[11px] text-ink-muted mt-0.5">{description}</p>}
+        <Text style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx2)' }}>{label}</Text>
+        {description && <Text variant="smallMuted" style={{ marginTop: '2px' }}>{description}</Text>}
       </div>
       <Toggle
         checked={checked}
@@ -87,7 +109,7 @@ function ToggleField({ label, description, settingKey, readOnly, checked, onSave
         disabled={readOnly}
         aria-label={label}
       />
-    </div>
+    </Flex>
   )
 }
 
@@ -99,7 +121,7 @@ export default function SettingsPage() {
 
   const { data: settings = {}, isLoading, refetch } = useQuery({
     queryKey: ['settings'],
-    queryFn: settingsApi.list,      // returns Record<string,string>
+    queryFn: settingsApi.list,
   })
 
   const updateMutation = useMutation({
@@ -123,23 +145,23 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-5 max-w-2xl">
+      <Flex direction="column" gap={5} style={{ maxWidth: '640px' }}>
         {[0, 1, 2].map(i => (
-          <div key={i} className="card-dark overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-border bg-surface-2">
+          <Card key={i} style={{ padding: 0, overflow: 'hidden' }}>
+            <Flex style={{ padding: '14px 20px', borderBottom: '1px solid var(--bd)', backgroundColor: 'var(--bg-s2)' }}>
               <div className="skeleton h-4 w-32 rounded" />
-            </div>
-            <div className="p-5 space-y-5">
+            </Flex>
+            <Flex style={{ padding: '20px' }}>
               <SkeletonField />
-            </div>
-          </div>
+            </Flex>
+          </Card>
         ))}
-      </div>
+      </Flex>
     )
   }
 
   return (
-    <div className="space-y-5 max-w-2xl animate-fade-in">
+    <Flex direction="column" gap={5} style={{ maxWidth: '640px' }} className="animate-fade-in">
       <SectionCard title="Sync Settings" description="Controls how cloud provider syncs behave">
         <NumberField
           label="Sync Timeout"
@@ -180,29 +202,37 @@ export default function SettingsPage() {
       </SectionCard>
 
       <SectionCard title="About">
-        <div className="space-y-2 text-xs text-ink-secondary">
+        <Flex direction="column" gap={2} style={{ fontSize: '12px' }}>
           {[
             ['Application', 'ServerInventory v1.0.0'],
             ['Logged in as', `${user?.username} (${user?.role})`],
           ].map(([k, v]) => (
-            <div key={k} className="flex items-center justify-between">
-              <span className="text-ink-muted">{k}</span>
-              <span className="font-mono">{v}</span>
-            </div>
+            <Flex key={k} justify="between" align="center">
+              <Text variant="smallMuted">{k}</Text>
+              <Text style={{ fontFamily: 'monospace', fontWeight: 600 }}>{v}</Text>
+            </Flex>
           ))}
-          <div className="flex items-center justify-between">
-            <span className="text-ink-muted">Source</span>
+          <Flex justify="between" align="center">
+            <Text variant="smallMuted">Source</Text>
             <a
               href="https://github.com/rushikeshsakharleofficial/server-inventory"
               target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-accent hover:underline"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: 'var(--ac)',
+                textDecoration: 'none',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
             >
               <GitFork size={12} />
-              GitHub
+              <span style={{ fontWeight: 600 }}>GitHub</span>
             </a>
-          </div>
-        </div>
+          </Flex>
+        </Flex>
       </SectionCard>
-    </div>
+    </Flex>
   )
 }
