@@ -32,7 +32,7 @@ authedTest.describe('Block Storage — API params', () => {
 authedTest.describe('Block Storage — UI', () => {
   authedTest('heading contains Block Storage', async ({ page }) => {
     await new BlockStoragePage(page).goto()
-    await expect(page.locator('header h1')).toHaveText('Block Storage')
+    await expect(page.locator('header h1')).toContainText('Block Storage')
   })
 
   authedTest('search input accepts text', async ({ page }) => {

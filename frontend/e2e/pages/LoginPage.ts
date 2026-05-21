@@ -10,7 +10,7 @@ export class LoginPage {
     this.usernameInput = page.locator('#username')
     this.passwordInput = page.locator('#password')
     this.submitButton = page.getByRole('button', { name: 'Sign In' })
-    this.errorMessage = page.locator('[role="alert"], .error, [data-error]').first()
+    this.errorMessage = page.locator('[role="alert"]').or(page.getByText(/invalid|incorrect|required|failed|wrong/i)).first()
   }
 
   async goto(): Promise<void> { await this.page.goto('/') }

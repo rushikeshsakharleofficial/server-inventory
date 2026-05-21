@@ -53,6 +53,6 @@ authedTest.describe('Users — API', () => {
 authedTest.describe('Users — UI', () => {
   authedTest('users table shows admin row', async ({ page }) => {
     await new UsersPage(page).goto()
-    await expect(page.getByText('admin')).toBeVisible()
+    await expect(page.getByRole('cell', { name: 'admin' })).toBeVisible()
   })
 })
