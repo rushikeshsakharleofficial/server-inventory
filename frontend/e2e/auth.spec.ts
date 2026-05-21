@@ -1,44 +1,60 @@
-import { test, expect } from '@playwright/test'
+import { test, authedTest, expect } from './fixtures/auth'
+import { LoginPage } from './pages/LoginPage'
 
-test.describe('Authentication', () => {
-  test('shows login page when unauthenticated', async ({ page }) => {
-    await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'ServerInventory' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible()
+const BACKEND = process.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
+
+test.describe('Auth — Login', () => {
+  test('valid credentials → dashboard', async ({ page }) => {
+    const login = new LoginPage(page)
+    await login.goto()
+    await login.login('admin', 'Admin@1234')
+    await expect(page.locator('header h1')).toHaveText('Dashboard', { timeout: 5000 })
   })
 
-  test('shows error on bad credentials', async ({ page }) => {
-    await page.goto('/')
-    await page.getByLabel('Username').fill('notauser')
-    await page.locator('#password').fill('wrongpass')
-    await page.getByRole('button', { name: 'Sign In' }).click()
-    await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 })
+  test('wrong password → error visible', async ({ page }) => {
+    const login = new LoginPage(page)
+    await login.goto()
+    await login.login('admin', 'wrongpassword')
+    await expect(login.errorMessage).toBeVisible()
   })
 
-  test('logs in successfully and shows sidebar', async ({ page }) => {
-    const username = process.env.E2E_USERNAME ?? 'admin'
-    const password = process.env.E2E_PASSWORD ?? 'admin123'
-
-    await page.goto('/')
-    await page.getByLabel('Username').fill(username)
-    await page.locator('#password').fill(password)
-    await page.getByRole('button', { name: 'Sign In' }).click()
-    await expect(page.getByRole('navigation')).toBeVisible({ timeout: 8000 })
-    await expect(page.getByRole('main')).toBeVisible()
+  test('empty username → error visible', async ({ page }) => {
+    const login = new LoginPage(page)
+    await login.goto()
+    await login.login('', 'Admin@1234')
+    await expect(login.errorMessage).toBeVisible()
   })
 
-  test('logout clears session and returns to login', async ({ page }) => {
-    const username = process.env.E2E_USERNAME ?? 'admin'
-    const password = process.env.E2E_PASSWORD ?? 'admin123'
+  test('unknown user → error visible', async ({ page }) => {
+    const login = new LoginPage(page)
+    await login.goto()
+    await login.login('nobody_xyz_e2e', 'Admin@1234')
+    await expect(login.errorMessage).toBeVisible()
+  })
+})
 
-    await page.goto('/')
-    await page.getByLabel('Username').fill(username)
-    await page.locator('#password').fill(password)
-    await page.getByRole('button', { name: 'Sign In' }).click()
-    await page.waitForSelector('aside', { timeout: 8000 })
+authedTest.describe('Auth — Session', () => {
+  authedTest('GET /api/auth/me returns correct role and username', async ({ page }) => {
+    const token = await page.evaluate(() => localStorage.getItem('si_token')) as string
+    const res = await page.request.get(`${BACKEND}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(res.ok()).toBeTruthy()
+    const body = await res.json() as { role: string; username: string }
+    expect(body.role).toBe('admin')
+    expect(body.username).toBe('admin')
+  })
 
-    await page.getByLabel('Sign out').click()
-    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible({ timeout: 5000 })
+  authedTest('invalid token → 401', async ({ page }) => {
+    const res = await page.request.get(`${BACKEND}/api/auth/me`, {
+      headers: { Authorization: 'Bearer invalid-token-xyz' },
+    })
+    expect(res.status()).toBe(401)
+  })
+
+  authedTest('logout clears localStorage token', async ({ page }) => {
+    await page.getByRole('button', { name: /logout|sign out/i }).click()
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible()
     const token = await page.evaluate(() => localStorage.getItem('si_token'))
     expect(token).toBeNull()
   })
