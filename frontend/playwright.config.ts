@@ -6,7 +6,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [['html'], ['list']],
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
@@ -16,13 +16,20 @@ export default defineConfig({
     {
       name: 'chromium-dark',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: /data-leak/,
     },
     {
       name: 'chromium-light',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /visual\.spec\.ts/,
+    },
+    {
+      name: 'data-leak',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: undefined,
+        trace: 'on',
       },
+      testMatch: /data-leak\.spec\.ts/,
     },
   ],
   webServer: {

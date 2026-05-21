@@ -5,6 +5,7 @@ const VIEWS = [
   { nav: 'Servers',        heading: 'Server Inventory'  },
   { nav: 'Databases',      heading: 'Databases'         },
   { nav: 'Kubernetes',     heading: 'Kubernetes'        },
+  { nav: 'Block Storage', heading: 'Block Storage'     },
   { nav: 'Cloud Providers',heading: 'Cloud Providers'   },
   { nav: 'Sync Logs',      heading: 'Sync Logs'         },
   { nav: 'Cron Jobs',      heading: 'Cron Jobs'         },
