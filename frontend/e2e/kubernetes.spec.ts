@@ -34,4 +34,11 @@ authedTest.describe('Kubernetes — UI', () => {
     await new KubernetesPage(page).goto()
     await expect(page.locator('header h1')).toHaveText('Kubernetes')
   })
+
+  authedTest('search input accepts text', async ({ page }) => {
+    const k8s = new KubernetesPage(page)
+    await k8s.goto()
+    await k8s.search('xyz')
+    await expect(k8s.searchInput).toHaveValue('xyz')
+  })
 })

@@ -85,7 +85,6 @@ authedTest.describe('Servers — UI', () => {
   })
 
   authedTest('create and delete custom DC server via API', async () => {
-    const api = await createApiClient()
     const created = await (await api.post('/api/servers', {
       name: 'e2e-test-server',
       provider: 'custom',

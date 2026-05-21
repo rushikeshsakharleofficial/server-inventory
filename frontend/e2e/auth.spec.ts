@@ -8,7 +8,7 @@ test.describe('Auth — Login', () => {
     const login = new LoginPage(page)
     await login.goto()
     await login.login('admin', 'Admin@1234')
-    await expect(page.locator('header h1')).toHaveText('Dashboard', { timeout: 5000 })
+    await expect(page.locator('header h1')).toHaveText('Dashboard')
   })
 
   test('wrong password → error visible', async ({ page }) => {
