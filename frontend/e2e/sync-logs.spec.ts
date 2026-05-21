@@ -37,8 +37,9 @@ authedTest.describe('Sync Logs — WebSocket', () => {
     const closeCode = await page.evaluate(({ url }) => {
       return new Promise<number>((resolve) => {
         const ws = new WebSocket(`${url}/ws?token=invalid-token-xyz`)
-        ws.onclose = (e) => resolve(e.code)
-        setTimeout(() => resolve(0), 5000)
+        ws.onclose = (e: CloseEvent) => resolve(e.code)
+        ws.onerror = () => resolve(0)
+        setTimeout(() => resolve(0), 4500)
       })
     }, { url: wsUrl })
     expect(closeCode).toBe(4001)

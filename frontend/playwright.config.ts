@@ -22,6 +22,7 @@ export default defineConfig({
       name: 'chromium-light',
       use: { ...devices['Desktop Chrome'] },
       testMatch: /visual\.spec\.ts/,
+      testIgnore: /data-leak/,
     },
     {
       name: 'data-leak',
