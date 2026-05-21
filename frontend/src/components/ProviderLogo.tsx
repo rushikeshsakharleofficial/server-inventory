@@ -23,7 +23,7 @@ export default function ProviderLogo({ provider, size = 20, className = '' }: Pr
         alt={provider}
         width={size}
         height={size}
-        className={`object-contain flex-shrink-0 ${className}`}
+        className={`object-contain shrink-0 ${className}`}
         style={{ maxWidth: size, maxHeight: size }}
         loading="lazy"
         decoding="async"
@@ -40,7 +40,7 @@ export default function ProviderLogo({ provider, size = 20, className = '' }: Pr
       viewBox="0 0 24 24"
       fill="none"
       aria-label={provider}
-      className={`flex-shrink-0 ${className}`}
+      className={`shrink-0 ${className}`}
     >
       <rect x="3" y="4"  width="18" height="5" rx="1.5" stroke={color} strokeWidth="1.4"/>
       <rect x="3" y="10" width="18" height="5" rx="1.5" stroke={color} strokeWidth="1.4"/>

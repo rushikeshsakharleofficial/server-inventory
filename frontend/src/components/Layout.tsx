@@ -328,7 +328,7 @@ export default function Layout({
             active={currentView === 'dashboard'}
             aria-current={currentView === 'dashboard' ? 'page' : undefined}
           >
-            <LayoutDashboard size={16} className="flex-shrink-0" />
+            <LayoutDashboard size={16} className="shrink-0" />
             <span className="truncate">Dashboard</span>
           </NavButton>
 
@@ -338,11 +338,11 @@ export default function Layout({
               onClick={() => setInventoryOpen(o => !o)}
               active={isInventoryView}
             >
-              <Layers size={16} className="flex-shrink-0" />
+              <Layers size={16} className="shrink-0" />
               <span className="flex-1 text-left truncate">Inventory</span>
               <ChevronDown
                 size={13}
-                className={`flex-shrink-0 transition-transform duration-150 ${inventoryOpen ? 'rotate-180' : ''}`}
+                className={`shrink-0 transition-transform duration-150 ${inventoryOpen ? 'rotate-180' : ''}`}
               />
             </NavButton>
 
@@ -355,7 +355,7 @@ export default function Layout({
                     active={currentView === id}
                     aria-current={currentView === id ? 'page' : undefined}
                   >
-                    <Icon size={14} className="flex-shrink-0" />
+                    <Icon size={14} className="shrink-0" />
                     <span className="truncate">{label}</span>
                   </SubNavButton>
                 ))}
@@ -371,7 +371,7 @@ export default function Layout({
               active={currentView === id}
               aria-current={currentView === id ? 'page' : undefined}
             >
-              <Icon size={16} className="flex-shrink-0" />
+              <Icon size={16} className="shrink-0" />
               <span className="truncate">{label}</span>
             </NavButton>
           ))}
@@ -383,7 +383,7 @@ export default function Layout({
             onClick={() => onViewChange('providers')}
             active={currentView === 'providers'}
           >
-            <Settings size={16} className="flex-shrink-0" />
+            <Settings size={16} className="shrink-0" />
             <span className="truncate">Manage Credentials</span>
           </NavButton>
 
@@ -392,7 +392,7 @@ export default function Layout({
               onClick={() => onViewChange('users')}
               active={currentView === 'users'}
             >
-              <Users size={16} className="flex-shrink-0" />
+              <Users size={16} className="shrink-0" />
               <span className="truncate">Manage Users</span>
             </NavButton>
           )}
@@ -470,8 +470,8 @@ export default function Layout({
                         : { background: 'var(--ac-bg)', color: 'var(--ac)', border: '1px solid var(--ac-bd)' }
                     }
                   >
-                    {syncStatus === 'done'  && <CheckCircle2 size={11} className="flex-shrink-0" />}
-                    {syncStatus === 'error' && <XCircle      size={11} className="flex-shrink-0" />}
+                    {syncStatus === 'done'  && <CheckCircle2 size={11} className="shrink-0" />}
+                    {syncStatus === 'error' && <XCircle      size={11} className="shrink-0" />}
                     <span className="truncate">{syncSummary}</span>
                   </div>
                 )}

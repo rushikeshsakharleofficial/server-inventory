@@ -141,7 +141,7 @@ export default function LoginPage() {
             {/* Remember me */}
             <label className="flex items-center gap-2.5 cursor-pointer select-none group">
               <div
-                className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
                   rememberMe
                     ? 'bg-accent border-accent'
                     : 'bg-surface-2 border-border group-hover:border-border-strong'

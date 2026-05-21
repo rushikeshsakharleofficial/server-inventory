@@ -11,7 +11,7 @@ export function SkeletonText({
 export function SkeletonCard() {
   return (
     <div className="card-dark p-5 flex items-center gap-4" aria-hidden="true">
-      <div className="skeleton w-11 h-11 rounded-xl flex-shrink-0" />
+      <div className="skeleton w-11 h-11 rounded-xl shrink-0" />
       <div className="flex-1 space-y-2">
         <SkeletonText width="w-16" height="h-3" />
         <SkeletonText width="w-20" height="h-7" />

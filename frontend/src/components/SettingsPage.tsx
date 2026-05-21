@@ -17,7 +17,7 @@ import {
 function SkeletonField() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }} aria-hidden="true">
-      <div className="skeleton h-3 w-28 rounded" />
+      <div className="skeleton h-3 w-28 rounded-sm" />
       <div className="skeleton h-9 w-full rounded-lg" />
     </div>
   )
@@ -149,7 +149,7 @@ export default function SettingsPage() {
         {[0, 1, 2].map(i => (
           <Card key={i} style={{ padding: 0, overflow: 'hidden' }}>
             <Flex style={{ padding: '14px 20px', borderBottom: '1px solid var(--bd)', backgroundColor: 'var(--bg-s2)' }}>
-              <div className="skeleton h-4 w-32 rounded" />
+              <div className="skeleton h-4 w-32 rounded-sm" />
             </Flex>
             <Flex style={{ padding: '20px' }}>
               <SkeletonField />

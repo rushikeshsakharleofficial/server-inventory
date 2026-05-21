@@ -366,11 +366,11 @@ export default function ProvidersPage() {
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
                       <TD />
-                      <TD><div className="skeleton h-5 rounded w-20" /></TD>
-                      <TD><div className="skeleton h-5 rounded w-32" /></TD>
-                      <TD className="hidden-sm"><div className="skeleton h-4 rounded w-48" /></TD>
-                      <TD><div className="skeleton h-5 rounded w-16 mx-auto" /></TD>
-                      <TD><div className="skeleton h-5 rounded w-24 ml-auto" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-20" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-32" /></TD>
+                      <TD className="hidden-sm"><div className="skeleton h-4 rounded-sm w-48" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-16 mx-auto" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-24 ml-auto" /></TD>
                     </tr>
                   ))
                 ) : (
