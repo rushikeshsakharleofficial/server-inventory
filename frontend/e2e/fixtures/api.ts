@@ -7,7 +7,7 @@ export interface ApiClient {
   get(path: string, params?: Record<string, string>): Promise<Response>
   post(path: string, body: unknown): Promise<Response>
   put(path: string, body: unknown): Promise<Response>
-  patch(path: string): Promise<Response>
+  patch(path: string, body?: unknown): Promise<Response>
   delete(path: string): Promise<Response>
 }
 
@@ -32,8 +32,8 @@ function buildClient(token: string, fetchFn: FetchFn): ApiClient {
     async put(path, body) {
       return fetchFn(`${BACKEND}${path}`, { method: 'PUT', headers, body: JSON.stringify(body) })
     },
-    async patch(path) {
-      return fetchFn(`${BACKEND}${path}`, { method: 'PATCH', headers })
+    async patch(path, body?) {
+      return fetchFn(`${BACKEND}${path}`, { method: 'PATCH', headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) })
     },
     async delete(path) {
       return fetchFn(`${BACKEND}${path}`, { method: 'DELETE', headers })
