@@ -1,6 +1,8 @@
 import { request as pwRequest } from '@playwright/test'
 
 const BACKEND = process.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
+const DEFAULT_USERNAME = 'admin'
+const DEFAULT_PASSWORD = 'Admin@1234'
 
 export interface ApiClient {
   token: string
@@ -42,8 +44,8 @@ function buildClient(token: string, fetchFn: FetchFn): ApiClient {
 }
 
 export async function createApiClient(
-  username = 'admin',
-  password = 'Admin@1234',
+  username = DEFAULT_USERNAME,
+  password = DEFAULT_PASSWORD,
 ): Promise<ApiClient> {
   const ctx = await pwRequest.newContext()
   const res = await ctx.post(`${BACKEND}/api/auth/login`, {

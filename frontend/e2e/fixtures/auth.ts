@@ -12,7 +12,8 @@ async function loginAndInject(
   const res = await page.request.post(`${BACKEND}/api/auth/login`, {
     form: { username, password, remember_me: 'false' },
   })
-  expect(res.ok(), `Login failed for ${username}`).toBeTruthy()
+  const bodyText = await res.text()
+  expect(res.ok(), `Login failed for ${username} — status ${res.status()}: ${bodyText}`).toBeTruthy()
   const { access_token, role } = await res.json() as { access_token: string; role: string }
   await page.goto('/')
   await page.evaluate(
