@@ -86,7 +86,7 @@ def list_clusters(
 @router.post("/sync")
 def sync_clusters(
     provider: str | None = Query(None),
-    background_tasks: BackgroundTasks = Depends(),
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
 ) -> dict[str, str]:
