@@ -216,3 +216,29 @@ class KubernetesCluster(Base):
         Index("ix_k8s_status", "status"),
         Index("ix_k8s_cloud_id_provider", "cloud_id", "provider"),
     )
+
+
+class BlockStorage(Base):
+    __tablename__ = "block_storages"
+
+    id          = Column(Integer, primary_key=True)
+    cloud_id    = Column(String(255), nullable=True)
+    name        = Column(String(255), nullable=False)
+    provider    = Column(String(64),  nullable=False)
+    region      = Column(String(128), nullable=True)
+    size_gb     = Column(Float,       nullable=True)
+    status      = Column(String(32),  default="unknown")
+    attachment  = Column(String(255), nullable=True)
+    volume_type = Column(String(64),  nullable=True)
+    tags        = Column(JSON, default=_empty_json_dict)
+    extra       = Column(JSON, default=_empty_json_dict)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_synced = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_block_provider", "provider"),
+        Index("ix_block_status", "status"),
+        Index("ix_block_cloud_id_provider", "cloud_id", "provider"),
+    )
+

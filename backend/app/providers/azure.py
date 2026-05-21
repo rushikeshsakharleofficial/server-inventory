@@ -190,3 +190,71 @@ class AzureProvider(CloudProvider):
                 },
             })
         return result
+
+    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+        try:
+            from azure.identity import ClientSecretCredential
+            from azure.mgmt.compute import ComputeManagementClient
+        except ImportError:
+            return []
+
+        subscription_id = self.config["subscription_id"]
+        credential = ClientSecretCredential(
+            tenant_id=self.config["tenant_id"],
+            client_id=self.config["client_id"],
+            client_secret=self.config["client_secret"],
+        )
+
+        compute = ComputeManagementClient(credential, subscription_id)
+
+        result = []
+        state_map = {
+            "Attached": "running",
+            "Unattached": "available",
+            "Reserved": "available",
+            "Frozen": "stopped",
+        }
+
+        try:
+            for disk in compute.disks.list():
+                sku_name = "standard"
+                if hasattr(disk, "sku") and disk.sku:
+                    sku_name = getattr(disk.sku, "name", "standard")
+
+                attachment = None
+                if hasattr(disk, "managed_by") and disk.managed_by:
+                    attachment = disk.managed_by.split("/")[-1]
+
+                tags = {}
+                if hasattr(disk, "tags") and disk.tags:
+                    tags = dict(disk.tags)
+
+                status = "unknown"
+                if hasattr(disk, "disk_state") and disk.disk_state:
+                    status = state_map.get(disk.disk_state, "unknown")
+                elif attachment:
+                    status = "running"
+                else:
+                    status = "available"
+
+                result.append({
+                    "cloud_id": disk.id,
+                    "name": disk.name,
+                    "provider": "azure",
+                    "region": disk.location,
+                    "size_gb": float(disk.disk_size_gb) if getattr(disk, "disk_size_gb", None) else 0.0,
+                    "status": status,
+                    "attachment": attachment,
+                    "volume_type": sku_name,
+                    "tags": tags,
+                    "extra": {
+                        "resource_group": disk.id.split("/")[4] if "/" in disk.id else "",
+                        "time_created": str(getattr(disk, "time_created", "")),
+                        "disk_state": getattr(disk, "disk_state", None),
+                        "provisioning_state": getattr(disk, "provisioning_state", None),
+                    },
+                })
+        except Exception:
+            pass
+
+        return result

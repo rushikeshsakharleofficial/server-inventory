@@ -20,3 +20,7 @@ class CloudProvider(ABC):
 
     def fetch_kubernetes(self) -> List[Dict[str, Any]]:
         return []
+
+    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+        return []
+

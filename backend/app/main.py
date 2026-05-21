@@ -14,6 +14,7 @@ from .routers.crons import router as crons_router
 from .routers.databases import router as databases_router
 from .routers.kubernetes_clusters import router as kubernetes_router
 from .routers.resource_map import router as resource_map_router
+from .routers.block_storages import router as block_storages_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -54,6 +55,7 @@ app.include_router(crons_router)
 app.include_router(databases_router)
 app.include_router(kubernetes_router)
 app.include_router(resource_map_router)
+app.include_router(block_storages_router)
 
 
 def _apply_db_optimizations() -> None:

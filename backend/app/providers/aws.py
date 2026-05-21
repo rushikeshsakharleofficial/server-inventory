@@ -181,3 +181,65 @@ class AWSProvider(CloudProvider):
                     },
                 })
         return result
+
+    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+        import boto3
+
+        access_key = self.config.get("access_key_id")
+        secret_key = self.config.get("secret_access_key")
+        regions = self.config.get("regions", ["us-east-1"])
+        if isinstance(regions, str):
+            regions = [r.strip() for r in regions.split(",") if r.strip()]
+
+        result = []
+        status_map = {
+            "in-use": "running",
+            "available": "available",
+            "creating": "pending",
+            "deleting": "terminated",
+            "error": "stopped",
+        }
+
+        for region in regions:
+            ec2 = boto3.client(
+                "ec2",
+                region_name=region,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+            )
+            try:
+                paginator = ec2.get_paginator("describe_volumes")
+                for page in paginator.paginate():
+                    for vol in page.get("Volumes", []):
+                        name = ""
+                        tags = {}
+                        for tag in vol.get("Tags", []):
+                            tags[tag["Key"]] = tag["Value"]
+                            if tag["Key"] == "Name":
+                                name = tag["Value"]
+
+                        attachments = vol.get("Attachments", [])
+                        attachment = attachments[0].get("InstanceId") if attachments else None
+
+                        result.append({
+                            "cloud_id": vol["VolumeId"],
+                            "name": name or vol["VolumeId"],
+                            "provider": "aws",
+                            "region": region,
+                            "size_gb": float(vol.get("Size", 0)),
+                            "status": status_map.get(vol.get("State", ""), "unknown"),
+                            "attachment": attachment,
+                            "volume_type": vol.get("VolumeType"),
+                            "tags": tags,
+                            "extra": {
+                                "availability_zone": vol.get("AvailabilityZone"),
+                                "created_at": str(vol.get("CreateTime", "")),
+                                "encrypted": vol.get("Encrypted"),
+                                "iops": vol.get("Iops"),
+                                "throughput": vol.get("Throughput"),
+                            },
+                        })
+            except Exception:
+                continue
+
+        return result

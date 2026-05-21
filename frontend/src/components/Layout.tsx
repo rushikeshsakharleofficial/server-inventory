@@ -4,7 +4,7 @@ import {
   Server, Cloud, Activity, RefreshCw, Plus,
   Menu, X, Settings, Wifi, Users, LogOut, Shield, PencilLine, Eye,
   CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal, Timer,
-  Layers, Database, Box, ChevronDown,
+  Layers, Database, Box, ChevronDown, HardDrive,
 } from 'lucide-react'
 import { syncApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
@@ -22,12 +22,13 @@ interface LayoutProps {
   children: React.ReactNode
 }
 
-const INVENTORY_VIEWS: View[] = ['servers', 'databases', 'kubernetes']
+const INVENTORY_VIEWS: View[] = ['servers', 'databases', 'kubernetes', 'block_storage']
 
 const INVENTORY_SUB: { id: View; label: string; Icon: React.ElementType }[] = [
-  { id: 'servers',    label: 'Servers',    Icon: Server   },
-  { id: 'databases',  label: 'Databases',  Icon: Database },
-  { id: 'kubernetes', label: 'Kubernetes', Icon: Box      },
+  { id: 'servers',       label: 'Servers',       Icon: Server      },
+  { id: 'databases',     label: 'Databases',     Icon: Database    },
+  { id: 'kubernetes',    label: 'Kubernetes',    Icon: Box         },
+  { id: 'block_storage', label: 'Block Storage', Icon: HardDrive   },
 ]
 
 const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
@@ -39,16 +40,17 @@ const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
 ]
 
 const VIEW_TITLE: Record<View, string> = {
-  dashboard:   'Dashboard',
-  servers:     'Server Inventory',
-  databases:   'Databases',
-  kubernetes:  'Kubernetes',
-  providers:   'Cloud Providers',
-  'sync-logs': 'Sync Logs',
-  crons:       'Cron Jobs',
-  ssh:         'SSH Credentials',
-  settings:    'Settings',
-  users:       'User Management',
+  dashboard:       'Dashboard',
+  servers:         'Server Inventory',
+  databases:       'Databases',
+  kubernetes:      'Kubernetes',
+  block_storage:   'Block Storage',
+  providers:       'Cloud Providers',
+  'sync-logs':     'Sync Logs',
+  crons:           'Cron Jobs',
+  ssh:             'SSH Credentials',
+  settings:        'Settings',
+  users:           'User Management',
 }
 
 const ROLE_ICON: Record<string, React.ElementType> = {

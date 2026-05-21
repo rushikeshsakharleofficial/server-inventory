@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob, DatabaseInstance, KubernetesCluster } from './types'
+import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob, DatabaseInstance, KubernetesCluster, BlockStorage } from './types'
 
 export const http = axios.create({ baseURL: '' })
 
@@ -129,6 +129,14 @@ export const kubernetesApi = {
 
   sync: (provider?: string) =>
     http.post('/api/kubernetes/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+}
+
+export const blockStoragesApi = {
+  list: (params?: { provider?: string; status?: string; search?: string }) =>
+    http.get<BlockStorage[]>('/api/block-storages', { params }).then(r => r.data),
+
+  sync: (provider?: string) =>
+    http.post('/api/block-storages/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const settingsApi = {

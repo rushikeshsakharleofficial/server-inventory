@@ -153,3 +153,57 @@ class DigitalOceanProvider(CloudProvider):
                 },
             })
         return result
+
+    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+        import requests
+
+        token = self.config["api_token"]
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        result = []
+        url = "https://api.digitalocean.com/v2/volumes"
+        params: Dict[str, Any] = {"per_page": 200}
+
+        while url:
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            if not resp.ok:
+                break
+            data = resp.json()
+
+            for vol in data.get("volumes", []):
+                droplet_ids = vol.get("droplet_ids", [])
+                attachment = str(droplet_ids[0]) if droplet_ids else None
+                status = "in-use" if droplet_ids else "available"
+                
+                vol_region = vol.get("region")
+                region_slug = None
+                if isinstance(vol_region, dict):
+                    region_slug = vol_region.get("slug")
+                elif isinstance(vol_region, str):
+                    region_slug = vol_region
+
+                result.append({
+                    "cloud_id": vol["id"],
+                    "name": vol["name"],
+                    "provider": "digitalocean",
+                    "region": region_slug,
+                    "size_gb": float(vol.get("size_gigabytes", 0)),
+                    "status": status,
+                    "attachment": attachment,
+                    "volume_type": vol.get("filesystem_type") or "standard",
+                    "tags": {tag: tag for tag in vol.get("tags", [])},
+                    "extra": {
+                        "description": vol.get("description"),
+                        "created_at": vol.get("created_at"),
+                        "filesystem_label": vol.get("filesystem_label"),
+                    },
+                })
+
+            next_url = data.get("links", {}).get("pages", {}).get("next")
+            url = next_url
+            params = {}
+
+        return result

@@ -15,6 +15,7 @@ import SyncLogsPage from './components/SyncLogsPage'
 import DashboardPage from './components/DashboardPage'
 import DatabasesPage from './components/DatabasesPage'
 import KubernetesPage from './components/KubernetesPage'
+import BlockStoragePage from './components/BlockStoragePage'
 import SSHPage from './components/SSHPage'
 import SettingsPage from './components/SettingsPage'
 import CronsPage from './components/CronsPage'
@@ -66,6 +67,7 @@ const PATH_TO_VIEW: Record<string, View> = {
   '/inventory/servers':   'servers',
   '/inventory/databases': 'databases',
   '/inventory/kubernetes':'kubernetes',
+  '/inventory/block-storage': 'block_storage',
   '/providers':           'providers',
   '/sync-logs':           'sync-logs',
   '/crons':               'crons',
@@ -75,16 +77,17 @@ const PATH_TO_VIEW: Record<string, View> = {
 }
 
 const VIEW_TO_PATH: Record<View, string> = {
-  'dashboard':  '/dashboard',
-  'servers':    '/inventory/servers',
-  'databases':  '/inventory/databases',
-  'kubernetes': '/inventory/kubernetes',
-  'providers':  '/providers',
-  'sync-logs':  '/sync-logs',
-  'crons':      '/crons',
-  'ssh':        '/ssh',
-  'settings':   '/settings',
-  'users':      '/users',
+  'dashboard':      '/dashboard',
+  'servers':        '/inventory/servers',
+  'databases':      '/inventory/databases',
+  'kubernetes':     '/inventory/kubernetes',
+  'block_storage':  '/inventory/block-storage',
+  'providers':      '/providers',
+  'sync-logs':      '/sync-logs',
+  'crons':          '/crons',
+  'ssh':            '/ssh',
+  'settings':       '/settings',
+  'users':          '/users',
 }
 
 function AppContent() {
@@ -160,6 +163,7 @@ function AppContent() {
 
         {view === 'databases' && <DatabasesPage />}
         {view === 'kubernetes' && <KubernetesPage />}
+        {view === 'block_storage' && <BlockStoragePage />}
 
         {view === 'providers' && (
           <div className="animate-fade-in">

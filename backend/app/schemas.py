@@ -243,3 +243,22 @@ class KubernetesClusterResponse(BaseModel):
     last_synced: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class BlockStorageResponse(BaseModel):
+    id: int
+    cloud_id: Optional[str] = None
+    name: str
+    provider: str
+    region: Optional[str] = None
+    size_gb: Optional[float] = None
+    status: str
+    attachment: Optional[str] = None
+    volume_type: Optional[str] = None
+    tags: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[datetime] = None
+    last_synced: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+

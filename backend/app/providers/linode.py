@@ -173,3 +173,57 @@ class LinodeProvider(CloudProvider):
                 break
             page += 1
         return result
+
+    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+        import requests
+
+        token = self.config.get("api_token")
+        headers = {"Authorization": f"Bearer {token}"}
+        result = []
+        page = 1
+
+        status_map = {
+            "active": "running",
+            "creating": "pending",
+            "resizing": "pending",
+        }
+
+        while True:
+            resp = requests.get(
+                "https://api.linode.com/v4/volumes",
+                headers=headers,
+                params={"page": page, "page_size": 100},
+                timeout=30,
+            )
+            if not resp.ok:
+                break
+            data = resp.json()
+
+            for vol in data.get("data", []):
+                linode_id = vol.get("linode_id")
+                attachment = str(linode_id) if linode_id is not None else None
+                status = status_map.get(vol.get("status", ""), "unknown") if not attachment else "running"
+
+                result.append({
+                    "cloud_id": str(vol["id"]),
+                    "name": vol["label"],
+                    "provider": "linode",
+                    "region": vol.get("region"),
+                    "size_gb": float(vol.get("size", 0)),
+                    "status": status,
+                    "attachment": attachment,
+                    "volume_type": "standard",
+                    "tags": {t: t for t in vol.get("tags", [])},
+                    "extra": {
+                        "filesystem_path": vol.get("filesystem_path"),
+                        "created": vol.get("created"),
+                        "updated": vol.get("updated"),
+                        "hardware_type": vol.get("hardware_type"),
+                    },
+                })
+
+            if page >= data.get("pages", 1):
+                break
+            page += 1
+
+        return result

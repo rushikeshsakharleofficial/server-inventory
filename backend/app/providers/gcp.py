@@ -189,3 +189,74 @@ class GCPProvider(CloudProvider):
                 },
             })
         return result
+
+    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+        try:
+            from google.cloud import compute_v1
+            from google.oauth2 import service_account
+        except ImportError:
+            return []
+
+        project_id = self.config.get("project_id")
+        sa_info = self.config.get("service_account_json")
+
+        if sa_info:
+            import json
+            if isinstance(sa_info, str):
+                sa_info = json.loads(sa_info)
+            credentials = service_account.Credentials.from_service_account_info(
+                sa_info,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
+            client = compute_v1.DisksClient(credentials=credentials)
+        else:
+            client = compute_v1.DisksClient()
+
+        result = []
+        status_map = {
+            "READY": "running",
+            "CREATING": "pending",
+            "RESTORING": "pending",
+            "DELETING": "terminated",
+            "FAILED": "stopped",
+        }
+
+        try:
+            request = compute_v1.AggregatedListDisksRequest(project=project_id)
+            for zone_key, response in client.aggregated_list(request=request):
+                if not hasattr(response, "disks"):
+                    continue
+                for disk in response.disks:
+                    zone_name = zone_key.replace("zones/", "")
+                    region = zone_name.rsplit("-", 1)[0] if zone_name else None
+                    
+                    raw_type = getattr(disk, "type_", None) or getattr(disk, "type", "")
+                    disk_type = raw_type.split("/")[-1] if raw_type else "standard"
+                    
+                    users = getattr(disk, "users", [])
+                    attachments = list(users) if users else []
+                    attachment = attachments[0].split("/")[-1] if attachments else None
+                    
+                    status = "in-use" if attachments else "available"
+                    
+                    result.append({
+                        "cloud_id": str(disk.id) if hasattr(disk, "id") else disk.name,
+                        "name": disk.name,
+                        "provider": "gcp",
+                        "region": region,
+                        "size_gb": float(getattr(disk, "size_gb", 0)),
+                        "status": status_map.get(getattr(disk, "status", ""), "unknown") if not attachments else "running",
+                        "attachment": attachment,
+                        "volume_type": disk_type,
+                        "tags": dict(disk.labels) if getattr(disk, "labels", None) else {},
+                        "extra": {
+                            "zone": zone_name,
+                            "creation_timestamp": getattr(disk, "creation_timestamp", None),
+                            "disk_state": getattr(disk, "status", None),
+                            "last_attach_timestamp": getattr(disk, "last_attach_timestamp", None),
+                        },
+                    })
+        except Exception:
+            pass
+
+        return result

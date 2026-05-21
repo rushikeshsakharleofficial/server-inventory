@@ -93,7 +93,7 @@ export interface CronJob {
   updated_at?: string
 }
 
-export type View = 'dashboard' | 'servers' | 'databases' | 'kubernetes' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings' | 'users'
+export type View = 'dashboard' | 'servers' | 'databases' | 'kubernetes' | 'block_storage' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings' | 'users'
 
 export interface DatabaseInstance {
   id: number
@@ -124,6 +124,22 @@ export interface KubernetesCluster {
   status: string
   node_count?: number
   endpoint?: string
+  tags: Record<string, string>
+  extra: Record<string, unknown>
+  created_at?: string
+  last_synced?: string
+}
+
+export interface BlockStorage {
+  id: number
+  cloud_id?: string
+  name: string
+  provider: string
+  region?: string
+  size_gb?: number
+  status: string
+  attachment?: string
+  volume_type?: string
   tags: Record<string, string>
   extra: Record<string, unknown>
   created_at?: string
