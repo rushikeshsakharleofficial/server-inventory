@@ -54,7 +54,7 @@ class ConnectionManager:
             self._ping_task = loop.create_task(self._heartbeat_loop())
 
     async def connect(self, ws: WebSocket, username: str) -> None:
-        await ws.accept()
+        # ws.accept() is called by the endpoint before auth — do not accept again
         self._meta[ws] = _ConnMeta(username=username)
 
     def disconnect(self, ws: WebSocket) -> None:
