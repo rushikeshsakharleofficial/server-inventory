@@ -29,8 +29,9 @@ authedTest.describe('Settings — UI', () => {
     await expect(page.locator('header h1')).toHaveText('Settings')
   })
 
-  authedTest('settings table renders', async ({ page }) => {
+  authedTest('settings inputs render', async ({ page }) => {
     await new SettingsPage(page).goto()
-    await expect(page.getByRole('table')).toBeVisible()
+    // Settings page uses inputs (Sync Timeout, SSH Port) not a table
+    await expect(page.getByRole('spinbutton').first()).toBeVisible()
   })
 })
