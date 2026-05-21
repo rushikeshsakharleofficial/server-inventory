@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -165,10 +166,19 @@ def _seed_admin() -> None:
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket, token: str = Query(...)) -> None:
-    # ── Auth: validate JWT *before* accepting the upgrade ────────────────────
-    # We must call ws.accept() before ws.close() in the Starlette/ASGI model;
-    # reject with close-code 4001 immediately after accepting for invalid tokens.
+async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> None:
+    await ws.accept()
+
+    # If token not in URL, expect {"type":"auth","token":"<jwt>"} as first message
+    if not token:
+        try:
+            raw = await asyncio.wait_for(ws.receive_text(), timeout=10.0)
+            data = json.loads(raw)
+            token = data.get("token") if isinstance(data, dict) else None
+        except (asyncio.TimeoutError, json.JSONDecodeError, Exception):
+            await ws.close(code=4001)
+            return
+
     username: str = ""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -177,9 +187,6 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query(...)) -> None:
         pass
 
     if not username:
-        # Accept then immediately close — ASGI requires the handshake to complete
-        # before the close frame can be sent.
-        await ws.accept()
         await ws.close(code=4001)
         return
 

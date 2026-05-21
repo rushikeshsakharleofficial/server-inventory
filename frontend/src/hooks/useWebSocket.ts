@@ -89,21 +89,17 @@ export function useWebSocket(
     ) return
 
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const ws    = new WebSocket(
-      `${proto}://${window.location.host}/ws?token=${encodeURIComponent(token)}`,
-    )
+    const ws    = new WebSocket(`${proto}://${window.location.host}/ws`)
     wsRef.current = ws
 
     let pingTimer: ReturnType<typeof setInterval> | null = null
 
     ws.onopen = () => {
-      // Reset backoff counter on successful connect
+      // Send auth token as first message — never in URL (avoids log exposure)
+      ws.send(JSON.stringify({ type: 'auth', token }))
+
       attemptRef.current = 0
-
-      // Flush any messages queued while we were disconnected
       flushQueue(ws)
-
-      // Client-side keepalive ping
       pingTimer = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send('ping')
       }, CLIENT_PING_MS)
