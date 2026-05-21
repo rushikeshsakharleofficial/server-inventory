@@ -1,37 +1,39 @@
 import { test as base, expect } from '@playwright/test'
 
 const E2E_USERNAME = process.env.E2E_USERNAME ?? 'admin'
-const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'admin123'
+const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'Admin@1234'
+const BACKEND = process.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 
-export const test = base.extend<object, object>({})
+async function loginAndInject(
+  page: import('@playwright/test').Page,
+  username: string,
+  password: string,
+): Promise<void> {
+  const res = await page.request.post(`${BACKEND}/api/auth/login`, {
+    form: { username, password, remember_me: 'false' },
+  })
+  const bodyText = await res.text()
+  expect(res.ok(), `Login failed for ${username} — status ${res.status()}: ${bodyText}`).toBeTruthy()
+  const { access_token, role } = await res.json() as { access_token: string; role: string }
+  await page.goto('/')
+  await page.evaluate(
+    ({ token, user }) => {
+      localStorage.setItem('si_token', token)
+      localStorage.setItem('si_user', JSON.stringify(user))
+    },
+    { token: access_token, user: { username, role } },
+  )
+  await page.reload()
+  await page.waitForSelector('aside', { timeout: 5000 })
+}
 
 export const authedTest = base.extend({
   page: async ({ page }, use) => {
-    // Get token via API (backend must be running on :8000)
-    const res = await page.request.post('http://localhost:8000/api/auth/login', {
-      form: {
-        username: E2E_USERNAME,
-        password: E2E_PASSWORD,
-        remember_me: 'false',
-      },
-    })
-    expect(res.ok()).toBeTruthy()
-    const { access_token, role } = await res.json() as { access_token: string; role: string }
-
-    // Inject auth into localStorage before app loads
-    await page.goto('/')
-    await page.evaluate(
-      ({ token, user }) => {
-        localStorage.setItem('si_token', token)
-        localStorage.setItem('si_user', JSON.stringify(user))
-      },
-      { token: access_token, user: { username: E2E_USERNAME, role } },
-    )
-    await page.reload()
-    await page.waitForSelector('aside', { timeout: 5000 })
-
+    await loginAndInject(page, E2E_USERNAME, E2E_PASSWORD)
     await use(page)
   },
 })
+
+export const test = base
 
 export { expect } from '@playwright/test'

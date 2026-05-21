@@ -24,6 +24,7 @@ const AUTHENTICATED_VIEWS = [
   { name: 'servers',     path: '/inventory/servers'   },
   { name: 'databases',   path: '/inventory/databases' },
   { name: 'kubernetes',  path: '/inventory/kubernetes'},
+  { name: 'block-storages', path: '/inventory/block-storages' },
   { name: 'providers',   path: '/providers'           },
   { name: 'sync-logs',   path: '/sync-logs'           },
   { name: 'crons',       path: '/crons'               },

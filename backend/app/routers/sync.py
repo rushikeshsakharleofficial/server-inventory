@@ -130,8 +130,8 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
 
 @router.post("")
 def trigger_sync(
+    background_tasks: BackgroundTasks,
     provider: str | None = None,
-    background_tasks: BackgroundTasks = Depends(),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
 ) -> dict[str, str]:
