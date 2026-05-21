@@ -21,7 +21,7 @@ authedTest.describe('Navigation', () => {
   for (const { nav, heading } of VIEWS) {
     authedTest(`navigates to ${heading}`, async ({ page }) => {
       // Inventory sub-items live inside a collapsible group — open it first if needed
-      if (['Servers', 'Databases', 'Kubernetes'].includes(nav)) {
+      if (['Servers', 'Databases', 'Kubernetes', 'Block Storage'].includes(nav)) {
         const subBtn = navBtn(page, nav)
         const isOpen = await subBtn.isVisible().catch(() => false)
         if (!isOpen) await navBtn(page, 'Inventory').click()
