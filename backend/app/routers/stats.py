@@ -31,9 +31,9 @@ class SnapshotResponse(BaseModel):
 
 @router.get("/history")
 def get_snapshot_history(
-    days: int = Query(default=30, ge=1, le=365),
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
+    days: int = Query(default=30, ge=1, le=365),
 ) -> list[SnapshotResponse]:
     """Return the last N days of ServerSnapshot records ordered by date ascending."""
     snapshots = (

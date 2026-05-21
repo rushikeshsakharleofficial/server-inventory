@@ -26,11 +26,11 @@ def _escape_like(value: str) -> str:
 
 @router.get("", response_model=list[schemas.ServerResponse])
 def list_servers(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-    db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
 ) -> list[models.Server]:
     q = db.query(models.Server)
     if provider:
@@ -125,9 +125,9 @@ def update_server(
 @router.post("/{server_id}/ssh-sync", response_model=schemas.ServerResponse)
 async def ssh_sync_server(
     server_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
     ssh_credential_id: int = Query(...),
-    db: Annotated[Session, Depends(get_db)] = None,
-    _: Annotated[models.User, Depends(require_write)] = None,
 ):
     """Connect via SSH and gather live data from a Custom DC server."""
     server = db.query(models.Server).filter(models.Server.id == server_id).first()

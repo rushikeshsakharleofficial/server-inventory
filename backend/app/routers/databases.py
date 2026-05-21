@@ -65,11 +65,11 @@ def _sync_databases(provider_name: str | None, db_url: str) -> None:
 
 @router.get("", response_model=list[schemas.DatabaseInstanceResponse])
 def list_databases(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-    db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
 ) -> list[models.DatabaseInstance]:
     q = db.query(models.DatabaseInstance)
     if provider:
@@ -87,9 +87,9 @@ def list_databases(
 @router.post("/sync")
 def sync_databases(
     background_tasks: BackgroundTasks,
-    provider: str | None = Query(None),
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
+    provider: str | None = Query(None),
 ) -> dict[str, str]:
     background_tasks.add_task(_sync_databases, provider, DATABASE_URL)
     return {"status": "sync started"}

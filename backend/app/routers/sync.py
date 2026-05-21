@@ -134,9 +134,9 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
 @router.post("")
 def trigger_sync(
     background_tasks: BackgroundTasks,
-    provider: str | None = None,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
+    provider: str | None = None,
 ) -> dict[str, str]:
     background_tasks.add_task(_run_sync, provider, DATABASE_URL)
     return {"message": "Sync started", "provider": provider or "all"}
@@ -144,9 +144,9 @@ def trigger_sync(
 
 @router.post("/stop")
 def stop_sync(
-    log_id: int | None = Query(None),
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
+    log_id: int | None = Query(None),
 ) -> dict[str, list[int]]:
     """Stop one or all running syncs."""
     now = datetime.now(timezone.utc)
@@ -180,9 +180,9 @@ def stop_sync(
 
 @router.get("/logs", response_model=list[schemas.SyncLogResponse])
 def get_sync_logs(
-    limit: int = 50,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
+    limit: int = 50,
 ) -> list[models.SyncLog]:
     return (
         db.query(models.SyncLog)
