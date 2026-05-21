@@ -1,5 +1,6 @@
 import asyncio
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +24,7 @@ from .database import DATABASE_URL
 Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -60,13 +61,19 @@ app.include_router(block_storages_router)
 
 def _apply_db_optimizations() -> None:
     """
-    Idempotent: enable pg_trgm and create GIN + composite indexes for
-    the search and filter query patterns. Uses AUTOCOMMIT because
-    CREATE INDEX CONCURRENTLY cannot run inside a transaction.
+    Idempotent: enable pg_trgm and create GIN trigram indexes for ILIKE search.
+    Uses AUTOCOMMIT because CREATE INDEX CONCURRENTLY cannot run inside a transaction.
+
+    Composite and partial indexes that can be expressed in SQLAlchemy Index()
+    are declared in models.py and created by Base.metadata.create_all() above.
+    Only trigram GIN indexes (which require the pg_trgm extension to exist first)
+    are handled here at startup time.
     """
     from sqlalchemy import text
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+
+        # ── servers ────────────────────────────────────────────────────────
         # Trigram indexes for ILIKE search on name / IPs / hostname
         conn.execute(text(
             "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_name_trgm "
@@ -77,13 +84,30 @@ def _apply_db_optimizations() -> None:
             "ON servers USING GIN (public_ip gin_trgm_ops)"
         ))
         conn.execute(text(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_private_ip_trgm "
+            "ON servers USING GIN (private_ip gin_trgm_ops)"
+        ))
+        conn.execute(text(
             "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_hostname_trgm "
             "ON servers USING GIN (hostname gin_trgm_ops)"
         ))
-        # Composite index for filtered server list (provider + status)
+
+        # ── database_instances ─────────────────────────────────────────────
         conn.execute(text(
-            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_provider_status "
-            "ON servers (provider, status)"
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_db_name_trgm "
+            "ON database_instances USING GIN (name gin_trgm_ops)"
+        ))
+
+        # ── kubernetes_clusters ────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_k8s_name_trgm "
+            "ON kubernetes_clusters USING GIN (name gin_trgm_ops)"
+        ))
+
+        # ── block_storages ─────────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_block_name_trgm "
+            "ON block_storages USING GIN (name gin_trgm_ops)"
         ))
 
 
@@ -142,18 +166,24 @@ def _seed_admin() -> None:
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket, token: str = Query(...)) -> None:
-    # Authenticate token before accepting
+    # ── Auth: validate JWT *before* accepting the upgrade ────────────────────
+    # We must call ws.accept() before ws.close() in the Starlette/ASGI model;
+    # reject with close-code 4001 immediately after accepting for invalid tokens.
+    username: str = ""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        username: str = payload.get("sub", "")
-        if not username:
-            await ws.close(code=4001)
-            return
+        username = payload.get("sub", "")
     except JWTError:
+        pass
+
+    if not username:
+        # Accept then immediately close — ASGI requires the handshake to complete
+        # before the close frame can be sent.
+        await ws.accept()
         await ws.close(code=4001)
         return
 
-    await manager.connect(ws)
+    await manager.connect(ws, username=username)
 
     # On connect: send any currently running syncs so the client can recover state
     db = SessionLocal()
@@ -176,14 +206,29 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query(...)) -> None:
     try:
         while True:
             data = await ws.receive_text()
+
+            # ── Rate limiting ────────────────────────────────────────────────
+            if manager.is_rate_limited(ws):
+                # Drop the message silently; client will self-regulate via backoff
+                continue
+
+            # ── Application-level ping/pong ──────────────────────────────────
             if data == "ping":
                 await ws.send_text("pong")
+            elif data == "pong":
+                # Reply to a server-initiated ping — reset the dead-connection timer
+                manager.record_pong(ws)
+            # Unknown / malformed text messages are silently dropped; structured
+            # messages arrive as JSON via broadcast() from the backend, not from
+            # the client, so there is no JSON parse step needed here.
+
     except WebSocketDisconnect:
         manager.disconnect(ws)
-    except Exception:
+    except Exception:  # noqa: BLE001 — catch-all to ensure cleanup on transport errors
         manager.disconnect(ws)
 
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str]:
+    """Liveness probe — returns HTTP 200 with status ok."""
     return {"status": "ok"}

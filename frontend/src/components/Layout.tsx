@@ -13,7 +13,7 @@ import { useWebSocket, type SyncEvent } from '../hooks/useWebSocket'
 import ThemeToggle from './ThemeToggle'
 import type { View } from '../types'
 import { styled } from '../stitches.config'
-import { Flex, Button, Heading, Text } from './StitchUI'
+import { Flex, Button, Heading } from './StitchUI'
 
 interface LayoutProps {
   currentView: View
@@ -287,7 +287,7 @@ export default function Layout({
 
   const syncMutation = useMutation({
     mutationFn: () => syncApi.trigger(),
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       setSyncStatus('error')
       const errorMsg = getErrorMessage(error)
       setSyncSummary(`Failed to start sync: ${errorMsg}`)
@@ -299,7 +299,7 @@ export default function Layout({
   const stopMutation = useMutation({
     mutationFn: () => syncApi.stop(),
     onSuccess: () => toast.info('Sync stopped'),
-    onError: (error: any) => toast.error(`Failed to stop sync: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Failed to stop sync: ${getErrorMessage(error)}`),
   })
 
   const RoleIcon = user ? (ROLE_ICON[user.role] ?? Eye) : Eye
@@ -316,7 +316,7 @@ export default function Layout({
           </LogoIconWrap>
           <div className="overflow-hidden">
             <p style={{ fontSize: '15px', fontFamily: 'DM Sans', fontWeight: 800, color: 'var(--ac)', margin: 0, letterSpacing: '-0.015em' }}>ServerInventory</p>
-            <p style={{ fontSize: '9px', color: 'var(--tx3)', fontFamily: 'monospace', margin: '2px 0 0 0', letterSpacing: '0.2em', uppercase: 'true' as any } as any}>INFRASTRUCTURE CONSOLE</p>
+            <p style={{ fontSize: '9px', color: 'var(--tx3)', fontFamily: 'monospace', margin: '2px 0 0 0', letterSpacing: '0.2em', textTransform: 'uppercase' }}>INFRASTRUCTURE CONSOLE</p>
           </div>
         </LogoContainer>
 

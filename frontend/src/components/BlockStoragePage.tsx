@@ -164,7 +164,7 @@ export default function BlockStoragePage() {
       toast.success('Block Storage sync started')
       setTimeout(() => qc.invalidateQueries({ queryKey: ['block-storages'] }), 4000)
     },
-    onError: (err: any) => toast.error(`Sync failed: ${getErrorMessage(err)}`),
+    onError: (err: unknown) => toast.error(`Sync failed: ${getErrorMessage(err)}`),
   })
 
   const filtered = volumes.filter(vol =>

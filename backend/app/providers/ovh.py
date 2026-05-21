@@ -1,10 +1,16 @@
+import concurrent.futures
 import hashlib
-import time
 import re
+import time
 import urllib.parse
-from typing import List, Dict, Any, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from typing import Any, cast
+
 from .base import CloudProvider
+
+# Type alias used inside nested functions (must be module-level for mypy)
+_ServerDict = dict[str, Any]
 
 # Dedicated server states ("ok" = normal operation — most common state)
 DEDICATED_STATUS = {
@@ -46,7 +52,7 @@ CLOUD_STATUS = {
 }
 
 
-_OVH_OS_MAP = {
+_OVH_OS_MAP: dict[str, str | Callable[["re.Match[str]"], str]] = {
     # Ubuntu
     r'ubuntu(2404|24\.04)': 'Ubuntu 24.04 LTS',
     r'ubuntu(2204|22\.04)': 'Ubuntu 22.04 LTS',
@@ -80,7 +86,7 @@ _OVH_OS_MAP = {
 }
 
 
-def _prettify_os(raw: Optional[str]) -> Optional[str]:
+def _prettify_os(raw: str | None) -> str | None:
     """Convert OVH OS template codes to human-readable names."""
     if not raw:
         return None
@@ -88,7 +94,7 @@ def _prettify_os(raw: Optional[str]) -> Optional[str]:
     for pattern, result in _OVH_OS_MAP.items():
         m = re.search(pattern, low)
         if m:
-            return result(m) if callable(result) else result
+            return str(result(m)) if callable(result) else result
     # Fall back to cleaned-up version of raw string
     cleaned = re.sub(r'[-_](server|64|32|server_64|server_32)$', '', raw, flags=re.I)
     cleaned = re.sub(r'[-_]', ' ', cleaned).title()
@@ -96,7 +102,7 @@ def _prettify_os(raw: Optional[str]) -> Optional[str]:
 
 
 def _ovh_get_distribution(endpoint: str, app_key: str, app_secret: str,
-                           consumer_key: str, vps_name: str) -> Optional[str]:
+                           consumer_key: str, vps_name: str) -> str | None:
     """Fetch VPS distribution via raw HTTP, trying full FQDN then short ID.
     Returns None if the VPS plan doesn't expose distribution info via the API."""
     import requests as req_lib
@@ -123,7 +129,8 @@ def _ovh_get_distribution(endpoint: str, app_key: str, app_secret: str,
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, dict):
-                    return data.get("name") or data.get("id")
+                    raw: str | None = data.get("name") or data.get("id")
+                    return raw
                 if isinstance(data, str):
                     return data
         except Exception:
@@ -131,7 +138,7 @@ def _ovh_get_distribution(endpoint: str, app_key: str, app_secret: str,
     return None
 
 
-def _clean_zone(zone: Optional[str]) -> Optional[str]:
+def _clean_zone(zone: str | None) -> str | None:
     """Strip OVH verbose zone prefix: 'Region OpenStack: os-us-east-va-2' → 'us-east-va-2'"""
     if not zone:
         return zone
@@ -142,7 +149,7 @@ def _clean_zone(zone: Optional[str]) -> Optional[str]:
     return zone
 
 
-def _first_ipv4(ip_list: list) -> Optional[str]:
+def _first_ipv4(ip_list: list[Any]) -> str | None:
     for ip in ip_list:
         val = ip.get("ip") if isinstance(ip, dict) else str(ip)
         if val and ":" not in val:
@@ -155,7 +162,7 @@ class OVHProvider(CloudProvider):
     def provider_name(self) -> str:
         return "ovh"
 
-    def fetch_servers(self) -> List[Dict[str, Any]]:
+    def fetch_servers(self) -> list[dict[str, Any]]:
         try:
             import ovh as ovh_sdk
         except ImportError:
@@ -169,14 +176,14 @@ class OVHProvider(CloudProvider):
             timeout=20,
         )
 
-        servers: List[Dict[str, Any]] = []
-        errors:  List[str]            = []
+        servers: list[dict[str, Any]] = []
+        errors: list[str] = []
 
         # ── Dedicated servers ──────────────────────────────────────────────
         try:
-            names: List[str] = client.get("/dedicated/server")
+            names: list[str] = client.get("/dedicated/server")
 
-            def fetch_dedicated(name: str) -> Optional[Dict[str, Any]]:
+            def fetch_dedicated(name: str) -> dict[str, Any] | None:
                 try:
                     s = client.get(f"/dedicated/server/{name}")
                     state       = s.get("state", "unknown")
@@ -236,9 +243,9 @@ class OVHProvider(CloudProvider):
 
         # ── VPS ───────────────────────────────────────────────────────────
         try:
-            vps_names: List[str] = client.get("/vps")
+            vps_names: list[str] = client.get("/vps")
 
-            def fetch_vps(vps_name: str) -> Optional[Dict[str, Any]]:
+            def fetch_vps(vps_name: str) -> dict[str, Any] | None:
                 try:
                     v   = client.get(f"/vps/{vps_name}")
                     ips = client.get(f"/vps/{vps_name}/ips")
@@ -263,7 +270,7 @@ class OVHProvider(CloudProvider):
                     instance_type = model.get("offer") or model.get("name")
 
                     # Try distribution endpoint for OS
-                    raw_os: Optional[str] = None
+                    raw_os: str | None = None
                     try:
                         dist = client.get(f"/vps/{vps_name}/distribution")
                         if isinstance(dist, dict):
@@ -319,10 +326,10 @@ class OVHProvider(CloudProvider):
 
         # ── Public Cloud instances ─────────────────────────────────────────
         try:
-            projects: List[str] = client.get("/cloud/project")
+            projects: list[str] = client.get("/cloud/project")
 
-            def fetch_cloud_project(project_id: str) -> List[Dict[str, Any]]:
-                results: List[Dict[str, Any]] = []
+            def fetch_cloud_project(project_id: str) -> list[dict[str, Any]]:
+                results: list[dict[str, Any]] = []
                 try:
                     instances = client.get(f"/cloud/project/{project_id}/instance")
                     for inst in (instances or []):
@@ -351,11 +358,13 @@ class OVHProvider(CloudProvider):
                     errors.append(f"cloud/{project_id}: {e}")
                 return results
 
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                for fut in as_completed(
-                    {pool.submit(fetch_cloud_project, pid): pid for pid in projects}, timeout=60
+            with ThreadPoolExecutor(max_workers=4) as cloud_pool:
+                for fut in as_completed(  # type: ignore[assignment]
+                    [cloud_pool.submit(fetch_cloud_project, pid) for pid in projects],
+                    timeout=60,
                 ):
-                    servers.extend(fut.result())
+                    result_batch: list[dict[str, Any]] = fut.result()  # type: ignore[assignment]
+                    servers.extend(result_batch)
 
         except Exception as e:
             if "404" not in str(e):

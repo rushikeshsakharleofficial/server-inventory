@@ -1,15 +1,18 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
+
 from .. import models
-from ..database import get_db
 from ..auth import get_current_user
+from ..database import get_db
 from ..providers import get_provider
 
 router = APIRouter(prefix="/api/resource-map", tags=["resource-map"])
 
 
-def _get_cred_for_provider(db: Session, provider: str):
+def _get_cred_for_provider(db: Session, provider: str) -> models.Credential | None:
+    """Return the first active credential for *provider*, or None."""
     return db.query(models.Credential).filter(
         models.Credential.provider == provider,
         models.Credential.is_active == True
@@ -18,10 +21,19 @@ def _get_cred_for_provider(db: Session, provider: str):
 
 # ── node/edge helpers ──────────────────────────────────────────────────────────
 
-def _node(id: str, type: str, category: str, label: str, props: dict = None):
+def _node(
+    id: str,
+    type: str,
+    category: str,
+    label: str,
+    props: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a resource-map node dict."""
     return {"id": id, "type": type, "category": category, "label": label, "properties": props or {}}
 
-def _edge(src: str, dst: str, label: str = ""):
+
+def _edge(src: str, dst: str, label: str = "") -> dict[str, str]:
+    """Build a resource-map edge dict."""
     return {"from": src, "to": dst, "label": label}
 
 
@@ -388,7 +400,8 @@ def _aws_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict
 
 # ── GCP helpers ───────────────────────────────────────────────────────────────
 
-def _gcp_token(config: dict) -> str:
+def _gcp_token(config: dict[str, Any]) -> tuple[str, str]:
+    """Return (access_token, project_id) for a GCP service-account config."""
     import json
     sa = config.get("service_account_json", {})
     if isinstance(sa, str):
@@ -399,7 +412,9 @@ def _gcp_token(config: dict) -> str:
         sa, scopes=["https://www.googleapis.com/auth/cloud-platform"]
     )
     creds.refresh(GRequest())
-    return creds.token, sa.get("project_id", config.get("project_id", ""))
+    token: str = creds.token
+    project_id: str = sa.get("project_id", config.get("project_id", ""))
+    return token, project_id
 
 
 def _gcp_server_map(server: models.Server, config: dict) -> dict:
@@ -411,7 +426,7 @@ def _gcp_server_map(server: models.Server, config: dict) -> dict:
     except Exception:
         return {"nodes": [], "edges": []}
 
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     zone = server.zone or server.region or ""
 
     # Get instance details
@@ -497,7 +512,7 @@ def _gcp_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict
     except Exception:
         return {"nodes": [], "edges": []}
 
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     location = cluster.region or "-"
     cluster_name = cluster.name
 
@@ -569,7 +584,7 @@ def _azure_server_map(server: models.Server, config: dict) -> dict:
     except Exception:
         return {"nodes": [], "edges": []}
 
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     if not server.cloud_id:
         return {"nodes": [], "edges": []}
 
@@ -656,7 +671,7 @@ def _do_server_map(server: models.Server, config: dict) -> dict:
     root_id = f"server-{server.id}"
     nodes, edges = [], []
     token = config.get("api_token")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
 
     try:
         resp = requests.get(f"https://api.digitalocean.com/v2/droplets/{server.cloud_id}", headers=headers, timeout=15)
@@ -719,7 +734,7 @@ def _do_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     root_id = f"db-{db_inst.id}"
     nodes, edges = [], []
     token = config.get("api_token")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
 
     try:
         resp = requests.get(f"https://api.digitalocean.com/v2/databases/{db_inst.cloud_id}", headers=headers, timeout=15)
@@ -766,7 +781,7 @@ def _do_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict:
     root_id = f"k8s-{cluster.id}"
     nodes, edges = [], []
     token = config.get("api_token")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
 
     try:
         resp = requests.get(f"https://api.digitalocean.com/v2/kubernetes/clusters/{cluster.cloud_id}", headers=headers, timeout=15)
@@ -815,7 +830,7 @@ def _linode_server_map(server: models.Server, config: dict) -> dict:
     root_id = f"server-{server.id}"
     nodes, edges = [], []
     token = config.get("api_token")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
 
     try:
         resp = requests.get(f"https://api.linode.com/v4/linode/instances/{server.cloud_id}", headers=headers, timeout=15)
@@ -880,7 +895,7 @@ def _gcp_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     except Exception:
         return {"nodes": [], "edges": []}
 
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     try:
         url = f"https://sqladmin.googleapis.com/v1/projects/{project_id}/instances/{db_inst.cloud_id}"
         resp = requests.get(url, headers=headers, timeout=20)
@@ -963,7 +978,7 @@ def _azure_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     except Exception:
         return {"nodes": [], "edges": []}
 
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     if not db_inst.cloud_id:
         return {"nodes": [], "edges": []}
 
@@ -1070,7 +1085,7 @@ def _azure_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> di
     except Exception:
         return {"nodes": [], "edges": []}
 
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     if not cluster.cloud_id:
         return {"nodes": [], "edges": []}
 
@@ -1160,7 +1175,7 @@ def _linode_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict
     root_id = f"db-{db_inst.id}"
     nodes, edges = [], []
     token = config.get("api_token")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     engine = (db_inst.engine or "mysql").lower()
     db_id = db_inst.cloud_id
 
@@ -1231,7 +1246,7 @@ def _linode_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> d
     root_id = f"k8s-{cluster.id}"
     nodes, edges = [], []
     token = config.get("api_token")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     cluster_id = cluster.cloud_id
 
     try:
@@ -1323,7 +1338,7 @@ def _ovh_server_map(server: models.Server, config: dict) -> dict:
         url = f"{base_url}{path}"
         sig_str = f"{app_secret}+{consumer_key}+GET+{url}++{now}"
         sig = "$1$" + hashlib.sha1(sig_str.encode()).hexdigest()
-        headers = {
+        headers: dict[str, str | bytes] = {
             "X-Ovh-Application": app_key,
             "X-Ovh-Consumer": consumer_key,
             "X-Ovh-Timestamp": now,

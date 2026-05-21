@@ -7,9 +7,9 @@ import { Card, Button, Flex, Grid, Heading, Text } from './StitchUI'
 
 type ResourceType = 'server' | 'database' | 'kubernetes'
 
-interface MapNode { id: string; type: string; category: string; label: string; properties: Record<string, unknown> }
-interface MapEdge { from: string; to: string; label: string }
-interface ResourceMap {
+export interface MapNode { id: string; type: string; category: string; label: string; properties: Record<string, unknown> }
+export interface MapEdge { from: string; to: string; label: string }
+export interface ResourceMap {
   resource: { id: number; name: string; type: string; provider: string; region?: string }
   nodes: MapNode[]
   edges: MapEdge[]
@@ -21,15 +21,23 @@ interface Props {
   onClose: () => void
 }
 
-const CATEGORY_CFG: Record<string, { label: string; Icon: React.ElementType; color: string; bg: string }> = {
+interface CategoryCfg { label: string; Icon: React.ElementType; color: string; bg: string }
+
+const DEFAULT_CATEGORY: CategoryCfg = { label: 'Config', Icon: Globe, color: '#6B7280', bg: 'rgba(107,114,128,0.08)' }
+
+const CATEGORY_CFG: Partial<Record<string, CategoryCfg>> = {
   network:           { label: 'Network',      Icon: Network,   color: '#00D4FF', bg: 'rgba(0,212,255,0.08)'   },
   security:          { label: 'Security',     Icon: Shield,    color: '#EF4444', bg: 'rgba(239,68,68,0.08)'   },
   iam:               { label: 'IAM',          Icon: Cpu,       color: '#EAB308', bg: 'rgba(234,179,8,0.08)'   },
   compute:           { label: 'Compute',      Icon: Cpu,       color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)'  },
   storage:           { label: 'Storage',      Icon: HardDrive, color: '#F97316', bg: 'rgba(249,115,22,0.08)'  },
-  config:            { label: 'Config',       Icon: Globe,     color: '#6B7280', bg: 'rgba(107,114,128,0.08)' },
+  config:            DEFAULT_CATEGORY,
   meta:              { label: 'Tags / Meta',  Icon: Tag,       color: '#8B8AB0', bg: 'rgba(139,138,176,0.08)' },
   availability_zone: { label: 'Availability', Icon: Globe,     color: '#22C55E', bg: 'rgba(34,197,94,0.08)'   },
+}
+
+function getCategoryCfg(key: string): CategoryCfg {
+  return CATEGORY_CFG[key] ?? DEFAULT_CATEGORY
 }
 
 const NODE_ICON: Record<string, string> = {
@@ -207,7 +215,7 @@ const StyledNodeCard = styled('div', {
 
 function NodeCard({ node, edgeLabel }: { node: MapNode; edgeLabel?: string }) {
   const [expanded, setExpanded] = useState(false)
-  const cat = CATEGORY_CFG[node.category] ?? CATEGORY_CFG.config
+  const cat = getCategoryCfg(node.category)
   const icon = NODE_ICON[node.type] ?? '◆'
   const props = Object.entries(node.properties).filter(([, v]) => v != null && v !== '' && v !== false)
 
@@ -293,7 +301,7 @@ export default function ResourceMapModal({ resourceId, resourceType, resourceNam
   const grouped: Record<string, MapNode[]> = {}
   filtered.forEach(n => {
     if (!grouped[n.category]) grouped[n.category] = []
-    grouped[n.category].push(n)
+    grouped[n.category]!.push(n)
   })
 
   return (
@@ -429,7 +437,7 @@ export default function ResourceMapModal({ resourceId, resourceType, resourceNam
                 )}
 
                 {Object.entries(grouped).map(([cat, catNodes]) => {
-                  const cfg = CATEGORY_CFG[cat] ?? CATEGORY_CFG.config
+                  const cfg = getCategoryCfg(cat)
                   return (
                     <div key={cat}>
                       {/* Category divider */}

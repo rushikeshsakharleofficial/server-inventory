@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write, require_admin
@@ -8,11 +7,11 @@ from ..auth import get_current_user, require_write, require_admin
 router = APIRouter(prefix="/api/credentials", tags=["credentials"])
 
 
-@router.get("", response_model=List[schemas.CredentialResponse])
+@router.get("", response_model=list[schemas.CredentialResponse])
 def list_credentials(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
-):
+) -> list[models.Credential]:
     return db.query(models.Credential).order_by(models.Credential.created_at.desc()).all()
 
 
@@ -21,7 +20,7 @@ def create_credential(
     cred: schemas.CredentialCreate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.Credential:
     db_cred = models.Credential(**cred.model_dump())
     db.add(db_cred)
     db.commit()
@@ -34,7 +33,7 @@ def delete_credential(
     cred_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_admin),
-):
+) -> None:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
@@ -47,7 +46,7 @@ def toggle_credential(
     cred_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.Credential:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")

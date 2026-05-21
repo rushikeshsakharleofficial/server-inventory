@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
@@ -28,11 +27,11 @@ def _mask(cred: models.SSHCredential) -> schemas.SSHCredentialResponse:
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=List[schemas.SSHCredentialResponse])
+@router.get("", response_model=list[schemas.SSHCredentialResponse])
 def list_ssh_credentials(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
-):
+) -> list[schemas.SSHCredentialResponse]:
     creds = db.query(models.SSHCredential).order_by(models.SSHCredential.name).all()
     return [_mask(c) for c in creds]
 
@@ -42,7 +41,7 @@ def create_ssh_credential(
     payload: schemas.SSHCredentialCreate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> schemas.SSHCredentialResponse:
     # If this one is being set as default, unset all others first
     if payload.is_default:
         db.query(models.SSHCredential).update({"is_default": False})
@@ -60,7 +59,7 @@ def update_ssh_credential(
     payload: schemas.SSHCredentialUpdate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="SSH credential not found")
@@ -86,7 +85,7 @@ def delete_ssh_credential(
     cred_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> None:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="SSH credential not found")
@@ -99,7 +98,7 @@ def set_default_ssh_credential(
     cred_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="SSH credential not found")

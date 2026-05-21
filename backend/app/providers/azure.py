@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 from .base import CloudProvider
 
 POWER_STATE_MAP = {
@@ -15,7 +15,7 @@ class AzureProvider(CloudProvider):
     def provider_name(self) -> str:
         return "azure"
 
-    def fetch_servers(self) -> List[Dict[str, Any]]:
+    def fetch_servers(self) -> list[dict[str, Any]]:
         try:
             from azure.identity import ClientSecretCredential
             from azure.mgmt.compute import ComputeManagementClient
@@ -100,12 +100,12 @@ class AzureProvider(CloudProvider):
         resp.raise_for_status()
         return resp.json()["access_token"]
 
-    def fetch_databases(self) -> List[Dict[str, Any]]:
+    def fetch_databases(self) -> list[dict[str, Any]]:
         import requests
 
         sub = self.config["subscription_id"]
         token = self._az_token()
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         result = []
         # PostgreSQL Flexible Servers and MySQL Flexible Servers
         for engine, api_path in [
@@ -152,12 +152,12 @@ class AzureProvider(CloudProvider):
                 continue
         return result
 
-    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+    def fetch_kubernetes(self) -> list[dict[str, Any]]:
         import requests
 
         sub = self.config["subscription_id"]
         token = self._az_token()
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://management.azure.com/subscriptions/{sub}/providers/Microsoft.ContainerService/managedClusters?api-version=2023-08-01"
         try:
             resp = requests.get(url, headers=headers, timeout=30)
@@ -191,7 +191,7 @@ class AzureProvider(CloudProvider):
             })
         return result
 
-    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+    def fetch_block_storages(self) -> list[dict[str, Any]]:
         try:
             from azure.identity import ClientSecretCredential
             from azure.mgmt.compute import ComputeManagementClient

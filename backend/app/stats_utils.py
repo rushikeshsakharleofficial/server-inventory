@@ -4,12 +4,31 @@ Shared stats utility — no FastAPI router, just pure functions.
 from __future__ import annotations
 
 from datetime import date
+from typing import TypedDict
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 
-def take_snapshot(db: Session) -> dict[str, object]:
-    """Aggregate Server table stats with SQL and upsert today's ServerSnapshot."""
+class SnapshotDict(TypedDict):
+    """Typed dict returned by take_snapshot."""
+
+    date: str
+    total: int
+    running: int
+    stopped: int
+    by_provider: dict[str, int]
+
+
+def take_snapshot(db: Session) -> SnapshotDict:
+    """Aggregate Server table stats with SQL and upsert today's ServerSnapshot.
+
+    Args:
+        db: Active SQLAlchemy session.
+
+    Returns:
+        A SnapshotDict with today's totals suitable for SnapshotResponse(**result).
+    """
     from . import models
 
     today = date.today().isoformat()
@@ -26,8 +45,8 @@ def take_snapshot(db: Session) -> dict[str, object]:
         .all()
     )
 
-    running = by_status.get("running", 0)
-    stopped = by_status.get("stopped", 0)
+    running: int = by_status.get("running", 0)
+    stopped: int = by_status.get("stopped", 0)
 
     snap = db.query(models.ServerSnapshot).filter(models.ServerSnapshot.date == today).first()
     if snap:
@@ -46,10 +65,10 @@ def take_snapshot(db: Session) -> dict[str, object]:
         db.add(snap)
 
     db.commit()
-    return {
-        "date": today,
-        "total": total,
-        "running": running,
-        "stopped": stopped,
-        "by_provider": by_provider,
-    }
+    return SnapshotDict(
+        date=today,
+        total=total,
+        running=running,
+        stopped=stopped,
+        by_provider=by_provider,
+    )

@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
@@ -22,14 +21,14 @@ def _escape_like(value: str) -> str:
     )
 
 
-@router.get("", response_model=List[schemas.ServerResponse])
+@router.get("", response_model=list[schemas.ServerResponse])
 def list_servers(
-    provider: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    provider: str | None = Query(None),
+    status: str | None = Query(None),
+    search: str | None = Query(None),
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
-):
+) -> list[models.Server]:
     q = db.query(models.Server)
     if provider:
         q = q.filter(models.Server.provider == provider)
@@ -50,7 +49,7 @@ def list_servers(
 def get_stats(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
-):
+) -> schemas.StatsResponse:
     total: int = db.query(func.count(models.Server.id)).scalar() or 0
     by_provider: dict[str, int] = dict(
         db.query(models.Server.provider, func.count(models.Server.id))
@@ -83,7 +82,7 @@ def get_server(
     server_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
-):
+) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
@@ -95,7 +94,7 @@ def create_server(
     server: schemas.ServerCreate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.Server:
     db_server = models.Server(**server.model_dump())
     db.add(db_server)
     db.commit()
@@ -109,7 +108,7 @@ def update_server(
     update: schemas.ServerUpdate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
@@ -229,9 +228,9 @@ async def ssh_sync_server(
         except (socket.timeout, paramiko.SSHException, OSError) as e:
             client.close()
             return None, str(e)
-        except Exception as e:
+        except Exception as exc:  # noqa: BLE001 — catch-all for unexpected SSH errors
             client.close()
-            return None, str(e)
+            return None, str(exc)
 
     ssh_info, err = await asyncio.get_running_loop().run_in_executor(None, _do_ssh)
     if err and not ssh_info:
@@ -260,7 +259,7 @@ def delete_server(
     server_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> None:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")

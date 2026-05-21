@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 from .base import CloudProvider
 
 STATUS_MAP = {
@@ -14,18 +14,18 @@ class DigitalOceanProvider(CloudProvider):
     def provider_name(self) -> str:
         return "digitalocean"
 
-    def fetch_servers(self) -> List[Dict[str, Any]]:
+    def fetch_servers(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config["api_token"]
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
 
         servers = []
         url = "https://api.digitalocean.com/v2/droplets"
-        params: Dict[str, Any] = {"per_page": 200}
+        params: dict[str, Any] = {"per_page": 200}
 
         while url:
             resp = requests.get(url, headers=headers, params=params, timeout=30)
@@ -69,11 +69,11 @@ class DigitalOceanProvider(CloudProvider):
 
         return servers
 
-    def fetch_databases(self) -> List[Dict[str, Any]]:
+    def fetch_databases(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config["api_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         resp = requests.get(
             "https://api.digitalocean.com/v2/databases",
             headers=headers,
@@ -113,11 +113,11 @@ class DigitalOceanProvider(CloudProvider):
             })
         return result
 
-    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+    def fetch_kubernetes(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config["api_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         resp = requests.get(
             "https://api.digitalocean.com/v2/kubernetes/clusters",
             headers=headers,
@@ -154,18 +154,18 @@ class DigitalOceanProvider(CloudProvider):
             })
         return result
 
-    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+    def fetch_block_storages(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config["api_token"]
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
 
         result = []
         url = "https://api.digitalocean.com/v2/volumes"
-        params: Dict[str, Any] = {"per_page": 200}
+        params: dict[str, Any] = {"per_page": 200}
 
         while url:
             resp = requests.get(url, headers=headers, params=params, timeout=30)

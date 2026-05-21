@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean, Float, Text, Index
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, Index
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -24,12 +25,12 @@ class Server(Base):
     memory_gb     = Column(Float,       nullable=True)
     storage_gb    = Column(Float,       nullable=True)
     os            = Column(String(255), nullable=True)
-    tags          = Column(JSON,        default=_empty_json_dict)
-    extra         = Column(JSON,        default=_empty_json_dict)
+    tags          = Column(JSONB,       default=_empty_json_dict)
+    extra         = Column(JSONB,       default=_empty_json_dict)
     datacenter    = Column(String(128), nullable=True)
     hostname      = Column(String(255), nullable=True)
     notes         = Column(Text,        nullable=True)
-    ssh_info      = Column(JSON,        nullable=True)
+    ssh_info      = Column(JSONB,       nullable=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_synced   = Column(DateTime(timezone=True), nullable=True)
@@ -37,12 +38,24 @@ class Server(Base):
     __table_args__ = (
         # Most common query: list by provider (filter/group)
         Index("ix_servers_provider", "provider"),
-        # Filter by status (running/stopped counts)
+        # Composite index: provider + status covers the most frequent filtered list query
+        Index("ix_servers_provider_status", "provider", "status"),
+        # Filter by status (running/stopped counts) — kept for status-only filters
         Index("ix_servers_status", "status"),
+        # Partial index: fast "running" server count used by stats and dashboard
+        Index(
+            "ix_servers_status_running",
+            "status",
+            postgresql_where="status = 'running'",
+        ),
         # Lookup existing server during sync (cloud_id + provider)
         Index("ix_servers_cloud_id_provider", "cloud_id", "provider"),
-        # Full-text-style search on name
+        # Full-text-style search on name (B-tree for equality; GIN trigram added in _apply_db_optimizations)
         Index("ix_servers_name", "name"),
+        # GIN index for JSONB containment queries on tags (e.g. tags @> '{"env":"prod"}')
+        Index("ix_servers_tags_gin", "tags", postgresql_using="gin"),
+        # Region filter/group-by (stats endpoint groups by region)
+        Index("ix_servers_region", "region"),
     )
 
 
@@ -53,11 +66,18 @@ class Credential(Base):
     name       = Column(String(255), nullable=False)
     provider   = Column(String(64),  nullable=False)
     is_active  = Column(Boolean,     default=True)
-    config     = Column(JSON,        nullable=False)
+    config     = Column(JSONB,       nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
+        # Composite covers both provider-filtered and active-only sync queries
         Index("ix_credentials_provider_active", "provider", "is_active"),
+        # Partial index: sync always filters is_active = true — eliminates dead rows from scan
+        Index(
+            "ix_credentials_active",
+            "is_active",
+            postgresql_where="is_active = true",
+        ),
     )
 
 
@@ -92,6 +112,13 @@ class SyncLog(Base):
         # Most common: list recent logs (desc sort) + filter by running
         Index("ix_sync_logs_started_at", "started_at"),
         Index("ix_sync_logs_status",     "status"),
+        # Partial index: startup cleanup and WS handler both query status = 'running'
+        # This is a tiny, high-selectivity subset — partial index is ideal
+        Index(
+            "ix_sync_logs_status_running",
+            "status",
+            postgresql_where="status = 'running'",
+        ),
     )
 
 
@@ -111,8 +138,12 @@ class SSHCredential(Base):
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        # Fast lookup of default credential
-        Index("ix_ssh_credentials_is_default", "is_default"),
+        # Partial index: only the one row where is_default = true matters for lookup
+        Index(
+            "ix_ssh_credentials_is_default",
+            "is_default",
+            postgresql_where="is_default = true",
+        ),
     )
 
 
@@ -124,11 +155,11 @@ class ServerSnapshot(Base):
     total       = Column(Integer, default=0)
     running     = Column(Integer, default=0)
     stopped     = Column(Integer, default=0)
-    by_provider = Column(JSON, default=_empty_json_dict)
+    by_provider = Column(JSONB, default=_empty_json_dict)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
-        # History queries always sort by date
+        # History queries always sort by date; unique also enforces upsert safety
         Index("ix_server_snapshots_date", "date", unique=True),
     )
 
@@ -161,7 +192,14 @@ class CronJob(Base):
     updated_at      = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        Index("ix_cron_jobs_is_active", "is_active"),
+        # Partial index: scheduler only reads active jobs; reduces index size and scan cost
+        Index(
+            "ix_cron_jobs_is_active",
+            "is_active",
+            postgresql_where="is_active = true",
+        ),
+        # next_run_at index: scheduler queries upcoming jobs ordered by next execution time
+        Index("ix_cron_jobs_next_run_at", "next_run_at"),
     )
 
 
@@ -180,16 +218,20 @@ class DatabaseInstance(Base):
     port           = Column(Integer,     nullable=True)
     storage_gb     = Column(Float,       nullable=True)
     instance_type  = Column(String(128), nullable=True)
-    tags           = Column(JSON, default=_empty_json_dict)
-    extra          = Column(JSON, default=_empty_json_dict)
+    tags           = Column(JSONB, default=_empty_json_dict)
+    extra          = Column(JSONB, default=_empty_json_dict)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
     updated_at     = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_synced    = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_db_provider", "provider"),
+        # Composite: provider + status covers filtered list queries
+        Index("ix_db_provider_status", "provider", "status"),
         Index("ix_db_status", "status"),
         Index("ix_db_cloud_id_provider", "cloud_id", "provider"),
+        # GIN for tag containment queries
+        Index("ix_db_tags_gin", "tags", postgresql_using="gin"),
     )
 
 
@@ -205,16 +247,20 @@ class KubernetesCluster(Base):
     status      = Column(String(32),  default="unknown")
     node_count  = Column(Integer,     nullable=True)
     endpoint    = Column(String(255), nullable=True)
-    tags        = Column(JSON, default=_empty_json_dict)
-    extra       = Column(JSON, default=_empty_json_dict)
+    tags        = Column(JSONB, default=_empty_json_dict)
+    extra       = Column(JSONB, default=_empty_json_dict)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_synced = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_k8s_provider", "provider"),
+        # Composite: provider + status covers filtered list queries
+        Index("ix_k8s_provider_status", "provider", "status"),
         Index("ix_k8s_status", "status"),
         Index("ix_k8s_cloud_id_provider", "cloud_id", "provider"),
+        # GIN for tag containment queries
+        Index("ix_k8s_tags_gin", "tags", postgresql_using="gin"),
     )
 
 
@@ -230,15 +276,19 @@ class BlockStorage(Base):
     status      = Column(String(32),  default="unknown")
     attachment  = Column(String(255), nullable=True)
     volume_type = Column(String(64),  nullable=True)
-    tags        = Column(JSON, default=_empty_json_dict)
-    extra       = Column(JSON, default=_empty_json_dict)
+    tags        = Column(JSONB, default=_empty_json_dict)
+    extra       = Column(JSONB, default=_empty_json_dict)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_synced = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_block_provider", "provider"),
+        # Composite: provider + status covers filtered list queries
+        Index("ix_block_provider_status", "provider", "status"),
         Index("ix_block_status", "status"),
         Index("ix_block_cloud_id_provider", "cloud_id", "provider"),
+        # GIN for tag containment queries
+        Index("ix_block_tags_gin", "tags", postgresql_using="gin"),
     )
 

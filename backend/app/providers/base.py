@@ -1,26 +1,33 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any
 
 
 class CloudProvider(ABC):
-    def __init__(self, config: Dict[str, Any]):
-        self.config = config
+    """Abstract base class for all cloud provider integrations."""
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        self.config: dict[str, Any] = config
 
     @abstractmethod
-    def fetch_servers(self) -> List[Dict[str, Any]]:
-        pass
+    def fetch_servers(self) -> list[dict[str, Any]]:
+        """Fetch all compute servers/instances from the provider."""
+        ...
 
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        pass
+        """Return the canonical lowercase provider slug (e.g. 'aws')."""
+        ...
 
-    def fetch_databases(self) -> List[Dict[str, Any]]:
+    def fetch_databases(self) -> list[dict[str, Any]]:
+        """Fetch managed database instances. Returns empty list if unsupported."""
         return []
 
-    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+    def fetch_kubernetes(self) -> list[dict[str, Any]]:
+        """Fetch Kubernetes clusters. Returns empty list if unsupported."""
         return []
 
-    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+    def fetch_block_storages(self) -> list[dict[str, Any]]:
+        """Fetch block storage volumes. Returns empty list if unsupported."""
         return []
 

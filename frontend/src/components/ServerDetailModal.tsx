@@ -184,7 +184,7 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
   useEffect(() => {
     if (selectedCredentialId || sshCredentials.length === 0) return
     const preferred = sshCredentials.find(cred => cred.is_default) ?? sshCredentials[0]
-    setSelectedCredentialId(String(preferred.id))
+    if (preferred) setSelectedCredentialId(String(preferred.id))
   }, [selectedCredentialId, sshCredentials])
 
   const sshSyncMutation = useMutation({
@@ -194,7 +194,7 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
       qc.invalidateQueries({ queryKey: ['servers'] })
       onServerUpdated?.(updatedServer)
     },
-    onError: (error: any) => toast.error(`SSH sync failed: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`SSH sync failed: ${getErrorMessage(error)}`),
   })
 
   const hasTags = Object.keys(server.tags ?? {}).length > 0

@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 from .base import CloudProvider
 
 STATUS_MAP = {
@@ -21,11 +21,11 @@ class LinodeProvider(CloudProvider):
     def provider_name(self) -> str:
         return "linode"
 
-    def fetch_servers(self) -> List[Dict[str, Any]]:
+    def fetch_servers(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config["api_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         servers = []
         page = 1
 
@@ -68,11 +68,11 @@ class LinodeProvider(CloudProvider):
 
         return servers
 
-    def fetch_databases(self) -> List[Dict[str, Any]]:
+    def fetch_databases(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config.get("api_token")
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         result = []
         for engine_path in ["mysql", "postgresql"]:
             url = f"https://api.linode.com/v4/databases/{engine_path}/instances"
@@ -122,11 +122,11 @@ class LinodeProvider(CloudProvider):
                 page += 1
         return result
 
-    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+    def fetch_kubernetes(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config.get("api_token")
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         page = 1
         result = []
         while True:
@@ -174,11 +174,11 @@ class LinodeProvider(CloudProvider):
             page += 1
         return result
 
-    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+    def fetch_block_storages(self) -> list[dict[str, Any]]:
         import requests
 
         token = self.config.get("api_token")
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         result = []
         page = 1
 

@@ -44,7 +44,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return createElement(ThemeContext.Provider, { value: { theme, toggle } }, children)
 }
 
-export function useTheme() {
+export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext)
   if (!ctx) throw new Error('useTheme must be inside <ThemeProvider>')
   return ctx

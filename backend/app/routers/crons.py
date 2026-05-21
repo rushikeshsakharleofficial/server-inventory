@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from datetime import datetime, timezone
 from .. import models, schemas
 from ..database import get_db, DATABASE_URL
@@ -16,11 +15,11 @@ def _validate_cron(expr: str) -> None:
         raise HTTPException(status_code=422, detail=f"Invalid cron expression: {expr!r}")
 
 
-@router.get("", response_model=List[schemas.CronJobResponse])
+@router.get("", response_model=list[schemas.CronJobResponse])
 def list_crons(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
-):
+) -> list[models.CronJob]:
     return db.query(models.CronJob).order_by(models.CronJob.name).all()
 
 
@@ -29,7 +28,7 @@ def create_cron(
     payload: schemas.CronJobCreate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.CronJob:
     _validate_cron(payload.cron_expr)
     job = models.CronJob(**payload.model_dump())
 
@@ -54,7 +53,7 @@ def update_cron(
     payload: schemas.CronJobUpdate,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Cron job not found")
@@ -82,7 +81,7 @@ def delete_cron(
     job_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> None:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Cron job not found")
@@ -96,7 +95,7 @@ def toggle_cron(
     job_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Cron job not found")
@@ -118,7 +117,7 @@ def run_cron_now(
     job_id: int,
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> models.CronJob:
     """Trigger a cron job immediately, outside its schedule."""
     from fastapi.concurrency import run_in_threadpool
     from ..routers.sync import _run_sync
@@ -129,12 +128,12 @@ def run_cron_now(
 
     # Run sync in background thread via APScheduler's executor
     import threading
-    def _go():
+    def _go() -> None:
         try:
             _run_sync(job.provider, DATABASE_URL)
-            status = "success"
-        except Exception:
-            status = "failed"
+            run_status = "success"
+        except Exception:  # noqa: BLE001 — any sync error marks the run as failed
+            run_status = "failed"
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         from ..database import DATABASE_URL as dbu
@@ -144,7 +143,7 @@ def run_cron_now(
             j = sess.query(models.CronJob).filter(models.CronJob.id == job_id).first()
             if j:
                 j.last_run_at = datetime.now(timezone.utc)
-                j.last_run_status = status
+                j.last_run_status = run_status
                 sess.commit()
         finally:
             sess.close()

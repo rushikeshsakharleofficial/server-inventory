@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Shield } from 'lucide-react'
 import Toggle from './Toggle'
@@ -15,14 +15,22 @@ import {
   Badge,
 } from './StitchUI'
 
-const ROLE_CFG: Record<string, { label: string; color: string; bg: string; border: string; status: 'primary' | 'green' | 'yellow' | 'gray' }> = {
+type RoleCfg = { label: string; color: string; bg: string; border: string; status: 'primary' | 'green' | 'yellow' | 'gray' }
+
+const ROLE_CFG = {
   admin: { label: 'Admin',  color: '#6366F1', bg: 'rgba(99,102,241,0.1)',  border: 'rgba(99,102,241,0.25)', status: 'primary' },
   write: { label: 'Write',  color: '#4285F4', bg: 'rgba(66,133,244,0.1)',  border: 'rgba(66,133,244,0.25)', status: 'primary' },
   read:  { label: 'Read',   color: '#8B8AAE', bg: 'rgba(139,138,174,0.1)', border: 'rgba(139,138,174,0.2)', status: 'gray' },
+} satisfies Record<string, RoleCfg>
+
+const DEFAULT_ROLE_CFG: RoleCfg = ROLE_CFG.read
+
+function getRoleCfg(role: string): RoleCfg {
+  return (ROLE_CFG as Record<string, RoleCfg | undefined>)[role] ?? DEFAULT_ROLE_CFG
 }
 
-function RoleBadge({ role }: { role: string }) {
-  const cfg = ROLE_CFG[role] ?? ROLE_CFG.read
+function RoleBadge({ role }: { role: string }): React.ReactElement {
+  const cfg = getRoleCfg(role)
   return (
     <Badge
       status={cfg.status}
@@ -237,7 +245,7 @@ export default function UsersPage() {
           ))
         ) : (
           users.map(user => {
-            const roleCfg = ROLE_CFG[user.role] ?? ROLE_CFG.read
+            const roleCfg = getRoleCfg(user.role)
             return (
               <Card
                 key={user.id}

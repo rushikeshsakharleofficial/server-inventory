@@ -1,7 +1,6 @@
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -57,7 +56,7 @@ def hash_password(password: str) -> str:
 
 def create_access_token(
     data: dict,
-    expires_delta: Optional[timedelta] = None,
+    expires_delta: timedelta | None = None,
     remember: bool = False,
 ) -> str:
     if expires_delta is None:

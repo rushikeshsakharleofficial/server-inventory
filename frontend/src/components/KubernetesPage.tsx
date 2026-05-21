@@ -57,7 +57,7 @@ export default function KubernetesPage() {
       toast.success('Kubernetes sync started')
       setTimeout(() => qc.invalidateQueries({ queryKey: ['kubernetes'] }), 4000)
     },
-    onError: (error: any) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
   })
 
   const filtered = clusters.filter(c =>

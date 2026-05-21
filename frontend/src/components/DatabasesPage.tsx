@@ -90,7 +90,7 @@ export default function DatabasesPage() {
       toast.success('Database sync started')
       setTimeout(() => qc.invalidateQueries({ queryKey: ['databases'] }), 4000)
     },
-    onError: (error: any) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
   })
 
   const filtered = databases.filter(db =>

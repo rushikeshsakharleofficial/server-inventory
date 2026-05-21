@@ -75,6 +75,7 @@ interface LineTooltipProps {
 
 function LineTooltipContent({ active, payload, label }: LineTooltipProps) {
   if (!active || !payload?.length) return null
+  const [first] = payload
   return (
     <div
       className="rounded-lg px-3 py-2 text-sm shadow-lg"
@@ -85,7 +86,7 @@ function LineTooltipContent({ active, payload, label }: LineTooltipProps) {
       }}
     >
       <p className="text-ink-muted text-xs mb-1" style={{ color: 'var(--tx3)', margin: '0 0 4px 0' }}>{label}</p>
-      <p className="font-semibold tabular-nums" style={{ margin: 0 }}>{payload[0].value} servers</p>
+      <p className="font-semibold tabular-nums" style={{ margin: 0 }}>{first?.value} servers</p>
     </div>
   )
 }
@@ -97,7 +98,8 @@ interface BarTooltipProps {
 
 function BarTooltipContent({ active, payload }: BarTooltipProps) {
   if (!active || !payload?.length) return null
-  const { provider } = payload[0].payload
+  const [first] = payload
+  const provider = first?.payload.provider ?? ''
   return (
     <div
       className="rounded-lg px-3 py-2 text-sm shadow-lg"
@@ -108,7 +110,7 @@ function BarTooltipContent({ active, payload }: BarTooltipProps) {
       }}
     >
       <p className="text-ink-muted text-xs mb-1" style={{ color: 'var(--tx3)', margin: '0 0 4px 0' }}>{PROVIDER_LABELS[provider] ?? provider}</p>
-      <p className="font-semibold tabular-nums" style={{ margin: 0 }}>{payload[0].value} servers</p>
+      <p className="font-semibold tabular-nums" style={{ margin: 0 }}>{first?.value} servers</p>
     </div>
   )
 }

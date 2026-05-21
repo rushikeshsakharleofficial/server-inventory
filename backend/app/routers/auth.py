@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
 from ..auth import verify_password, hash_password, create_access_token, get_current_user, require_admin
@@ -12,9 +11,9 @@ router = APIRouter(tags=["auth & users"])
 @router.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login(
     form: OAuth2PasswordRequestForm = Depends(),
-    remember_me: Optional[bool] = Form(default=False),
+    remember_me: bool | None = Form(default=False),
     db: Session = Depends(get_db),
-):
+) -> schemas.TokenResponse:
     user = db.query(models.User).filter(models.User.username == form.username).first()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(
@@ -36,15 +35,15 @@ def login(
 
 
 @router.get("/api/auth/me", response_model=schemas.UserResponse)
-def me(current_user: models.User = Depends(get_current_user)):
+def me(current_user: models.User = Depends(get_current_user)) -> models.User:
     return current_user
 
 
-@router.get("/api/users", response_model=List[schemas.UserResponse])
+@router.get("/api/users", response_model=list[schemas.UserResponse])
 def list_users(
     _: models.User = Depends(require_admin),
     db: Session = Depends(get_db),
-):
+) -> list[models.User]:
     return db.query(models.User).order_by(models.User.created_at).all()
 
 
@@ -53,7 +52,7 @@ def create_user(
     payload: schemas.UserCreate,
     _: models.User = Depends(require_admin),
     db: Session = Depends(get_db),
-):
+) -> models.User:
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     db_user = models.User(
@@ -72,7 +71,7 @@ def delete_user(
     user_id: int,
     _: models.User = Depends(require_admin),
     db: Session = Depends(get_db),
-):
+) -> None:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -87,7 +86,7 @@ def toggle_user(
     user_id: int,
     _: models.User = Depends(require_admin),
     db: Session = Depends(get_db),
-):
+) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

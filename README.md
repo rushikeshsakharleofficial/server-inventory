@@ -1,6 +1,6 @@
 # ServerInventory
 
-A full-stack, multi-cloud server inventory dashboard with real-time sync, SSH data collection, resource topology mapping, and managed database/Kubernetes cluster tracking.
+A full-stack, multi-cloud server inventory dashboard with real-time sync, SSH data collection, resource topology mapping, and managed database, Kubernetes cluster, and block storage tracking.
 
 ---
 
@@ -26,6 +26,14 @@ Auto-fetch managed database instances from:
 ### Kubernetes
 Auto-fetch managed cluster fleets from:
 - AWS EKS, GCP GKE, Azure AKS, DigitalOcean DOKS, Linode LKE
+
+### Block Storage
+Auto-fetch managed block storage volumes from:
+- AWS EBS Volumes
+- Azure Managed Disks
+- GCP Persistent Disks
+- DigitalOcean Volumes
+- Linode Volumes
 
 ### Resource Map
 Per-resource topology viewer showing connected cloud resources:
@@ -60,7 +68,7 @@ Per-resource topology viewer showing connected cloud resources:
 | SSH | paramiko |
 | WebSockets | FastAPI native + asyncio broadcast |
 | Frontend | React 19 + TypeScript + Vite |
-| Styling | Tailwind CSS 3 + CSS custom properties |
+| Styling | Stitches CSS-in-JS + Tailwind CSS 3 + CSS custom properties |
 | Data fetching | TanStack Query v5 |
 | Charts | Recharts |
 | Icons | Lucide React |
@@ -84,8 +92,8 @@ Per-resource topology viewer showing connected cloud resources:
 ### Quick Start — Docker
 
 ```bash
-git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
-cd server-inventory
+git clone <repo-url>
+cd ServerInventory
 docker compose up -d
 ```
 
@@ -105,14 +113,23 @@ Password: Admin@1234
 
 ### Quick Start — Local (no Docker)
 
+Use `start.sh` to launch both services in one step (requires local PostgreSQL):
+
 ```bash
-# 1. Backend
+cp backend/.env.example backend/.env  # edit DATABASE_URL and SECRET_KEY
+./start.sh
+```
+
+Or manually in two terminals:
+
+```bash
+# Terminal 1 — Backend
 cd backend
 pip install -r requirements.txt
-cp .env.example .env        # edit DATABASE_URL and SECRET_KEY
+cp .env.example .env   # edit DATABASE_URL and SECRET_KEY
 uvicorn app.main:app --reload --port 8000
 
-# 2. Frontend (separate terminal)
+# Terminal 2 — Frontend
 cd frontend
 npm install
 npm run dev
@@ -183,13 +200,14 @@ APIs to enable: Compute Engine, Cloud SQL Admin, Kubernetes Engine
 │   │   ├── stats_utils.py   # Shared stats aggregation (SQL GROUP BY)
 │   │   ├── scheduler.py     # APScheduler setup
 │   │   ├── ws_manager.py    # WebSocket connection manager
-│   │   ├── routers/         # FastAPI routers (servers, sync, stats, …)
+│   │   ├── routers/         # FastAPI routers (servers, sync, stats, block-storages, …)
 │   │   └── providers/       # Cloud provider sync implementations
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx           # Root: routing, auth, modal state
+│   │   ├── stitches.config.ts# Stitches design tokens and theme
 │   │   ├── components/       # Page and UI components
 │   │   ├── hooks/            # useAuth, useTheme, useToast, useWebSocket
 │   │   ├── api.ts            # Axios client + API helpers
@@ -202,7 +220,8 @@ APIs to enable: Compute Engine, Cloud SQL Admin, Kubernetes Engine
 │   ├── tailwind.config.js
 │   └── vite.config.ts
 ├── docker-compose.yml
-└── start.sh                  # Local dev launcher (requires local Postgres)
+├── start.sh                  # Local dev launcher (requires local Postgres)
+└── install-docker.sh         # Docker installation helper
 ```
 
 ### Frontend Commands
@@ -255,7 +274,7 @@ npm run test:e2e:ui
 | Variable | Default | Description |
 |---|---|---|
 | `E2E_USERNAME` | `admin` | Admin username |
-| `E2E_PASSWORD` | `admin123` | Admin password (set to match `ADMIN_PASSWORD`) |
+| `E2E_PASSWORD` | `Admin@1234` | Admin password (set to match `ADMIN_PASSWORD`) |
 | `VITE_BACKEND_URL` | `http://localhost:8000` | Backend URL for Vite proxy during tests |
 
 ### Coverage
@@ -293,6 +312,7 @@ npm run test:e2e:ui
 | `Server` | Multi-cloud VM inventory with SSH info |
 | `DatabaseInstance` | Managed database instances |
 | `KubernetesCluster` | Managed K8s clusters |
+| `BlockStorage` | Managed block storage volumes |
 | `Credential` | Provider credentials (per-provider config JSON) |
 | `SSHCredential` | SSH key/password credentials for Custom DC |
 | `SyncLog` | Sync run history with duration and result |
@@ -320,6 +340,12 @@ On startup the backend automatically applies:
 
 ---
 
+## Maintainer TODOs
+
+- **License file missing**: The README states MIT but no `LICENSE` file exists in the repository. Add a `LICENSE` file to make the license enforceable.
+
+---
+
 ## License
 
-MIT
+MIT (no license file present — see Maintainer TODOs)

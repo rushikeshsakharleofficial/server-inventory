@@ -112,7 +112,7 @@ export default function ProvidersPage() {
       setFields({})
       setErrors([])
     },
-    onError: (error: any) => toast.error(`Failed to save credential: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Failed to save credential: ${getErrorMessage(error)}`),
   })
 
   const deleteMutation = useMutation({
@@ -122,7 +122,7 @@ export default function ProvidersPage() {
       qc.invalidateQueries({ queryKey: ['credentials'] })
       setConfirmId(null)
     },
-    onError: (error: any) => toast.error(`Failed to delete: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Failed to delete: ${getErrorMessage(error)}`),
   })
 
   const toggleMutation = useMutation({
@@ -131,7 +131,7 @@ export default function ProvidersPage() {
       toast.info(updated.is_active ? 'Credential enabled' : 'Credential disabled')
       qc.invalidateQueries({ queryKey: ['credentials'] })
     },
-    onError: (error: any) => toast.error(`Failed to toggle: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Failed to toggle: ${getErrorMessage(error)}`),
   })
 
   const syncMutation = useMutation({
@@ -144,7 +144,7 @@ export default function ProvidersPage() {
         qc.invalidateQueries({ queryKey: ['sync-logs'] })
       }, 3000)
     },
-    onError: (error: any) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Sync failed: ${getErrorMessage(error)}`),
   })
 
   function toggleVisible(key: string) {
@@ -265,7 +265,7 @@ export default function ProvidersPage() {
                   <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>{f.label}</Text>
                   {f.type === 'select' && f.options ? (
                     <Select
-                      value={fields[f.key] ?? f.options[0].value}
+                      value={fields[f.key] ?? f.options[0]?.value ?? ''}
                       onChange={e => setFields(p => ({ ...p, [f.key]: e.target.value }))}
                     >
                       {f.options.map(opt => (

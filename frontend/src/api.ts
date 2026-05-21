@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob, DatabaseInstance, KubernetesCluster, BlockStorage } from './types'
+import type { ResourceMap } from './components/ResourceMapModal'
 
 export const http = axios.create({ baseURL: '' })
 
@@ -55,17 +56,17 @@ export const credentialsApi = {
 }
 
 export const syncApi = {
-  trigger: (provider?: string) =>
+  trigger: (provider?: string): Promise<SyncLog> =>
     http
-      .post('/api/sync', null, { params: provider ? { provider } : {} })
+      .post<SyncLog>('/api/sync', null, { params: provider ? { provider } : {} })
       .then(r => r.data),
 
-  stop: (logId?: number) =>
+  stop: (logId?: number): Promise<SyncLog> =>
     http
-      .post('/api/sync/stop', null, { params: logId ? { log_id: logId } : {} })
+      .post<SyncLog>('/api/sync/stop', null, { params: logId ? { log_id: logId } : {} })
       .then(r => r.data),
 
-  logs: (limit = 50) =>
+  logs: (limit = 50): Promise<SyncLog[]> =>
     http.get<SyncLog[]>('/api/sync/logs', { params: { limit } }).then(r => r.data),
 }
 
@@ -85,10 +86,11 @@ export const sshCredentialsApi = {
 }
 
 export const statsApi = {
-  history: (days = 30) =>
+  history: (days = 30): Promise<ServerSnapshot[]> =>
     http.get<ServerSnapshot[]>('/api/stats/history', { params: { days } }).then(r => r.data),
 
-  snapshot: () => http.post('/api/stats/snapshot').then(r => r.data),
+  snapshot: (): Promise<ServerSnapshot> =>
+    http.post<ServerSnapshot>('/api/stats/snapshot').then(r => r.data),
 }
 
 export const cronsApi = {
@@ -110,40 +112,41 @@ export const cronsApi = {
 }
 
 export const resourceMapApi = {
-  server:     (id: number) => http.get(`/api/resource-map/server/${id}`).then(r => r.data),
-  database:   (id: number) => http.get(`/api/resource-map/database/${id}`).then(r => r.data),
-  kubernetes: (id: number) => http.get(`/api/resource-map/kubernetes/${id}`).then(r => r.data),
+  server:     (id: number): Promise<ResourceMap> => http.get<ResourceMap>(`/api/resource-map/server/${id}`).then(r => r.data),
+  database:   (id: number): Promise<ResourceMap> => http.get<ResourceMap>(`/api/resource-map/database/${id}`).then(r => r.data),
+  kubernetes: (id: number): Promise<ResourceMap> => http.get<ResourceMap>(`/api/resource-map/kubernetes/${id}`).then(r => r.data),
 }
 
 export const databasesApi = {
-  list: (params?: { provider?: string; status?: string; search?: string }) =>
+  list: (params?: { provider?: string; status?: string; search?: string }): Promise<DatabaseInstance[]> =>
     http.get<DatabaseInstance[]>('/api/databases', { params }).then(r => r.data),
 
-  sync: (provider?: string) =>
-    http.post('/api/databases/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+  sync: (provider?: string): Promise<SyncLog> =>
+    http.post<SyncLog>('/api/databases/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const kubernetesApi = {
-  list: (params?: { provider?: string; status?: string; search?: string }) =>
+  list: (params?: { provider?: string; status?: string; search?: string }): Promise<KubernetesCluster[]> =>
     http.get<KubernetesCluster[]>('/api/kubernetes', { params }).then(r => r.data),
 
-  sync: (provider?: string) =>
-    http.post('/api/kubernetes/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+  sync: (provider?: string): Promise<SyncLog> =>
+    http.post<SyncLog>('/api/kubernetes/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const blockStoragesApi = {
-  list: (params?: { provider?: string; status?: string; search?: string }) =>
+  list: (params?: { provider?: string; status?: string; search?: string }): Promise<BlockStorage[]> =>
     http.get<BlockStorage[]>('/api/block-storages', { params }).then(r => r.data),
 
-  sync: (provider?: string) =>
-    http.post('/api/block-storages/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+  sync: (provider?: string): Promise<SyncLog> =>
+    http.post<SyncLog>('/api/block-storages/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const settingsApi = {
-  list: () => http.get<Record<string, string>>('/api/settings').then(r => r.data),
+  list: (): Promise<Record<string, string>> =>
+    http.get<Record<string, string>>('/api/settings').then(r => r.data),
 
-  update: (key: string, value: string) =>
-    http.put(`/api/settings/${key}`, { value }).then(r => r.data),
+  update: (key: string, value: string): Promise<Record<string, string>> =>
+    http.put<Record<string, string>>(`/api/settings/${key}`, { value }).then(r => r.data),
 }
 
 export interface ApiUser {
@@ -165,29 +168,54 @@ export const usersApi = {
   toggle: (id: number) => http.patch<ApiUser>(`/api/users/${id}/toggle`).then(r => r.data),
 }
 
-export function getErrorMessage(error: any): string {
+/** Shape of a single Pydantic v2 validation error item */
+interface PydanticErrorItem {
+  loc?: Array<string | number>
+  msg: string
+}
+
+/** Shape of an Axios error response body (best-effort) */
+interface ApiErrorResponseData {
+  detail?: string | PydanticErrorItem[] | unknown
+  message?: unknown
+}
+
+interface ApiError {
+  response?: {
+    data?: ApiErrorResponseData
+    status?: number
+  }
+  message?: string
+}
+
+export function getErrorMessage(error: unknown): string {
   if (!error) return 'An unknown error occurred.'
-  
-  if (error.response?.data) {
-    const data = error.response.data
-    if (data.detail) {
+
+  const apiError = error as ApiError
+
+  if (apiError.response?.data) {
+    const data = apiError.response.data
+    if (data.detail !== undefined) {
       if (typeof data.detail === 'string') {
         return data.detail
       }
       if (Array.isArray(data.detail)) {
-        return data.detail
-          .map((d: any) => {
-            const path = d.loc ? d.loc.filter((l: any) => l !== 'body').join('.') : ''
+        return (data.detail as PydanticErrorItem[])
+          .map(d => {
+            const path = d.loc
+              ? d.loc.filter(l => l !== 'body').join('.')
+              : ''
             return `${path ? `'${path}': ` : ''}${d.msg}`
           })
           .join(', ')
       }
       return JSON.stringify(data.detail)
     }
-    if (data.message) {
+    if (data.message !== undefined) {
       return String(data.message)
     }
   }
-  
-  return error.message || String(error)
+
+  if (typeof apiError.message === 'string') return apiError.message
+  return String(error)
 }

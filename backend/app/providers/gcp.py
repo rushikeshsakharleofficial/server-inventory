@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 from .base import CloudProvider
 
 STATUS_MAP = {
@@ -17,7 +17,7 @@ class GCPProvider(CloudProvider):
     def provider_name(self) -> str:
         return "gcp"
 
-    def fetch_servers(self) -> List[Dict[str, Any]]:
+    def fetch_servers(self) -> list[dict[str, Any]]:
         try:
             from google.cloud import compute_v1
             from google.oauth2 import service_account
@@ -73,7 +73,7 @@ class GCPProvider(CloudProvider):
                 })
         return servers
 
-    def fetch_databases(self) -> List[Dict[str, Any]]:
+    def fetch_databases(self) -> list[dict[str, Any]]:
         import json
         import requests
 
@@ -95,7 +95,7 @@ class GCPProvider(CloudProvider):
         except Exception:
             return []
 
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://sqladmin.googleapis.com/v1/projects/{project_id}/instances"
         resp = requests.get(url, headers=headers, timeout=30)
         if not resp.ok:
@@ -134,7 +134,7 @@ class GCPProvider(CloudProvider):
             })
         return result
 
-    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+    def fetch_kubernetes(self) -> list[dict[str, Any]]:
         import json
         import requests
 
@@ -156,7 +156,7 @@ class GCPProvider(CloudProvider):
         except Exception:
             return []
 
-        headers = {"Authorization": f"Bearer {token}"}
+        headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://container.googleapis.com/v1/projects/{project_id}/locations/-/clusters"
         resp = requests.get(url, headers=headers, timeout=30)
         if not resp.ok:
@@ -190,7 +190,7 @@ class GCPProvider(CloudProvider):
             })
         return result
 
-    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+    def fetch_block_storages(self) -> list[dict[str, Any]]:
         try:
             from google.cloud import compute_v1
             from google.oauth2 import service_account

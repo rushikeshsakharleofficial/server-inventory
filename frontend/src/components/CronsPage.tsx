@@ -100,8 +100,8 @@ export default function CronsPage() {
       qc.invalidateQueries({ queryKey: ['crons'] })
       setShowForm(false); setForm(EMPTY_FORM); setExprError('')
     },
-    onError: (e: any) => {
-      const detail = e?.response?.data?.detail
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       if (typeof detail === 'string' && detail.includes('cron')) setExprError(detail)
       else toast.error(detail ?? 'Failed to create cron job')
     },
@@ -115,8 +115,8 @@ export default function CronsPage() {
       qc.invalidateQueries({ queryKey: ['crons'] })
       setEditing(null); setForm(EMPTY_FORM); setExprError('')
     },
-    onError: (e: any) => {
-      const detail = e?.response?.data?.detail
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       if (typeof detail === 'string') setExprError(detail)
       else toast.error('Failed to update cron job')
     },
@@ -177,7 +177,7 @@ export default function CronsPage() {
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload })
     } else {
-      createMutation.mutate(payload as any)
+      createMutation.mutate(payload)
     }
   }
 

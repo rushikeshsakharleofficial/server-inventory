@@ -2,7 +2,6 @@ import threading
 import concurrent.futures
 from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from datetime import datetime, timezone
 from .. import models, schemas
 from ..database import get_db, DATABASE_URL
@@ -16,7 +15,7 @@ router = APIRouter(prefix="/api/sync", tags=["sync"])
 _stop_events: dict[int, threading.Event] = {}
 
 
-def _run_sync(provider_name: Optional[str], db_url: str) -> None:
+def _run_sync(provider_name: str | None, db_url: str) -> None:
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from ..stats_utils import take_snapshot
@@ -99,7 +98,7 @@ def _run_sync(provider_name: Optional[str], db_url: str) -> None:
                 # Take a snapshot after successful sync
                 try:
                     take_snapshot(db)
-                except Exception:
+                except Exception:  # noqa: BLE001 — snapshot failure must not abort the sync
                     pass
 
             except Exception as exc:
@@ -131,21 +130,21 @@ def _run_sync(provider_name: Optional[str], db_url: str) -> None:
 
 @router.post("")
 def trigger_sync(
-    provider: Optional[str] = None,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
+    provider: str | None = None,
+    background_tasks: BackgroundTasks = Depends(),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> dict[str, str]:
     background_tasks.add_task(_run_sync, provider, DATABASE_URL)
     return {"message": "Sync started", "provider": provider or "all"}
 
 
 @router.post("/stop")
 def stop_sync(
-    log_id: Optional[int] = Query(None),
+    log_id: int | None = Query(None),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_write),
-):
+) -> dict[str, list[int]]:
     """Stop one or all running syncs."""
     now = datetime.now(timezone.utc)
     stopped_ids = []
@@ -176,12 +175,12 @@ def stop_sync(
     return {"stopped": stopped_ids}
 
 
-@router.get("/logs", response_model=List[schemas.SyncLogResponse])
+@router.get("/logs", response_model=list[schemas.SyncLogResponse])
 def get_sync_logs(
     limit: int = 50,
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
-):
+) -> list[models.SyncLog]:
     return (
         db.query(models.SyncLog)
         .order_by(models.SyncLog.started_at.desc())

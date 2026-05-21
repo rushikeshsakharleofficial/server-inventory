@@ -55,7 +55,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function useToast() {
+export interface UseToastReturn {
+  toasts: Toast[]
+  removeToast: (id: string) => void
+  toast: {
+    success: (msg: string) => void
+    error: (msg: string) => void
+    warning: (msg: string) => void
+    info: (msg: string) => void
+  }
+}
+
+export function useToast(): UseToastReturn {
   const ctx = useContext(ToastContext)
   if (!ctx) throw new Error('useToast must be inside <ToastProvider>')
   const { toasts, removeToast, addToast } = ctx

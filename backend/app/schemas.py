@@ -1,26 +1,26 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
+from typing import Any
 from datetime import datetime
 
 
 class ServerBase(BaseModel):
     name: str
     provider: str
-    region: Optional[str] = None
-    zone: Optional[str] = None
-    instance_type: Optional[str] = None
+    region: str | None = None
+    zone: str | None = None
+    instance_type: str | None = None
     status: str = "unknown"
-    public_ip: Optional[str] = None
-    private_ip: Optional[str] = None
-    vcpu: Optional[int] = None
-    memory_gb: Optional[float] = None
-    storage_gb: Optional[float] = None
-    os: Optional[str] = None
-    tags: Dict[str, Any] = Field(default_factory=dict)
-    extra: Dict[str, Any] = Field(default_factory=dict)
-    datacenter: Optional[str] = None
-    hostname: Optional[str] = None
-    notes: Optional[str] = None
+    public_ip: str | None = None
+    private_ip: str | None = None
+    vcpu: int | None = None
+    memory_gb: float | None = None
+    storage_gb: float | None = None
+    os: str | None = None
+    tags: dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
+    datacenter: str | None = None
+    hostname: str | None = None
+    notes: str | None = None
 
 
 class ServerCreate(ServerBase):
@@ -28,28 +28,28 @@ class ServerCreate(ServerBase):
 
 
 class ServerUpdate(BaseModel):
-    name: Optional[str] = None
-    status: Optional[str] = None
-    public_ip: Optional[str] = None
-    private_ip: Optional[str] = None
-    hostname: Optional[str] = None
-    datacenter: Optional[str] = None
-    notes: Optional[str] = None
-    tags: Optional[Dict[str, Any]] = None
-    instance_type: Optional[str] = None
-    vcpu: Optional[int] = None
-    memory_gb: Optional[float] = None
-    storage_gb: Optional[float] = None
-    os: Optional[str] = None
+    name: str | None = None
+    status: str | None = None
+    public_ip: str | None = None
+    private_ip: str | None = None
+    hostname: str | None = None
+    datacenter: str | None = None
+    notes: str | None = None
+    tags: dict[str, Any] | None = None
+    instance_type: str | None = None
+    vcpu: int | None = None
+    memory_gb: float | None = None
+    storage_gb: float | None = None
+    os: str | None = None
 
 
 class ServerResponse(ServerBase):
     id: int
-    cloud_id: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    last_synced: Optional[datetime] = None
-    ssh_info: Optional[Dict[str, Any]] = None
+    cloud_id: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    last_synced: datetime | None = None
+    ssh_info: dict[str, Any] | None = None
 
     model_config = {"from_attributes": True}
 
@@ -57,7 +57,7 @@ class ServerResponse(ServerBase):
 class CredentialCreate(BaseModel):
     name: str
     provider: str
-    config: Dict[str, Any]
+    config: dict[str, Any]
 
 
 class CredentialResponse(BaseModel):
@@ -65,21 +65,21 @@ class CredentialResponse(BaseModel):
     name: str
     provider: str
     is_active: bool
-    config: Dict[str, Any] = Field(default_factory=dict)
-    created_at: Optional[datetime] = None
+    config: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
 class SyncLogResponse(BaseModel):
     id: int
-    provider: Optional[str] = None
+    provider: str | None = None
     status: str
     servers_added: int
     servers_updated: int
-    error_message: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -95,7 +95,7 @@ class UserResponse(BaseModel):
     username: str
     role: str
     is_active: bool
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -111,20 +111,20 @@ class StatsResponse(BaseModel):
     total: int
     running: int
     stopped: int
-    by_provider: Dict[str, int]
-    by_region: Dict[str, int]
-    by_status: Dict[str, int]
+    by_provider: dict[str, int]
+    by_region: dict[str, int]
+    by_status: dict[str, int]
 
 
 class SSHCredentialCreate(BaseModel):
     name: str
     username: str
     auth_method: str = "password"
-    password: Optional[str] = None
-    private_key: Optional[str] = None
+    password: str | None = None
+    private_key: str | None = None
     port: int = 22
     is_default: bool = False
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class SSHCredentialResponse(BaseModel):
@@ -132,43 +132,43 @@ class SSHCredentialResponse(BaseModel):
     name: str
     username: str
     auth_method: str
-    password: Optional[str] = None   # masked in endpoint
-    private_key: Optional[str] = None  # masked in endpoint
+    password: str | None = None   # masked in endpoint
+    private_key: str | None = None  # masked in endpoint
     port: int
     is_default: bool
-    notes: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
 class SSHCredentialUpdate(BaseModel):
-    name: Optional[str] = None
-    username: Optional[str] = None
-    auth_method: Optional[str] = None
-    password: Optional[str] = None
-    private_key: Optional[str] = None
-    port: Optional[int] = None
-    is_default: Optional[bool] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    username: str | None = None
+    auth_method: str | None = None
+    password: str | None = None
+    private_key: str | None = None
+    port: int | None = None
+    is_default: bool | None = None
+    notes: str | None = None
 
 
 class ServerSnapshotResponse(BaseModel):
-    id: Optional[int] = None
+    id: int | None = None
     date: str
     total: int
     running: int
     stopped: int
-    by_provider: Dict[str, int] = Field(default_factory=dict)
-    created_at: Optional[datetime] = None
+    by_provider: dict[str, int] = Field(default_factory=dict)
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
 class AppSettingResponse(BaseModel):
     key: str
-    value: Optional[str] = None
+    value: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -180,85 +180,85 @@ class SettingUpdate(BaseModel):
 class CronJobCreate(BaseModel):
     name: str
     cron_expr: str
-    provider: Optional[str] = None
+    provider: str | None = None
     is_active: bool = True
 
 
 class CronJobUpdate(BaseModel):
-    name: Optional[str] = None
-    cron_expr: Optional[str] = None
-    provider: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    cron_expr: str | None = None
+    provider: str | None = None
+    is_active: bool | None = None
 
 
 class CronJobResponse(BaseModel):
     id: int
     name: str
     cron_expr: str
-    provider: Optional[str] = None
+    provider: str | None = None
     is_active: bool
-    last_run_at: Optional[datetime] = None
-    last_run_status: Optional[str] = None
-    next_run_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    last_run_at: datetime | None = None
+    last_run_status: str | None = None
+    next_run_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
 class DatabaseInstanceResponse(BaseModel):
     id: int
-    cloud_id: Optional[str] = None
+    cloud_id: str | None = None
     name: str
     provider: str
-    region: Optional[str] = None
-    engine: Optional[str] = None
-    engine_version: Optional[str] = None
+    region: str | None = None
+    engine: str | None = None
+    engine_version: str | None = None
     status: str
-    endpoint: Optional[str] = None
-    port: Optional[int] = None
-    storage_gb: Optional[float] = None
-    instance_type: Optional[str] = None
-    tags: Dict[str, Any] = Field(default_factory=dict)
-    extra: Dict[str, Any] = Field(default_factory=dict)
-    created_at: Optional[datetime] = None
-    last_synced: Optional[datetime] = None
+    endpoint: str | None = None
+    port: int | None = None
+    storage_gb: float | None = None
+    instance_type: str | None = None
+    tags: dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+    last_synced: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
 class KubernetesClusterResponse(BaseModel):
     id: int
-    cloud_id: Optional[str] = None
+    cloud_id: str | None = None
     name: str
     provider: str
-    region: Optional[str] = None
-    version: Optional[str] = None
+    region: str | None = None
+    version: str | None = None
     status: str
-    node_count: Optional[int] = None
-    endpoint: Optional[str] = None
-    tags: Dict[str, Any] = Field(default_factory=dict)
-    extra: Dict[str, Any] = Field(default_factory=dict)
-    created_at: Optional[datetime] = None
-    last_synced: Optional[datetime] = None
+    node_count: int | None = None
+    endpoint: str | None = None
+    tags: dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+    last_synced: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
 class BlockStorageResponse(BaseModel):
     id: int
-    cloud_id: Optional[str] = None
+    cloud_id: str | None = None
     name: str
     provider: str
-    region: Optional[str] = None
-    size_gb: Optional[float] = None
+    region: str | None = None
+    size_gb: float | None = None
     status: str
-    attachment: Optional[str] = None
-    volume_type: Optional[str] = None
-    tags: Dict[str, Any] = Field(default_factory=dict)
-    extra: Dict[str, Any] = Field(default_factory=dict)
-    created_at: Optional[datetime] = None
-    last_synced: Optional[datetime] = None
+    attachment: str | None = None
+    volume_type: str | None = None
+    tags: dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+    last_synced: datetime | None = None
 
     model_config = {"from_attributes": True}
 

@@ -1,11 +1,14 @@
+from typing import Any
+
 from .aws import AWSProvider
-from .gcp import GCPProvider
 from .azure import AzureProvider
-from .linode import LinodeProvider
+from .base import CloudProvider
 from .digitalocean import DigitalOceanProvider
+from .gcp import GCPProvider
+from .linode import LinodeProvider
 from .ovh import OVHProvider
 
-PROVIDER_MAP = {
+PROVIDER_MAP: dict[str, type[CloudProvider]] = {
     "aws":          AWSProvider,
     "gcp":          GCPProvider,
     "azure":        AzureProvider,
@@ -15,7 +18,16 @@ PROVIDER_MAP = {
 }
 
 
-def get_provider(provider_type: str, config: dict):
+def get_provider(provider_type: str, config: dict[str, Any]) -> CloudProvider:
+    """Return an instantiated CloudProvider for *provider_type*.
+
+    Args:
+        provider_type: Lowercase provider slug (e.g. 'aws', 'gcp').
+        config: Provider-specific credential/configuration dict.
+
+    Raises:
+        ValueError: If *provider_type* is not in PROVIDER_MAP.
+    """
     cls = PROVIDER_MAP.get(provider_type)
     if not cls:
         raise ValueError(f"Unknown provider: {provider_type}")

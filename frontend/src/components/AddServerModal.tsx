@@ -194,7 +194,7 @@ export default function AddServerModal({ server, onClose }: Props) {
       qc.invalidateQueries({ queryKey: ['stats'] })
       onClose()
     },
-    onError: (error: any) =>
+    onError: (error: unknown) =>
       toast.error((isEditing ? 'Failed to update server: ' : 'Failed to add server: ') + getErrorMessage(error)),
   })
 

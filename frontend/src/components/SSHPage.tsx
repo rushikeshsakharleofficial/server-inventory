@@ -111,7 +111,7 @@ export default function SSHPage() {
       setForm(EMPTY_FORM)
       setShowForm(false)
     },
-    onError: (error: any) => toast.error(`Failed to save SSH credential: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Failed to save SSH credential: ${getErrorMessage(error)}`),
   })
 
   const deleteMutation = useMutation({
@@ -121,7 +121,7 @@ export default function SSHPage() {
       qc.invalidateQueries({ queryKey: ['ssh-credentials'] })
       setConfirmDeleteId(null)
     },
-    onError: (error: any) => toast.error(`Failed to delete SSH credential: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Failed to delete SSH credential: ${getErrorMessage(error)}`),
   })
 
   const setDefaultMutation = useMutation({
@@ -130,7 +130,7 @@ export default function SSHPage() {
       toast.success('Default credential updated')
       qc.invalidateQueries({ queryKey: ['ssh-credentials'] })
     },
-    onError: (error: any) => toast.error(`Failed to set default: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => toast.error(`Failed to set default: ${getErrorMessage(error)}`),
   })
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {

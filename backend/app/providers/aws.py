@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 from .base import CloudProvider
 
 STATUS_MAP = {
@@ -16,7 +16,7 @@ class AWSProvider(CloudProvider):
     def provider_name(self) -> str:
         return "aws"
 
-    def fetch_servers(self) -> List[Dict[str, Any]]:
+    def fetch_servers(self) -> list[dict[str, Any]]:
         try:
             import boto3
         except ImportError:
@@ -41,7 +41,7 @@ class AWSProvider(CloudProvider):
                 for reservation in page["Reservations"]:
                     for instance in reservation["Instances"]:
                         name = ""
-                        tags: Dict[str, str] = {}
+                        tags: dict[str, str] = {}
                         for tag in instance.get("Tags", []):
                             tags[tag["Key"]] = tag["Value"]
                             if tag["Key"] == "Name":
@@ -68,7 +68,7 @@ class AWSProvider(CloudProvider):
                         })
         return servers
 
-    def fetch_databases(self) -> List[Dict[str, Any]]:
+    def fetch_databases(self) -> list[dict[str, Any]]:
         import boto3
 
         access_key = self.config.get("access_key_id")
@@ -124,7 +124,7 @@ class AWSProvider(CloudProvider):
                     })
         return result
 
-    def fetch_kubernetes(self) -> List[Dict[str, Any]]:
+    def fetch_kubernetes(self) -> list[dict[str, Any]]:
         import boto3
 
         access_key = self.config.get("access_key_id")
@@ -182,7 +182,7 @@ class AWSProvider(CloudProvider):
                 })
         return result
 
-    def fetch_block_storages(self) -> List[Dict[str, Any]]:
+    def fetch_block_storages(self) -> list[dict[str, Any]]:
         import boto3
 
         access_key = self.config.get("access_key_id")
