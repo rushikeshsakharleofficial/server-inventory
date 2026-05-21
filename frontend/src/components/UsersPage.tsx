@@ -237,8 +237,8 @@ export default function UsersPage() {
               <Flex align="center" gap={3}>
                 <div className="skeleton w-9 h-9 rounded-xl" />
                 <div style={{ flex: 1 }}>
-                  <div className="skeleton h-4 rounded w-24 mb-1.5" />
-                  <div className="skeleton h-3 rounded w-16" />
+                  <div className="skeleton h-4 rounded-sm w-24 mb-1.5" />
+                  <div className="skeleton h-3 rounded-sm w-16" />
                 </div>
               </Flex>
             </Card>

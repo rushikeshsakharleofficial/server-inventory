@@ -21,12 +21,12 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         ${toast.exiting ? 'animate-toast-out' : 'animate-toast-in'}
       `}
     >
-      <cfg.Icon size={15} className={`${cfg.icon} mt-0.5 flex-shrink-0`} aria-hidden="true" />
+      <cfg.Icon size={15} className={`${cfg.icon} mt-0.5 shrink-0`} aria-hidden="true" />
       <p className="flex-1 text-sm text-ink-primary leading-relaxed">{toast.message}</p>
       <button
         onClick={() => onRemove(toast.id)}
         aria-label="Dismiss notification"
-        className="flex-shrink-0 mt-0.5 text-ink-muted hover:text-ink-secondary transition-colors"
+        className="shrink-0 mt-0.5 text-ink-muted hover:text-ink-secondary transition-colors"
       >
         <X size={13} />
       </button>
@@ -38,7 +38,7 @@ export default function ToastContainer() {
   const { toasts, removeToast } = useToast()
   return (
     <div
-      className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"
+      className="fixed bottom-5 right-5 z-100 flex flex-col gap-2 pointer-events-none"
       aria-label="Notifications"
     >
       {toasts.map(t => (

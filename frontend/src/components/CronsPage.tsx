@@ -378,14 +378,14 @@ export default function CronsPage() {
                 {isLoading && !isError ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
-                      <TD><div className="skeleton h-5 rounded w-32" /></TD>
-                      <TD><div className="skeleton h-5 rounded w-20" /></TD>
-                      <TD className="hidden-sm"><div className="skeleton h-5 rounded w-16" /></TD>
-                      <TD className="hidden-md"><div className="skeleton h-5 rounded w-24" /></TD>
-                      <TD className="hidden-md"><div className="skeleton h-5 rounded w-24" /></TD>
-                      <TD><div className="skeleton h-5 rounded w-16" /></TD>
-                      <TD><div className="skeleton h-5 rounded w-12 mx-auto" /></TD>
-                      <TD><div className="skeleton h-5 rounded w-20 ml-auto" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-32" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-20" /></TD>
+                      <TD className="hidden-sm"><div className="skeleton h-5 rounded-sm w-16" /></TD>
+                      <TD className="hidden-md"><div className="skeleton h-5 rounded-sm w-24" /></TD>
+                      <TD className="hidden-md"><div className="skeleton h-5 rounded-sm w-24" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-16" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-12 mx-auto" /></TD>
+                      <TD><div className="skeleton h-5 rounded-sm w-20 ml-auto" /></TD>
                     </tr>
                   ))
                 ) : (

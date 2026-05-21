@@ -11,29 +11,29 @@ const styles = {
     [--c-default:#1A1A28]
     [--c-default-dark:#252540]
     [-webkit-transform:translateZ(0)]
-    [transform:translateZ(0)]
+    transform-[translateZ(0)]
     [-webkit-backface-visibility:hidden]
-    [backface-visibility:hidden]
+    backface-hidden
     [-webkit-perspective:1000]
-    [perspective:1000]`,
+    perspective-[1000]`,
   input: `h-full w-full cursor-pointer appearance-none rounded-full
-    bg-[--c-default] outline-none transition-colors duration-500
-    hover:bg-[--c-default-dark]
+    bg-(--c-default) outline-hidden transition-colors duration-500
+    hover:bg-(--c-default-dark)
     [-webkit-transform:translate3d(0,0,0)]
-    [transform:translate3d(0,0,0)]
-    data-[checked=true]:bg-[--c-background]
+    transform-[translate3d(0,0,0)]
+    data-[checked=true]:bg-(--c-background)
     disabled:opacity-40 disabled:cursor-not-allowed`,
   svg: `pointer-events-none absolute inset-0 fill-white
     [-webkit-transform:translate3d(0,0,0)]
-    [transform:translate3d(0,0,0)]`,
+    transform-[translate3d(0,0,0)]`,
   circle: `transform-gpu transition-transform duration-500
     [-webkit-transform:translate3d(0,0,0)]
-    [transform:translate3d(0,0,0)]
+    transform-[translate3d(0,0,0)]
     [-webkit-backface-visibility:hidden]
-    [backface-visibility:hidden]`,
+    backface-hidden`,
   dropCircle: `transform-gpu transition-transform duration-700
     [-webkit-transform:translate3d(0,0,0)]
-    [transform:translate3d(0,0,0)]`,
+    transform-[translate3d(0,0,0)]`,
 }
 
 const variantStyles = {

@@ -111,7 +111,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                   </span>
                   <button
                     onClick={this.handleCopy}
-                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs text-[#8B8AB0] hover:text-[#00D4FF] hover:bg-[#00D4FF]/10 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-sm text-xs text-[#8B8AB0] hover:text-[#00D4FF] hover:bg-[#00D4FF]/10 transition-colors"
                     title="Copy trace details"
                   >
                     {this.state.copied ? (
