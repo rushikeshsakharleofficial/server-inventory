@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -20,22 +21,22 @@ class SettingValue(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=dict[str, str])
+@router.get("")
 def get_all_settings(
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> dict[str, str]:
     """Return all application settings as a flat {key: value} dict."""
     settings = db.query(models.AppSetting).order_by(models.AppSetting.key).all()
     return {s.key: (s.value or "") for s in settings}
 
 
-@router.put("/{key}", response_model=dict[str, str])
+@router.put("/{key}")
 def upsert_setting(
     key: str,
     body: SettingValue,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_admin)],
 ) -> dict[str, str]:
     """Create or update a single application setting by key."""
     setting = db.query(models.AppSetting).filter(models.AppSetting.key == key).first()

@@ -1,3 +1,4 @@
+from typing import Annotated
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
@@ -67,8 +68,8 @@ def list_databases(
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> list[models.DatabaseInstance]:
     q = db.query(models.DatabaseInstance)
     if provider:
@@ -87,8 +88,8 @@ def list_databases(
 def sync_databases(
     background_tasks: BackgroundTasks,
     provider: str | None = Query(None),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> dict[str, str]:
     background_tasks.add_task(_sync_databases, provider, DATABASE_URL)
     return {"status": "sync started"}

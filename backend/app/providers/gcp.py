@@ -1,6 +1,8 @@
 from typing import Any
 from .base import CloudProvider
 
+_GCP_CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
+
 STATUS_MAP = {
     "RUNNING": "running",
     "STOPPED": "stopped",
@@ -30,7 +32,7 @@ class GCPProvider(CloudProvider):
         if sa_info:
             credentials = service_account.Credentials.from_service_account_info(
                 sa_info,
-                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                scopes=[_GCP_CLOUD_PLATFORM_SCOPE],
             )
             client = compute_v1.InstancesClient(credentials=credentials)
         else:
@@ -88,7 +90,7 @@ class GCPProvider(CloudProvider):
             from google.auth.transport.requests import Request as GRequest
 
             creds = service_account.Credentials.from_service_account_info(
-                sa, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+                sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
             )
             creds.refresh(GRequest())
             token = creds.token
@@ -149,7 +151,7 @@ class GCPProvider(CloudProvider):
             from google.auth.transport.requests import Request as GRequest
 
             creds = service_account.Credentials.from_service_account_info(
-                sa, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+                sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
             )
             creds.refresh(GRequest())
             token = creds.token
@@ -206,7 +208,7 @@ class GCPProvider(CloudProvider):
                 sa_info = json.loads(sa_info)
             credentials = service_account.Credentials.from_service_account_info(
                 sa_info,
-                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                scopes=[_GCP_CLOUD_PLATFORM_SCOPE],
             )
             client = compute_v1.DisksClient(credentials=credentials)
         else:

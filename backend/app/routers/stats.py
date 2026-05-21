@@ -1,3 +1,4 @@
+from typing import Annotated
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -28,11 +29,11 @@ class SnapshotResponse(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("/history", response_model=list[SnapshotResponse])
+@router.get("/history")
 def get_snapshot_history(
     days: int = Query(default=30, ge=1, le=365),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> list[SnapshotResponse]:
     """Return the last N days of ServerSnapshot records ordered by date ascending."""
     snapshots = (
@@ -55,10 +56,10 @@ def get_snapshot_history(
     ]
 
 
-@router.post("/snapshot", response_model=SnapshotResponse)
+@router.post("/snapshot")
 def trigger_snapshot(
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> SnapshotResponse:
     """Manually compute and persist today's server snapshot."""
     result = take_snapshot(db)

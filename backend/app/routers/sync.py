@@ -11,6 +11,8 @@ from ..ws_manager import manager
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
+_SYNC_STOPPED_MSG = "Sync stopped by user"
+
 # Per-log cancellation events (process-local — single worker only)
 _stop_events: dict[int, threading.Event] = {}
 
@@ -49,7 +51,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
 
             try:
                 if stop_event.is_set():
-                    raise RuntimeError("Sync stopped by user")
+                    raise RuntimeError(_SYNC_STOPPED_MSG)
 
                 provider = get_provider(cred.provider, cred.config)
 
@@ -62,11 +64,11 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                         raise RuntimeError("Provider fetch timed out after 300 seconds")
 
                 if stop_event.is_set():
-                    raise RuntimeError("Sync stopped by user")
+                    raise RuntimeError(_SYNC_STOPPED_MSG)
 
                 for srv in srv_list:
                     if stop_event.is_set():
-                        raise RuntimeError("Sync stopped by user")
+                        raise RuntimeError(_SYNC_STOPPED_MSG)
 
                     cloud_id = srv.get("cloud_id")
                     existing = None

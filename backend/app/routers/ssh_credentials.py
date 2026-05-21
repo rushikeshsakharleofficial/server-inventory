@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
@@ -5,6 +6,8 @@ from ..database import get_db
 from ..auth import get_current_user, require_write
 
 router = APIRouter(prefix="/api/ssh-credentials", tags=["ssh-credentials"])
+
+_SSH_CRED_NOT_FOUND = "SSH credential not found"
 
 
 def _mask(cred: models.SSHCredential) -> schemas.SSHCredentialResponse:
@@ -27,20 +30,20 @@ def _mask(cred: models.SSHCredential) -> schemas.SSHCredentialResponse:
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=list[schemas.SSHCredentialResponse])
+@router.get("")
 def list_ssh_credentials(
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> list[schemas.SSHCredentialResponse]:
     creds = db.query(models.SSHCredential).order_by(models.SSHCredential.name).all()
     return [_mask(c) for c in creds]
 
 
-@router.post("", response_model=schemas.SSHCredentialResponse, status_code=201)
+@router.post("", status_code=201)
 def create_ssh_credential(
     payload: schemas.SSHCredentialCreate,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> schemas.SSHCredentialResponse:
     # If this one is being set as default, unset all others first
     if payload.is_default:
@@ -53,16 +56,16 @@ def create_ssh_credential(
     return _mask(cred)
 
 
-@router.put("/{cred_id}", response_model=schemas.SSHCredentialResponse)
+@router.put("/{cred_id}")
 def update_ssh_credential(
     cred_id: int,
     payload: schemas.SSHCredentialUpdate,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="SSH credential not found")
+        raise HTTPException(status_code=404, detail=_SSH_CRED_NOT_FOUND)
 
     updates = payload.model_dump(exclude_unset=True)
 
@@ -83,25 +86,25 @@ def update_ssh_credential(
 @router.delete("/{cred_id}", status_code=204)
 def delete_ssh_credential(
     cred_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> None:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="SSH credential not found")
+        raise HTTPException(status_code=404, detail=_SSH_CRED_NOT_FOUND)
     db.delete(cred)
     db.commit()
 
 
-@router.patch("/{cred_id}/set-default", response_model=schemas.SSHCredentialResponse)
+@router.patch("/{cred_id}/set-default")
 def set_default_ssh_credential(
     cred_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="SSH credential not found")
+        raise HTTPException(status_code=404, detail=_SSH_CRED_NOT_FOUND)
 
     # Unset all others, then set this one
     db.query(models.SSHCredential).update({"is_default": False})
