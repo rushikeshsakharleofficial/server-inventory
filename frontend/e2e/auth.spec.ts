@@ -20,10 +20,10 @@ test.describe('Auth — Login', () => {
     await expect(login.errorMessage).toBeVisible()
   })
 
-  test('empty username → error visible', async ({ page }) => {
+  test('wrong username → error visible', async ({ page }) => {
     const login = new LoginPage(page)
     await login.goto()
-    await login.login('', 'Admin@1234')
+    await login.login('nonexistent_user_xyz', 'Admin@1234')
     await expect(login.errorMessage).toBeVisible()
   })
 

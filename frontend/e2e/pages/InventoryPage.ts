@@ -28,5 +28,5 @@ export class KubernetesPage extends InventoryPage {
 }
 
 export class BlockStoragePage extends InventoryPage {
-  constructor(page: Page) { super(page, '/inventory/block-storages') }
+  constructor(page: Page) { super(page, '/inventory/block-storage') }
 }
