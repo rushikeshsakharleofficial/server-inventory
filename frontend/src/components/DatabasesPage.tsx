@@ -105,7 +105,7 @@ export default function DatabasesPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">Databases</Heading>
+          <Heading as="h1">Databases</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             Managed database instances across all cloud providers.
           </Text>

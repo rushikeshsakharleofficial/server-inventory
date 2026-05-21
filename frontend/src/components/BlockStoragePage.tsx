@@ -328,7 +328,7 @@ export default function BlockStoragePage() {
       {/* Header */}
       <Flex justify="between" align="center" wrap="true" gap={3}>
         <div>
-          <Heading level="h1">Block Storage</Heading>
+          <Heading as="h1">Block Storage</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             Multi-cloud block volumes and storage discs mapping.
           </Text>

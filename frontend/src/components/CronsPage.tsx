@@ -188,7 +188,7 @@ export default function CronsPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">Cron Jobs</Heading>
+          <Heading as="h1">Cron Jobs</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             {crons.length === 0 ? 'No scheduled syncs' : `${crons.length} cron job${crons.length !== 1 ? 's' : ''}`} (
             {crons.filter(c => c.is_active).length} active · runs are logged in Sync Logs)

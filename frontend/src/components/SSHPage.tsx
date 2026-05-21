@@ -164,7 +164,7 @@ export default function SSHPage() {
       {/* Page header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">SSH Credentials</Heading>
+          <Heading as="h1">SSH Credentials</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             Shared credentials for Custom DC server SSH access
           </Text>

@@ -117,7 +117,7 @@ export default function UsersPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">User Management</Heading>
+          <Heading as="h1">User Management</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             Configure infrastructure access policies and team member roles.
           </Text>

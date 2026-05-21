@@ -180,7 +180,7 @@ export default function ProvidersPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">Cloud Credentials</Heading>
+          <Heading as="h1">Cloud Credentials</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             {creds.length === 0 ? 'No credentials configured' : `${creds.length} credential${creds.length !== 1 ? 's' : ''}`} (
             {creds.filter(c => c.is_active).length} active · {creds.filter(c => !c.is_active).length} disabled)
