@@ -1,27 +1,34 @@
 """
 Shared stats utility — no FastAPI router, just pure functions.
 """
+from __future__ import annotations
+
+from datetime import date
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 
-def take_snapshot(db) -> dict:
-    """Compute current stats from Server table and upsert today's ServerSnapshot. Returns snapshot data."""
-    from datetime import date
+def take_snapshot(db: Session) -> dict[str, object]:
+    """Aggregate Server table stats with SQL and upsert today's ServerSnapshot."""
     from . import models
 
-    servers = db.query(models.Server).all()
     today = date.today().isoformat()
-    by_provider: dict = {}
-    by_status: dict = {}
 
-    for s in servers:
-        by_provider[s.provider] = by_provider.get(s.provider, 0) + 1
-        by_status[s.status] = by_status.get(s.status, 0) + 1
+    total: int = db.query(func.count(models.Server.id)).scalar() or 0
+    by_status: dict[str, int] = dict(
+        db.query(models.Server.status, func.count(models.Server.id))
+        .group_by(models.Server.status)
+        .all()
+    )
+    by_provider: dict[str, int] = dict(
+        db.query(models.Server.provider, func.count(models.Server.id))
+        .group_by(models.Server.provider)
+        .all()
+    )
 
-    total = len(servers)
     running = by_status.get("running", 0)
     stopped = by_status.get("stopped", 0)
 
-    # Upsert today's snapshot
     snap = db.query(models.ServerSnapshot).filter(models.ServerSnapshot.date == today).first()
     if snap:
         snap.total = total

@@ -10,7 +10,13 @@ DATABASE_URL = os.getenv(
     "postgresql://inventory:inventory@localhost:5432/server_inventory",
 )
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=10, max_overflow=20)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=1800,  # recycle connections after 30 min to avoid stale idle connections
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

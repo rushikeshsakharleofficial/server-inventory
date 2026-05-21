@@ -23,7 +23,8 @@ Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    manager.set_loop(asyncio.get_event_loop())
+    manager.set_loop(asyncio.get_running_loop())
+    _apply_db_optimizations()
     _seed_admin()
     _cleanup_stale_syncs()
     _seed_default_settings()
@@ -53,6 +54,35 @@ app.include_router(crons_router)
 app.include_router(databases_router)
 app.include_router(kubernetes_router)
 app.include_router(resource_map_router)
+
+
+def _apply_db_optimizations() -> None:
+    """
+    Idempotent: enable pg_trgm and create GIN + composite indexes for
+    the search and filter query patterns. Uses AUTOCOMMIT because
+    CREATE INDEX CONCURRENTLY cannot run inside a transaction.
+    """
+    from sqlalchemy import text
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        # Trigram indexes for ILIKE search on name / IPs / hostname
+        conn.execute(text(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_name_trgm "
+            "ON servers USING GIN (name gin_trgm_ops)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_public_ip_trgm "
+            "ON servers USING GIN (public_ip gin_trgm_ops)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_hostname_trgm "
+            "ON servers USING GIN (hostname gin_trgm_ops)"
+        ))
+        # Composite index for filtered server list (provider + status)
+        conn.execute(text(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_servers_provider_status "
+            "ON servers (provider, status)"
+        ))
 
 
 def _cleanup_stale_syncs() -> None:

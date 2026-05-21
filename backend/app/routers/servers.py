@@ -3,6 +3,7 @@ import asyncio
 import os
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from .. import models, schemas
@@ -50,19 +51,25 @@ def get_stats(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
 ):
-    servers = db.query(models.Server).all()
-    by_provider: dict = {}
-    by_region: dict = {}
-    by_status: dict = {}
-
-    for s in servers:
-        by_provider[s.provider] = by_provider.get(s.provider, 0) + 1
-        if s.region:
-            by_region[s.region] = by_region.get(s.region, 0) + 1
-        by_status[s.status] = by_status.get(s.status, 0) + 1
-
+    total: int = db.query(func.count(models.Server.id)).scalar() or 0
+    by_provider: dict[str, int] = dict(
+        db.query(models.Server.provider, func.count(models.Server.id))
+        .group_by(models.Server.provider)
+        .all()
+    )
+    by_region: dict[str, int] = dict(
+        db.query(models.Server.region, func.count(models.Server.id))
+        .filter(models.Server.region.isnot(None))
+        .group_by(models.Server.region)
+        .all()
+    )
+    by_status: dict[str, int] = dict(
+        db.query(models.Server.status, func.count(models.Server.id))
+        .group_by(models.Server.status)
+        .all()
+    )
     return schemas.StatsResponse(
-        total=len(servers),
+        total=total,
         running=by_status.get("running", 0),
         stopped=by_status.get("stopped", 0),
         by_provider=by_provider,
@@ -226,7 +233,7 @@ async def ssh_sync_server(
             client.close()
             return None, str(e)
 
-    ssh_info, err = await asyncio.get_event_loop().run_in_executor(None, _do_ssh)
+    ssh_info, err = await asyncio.get_running_loop().run_in_executor(None, _do_ssh)
     if err and not ssh_info:
         raise HTTPException(status_code=502, detail=f"SSH connection failed: {err}")
 
