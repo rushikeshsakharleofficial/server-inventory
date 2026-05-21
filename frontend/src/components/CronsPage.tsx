@@ -24,7 +24,7 @@ import {
   THead,
   TBody,
   TH,
-  TD,
+  TD as Td,
 } from './StitchUI'
 
 const PROVIDERS = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh', 'custom_dc']
@@ -188,7 +188,7 @@ export default function CronsPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">Cron Jobs</Heading>
+          <Heading as="h1">Cron Jobs</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             {crons.length === 0 ? 'No scheduled syncs' : `${crons.length} cron job${crons.length !== 1 ? 's' : ''}`} (
             {crons.filter(c => c.is_active).length} active · runs are logged in Sync Logs)
@@ -378,21 +378,21 @@ export default function CronsPage() {
                 {isLoading && !isError ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
-                      <TD><div className="skeleton h-5 rounded-sm w-32" /></TD>
-                      <TD><div className="skeleton h-5 rounded-sm w-20" /></TD>
-                      <TD className="hidden-sm"><div className="skeleton h-5 rounded-sm w-16" /></TD>
-                      <TD className="hidden-md"><div className="skeleton h-5 rounded-sm w-24" /></TD>
-                      <TD className="hidden-md"><div className="skeleton h-5 rounded-sm w-24" /></TD>
-                      <TD><div className="skeleton h-5 rounded-sm w-16" /></TD>
-                      <TD><div className="skeleton h-5 rounded-sm w-12 mx-auto" /></TD>
-                      <TD><div className="skeleton h-5 rounded-sm w-20 ml-auto" /></TD>
+                      <Td><div className="skeleton h-5 rounded-sm w-32" /></Td>
+                      <Td><div className="skeleton h-5 rounded-sm w-20" /></Td>
+                      <Td className="hidden-sm"><div className="skeleton h-5 rounded-sm w-16" /></Td>
+                      <Td className="hidden-md"><div className="skeleton h-5 rounded-sm w-24" /></Td>
+                      <Td className="hidden-md"><div className="skeleton h-5 rounded-sm w-24" /></Td>
+                      <Td><div className="skeleton h-5 rounded-sm w-16" /></Td>
+                      <Td><div className="skeleton h-5 rounded-sm w-12 mx-auto" /></Td>
+                      <Td><div className="skeleton h-5 rounded-sm w-20 ml-auto" /></Td>
                     </tr>
                   ))
                 ) : (
                   crons.map(job => (
                     <tr key={job.id} style={{ opacity: job.is_active ? 1 : 0.55 }}>
                       {/* Name */}
-                      <TD>
+                      <Td>
                         <button
                           onClick={() => openEdit(job)}
                           style={{
@@ -406,10 +406,10 @@ export default function CronsPage() {
                         >
                           <Text style={{ fontWeight: 700, color: 'var(--tx1)' }}>{job.name}</Text>
                         </button>
-                      </TD>
+                      </Td>
 
                       {/* Schedule */}
-                      <TD>
+                      <Td>
                         <span
                           style={{
                             fontFamily: 'monospace',
@@ -423,36 +423,36 @@ export default function CronsPage() {
                         >
                           {job.cron_expr}
                         </span>
-                      </TD>
+                      </Td>
 
                       {/* Provider */}
-                      <TD className="hidden-sm">
+                      <Td className="hidden-sm">
                         {job.provider ? (
                           <ProviderBadge provider={job.provider} />
                         ) : (
                           <Text variant="smallMuted" style={{ fontStyle: 'italic' }}>All providers</Text>
                         )}
-                      </TD>
+                      </Td>
 
                       {/* Last run */}
-                      <TD className="hidden-md">
+                      <Td className="hidden-md">
                         <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{fmt(job.last_run_at)}</Text>
-                      </TD>
+                      </Td>
 
                       {/* Next run */}
-                      <TD className="hidden-md">
+                      <Td className="hidden-md">
                         <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
                           {job.is_active ? fmt(job.next_run_at) : '—'}
                         </Text>
-                      </TD>
+                      </Td>
 
                       {/* Status */}
-                      <TD>
+                      <Td>
                         <StatusChip status={job.last_run_status ?? undefined} />
-                      </TD>
+                      </Td>
 
                       {/* Active toggle */}
-                      <TD style={{ textAlign: 'center' }}>
+                      <Td style={{ textAlign: 'center' }}>
                         <Flex justify="center">
                           <Toggle
                             checked={job.is_active}
@@ -460,10 +460,10 @@ export default function CronsPage() {
                             disabled={toggleMutation.isPending}
                           />
                         </Flex>
-                      </TD>
+                      </Td>
 
                       {/* Actions */}
-                      <TD>
+                      <Td>
                         <Flex align="center" justify="end" gap={2}>
                           <Button
                             size="sm"
@@ -508,7 +508,7 @@ export default function CronsPage() {
                             </Button>
                           )}
                         </Flex>
-                      </TD>
+                      </Td>
                     </tr>
                   ))
                 )}

@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -8,6 +9,8 @@ from .. import scheduler as sched_module
 
 router = APIRouter(prefix="/api/crons", tags=["crons"])
 
+_CRON_NOT_FOUND = "Cron job not found"
+
 
 def _validate_cron(expr: str) -> None:
     from croniter import croniter
@@ -17,8 +20,8 @@ def _validate_cron(expr: str) -> None:
 
 @router.get("", response_model=list[schemas.CronJobResponse])
 def list_crons(
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> list[models.CronJob]:
     return db.query(models.CronJob).order_by(models.CronJob.name).all()
 
@@ -26,8 +29,8 @@ def list_crons(
 @router.post("", response_model=schemas.CronJobResponse, status_code=201)
 def create_cron(
     payload: schemas.CronJobCreate,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> models.CronJob:
     _validate_cron(payload.cron_expr)
     job = models.CronJob(**payload.model_dump())
@@ -51,12 +54,12 @@ def create_cron(
 def update_cron(
     job_id: int,
     payload: schemas.CronJobUpdate,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Cron job not found")
+        raise HTTPException(status_code=404, detail=_CRON_NOT_FOUND)
 
     updates = payload.model_dump(exclude_unset=True)
     if "cron_expr" in updates:
@@ -79,12 +82,12 @@ def update_cron(
 @router.delete("/{job_id}", status_code=204)
 def delete_cron(
     job_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> None:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Cron job not found")
+        raise HTTPException(status_code=404, detail=_CRON_NOT_FOUND)
     sched_module.remove_job(job_id)
     db.delete(job)
     db.commit()
@@ -93,12 +96,12 @@ def delete_cron(
 @router.patch("/{job_id}/toggle", response_model=schemas.CronJobResponse)
 def toggle_cron(
     job_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Cron job not found")
+        raise HTTPException(status_code=404, detail=_CRON_NOT_FOUND)
     job.is_active = not job.is_active
     if job.is_active:
         nxt = sched_module._next_fire(job.cron_expr)
@@ -115,8 +118,8 @@ def toggle_cron(
 @router.post("/{job_id}/run-now", response_model=schemas.CronJobResponse)
 def run_cron_now(
     job_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> models.CronJob:
     """Trigger a cron job immediately, outside its schedule."""
     from fastapi.concurrency import run_in_threadpool
@@ -124,7 +127,7 @@ def run_cron_now(
 
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Cron job not found")
+        raise HTTPException(status_code=404, detail=_CRON_NOT_FOUND)
 
     # Run sync in background thread via APScheduler's executor
     import threading

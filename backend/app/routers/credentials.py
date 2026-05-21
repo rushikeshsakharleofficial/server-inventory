@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
@@ -26,8 +27,8 @@ def _mask_config(config: dict) -> dict:
 
 @router.get("", response_model=list[schemas.CredentialResponse])
 def list_credentials(
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> list[dict]:
     creds = db.query(models.Credential).order_by(models.Credential.created_at.desc()).all()
     return [
@@ -46,8 +47,8 @@ def list_credentials(
 @router.post("", response_model=schemas.CredentialResponse, status_code=201)
 def create_credential(
     cred: schemas.CredentialCreate,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> dict:
     db_cred = models.Credential(**cred.model_dump())
     db.add(db_cred)
@@ -66,8 +67,8 @@ def create_credential(
 @router.delete("/{cred_id}", status_code=204)
 def delete_credential(
     cred_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_admin)],
 ) -> None:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
@@ -79,8 +80,8 @@ def delete_credential(
 @router.patch("/{cred_id}/toggle", response_model=schemas.CredentialResponse)
 def toggle_credential(
     cred_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> dict:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:

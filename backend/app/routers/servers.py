@@ -1,6 +1,7 @@
 import io
 import asyncio
 import os
+from typing import Annotated
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -10,6 +11,8 @@ from ..database import get_db
 from ..auth import get_current_user, require_write
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
+
+_SERVER_NOT_FOUND = "Server not found"
 
 
 def _escape_like(value: str) -> str:
@@ -23,11 +26,11 @@ def _escape_like(value: str) -> str:
 
 @router.get("", response_model=list[schemas.ServerResponse])
 def list_servers(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
 ) -> list[models.Server]:
     q = db.query(models.Server)
     if provider:
@@ -45,10 +48,10 @@ def list_servers(
     return q.order_by(models.Server.name).all()
 
 
-@router.get("/stats", response_model=schemas.StatsResponse)
+@router.get("/stats")
 def get_stats(
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> schemas.StatsResponse:
     total: int = db.query(func.count(models.Server.id)).scalar() or 0
     by_provider: dict[str, int] = dict(
@@ -80,20 +83,20 @@ def get_stats(
 @router.get("/{server_id}", response_model=schemas.ServerResponse)
 def get_server(
     server_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
 ) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
     return server
 
 
 @router.post("", response_model=schemas.ServerResponse, status_code=201)
 def create_server(
     server: schemas.ServerCreate,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> models.Server:
     db_server = models.Server(**server.model_dump())
     db.add(db_server)
@@ -106,12 +109,12 @@ def create_server(
 def update_server(
     server_id: int,
     update: schemas.ServerUpdate,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
     for field, value in update.model_dump(exclude_unset=True).items():
         setattr(server, field, value)
     db.commit()
@@ -122,14 +125,14 @@ def update_server(
 @router.post("/{server_id}/ssh-sync", response_model=schemas.ServerResponse)
 async def ssh_sync_server(
     server_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
     ssh_credential_id: int = Query(...),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
 ):
     """Connect via SSH and gather live data from a Custom DC server."""
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
 
     host = server.public_ip or server.private_ip
     if not host:
@@ -257,11 +260,11 @@ async def ssh_sync_server(
 @router.delete("/{server_id}", status_code=204)
 def delete_server(
     server_id: int,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
 ) -> None:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
     db.delete(server)
     db.commit()

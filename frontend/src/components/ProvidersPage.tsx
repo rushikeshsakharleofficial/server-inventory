@@ -23,7 +23,7 @@ import {
   THead,
   TBody,
   TH,
-  TD,
+  TD as Td,
 } from './StitchUI'
 
 interface FieldDef {
@@ -180,7 +180,7 @@ export default function ProvidersPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">Cloud Credentials</Heading>
+          <Heading as="h1">Cloud Credentials</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             {creds.length === 0 ? 'No credentials configured' : `${creds.length} credential${creds.length !== 1 ? 's' : ''}`} (
             {creds.filter(c => c.is_active).length} active · {creds.filter(c => !c.is_active).length} disabled)
@@ -365,12 +365,12 @@ export default function ProvidersPage() {
                 {isLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
-                      <TD />
-                      <TD><div className="skeleton h-5 rounded-sm w-20" /></TD>
-                      <TD><div className="skeleton h-5 rounded-sm w-32" /></TD>
-                      <TD className="hidden-sm"><div className="skeleton h-4 rounded-sm w-48" /></TD>
-                      <TD><div className="skeleton h-5 rounded-sm w-16 mx-auto" /></TD>
-                      <TD><div className="skeleton h-5 rounded-sm w-24 ml-auto" /></TD>
+                      <Td />
+                      <Td><div className="skeleton h-5 rounded-sm w-20" /></Td>
+                      <Td><div className="skeleton h-5 rounded-sm w-32" /></Td>
+                      <Td className="hidden-sm"><div className="skeleton h-4 rounded-sm w-48" /></Td>
+                      <Td><div className="skeleton h-5 rounded-sm w-16 mx-auto" /></Td>
+                      <Td><div className="skeleton h-5 rounded-sm w-24 ml-auto" /></Td>
                     </tr>
                   ))
                 ) : (
@@ -389,12 +389,12 @@ export default function ProvidersPage() {
                               onClick={() => setExpanded(expanded === cred.id ? null : cred.id)}
                             >
                               {/* Toggle expand */}
-                              <TD style={{ width: '32px', color: 'var(--tx3)' }}>
+                              <Td style={{ width: '32px', color: 'var(--tx3)' }}>
                                 {expanded === cred.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                              </TD>
+                              </Td>
 
                               {/* Provider */}
-                              <TD style={{ width: '150px' }}>
+                              <Td style={{ width: '150px' }}>
                                 <Flex align="center" gap={2}>
                                   <div
                                     style={{
@@ -413,22 +413,22 @@ export default function ProvidersPage() {
                                   </div>
                                   <ProviderBadge provider={cred.provider} />
                                 </Flex>
-                              </TD>
+                              </Td>
 
                               {/* Name */}
-                              <TD style={{ width: '180px' }}>
+                              <Td style={{ width: '180px' }}>
                                 <Text style={{ fontWeight: 700 }}>{cred.name}</Text>
-                              </TD>
+                              </Td>
 
                               {/* Description */}
-                              <TD className="hidden-sm">
+                              <Td className="hidden-sm">
                                 <Text variant="smallMuted">
                                   {PROVIDER_DESC[cred.provider] ?? cred.provider}
                                 </Text>
-                              </TD>
+                              </Td>
 
                               {/* Status Toggle */}
-                              <TD style={{ width: '120px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                              <Td style={{ width: '120px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                                 <Flex align="center" justify="center" gap={2}>
                                   <Toggle
                                     checked={cred.is_active}
@@ -439,10 +439,10 @@ export default function ProvidersPage() {
                                     {cred.is_active ? 'Active' : 'Off'}
                                   </Badge>
                                 </Flex>
-                              </TD>
+                              </Td>
 
                               {/* Actions */}
-                              <TD style={{ width: '180px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                              <Td style={{ width: '180px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                                 <Flex align="center" justify="end" gap={2}>
                                   <Button
                                     size="sm"
@@ -486,14 +486,14 @@ export default function ProvidersPage() {
                                     </Button>
                                   )}
                                 </Flex>
-                              </TD>
+                              </Td>
                             </tr>
 
                             {/* Config Detail Expanded */}
                             {expanded === cred.id && (
                               <tr style={{ backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                                <TD />
-                                <TD colSpan={5} style={{ padding: '0 16px 16px 16px' }}>
+                                <Td />
+                                <Td colSpan={5} style={{ padding: '0 16px 16px 16px' }}>
                                   <div
                                     style={{
                                       backgroundColor: 'var(--bg-s2)',
@@ -525,7 +525,7 @@ export default function ProvidersPage() {
                                       </span>
                                     )}
                                   </div>
-                                </TD>
+                                </Td>
                               </tr>
                             )}
                           </tbody>

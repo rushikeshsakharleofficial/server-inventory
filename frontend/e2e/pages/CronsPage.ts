@@ -11,7 +11,7 @@ export class CronsPage {
     this.addButton = page.getByRole('button', { name: /add|new cron/i })
     this.rows = page.getByRole('row').filter({ hasNot: page.getByRole('columnheader') })
     this.nameInput = page.getByLabel(/name/i)
-    this.scheduleInput = page.getByLabel(/schedule|cron expression/i)
+    this.scheduleInput = page.getByLabel(/schedule|cron expression|cron_expr/i)
     this.saveButton = page.getByRole('button', { name: /save|create/i })
   }
 

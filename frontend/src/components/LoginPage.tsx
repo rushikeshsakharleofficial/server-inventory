@@ -147,8 +147,10 @@ export default function LoginPage() {
                     : 'bg-surface-2 border-border group-hover:border-border-strong'
                 }`}
                 role="checkbox"
+                tabIndex={0}
                 aria-checked={rememberMe}
                 onClick={() => setRememberMe(r => !r)}
+                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setRememberMe(r => !r) }}
               >
                 {rememberMe && (
                   <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">

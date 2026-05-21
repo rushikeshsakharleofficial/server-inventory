@@ -1,3 +1,4 @@
+from typing import Annotated
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
@@ -64,11 +65,11 @@ def _sync_block_storages(provider_name: str | None, db_url: str) -> None:
 
 @router.get("", response_model=list[schemas.BlockStorageResponse])
 def list_block_storages(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
 ) -> list[models.BlockStorage]:
     q = db.query(models.BlockStorage)
     if provider:
@@ -86,9 +87,9 @@ def list_block_storages(
 @router.post("/sync")
 def sync_block_storages(
     background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
     provider: str | None = Query(None),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
 ) -> dict[str, str]:
     background_tasks.add_task(_sync_block_storages, provider, DATABASE_URL)
     return {"status": "sync started"}

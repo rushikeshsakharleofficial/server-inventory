@@ -429,7 +429,7 @@ export default function Layout({
             >
               {open ? <X size={17} /> : <Menu size={17} />}
             </button>
-            <Heading level="h3" style={{ fontSize: '15px', color: 'var(--tx1)' }}>
+            <Heading as="h1" style={{ fontSize: '15px', color: 'var(--tx1)' }}>
               {VIEW_TITLE[currentView]}
             </Heading>
           </Flex>

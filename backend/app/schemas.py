@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Any
+from typing import Any, Literal
 from datetime import datetime
 
 
@@ -87,7 +87,7 @@ class SyncLogResponse(BaseModel):
 class UserCreate(BaseModel):
     username: str
     password: str
-    role: str = "read"  # read | write
+    role: Literal["read", "write"] = "read"
 
 
 class UserResponse(BaseModel):

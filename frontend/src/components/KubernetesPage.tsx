@@ -72,7 +72,7 @@ export default function KubernetesPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading level="h1">Kubernetes</Heading>
+          <Heading as="h1">Kubernetes</Heading>
           <Text variant="muted" style={{ marginTop: '4px' }}>
             Managed cluster fleet across EKS, GKE, AKS, DOKS and LKE.
           </Text>

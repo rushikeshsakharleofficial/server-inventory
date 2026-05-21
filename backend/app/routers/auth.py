@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -8,11 +9,11 @@ from ..auth import verify_password, hash_password, create_access_token, get_curr
 router = APIRouter(tags=["auth & users"])
 
 
-@router.post("/api/auth/login", response_model=schemas.TokenResponse)
+@router.post("/api/auth/login")
 def login(
-    form: OAuth2PasswordRequestForm = Depends(),
+    form: Annotated[OAuth2PasswordRequestForm, Depends()],
     remember_me: bool | None = Form(default=False),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> schemas.TokenResponse:
     user = db.query(models.User).filter(models.User.username == form.username).first()
     if not user or not verify_password(form.password, user.hashed_password):
@@ -35,14 +36,14 @@ def login(
 
 
 @router.get("/api/auth/me", response_model=schemas.UserResponse)
-def me(current_user: models.User = Depends(get_current_user)) -> models.User:
+def me(current_user: Annotated[models.User, Depends(get_current_user)]) -> models.User:
     return current_user
 
 
 @router.get("/api/users", response_model=list[schemas.UserResponse])
 def list_users(
-    _: models.User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    _: Annotated[models.User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> list[models.User]:
     return db.query(models.User).order_by(models.User.created_at).all()
 
@@ -50,8 +51,8 @@ def list_users(
 @router.post("/api/users", response_model=schemas.UserResponse, status_code=201)
 def create_user(
     payload: schemas.UserCreate,
-    _: models.User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    _: Annotated[models.User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -69,8 +70,8 @@ def create_user(
 @router.delete("/api/users/{user_id}", status_code=204)
 def delete_user(
     user_id: int,
-    _: models.User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    _: Annotated[models.User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> None:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -84,8 +85,8 @@ def delete_user(
 @router.patch("/api/users/{user_id}/toggle", response_model=schemas.UserResponse)
 def toggle_user(
     user_id: int,
-    _: models.User = Depends(require_admin),
-    db: Session = Depends(get_db),
+    _: Annotated[models.User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -9,6 +9,11 @@ from ..database import get_db
 from ..providers import get_provider
 
 router = APIRouter(prefix="/api/resource-map", tags=["resource-map"])
+
+_IN_VPC = "in VPC"
+_READ_REPLICA = "read replica"
+_SERVICE_ACCOUNT = "service account"
+_NODE_POOL = "node pool"
 
 
 def _get_cred_for_provider(db: Session, provider: str) -> models.Credential | None:
@@ -68,7 +73,7 @@ def _aws_server_map(server: models.Server, config: dict) -> dict:
             vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
             vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
             nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
-            edges.append(_edge(root_id, vpc_id, "in VPC"))
+            edges.append(_edge(root_id, vpc_id, _IN_VPC))
         except Exception:
             pass
 
@@ -260,7 +265,7 @@ def _aws_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
             vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
             vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
             nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
-            edges.append(_edge(root_id, vpc_id, "in VPC"))
+            edges.append(_edge(root_id, vpc_id, _IN_VPC))
         except Exception:
             pass
 
@@ -298,7 +303,7 @@ def _aws_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
 
     for replica_id in inst.get("ReadReplicaDBInstanceIdentifiers", []):
         nodes.append(_node(f"replica-{replica_id}", "read_replica", "compute", replica_id, {}))
-        edges.append(_edge(root_id, f"replica-{replica_id}", "read replica"))
+        edges.append(_edge(root_id, f"replica-{replica_id}", _READ_REPLICA))
 
     return {"nodes": nodes, "edges": edges}
 
@@ -333,7 +338,7 @@ def _aws_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict
             vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
             vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
             nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
-            edges.append(_edge(root_id, vpc_id, "in VPC"))
+            edges.append(_edge(root_id, vpc_id, _IN_VPC))
         except Exception:
             pass
 
@@ -471,7 +476,7 @@ def _gcp_server_map(server: models.Server, config: dict) -> dict:
                 for sa_entry in inst.get("serviceAccounts", []):
                     sa_email = sa_entry.get("email", "")
                     nodes.append(_node(sa_email, "service_account", "iam", sa_email, {"scopes": sa_entry.get("scopes", [])}))
-                    edges.append(_edge(root_id, sa_email, "service account"))
+                    edges.append(_edge(root_id, sa_email, _SERVICE_ACCOUNT))
 
                 # Tags (used for firewall rules)
                 tags_list = inst.get("tags", {}).get("items", [])
@@ -542,13 +547,13 @@ def _gcp_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict
                 "count": pool.get("initialNodeCount"),
                 "status": pool.get("status"),
             }))
-            edges.append(_edge(root_id, f"pool-{pool_name}", "node pool"))
+            edges.append(_edge(root_id, f"pool-{pool_name}", _NODE_POOL))
 
         # Service account
         sa = c.get("nodeConfig", {}).get("serviceAccount")
         if sa:
             nodes.append(_node(sa, "service_account", "iam", sa, {}))
-            edges.append(_edge(root_id, sa, "service account"))
+            edges.append(_edge(root_id, sa, _SERVICE_ACCOUNT))
 
         # Workload identity
         wi = c.get("workloadIdentityConfig", {}).get("workloadPool")
@@ -763,7 +768,7 @@ def _do_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
         for replica in db.get("read_only_replicas", []):
             r_name = replica.get("name", "replica")
             nodes.append(_node(f"replica-{r_name}", "read_replica", "compute", r_name, {"region": replica.get("region")}))
-            edges.append(_edge(root_id, f"replica-{r_name}", "read replica"))
+            edges.append(_edge(root_id, f"replica-{r_name}", _READ_REPLICA))
 
         # Tags
         for tag in db.get("tags", []):
@@ -804,7 +809,7 @@ def _do_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict:
             nodes.append(_node(f"pool-{pool_id}", "node_pool", "compute", pool.get("name", pool_id), {
                 "size": pool.get("size"), "count": pool.get("count"), "auto_scale": pool.get("auto_scale")
             }))
-            edges.append(_edge(root_id, f"pool-{pool_id}", "node pool"))
+            edges.append(_edge(root_id, f"pool-{pool_id}", _NODE_POOL))
 
         # Maintenance policy
         maint = c.get("maintenance_policy")
@@ -947,7 +952,7 @@ def _gcp_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
         # Read replicas
         for replica_name in inst.get("replicaNames", []):
             nodes.append(_node(f"replica-{replica_name}", "read_replica", "compute", replica_name, {}))
-            edges.append(_edge(root_id, f"replica-{replica_name}", "read replica"))
+            edges.append(_edge(root_id, f"replica-{replica_name}", _READ_REPLICA))
 
         # Database flags
         flags = settings.get("databaseFlags", [])
@@ -960,7 +965,7 @@ def _gcp_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
         sa_email = inst.get("serviceAccountEmailAddress")
         if sa_email:
             nodes.append(_node(sa_email, "service_account", "iam", sa_email, {}))
-            edges.append(_edge(root_id, sa_email, "service account"))
+            edges.append(_edge(root_id, sa_email, _SERVICE_ACCOUNT))
 
     except Exception:
         pass
@@ -1065,7 +1070,7 @@ def _azure_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
                 for rep in rep_resp.json().get("value", []):
                     nodes.append(_node(rep["id"], "read_replica", "compute", rep["name"],
                                        {"location": rep.get("location"), "fqdn": rep.get("properties", {}).get("fullyQualifiedDomainName")}))
-                    edges.append(_edge(root_id, rep["id"], "read replica"))
+                    edges.append(_edge(root_id, rep["id"], _READ_REPLICA))
         except Exception:
             pass
 
@@ -1103,7 +1108,7 @@ def _azure_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> di
                 "min": pool.get("minCount"), "max": pool.get("maxCount"),
                 "auto_scale": pool.get("enableAutoScaling"),
             }))
-            edges.append(_edge(root_id, f"pool-{pool_name}", "node pool"))
+            edges.append(_edge(root_id, f"pool-{pool_name}", _NODE_POOL))
 
             # Subnet from pool
             subnet_id = pool.get("vnetSubnetID", "")
@@ -1266,7 +1271,7 @@ def _linode_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> d
                                    {"type": pool.get("type"), "count": pool.get("count"),
                                     "disk_encryption": pool.get("disk_encryption"),
                                     "nodes": len(nodes_list)}))
-                edges.append(_edge(root_id, str(pool_id), "node pool"))
+                edges.append(_edge(root_id, str(pool_id), _NODE_POOL))
 
                 # Per-node info
                 for n in nodes_list[:3]:
@@ -1475,7 +1480,7 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/server/{server_id}")
-def server_resource_map(server_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(404, "Server not found")
@@ -1486,7 +1491,7 @@ def server_resource_map(server_id: int, db: Session = Depends(get_db), _=Depends
 
 
 @router.get("/database/{db_id}")
-def database_resource_map(db_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
     db_inst = db.query(models.DatabaseInstance).filter(models.DatabaseInstance.id == db_id).first()
     if not db_inst:
         raise HTTPException(404, "Database not found")
@@ -1497,7 +1502,7 @@ def database_resource_map(db_id: int, db: Session = Depends(get_db), _=Depends(g
 
 
 @router.get("/kubernetes/{cluster_id}")
-def kubernetes_resource_map(cluster_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
     cluster = db.query(models.KubernetesCluster).filter(models.KubernetesCluster.id == cluster_id).first()
     if not cluster:
         raise HTTPException(404, "Cluster not found")

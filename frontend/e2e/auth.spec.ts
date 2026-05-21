@@ -4,11 +4,13 @@ import { LoginPage } from './pages/LoginPage'
 const BACKEND = process.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 
 test.describe('Auth — Login', () => {
-  test('valid credentials → dashboard', async ({ page }) => {
+  test('successful login redirects to app', async ({ page }) => {
     const login = new LoginPage(page)
     await login.goto()
     await login.login('admin', 'Admin@1234')
-    await expect(page.locator('header h1')).toHaveText('Dashboard')
+    // App redirects to inventory/servers after login
+    await expect(page.locator('header h1')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('aside')).toBeVisible()
   })
 
   test('wrong password → error visible', async ({ page }) => {
@@ -18,10 +20,10 @@ test.describe('Auth — Login', () => {
     await expect(login.errorMessage).toBeVisible()
   })
 
-  test('empty username → error visible', async ({ page }) => {
+  test('wrong username → error visible', async ({ page }) => {
     const login = new LoginPage(page)
     await login.goto()
-    await login.login('', 'Admin@1234')
+    await login.login('nonexistent_user_xyz', 'Admin@1234')
     await expect(login.errorMessage).toBeVisible()
   })
 

@@ -1,5 +1,6 @@
 import threading
 import concurrent.futures
+from typing import Annotated
 from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -10,6 +11,8 @@ from ..auth import get_current_user, require_write
 from ..ws_manager import manager
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
+
+_SYNC_STOPPED_MSG = "Sync stopped by user"
 
 # Per-log cancellation events (process-local — single worker only)
 _stop_events: dict[int, threading.Event] = {}
@@ -49,7 +52,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
 
             try:
                 if stop_event.is_set():
-                    raise RuntimeError("Sync stopped by user")
+                    raise RuntimeError(_SYNC_STOPPED_MSG)
 
                 provider = get_provider(cred.provider, cred.config)
 
@@ -62,11 +65,11 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                         raise RuntimeError("Provider fetch timed out after 300 seconds")
 
                 if stop_event.is_set():
-                    raise RuntimeError("Sync stopped by user")
+                    raise RuntimeError(_SYNC_STOPPED_MSG)
 
                 for srv in srv_list:
                     if stop_event.is_set():
-                        raise RuntimeError("Sync stopped by user")
+                        raise RuntimeError(_SYNC_STOPPED_MSG)
 
                     cloud_id = srv.get("cloud_id")
                     existing = None
@@ -131,9 +134,9 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
 @router.post("")
 def trigger_sync(
     background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
     provider: str | None = None,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
 ) -> dict[str, str]:
     background_tasks.add_task(_run_sync, provider, DATABASE_URL)
     return {"message": "Sync started", "provider": provider or "all"}
@@ -141,9 +144,9 @@ def trigger_sync(
 
 @router.post("/stop")
 def stop_sync(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
     log_id: int | None = Query(None),
-    db: Session = Depends(get_db),
-    _: models.User = Depends(require_write),
 ) -> dict[str, list[int]]:
     """Stop one or all running syncs."""
     now = datetime.now(timezone.utc)
@@ -177,9 +180,9 @@ def stop_sync(
 
 @router.get("/logs", response_model=list[schemas.SyncLogResponse])
 def get_sync_logs(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
     limit: int = 50,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
 ) -> list[models.SyncLog]:
     return (
         db.query(models.SyncLog)
