@@ -30,5 +30,6 @@ export default defineConfig({
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
+    env: { VITE_BACKEND_URL: process.env.VITE_BACKEND_URL ?? 'http://localhost:8000' },
   },
 })

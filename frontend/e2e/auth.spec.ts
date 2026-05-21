@@ -10,7 +10,7 @@ test.describe('Authentication', () => {
   test('shows error on bad credentials', async ({ page }) => {
     await page.goto('/')
     await page.getByLabel('Username').fill('notauser')
-    await page.getByLabel('Password').fill('wrongpass')
+    await page.locator('#password').fill('wrongpass')
     await page.getByRole('button', { name: 'Sign In' }).click()
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 })
   })
@@ -21,7 +21,7 @@ test.describe('Authentication', () => {
 
     await page.goto('/')
     await page.getByLabel('Username').fill(username)
-    await page.getByLabel('Password').fill(password)
+    await page.locator('#password').fill(password)
     await page.getByRole('button', { name: 'Sign In' }).click()
     await expect(page.getByRole('navigation')).toBeVisible({ timeout: 8000 })
     await expect(page.getByRole('main')).toBeVisible()
@@ -33,7 +33,7 @@ test.describe('Authentication', () => {
 
     await page.goto('/')
     await page.getByLabel('Username').fill(username)
-    await page.getByLabel('Password').fill(password)
+    await page.locator('#password').fill(password)
     await page.getByRole('button', { name: 'Sign In' }).click()
     await page.waitForSelector('aside', { timeout: 8000 })
 

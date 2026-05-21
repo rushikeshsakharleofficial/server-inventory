@@ -31,7 +31,6 @@ const INVENTORY_SUB: { id: View; label: string; Icon: React.ElementType }[] = [
 ]
 
 const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
-  { id: 'dashboard',  label: 'Dashboard',      Icon: LayoutDashboard   },
   { id: 'providers',  label: 'Cloud Providers', Icon: Cloud             },
   { id: 'sync-logs',  label: 'Sync Logs',       Icon: Activity          },
   { id: 'crons',      label: 'Cron Jobs',       Icon: Timer             },
