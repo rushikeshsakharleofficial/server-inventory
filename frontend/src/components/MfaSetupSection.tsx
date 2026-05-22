@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import QRCode from 'qrcode.react'
+import { QRCodeSVG } from 'qrcode.react'
 import { mfaApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import {
@@ -96,13 +96,7 @@ export default function MfaSetupSection() {
         >
           Two-Factor Authentication
         </Heading>
-        <Badge
-          status={mfaEnabled ? 'success' : 'default'}
-          style={mfaEnabled
-            ? { color: 'var(--sg)', backgroundColor: 'var(--sg-bg)', borderColor: 'var(--sg-bd)' }
-            : { color: 'var(--tx2)' }
-          }
-        >
+        <Badge status={mfaEnabled ? 'green' : 'gray'}>
           {mfaEnabled ? 'Enabled' : 'Disabled'}
         </Badge>
       </Flex>
@@ -156,7 +150,7 @@ export default function MfaSetupSection() {
                 display: 'inline-flex',
               }}
             >
-              <QRCode value={setupData.uri} size={180} level="M" />
+              <QRCodeSVG value={setupData.uri} size={180} level="M" />
             </div>
           </Flex>
 
