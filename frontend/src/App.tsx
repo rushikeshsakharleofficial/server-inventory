@@ -19,6 +19,7 @@ import SSHPage from './components/SSHPage'
 import SettingsPage from './components/SettingsPage'
 import CronsPage from './components/CronsPage'
 import SetupPage from './components/SetupPage'
+import MfaChallengePage from './components/MfaChallengePage'
 import ServerDetailModal from './components/ServerDetailModal'
 import ErrorBoundary from './components/ErrorBoundary'
 import { GooeyFilter } from './components/Toggle'
@@ -93,7 +94,7 @@ const VIEW_TO_PATH: Record<View, string> = {
 }
 
 function AppContent() {
-  const { user } = useAuth()
+  const { user, mfaChallenge } = useAuth()
 
   const [view, setView] = useState<View>(
     () => PATH_TO_VIEW[window.location.pathname] ?? 'servers',
@@ -114,6 +115,7 @@ function AppContent() {
     window.history.pushState({}, '', VIEW_TO_PATH[v])
   }
 
+  if (!user && mfaChallenge) return <MfaChallengePage />
   if (!user) return <LoginPage />
 
   const canWrite = user.role !== 'read'
