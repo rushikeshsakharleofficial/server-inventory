@@ -112,6 +112,41 @@ class TokenResponse(BaseModel):
     username: str
 
 
+class LoginResponse(BaseModel):
+    """Login endpoint response — covers both plain auth and MFA challenge."""
+    # Normal auth (MFA disabled or already verified)
+    access_token: str | None = None
+    token_type: str = "bearer"
+    role: str | None = None
+    username: str | None = None
+    # MFA challenge (MFA enabled — access_token is None in this case)
+    mfa_required: bool = False
+    mfa_token: str | None = None
+
+
+class MfaStatusResponse(BaseModel):
+    enabled: bool
+
+
+class MfaSetupResponse(BaseModel):
+    secret: str
+    uri: str    # otpauth:// URI — pass to QR renderer on frontend
+
+
+class MfaEnableRequest(BaseModel):
+    secret: str   # the secret shown during setup (before it was saved)
+    code: str     # current TOTP code to prove the user enrolled correctly
+
+
+class MfaDisableRequest(BaseModel):
+    code: str     # current TOTP code to prove possession before disabling
+
+
+class MfaVerifyRequest(BaseModel):
+    mfa_token: str   # the short-lived challenge token from the login step
+    code: str        # 6-digit TOTP code
+
+
 class StatsResponse(BaseModel):
     total: int
     running: int
