@@ -4,17 +4,17 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import verify_password, hash_password, create_access_token, get_current_user, require_admin
+from ..auth import verify_password, hash_password, create_access_token, get_current_user, require_admin, create_mfa_challenge_token
 
 router = APIRouter(tags=["auth & users"])
 
 
-@router.post("/api/auth/login")
+@router.post("/api/auth/login", response_model=schemas.LoginResponse)
 def login(
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
     remember_me: bool | None = Form(default=False),
     db: Annotated[Session, Depends(get_db)] = None,
-) -> schemas.TokenResponse:
+) -> schemas.LoginResponse:
     user = db.query(models.User).filter(models.User.username == form.username).first()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(
@@ -23,11 +23,16 @@ def login(
         )
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
+
+    if user.totp_enabled and user.totp_secret:
+        mfa_token = create_mfa_challenge_token(user.username)
+        return schemas.LoginResponse(mfa_required=True, mfa_token=mfa_token)
+
     token = create_access_token(
         {"sub": user.username, "role": user.role},
         remember=bool(remember_me),
     )
-    return schemas.TokenResponse(
+    return schemas.LoginResponse(
         access_token=token,
         token_type="bearer",
         role=user.role,
