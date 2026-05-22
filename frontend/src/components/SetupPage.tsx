@@ -13,6 +13,7 @@ import {
   Button,
   Badge,
 } from './StitchUI'
+import MfaSetupSection from './MfaSetupSection'
 
 export default function SetupPage() {
   const { user } = useAuth()
@@ -177,6 +178,8 @@ export default function SetupPage() {
           </Flex>
         </form>
       </Card>
+
+      <MfaSetupSection />
     </Flex>
   )
 }
