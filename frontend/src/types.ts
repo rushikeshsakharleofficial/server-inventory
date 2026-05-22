@@ -145,3 +145,21 @@ export interface BlockStorage {
   created_at?: string
   last_synced?: string
 }
+
+export interface MfaStatus {
+  enabled: boolean
+}
+
+export interface MfaSetupData {
+  secret: string
+  uri: string
+}
+
+export interface LoginResponse {
+  access_token?: string
+  token_type?: string
+  role?: string
+  username?: string
+  mfa_required?: boolean
+  mfa_token?: string
+}

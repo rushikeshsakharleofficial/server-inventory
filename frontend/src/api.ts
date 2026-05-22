@@ -173,6 +173,22 @@ export const authApi = {
     http.put('/api/auth/change-password', data),
 }
 
+export const mfaApi = {
+  status: () => http.get<{ enabled: boolean }>('/api/auth/mfa/status'),
+  setup: () => http.post<{ secret: string; uri: string }>('/api/auth/mfa/setup'),
+  enable: (secret: string, code: string) =>
+    http.post('/api/auth/mfa/enable', { secret, code }),
+  disable: (code: string) =>
+    http.post('/api/auth/mfa/disable', { code }),
+  verify: (mfa_token: string, code: string) =>
+    http.post<{
+      access_token: string
+      token_type: string
+      role: string
+      username: string
+    }>('/api/auth/mfa/verify', { mfa_token, code }),
+}
+
 /** Shape of a single Pydantic v2 validation error item */
 interface PydanticErrorItem {
   loc?: Array<string | number>
