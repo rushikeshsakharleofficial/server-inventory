@@ -134,8 +134,7 @@ class MfaSetupResponse(BaseModel):
 
 
 class MfaEnableRequest(BaseModel):
-    secret: str   # the secret shown during setup (before it was saved)
-    code: str     # current TOTP code to prove the user enrolled correctly
+    code: str     # current TOTP code to prove the user enrolled the server-generated secret
 
 
 class MfaDisableRequest(BaseModel):

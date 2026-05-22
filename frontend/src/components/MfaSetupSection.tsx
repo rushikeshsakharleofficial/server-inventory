@@ -44,7 +44,7 @@ export default function MfaSetupSection() {
   })
 
   const enableMutation = useMutation({
-    mutationFn: () => mfaApi.enable(setupData!.secret, code),
+    mutationFn: () => mfaApi.enable(code),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mfa-status'] })
       toast.success('Two-factor authentication enabled')

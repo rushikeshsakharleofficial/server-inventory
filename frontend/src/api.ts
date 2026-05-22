@@ -176,8 +176,8 @@ export const authApi = {
 export const mfaApi = {
   status: () => http.get<{ enabled: boolean }>('/api/auth/mfa/status'),
   setup: () => http.post<{ secret: string; uri: string }>('/api/auth/mfa/setup'),
-  enable: (secret: string, code: string) =>
-    http.post('/api/auth/mfa/enable', { secret, code }),
+  enable: (code: string) =>
+    http.post('/api/auth/mfa/enable', { code }),
   disable: (code: string) =>
     http.post('/api/auth/mfa/disable', { code }),
   verify: (mfa_token: string, code: string) =>

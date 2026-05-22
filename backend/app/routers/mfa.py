@@ -21,10 +21,16 @@ def mfa_status(
 @router.post("/setup", response_model=schemas.MfaSetupResponse)
 def mfa_setup(
     current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> schemas.MfaSetupResponse:
+    if current_user.totp_enabled:
+        raise HTTPException(status_code=400, detail="MFA is already enabled")
     secret = pyotp.random_base32()
     totp = pyotp.TOTP(secret)
     uri = totp.provisioning_uri(name=current_user.username, issuer_name=ISSUER)
+    # Store pending secret server-side; totp_enabled stays False until /enable verifies.
+    current_user.totp_secret = secret
+    db.commit()
     return schemas.MfaSetupResponse(secret=secret, uri=uri)
 
 
@@ -36,10 +42,12 @@ def mfa_enable(
 ) -> None:
     if current_user.totp_enabled:
         raise HTTPException(status_code=400, detail="MFA is already enabled")
-    totp = pyotp.TOTP(payload.secret)
+    if not current_user.totp_secret:
+        raise HTTPException(status_code=400, detail="Call /setup first to generate a secret")
+    # Use the server-stored pending secret — never trust the client to supply it.
+    totp = pyotp.TOTP(current_user.totp_secret)
     if not totp.verify(payload.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
-    current_user.totp_secret = payload.secret
     current_user.totp_enabled = True
     db.commit()
 
