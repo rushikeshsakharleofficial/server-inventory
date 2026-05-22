@@ -51,6 +51,7 @@ const VIEW_TITLE: Record<View, string> = {
   ssh:             'SSH Credentials',
   settings:        'Settings',
   users:           'User Management',
+  setup:           'Admin Setup',
 }
 
 const ROLE_ICON: Record<string, React.ElementType> = {
@@ -394,6 +395,15 @@ export default function Layout({
             >
               <Users size={16} className="shrink-0" />
               <span className="truncate">Manage Users</span>
+            </NavButton>
+          )}
+          {isAdmin && (
+            <NavButton
+              onClick={() => onViewChange('setup')}
+              active={currentView === 'setup'}
+            >
+              <SlidersHorizontal size={16} className="shrink-0" />
+              <span className="truncate">Admin Setup</span>
             </NavButton>
           )}
         </SidebarFooter>

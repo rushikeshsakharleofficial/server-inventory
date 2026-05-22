@@ -97,3 +97,17 @@ def toggle_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.put("/api/auth/change-password", status_code=204)
+def change_password(
+    payload: schemas.ChangePasswordRequest,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.commit()

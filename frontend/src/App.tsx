@@ -18,6 +18,7 @@ import BlockStoragePage from './components/BlockStoragePage'
 import SSHPage from './components/SSHPage'
 import SettingsPage from './components/SettingsPage'
 import CronsPage from './components/CronsPage'
+import SetupPage from './components/SetupPage'
 import ServerDetailModal from './components/ServerDetailModal'
 import ErrorBoundary from './components/ErrorBoundary'
 import { GooeyFilter } from './components/Toggle'
@@ -73,6 +74,7 @@ const PATH_TO_VIEW: Record<string, View> = {
   '/ssh':                 'ssh',
   '/settings':            'settings',
   '/users':               'users',
+  '/setup':               'setup',
 }
 
 const VIEW_TO_PATH: Record<View, string> = {
@@ -87,6 +89,7 @@ const VIEW_TO_PATH: Record<View, string> = {
   'ssh':            '/ssh',
   'settings':       '/settings',
   'users':          '/users',
+  'setup':          '/setup',
 }
 
 function AppContent() {
@@ -197,6 +200,11 @@ function AppContent() {
         {view === 'settings' && (
           <div className="animate-fade-in">
             <SettingsPage />
+          </div>
+        )}
+        {view === 'setup' && user.role === 'admin' && (
+          <div className="animate-fade-in">
+            <SetupPage />
           </div>
         )}
       </div>
