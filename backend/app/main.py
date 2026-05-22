@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
+from sqlalchemy import text
 from .database import engine, Base, SessionLocal
 from .routers import servers, credentials, sync
 from .routers.auth import router as auth_router
@@ -24,8 +25,22 @@ from .database import DATABASE_URL
 
 Base.metadata.create_all(bind=engine)
 
+
+def _migrate_mfa_columns() -> None:
+    """Add totp_secret and totp_enabled to users if they don't exist yet."""
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64)"
+        ))
+        conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    _migrate_mfa_columns()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
