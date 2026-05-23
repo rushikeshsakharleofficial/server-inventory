@@ -7,12 +7,17 @@ import { useToast } from '../hooks/useToast'
 import {
   Card,
   Flex,
-  Grid,
   Heading,
   Text,
   Input,
   Button,
   Badge,
+  TableContainer,
+  Table,
+  THead,
+  TBody,
+  TH,
+  TD,
 } from './StitchUI'
 
 type RoleCfg = { label: string; color: string; bg: string; border: string; status: 'primary' | 'green' | 'yellow' | 'gray' }
@@ -23,7 +28,7 @@ const ROLE_CFG = {
   read:  { label: 'Read',   color: '#8B8AAE', bg: 'rgba(139,138,174,0.1)', border: 'rgba(139,138,174,0.2)', status: 'gray' },
 } satisfies Record<string, RoleCfg>
 
-const DEFAULT_ROLE_CFG: RoleCfg = ROLE_CFG.read
+const DEFAULT_ROLE_CFG: RoleCfg = { label: 'Unknown', color: '#8B8AAE', bg: 'rgba(139,138,174,0.1)', border: 'rgba(139,138,174,0.2)', status: 'gray' }
 
 function getRoleCfg(role: string): RoleCfg {
   return (ROLE_CFG as Record<string, RoleCfg | undefined>)[role] ?? DEFAULT_ROLE_CFG
@@ -229,129 +234,149 @@ export default function UsersPage() {
         </form>
       )}
 
-      {/* Grid of Users */}
-      <Grid columns={{ '@initial': 1, '@md': 2, '@lg': 3 }} gap={4}>
-        {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} style={{ padding: '16px' }}>
-              <Flex align="center" gap={3}>
-                <div className="skeleton w-9 h-9 rounded-xl" />
-                <div style={{ flex: 1 }}>
-                  <div className="skeleton h-4 rounded-sm w-24 mb-1.5" />
-                  <div className="skeleton h-3 rounded-sm w-16" />
-                </div>
-              </Flex>
-            </Card>
-          ))
-        ) : (
-          users.map(user => {
-            const roleCfg = getRoleCfg(user.role)
-            return (
-              <Card
-                key={user.id}
-                style={{
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'between',
-                  gap: '16px',
-                  opacity: user.is_active ? 1 : 0.6,
-                }}
-              >
-                <Flex justify="between" align="start">
-                  <Flex align="center" gap={3}>
-                    <div
-                      style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: 700,
-                        backgroundColor: roleCfg.bg,
-                        color: roleCfg.color,
-                        border: `1px solid ${roleCfg.border}`,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {user.username.slice(0, 1).toUpperCase()}
-                    </div>
-                    <div>
-                      <Heading level="h4" style={{ fontFamily: 'monospace' }}>{user.username}</Heading>
-                      <Text variant="smallMuted" style={{ marginTop: '2px' }}>
-                        {user.role === 'admin' ? 'System Administrator' : `${user.role.toUpperCase()} Policy`}
-                      </Text>
-                    </div>
-                  </Flex>
-                  <RoleBadge role={user.role} />
-                </Flex>
-
-                <Flex justify="between" align="center" style={{ borderTop: '1px solid var(--bd)', paddingTop: '12px' }}>
-                  <Text variant="smallMuted">
-                    {user.is_active ? 'Enabled' : 'Disabled'}
-                  </Text>
-
-                  <Flex align="center" gap={2}>
-                    {user.role === 'admin' ? (
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontFamily: 'monospace',
-                          color: 'var(--tx3)',
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        SYSTEM
-                      </span>
-                    ) : confirmId === user.id ? (
-                      <Flex align="center" gap={2}>
-                        <Text style={{ fontSize: '11px', color: 'var(--sr)', fontWeight: 700 }}>Delete?</Text>
-                        <Button
-                          size="sm"
-                          intent="danger"
-                          onClick={() => deleteMutation.mutate(user.id)}
-                          disabled={deleteMutation.isPending}
-                          style={{ padding: '2px 8px', fontSize: '10px' }}
-                        >
-                          Yes
-                        </Button>
-                        <Button
-                          size="sm"
-                          intent="ghost"
-                          onClick={() => setConfirmId(null)}
-                          style={{ padding: '2px 8px', fontSize: '10px' }}
-                        >
-                          No
-                        </Button>
+      {/* Users Table */}
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+          <Table aria-label="Users">
+            <THead>
+              <tr>
+                <TH>User</TH>
+                <TH>Role</TH>
+                <TH style={{ textAlign: 'center' }}>Status</TH>
+                <TH style={{ textAlign: 'right', width: '160px' }}>Actions</TH>
+              </tr>
+            </THead>
+            <TBody>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <TD>
+                      <Flex align="center" gap={3}>
+                        <div className="skeleton w-9 h-9 rounded-xl" />
+                        <div>
+                          <div className="skeleton h-4 rounded-sm w-24 mb-1.5" />
+                          <div className="skeleton h-3 rounded-sm w-16" />
+                        </div>
                       </Flex>
-                    ) : (
-                      <>
-                        <Toggle
-                          checked={user.is_active}
-                          onChange={() => toggleMutation.mutate(user.id)}
-                        />
-                        <Button
-                          size="sm"
-                          intent="ghost"
-                          onClick={() => setConfirmId(user.id)}
-                          style={{ padding: '6px' }}
-                          title={`Delete ${user.username}`}
-                        >
-                          <Trash2 size={13} style={{ color: 'var(--sr)' }} />
-                        </Button>
-                      </>
-                    )}
-                  </Flex>
-                </Flex>
-              </Card>
-            )
-          })
-        )}
-      </Grid>
+                    </TD>
+                    <TD><div className="skeleton h-5 rounded-sm w-16" /></TD>
+                    <TD><div className="skeleton h-5 rounded-sm w-16 mx-auto" /></TD>
+                    <TD><div className="skeleton h-5 rounded-sm w-24 ml-auto" /></TD>
+                  </tr>
+                ))
+              ) : (
+                users.map(user => {
+                  const roleCfg = getRoleCfg(user.role)
+                  return (
+                    <tr key={user.id} style={{ opacity: user.is_active ? 1 : 0.6 }}>
+                      {/* User */}
+                      <TD>
+                        <Flex align="center" gap={3}>
+                          <div
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              fontWeight: 700,
+                              backgroundColor: roleCfg.bg,
+                              color: roleCfg.color,
+                              border: `1px solid ${roleCfg.border}`,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {user.username.slice(0, 1).toUpperCase()}
+                          </div>
+                          <div>
+                            <Text style={{ fontWeight: 700, fontFamily: 'monospace' }}>{user.username}</Text>
+                            <Text variant="smallMuted" style={{ marginTop: '2px' }}>
+                              {user.role === 'admin'
+                                ? 'System Administrator'
+                                : user.role in ROLE_CFG
+                                  ? `${user.role.toUpperCase()} Policy`
+                                  : 'Unknown Role'}
+                            </Text>
+                          </div>
+                        </Flex>
+                      </TD>
+                      {/* Role */}
+                      <TD>
+                        <RoleBadge role={user.role} />
+                      </TD>
+                      {/* Status */}
+                      <TD style={{ textAlign: 'center' }}>
+                        <Text variant="smallMuted" style={{ fontSize: '12px' }}>
+                          {user.is_active ? 'Enabled' : 'Disabled'}
+                        </Text>
+                      </TD>
+                      {/* Actions */}
+                      <TD>
+                        <Flex align="center" justify="end" gap={2}>
+                          {user.role === 'admin' ? (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontFamily: 'monospace',
+                                color: 'var(--tx3)',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                              }}
+                            >
+                              SYSTEM
+                            </span>
+                          ) : confirmId === user.id ? (
+                            <Flex align="center" gap={2}>
+                              <Text style={{ fontSize: '11px', color: 'var(--sr)', fontWeight: 700 }}>Delete?</Text>
+                              <Button
+                                size="sm"
+                                intent="danger"
+                                onClick={() => deleteMutation.mutate(user.id)}
+                                disabled={deleteMutation.isPending}
+                                style={{ padding: '2px 8px', fontSize: '10px' }}
+                              >
+                                Yes
+                              </Button>
+                              <Button
+                                size="sm"
+                                intent="ghost"
+                                onClick={() => setConfirmId(null)}
+                                style={{ padding: '2px 8px', fontSize: '10px' }}
+                              >
+                                No
+                              </Button>
+                            </Flex>
+                          ) : (
+                            <>
+                              <Toggle
+                                checked={user.is_active}
+                                onChange={() => toggleMutation.mutate(user.id)}
+                              />
+                              <Button
+                                size="sm"
+                                intent="ghost"
+                                onClick={() => setConfirmId(user.id)}
+                                style={{ padding: '6px' }}
+                                title={`Delete ${user.username}`}
+                                aria-label={`Delete ${user.username}`}
+                              >
+                                <Trash2 size={13} style={{ color: 'var(--sr)' }} />
+                              </Button>
+                            </>
+                          )}
+                        </Flex>
+                      </TD>
+                    </tr>
+                  )
+                })
+              )}
+            </TBody>
+          </Table>
+        </TableContainer>
+      </Card>
     </Flex>
   )
 }

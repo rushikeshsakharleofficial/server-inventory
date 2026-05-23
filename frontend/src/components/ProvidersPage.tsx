@@ -481,6 +481,7 @@ export default function ProvidersPage() {
                                       onClick={() => setConfirmId(cred.id)}
                                       style={{ padding: '6px' }}
                                       title="Delete credentials"
+                                      aria-label={`Delete ${cred.name} credentials`}
                                     >
                                       <Trash2 size={14} style={{ color: 'var(--sr)' }} />
                                     </Button>

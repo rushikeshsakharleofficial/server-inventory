@@ -15,7 +15,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/ws': {
-        target: (process.env.VITE_BACKEND_URL ?? 'http://backend:8000').replace(/^http/, 'ws'),
+        target: (process.env.VITE_BACKEND_URL ?? 'http://backend:8000').replace(/^https?/, 'ws'),
         ws: true,
         changeOrigin: true,
       },

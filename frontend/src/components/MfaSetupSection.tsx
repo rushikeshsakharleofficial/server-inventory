@@ -150,7 +150,7 @@ export default function MfaSetupSection() {
                 display: 'inline-flex',
               }}
             >
-              <QRCodeSVG value={setupData.uri} size={180} level="M" />
+              <QRCodeSVG value={setupData.uri} size={180} level="M" aria-label="QR code for two-factor authentication setup — scan with your authenticator app" />
             </div>
           </Flex>
 

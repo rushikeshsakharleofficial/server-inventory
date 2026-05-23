@@ -301,3 +301,9 @@ class BlockStorageResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+class HostKeyTrustResponse(BaseModel):
+    fingerprint: str
+    key_type: str
+    added: bool
+    message: str = "Host key added to trusted hosts"

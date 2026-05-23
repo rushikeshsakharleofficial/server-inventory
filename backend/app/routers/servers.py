@@ -227,13 +227,22 @@ async def ssh_sync_server(
 
         except paramiko.AuthenticationException:
             client.close()
-            return None, "Selected SSH credential failed authentication"
+            return None, "Authentication failed — check username and credentials"
         except (socket.timeout, paramiko.SSHException, OSError) as e:
             client.close()
-            return None, str(e)
-        except Exception as exc:  # noqa: BLE001 — catch-all for unexpected SSH errors
+            msg = str(e)
+            if "not found in known_hosts" in msg or "not in known_hosts" in msg:
+                return None, "Host key verification failed — server not in trusted hosts"
+            if "timed out" in msg.lower() or "timeout" in msg.lower():
+                return None, "Connection timed out — check host address and firewall rules"
+            if "Connection refused" in msg:
+                return None, "Connection refused — check SSH port and firewall"
+            if "No existing session" in msg or "not open" in msg:
+                return None, "SSH session error — please try again"
+            return None, "SSH connection failed — check host address and network"
+        except Exception:  # noqa: BLE001 — catch-all for unexpected SSH errors
             client.close()
-            return None, str(exc)
+            return None, "SSH connection failed — unexpected error"
 
     ssh_info, err = await asyncio.get_running_loop().run_in_executor(None, _do_ssh)
     if err and not ssh_info:
@@ -255,6 +264,74 @@ async def ssh_sync_server(
     db.commit()
     db.refresh(server)
     return server
+
+
+@router.post("/{server_id}/trust-host-key", response_model=schemas.HostKeyTrustResponse)
+async def trust_host_key(
+    server_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+    ssh_credential_id: int = Query(...),
+):
+    """Retrieve and trust the SSH host key for a server by connecting via low-level Transport."""
+    server = db.query(models.Server).filter(models.Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
+
+    host = server.public_ip or server.private_ip
+    if not host:
+        raise HTTPException(status_code=400, detail="Server has no IP address configured")
+
+    ssh_cred = (
+        db.query(models.SSHCredential)
+        .filter(models.SSHCredential.id == ssh_credential_id)
+        .first()
+    )
+    if not ssh_cred:
+        raise HTTPException(status_code=404, detail="SSH credential not found")
+
+    def _do_trust():
+        import paramiko, socket as _socket
+        transport = None
+        try:
+            port = ssh_cred.port or 22
+            sock = _socket.create_connection((host, port), timeout=10)
+            transport = paramiko.Transport(sock)
+            transport.start_client(timeout=10)
+
+            host_key = transport.get_remote_server_key()
+            key_type = host_key.get_name()
+            fingerprint_bytes = host_key.get_fingerprint()
+            fingerprint = ":".join(f"{b:02x}" for b in fingerprint_bytes)
+
+            transport.close()
+
+            # Persist host key to known_hosts file
+            known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+            known_hosts_dir = os.path.dirname(os.path.abspath(known_hosts_path))
+            os.makedirs(known_hosts_dir, exist_ok=True)
+
+            known_hosts = paramiko.HostKeys()
+            if os.path.exists(known_hosts_path):
+                try:
+                    known_hosts.load(known_hosts_path)
+                except Exception:  # noqa: BLE001
+                    pass  # Start fresh if file is corrupt
+            known_hosts.add(host, key_type, host_key)
+            known_hosts.save(known_hosts_path)
+
+            return {"fingerprint": fingerprint, "key_type": key_type, "added": True}, None
+
+        except Exception as exc:  # noqa: BLE001
+            if transport:
+                transport.close()
+            return None, f"Could not retrieve host key: {exc}"
+
+    result, err = await asyncio.get_running_loop().run_in_executor(None, _do_trust)
+    if err or not result:
+        raise HTTPException(status_code=502, detail=err or "Failed to trust host key")
+
+    return schemas.HostKeyTrustResponse(**result)
 
 
 @router.delete("/{server_id}", status_code=204)

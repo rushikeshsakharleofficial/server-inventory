@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Server, Cloud, Activity, RefreshCw, Plus,
@@ -222,7 +222,16 @@ const Header = styled('header', {
 export default function Layout({
   currentView, onViewChange, onAddServer, children,
 }: LayoutProps) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  )
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth < 768) setOpen(false)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   const isInventoryView = INVENTORY_VIEWS.includes(currentView)
   const [inventoryOpen, setInventoryOpen] = useState(() => INVENTORY_VIEWS.includes(currentView))
   const qc = useQueryClient()
