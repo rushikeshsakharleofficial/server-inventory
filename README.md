@@ -13,7 +13,6 @@ Track servers, databases, Kubernetes clusters, and block storage across AWS, GCP
 [![GitHub Stars](https://img.shields.io/github/stars/rushikeshsakharleofficial/server-inventory?style=social)](https://github.com/rushikeshsakharleofficial/server-inventory/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/rushikeshsakharleofficial/server-inventory?style=social)](https://github.com/rushikeshsakharleofficial/server-inventory/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/rushikeshsakharleofficial/server-inventory)](https://github.com/rushikeshsakharleofficial/server-inventory/issues)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 </div>
 
@@ -48,7 +47,7 @@ Most server inventory and cloud asset management tools are either expensive SaaS
 - **Self-hosted** — your credentials and server data never leave your infrastructure
 - **Multi-cloud from day one** — AWS, GCP, Azure, DigitalOcean, Linode, OVH, and custom datacenters
 - **No agent required** — syncs via cloud APIs; SSH data collection available for on-premise servers
-- **Production-ready** — JWT auth, role-based access, WebSocket real-time sync, cron scheduling, E2E tested
+- **Production-ready** — JWT auth, MFA/TOTP, role-based access, WebSocket real-time sync, cron scheduling, E2E tested
 
 ---
 
@@ -105,6 +104,7 @@ Per-resource network topology viewer showing connected cloud resources:
 - **SSH data collection** — pulls CPU, RAM, kernel, OS, IPs from on-premise servers via paramiko
 - **Cron scheduler** — APScheduler-backed cron jobs with standard 5-field expressions
 - **Role-based access control** — Admin, Write, and Read roles with JWT auth and 90-day remember-me tokens
+- **MFA / TOTP** — per-user two-factor authentication using authenticator apps (Google Authenticator, Authy, etc.)
 - **Light / Dark / AMOLED theme** — CSS variable system with AMOLED-optimized dark mode
 - **Server snapshots** — daily history powering dashboard growth charts
 - **Auto housekeeping** — prunes logs and snapshots older than 365 days
@@ -116,7 +116,7 @@ Per-resource network topology viewer showing connected cloud resources:
 | Layer | Technology |
 |:------|:-----------|
 | Backend | FastAPI, SQLAlchemy 2.x, PostgreSQL 16 |
-| Auth | JWT (python-jose), bcrypt, role-based access |
+| Auth | JWT (python-jose), bcrypt, TOTP MFA (pyotp), role-based access |
 | Scheduling | APScheduler BackgroundScheduler |
 | SSH | paramiko |
 | WebSockets | FastAPI native + asyncio broadcast |
@@ -146,7 +146,7 @@ See [Getting Started](#getting-started) for full local setup, environment variab
 
 ## Getting Started
 
-### Installation Prerequisites
+### Prerequisites
 
 **Docker path (recommended):**
 - Docker + Docker Compose
@@ -277,12 +277,12 @@ server-inventory/
 │   │   ├── main.py           # FastAPI app, lifespan, WebSocket endpoint
 │   │   ├── models.py         # SQLAlchemy ORM models
 │   │   ├── schemas.py        # Pydantic request/response schemas
-│   │   ├── auth.py           # JWT auth, password hashing, role guards
+│   │   ├── auth.py           # JWT auth, password hashing, MFA/TOTP, role guards
 │   │   ├── database.py       # SQLAlchemy engine + session factory
 │   │   ├── stats_utils.py    # Shared stats aggregation (SQL GROUP BY)
 │   │   ├── scheduler.py      # APScheduler setup
 │   │   ├── ws_manager.py     # WebSocket connection manager
-│   │   ├── routers/          # FastAPI routers (servers, sync, stats, …)
+│   │   ├── routers/          # FastAPI routers (servers, sync, stats, auth, …)
 │   │   └── providers/        # Cloud provider sync implementations
 │   ├── requirements.txt
 │   └── Dockerfile
@@ -400,7 +400,7 @@ npm run test:e2e:ui
 | `SyncLog` | Sync run history with duration and result |
 | `ServerSnapshot` | Daily server count snapshots for trend charts |
 | `CronJob` | Scheduled sync jobs |
-| `User` | Auth users with roles (admin / write / read) |
+| `User` | Auth users with roles (admin / write / read) and optional MFA secret |
 | `AppSetting` | Key-value settings (sync timeout, SSH port, etc.) |
 
 ### Database Performance
@@ -479,6 +479,7 @@ To report a security vulnerability, please use [GitHub Security Advisories](http
 **Production hardening checklist:**
 - Set a strong, unique `SECRET_KEY` (use `openssl rand -hex 32`)
 - Set a strong `ADMIN_PASSWORD` before first run
+- Enable MFA on the admin account via **Settings → Two-Factor Authentication**
 - Do not expose `http://localhost:8000` directly — place behind a reverse proxy with TLS
 - Restrict PostgreSQL access to the backend container only
 
