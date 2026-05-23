@@ -31,7 +31,6 @@ const SplitPane = styled('div', {
   flexDirection: 'column',
   gap: '$5',
   width: '100%',
-  overflow: 'hidden',
   alignItems: 'stretch',
   '@lg': {
     flexDirection: 'row',
@@ -49,7 +48,7 @@ const DetailPane = styled('div', {
   flexShrink: 0,
   '@lg': {
     width: '450px',
-    maxWidth: '40%',
+    maxWidth: 'min(450px, calc(100% - 400px))',
     position: 'sticky',
     top: '0px',
     height: 'calc(100vh - 102px)',
