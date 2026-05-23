@@ -327,6 +327,7 @@ export default function AddServerModal({ server, onClose }: Props) {
           {errors.map(e => (
             <div
               key={e}
+              role="alert"
               style={{
                 fontSize: '0.875rem',
                 padding: '0.5rem 0.75rem',
@@ -348,12 +349,13 @@ export default function AddServerModal({ server, onClose }: Props) {
               <Grid columns={2} gap={3}>
                 {group.fields.map(f => (
                   <FieldWrapper key={f.id}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--tx2)' }}>
+                    <label htmlFor={`field-${f.id}`} style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--tx2)' }}>
                       {f.label}
                       {f.required && <RequiredAsterisk>*</RequiredAsterisk>}
                     </label>
                     {(f as { type?: FieldType }).type === 'select' ? (
                       <Select
+                        id={`field-${f.id}`}
                         value={form[f.id as FieldId]}
                         onChange={e => set(f.id as FieldId, e.target.value)}
                       >
@@ -365,6 +367,7 @@ export default function AddServerModal({ server, onClose }: Props) {
                       </Select>
                     ) : (
                       <Input
+                        id={`field-${f.id}`}
                         type={(f as { type?: string }).type ?? 'text'}
                         value={form[f.id as FieldId]}
                         onChange={e => set(f.id as FieldId, e.target.value)}
@@ -424,8 +427,9 @@ export default function AddServerModal({ server, onClose }: Props) {
 
           {/* Notes Section */}
           <FormGroup>
-            <label style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--tx2)' }}>Notes</label>
+            <label htmlFor="field-notes" style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--tx2)' }}>Notes</label>
             <Textarea
+              id="field-notes"
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
               rows={3}
