@@ -23,7 +23,7 @@ const ROLE_CFG = {
   read:  { label: 'Read',   color: '#8B8AAE', bg: 'rgba(139,138,174,0.1)', border: 'rgba(139,138,174,0.2)', status: 'gray' },
 } satisfies Record<string, RoleCfg>
 
-const DEFAULT_ROLE_CFG: RoleCfg = ROLE_CFG.read
+const DEFAULT_ROLE_CFG: RoleCfg = { label: 'Unknown', color: '#8B8AAE', bg: 'rgba(139,138,174,0.1)', border: 'rgba(139,138,174,0.2)', status: 'gray' }
 
 function getRoleCfg(role: string): RoleCfg {
   return (ROLE_CFG as Record<string, RoleCfg | undefined>)[role] ?? DEFAULT_ROLE_CFG
@@ -281,7 +281,11 @@ export default function UsersPage() {
                     <div>
                       <Heading level="h4" style={{ fontFamily: 'monospace' }}>{user.username}</Heading>
                       <Text variant="smallMuted" style={{ marginTop: '2px' }}>
-                        {user.role === 'admin' ? 'System Administrator' : `${user.role.toUpperCase()} Policy`}
+                        {user.role === 'admin'
+  ? 'System Administrator'
+  : user.role in ROLE_CFG
+    ? `${user.role.toUpperCase()} Policy`
+    : 'Unknown Role'}
                       </Text>
                     </div>
                   </Flex>
