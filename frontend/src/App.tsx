@@ -115,6 +115,10 @@ function AppContent() {
   function navigate(v: View) {
     setView(v)
     window.history.pushState({}, '', VIEW_TO_PATH[v])
+    if (v !== 'servers') {
+      setSelectedServer(null)
+      setEditingServer(null)
+    }
   }
 
   if (!user && mfaChallenge) return <MfaChallengePage />
