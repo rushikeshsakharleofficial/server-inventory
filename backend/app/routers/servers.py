@@ -227,13 +227,22 @@ async def ssh_sync_server(
 
         except paramiko.AuthenticationException:
             client.close()
-            return None, "Selected SSH credential failed authentication"
+            return None, "Authentication failed — check username and credentials"
         except (socket.timeout, paramiko.SSHException, OSError) as e:
             client.close()
-            return None, str(e)
-        except Exception as exc:  # noqa: BLE001 — catch-all for unexpected SSH errors
+            msg = str(e)
+            if "not found in known_hosts" in msg or "not in known_hosts" in msg:
+                return None, "Host key verification failed — server not in trusted hosts"
+            if "timed out" in msg.lower() or "timeout" in msg.lower():
+                return None, "Connection timed out — check host address and firewall rules"
+            if "Connection refused" in msg:
+                return None, "Connection refused — check SSH port and firewall"
+            if "No existing session" in msg or "not open" in msg:
+                return None, "SSH session error — please try again"
+            return None, "SSH connection failed — check host address and network"
+        except Exception:  # noqa: BLE001 — catch-all for unexpected SSH errors
             client.close()
-            return None, str(exc)
+            return None, "SSH connection failed — unexpected error"
 
     ssh_info, err = await asyncio.get_running_loop().run_in_executor(None, _do_ssh)
     if err and not ssh_info:
