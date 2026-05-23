@@ -340,6 +340,7 @@ export default function UsersPage() {
                           onClick={() => setConfirmId(user.id)}
                           style={{ padding: '6px' }}
                           title={`Delete ${user.username}`}
+                          aria-label={`Delete ${user.username}`}
                         >
                           <Trash2 size={13} style={{ color: 'var(--sr)' }} />
                         </Button>

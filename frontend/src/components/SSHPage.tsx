@@ -255,6 +255,7 @@ export default function SSHPage() {
                             disabled={setDefaultMutation.isPending}
                             style={{ padding: '6px' }}
                             title="Set as default"
+                            aria-label={`Set ${cred.name} as default`}
                           >
                             <Star size={14} />
                           </Button>
@@ -288,6 +289,7 @@ export default function SSHPage() {
                             onClick={() => setConfirmDeleteId(cred.id)}
                             style={{ padding: '6px' }}
                             title={`Delete ${cred.name}`}
+                            aria-label={`Delete ${cred.name}`}
                           >
                             <Trash2 size={14} style={{ color: 'var(--sr)' }} />
                           </Button>
