@@ -409,7 +409,7 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
       </ScrollableContent>
 
       {/* Footer */}
-      <ModalFooter justify="end" gap={3} align="center">
+      <ModalFooter justify="end" gap={3} align="center" wrap>
         {server.provider === 'custom_dc' && (
           <>
             <Select
