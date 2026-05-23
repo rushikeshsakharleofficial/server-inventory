@@ -41,6 +41,15 @@ export const serversApi = {
     http
       .post<Server>(`/api/servers/${id}/ssh-sync`, null, { params: { ssh_credential_id: sshCredentialId } })
       .then(r => r.data),
+
+  trustHostKey: (id: number, sshCredentialId: number) =>
+    http
+      .post<{ fingerprint: string; key_type: string; added: boolean; message: string }>(
+        `/api/servers/${id}/trust-host-key`,
+        null,
+        { params: { ssh_credential_id: sshCredentialId } }
+      )
+      .then(r => r.data),
 }
 
 export const credentialsApi = {

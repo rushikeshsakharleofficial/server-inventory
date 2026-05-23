@@ -174,6 +174,7 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
   const { toast } = useToast()
   const [selectedCredentialId, setSelectedCredentialId] = useState('')
   const [showMap, setShowMap] = useState(false)
+  const [sshError, setSshError] = useState<string | null>(null)
 
   const { data: sshCredentials = [], isLoading: isLoadingSshCredentials } = useQuery({
     queryKey: ['ssh-credentials'],
@@ -188,6 +189,10 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
   }, [selectedCredentialId, sshCredentials])
 
   useEffect(() => {
+    setSshError(null)
+  }, [selectedCredentialId])
+
+  useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
     }
@@ -198,11 +203,29 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
   const sshSyncMutation = useMutation({
     mutationFn: () => serversApi.sshSync(server.id, Number(selectedCredentialId)),
     onSuccess: updatedServer => {
+      setSshError(null)
       toast.success('SSH sync complete')
       qc.invalidateQueries({ queryKey: ['servers'] })
       onServerUpdated?.(updatedServer)
     },
-    onError: (error: unknown) => toast.error(`SSH sync failed: ${getErrorMessage(error)}`),
+    onError: (error: unknown) => {
+      const msg = getErrorMessage(error)
+      setSshError(msg)
+      toast.error(`SSH sync failed: ${msg}`)
+    },
+  })
+
+  const trustMutation = useMutation({
+    mutationFn: () =>
+      serversApi.trustHostKey(server.id, Number(selectedCredentialId)),
+    onSuccess: () => {
+      setSshError(null)
+      toast.success('Host key trusted — retrying SSH sync…')
+      setTimeout(() => sshSyncMutation.mutate(), 500)
+    },
+    onError: (error: unknown) => {
+      toast.error(`Failed to trust host: ${getErrorMessage(error)}`)
+    },
   })
 
   const hasTags = Object.keys(server.tags ?? {}).length > 0
@@ -413,6 +436,16 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
               <RefreshCw size={14} className={sshSyncMutation.isPending ? 'animate-spin' : ''} />
               {sshSyncMutation.isPending ? 'Syncing...' : 'SSH Sync'}
             </Button>
+            {sshError && sshError.toLowerCase().includes('host key') && selectedCredentialId && (
+              <Button
+                onClick={() => trustMutation.mutate()}
+                disabled={trustMutation.isPending}
+                intent="danger"
+                size="sm"
+              >
+                {trustMutation.isPending ? 'Trusting…' : 'Trust Host Key'}
+              </Button>
+            )}
           </>
         )}
         <Button
