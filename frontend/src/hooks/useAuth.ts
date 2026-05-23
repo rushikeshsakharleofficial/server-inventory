@@ -32,11 +32,24 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
 
+function decodeJwtPayload(token: string): { sub?: string; role?: string; exp?: number } | null {
+  try {
+    const b64 = token.split('.')[1]
+    if (!b64) return null
+    const json = atob(b64.replace(/-/g, '+').replace(/_/g, '/'))
+    return JSON.parse(json) as { sub?: string; role?: string; exp?: number }
+  } catch {
+    return null
+  }
+}
+
 function loadStored(): { user: AuthUser | null; token: string | null } {
   try {
     const token = localStorage.getItem('si_token')
-    const raw = localStorage.getItem('si_user')
-    const user = raw ? (JSON.parse(raw) as AuthUser) : null
+    if (!token) return { token: null, user: null }
+    const payload = decodeJwtPayload(token)
+    if (!payload?.sub || !payload?.role) return { token, user: null }
+    const user: AuthUser = { username: payload.sub, role: payload.role as UserRole }
     return { token, user }
   } catch {
     return { token: null, user: null }
@@ -84,11 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const { access_token, role } = data as { access_token: string; role: UserRole }
-    const authUser: AuthUser = { username, role }
+    const { access_token } = data as { access_token: string }
     localStorage.setItem('si_token', access_token)
-    localStorage.setItem('si_user', JSON.stringify(authUser))
     setAxiosToken(access_token)
+    const payload = decodeJwtPayload(access_token)
+    const authUser: AuthUser = {
+      username: payload?.sub ?? username,
+      role: (payload?.role ?? 'read') as UserRole,
+    }
     setUser(authUser)
   }, [])
 
@@ -96,16 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!mfaChallenge) throw new Error('No MFA challenge in progress')
     const res = await http.post<{
       access_token: string
-      role: string
     }>('/api/auth/mfa/verify', {
       mfa_token: mfaChallenge.mfa_token,
       code,
     })
-    const { access_token, role } = res.data
-    const authUser: AuthUser = { username: mfaChallenge.username, role: role as UserRole }
+    const { access_token } = res.data
     localStorage.setItem('si_token', access_token)
-    localStorage.setItem('si_user', JSON.stringify(authUser))
     setAxiosToken(access_token)
+    const payload = decodeJwtPayload(access_token)
+    const authUser: AuthUser = {
+      username: payload?.sub ?? mfaChallenge.username,
+      role: (payload?.role ?? 'read') as UserRole,
+    }
     setMfaChallenge(null)
     setUser(authUser)
   }, [mfaChallenge])
