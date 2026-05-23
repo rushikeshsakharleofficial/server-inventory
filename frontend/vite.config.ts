@@ -7,15 +7,15 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8000',
+        target: process.env.VITE_BACKEND_URL ?? 'http://backend:8000',
         changeOrigin: true,
       },
       '/health': {
-        target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8000',
+        target: process.env.VITE_BACKEND_URL ?? 'http://backend:8000',
         changeOrigin: true,
       },
       '/ws': {
-        target: (process.env.VITE_BACKEND_URL ?? 'http://localhost:8000').replace(/^http/, 'ws'),
+        target: (process.env.VITE_BACKEND_URL ?? 'http://backend:8000').replace(/^https?/, 'ws'),
         ws: true,
         changeOrigin: true,
       },
