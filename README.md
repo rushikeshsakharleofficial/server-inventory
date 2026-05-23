@@ -364,9 +364,20 @@ npm run test:e2e:ui
 
 | Suite | Tests | Description |
 |:------|:-----:|:------------|
-| `auth.spec.ts` | 4 | Login, bad credentials, logout |
-| `navigation.spec.ts` | 9 | Navigate to all 9 views |
-| `visual.spec.ts` | 20 | Screenshot per view × dark + light theme |
+| `auth.spec.ts` | 7 | Login, bad credentials, logout, MFA challenge |
+| `navigation.spec.ts` | 10 | Navigate to all 10 views |
+| `servers.spec.ts` | 11 | Server table, search, detail panel |
+| `users.spec.ts` | 8 | User management CRUD |
+| `data-leak.spec.ts` | 10 | Auth data leak and role isolation |
+| `providers.spec.ts` | 5 | Cloud provider credential management |
+| `block-storage.spec.ts` | 7 | Block storage list |
+| `crons.spec.ts` | 8 | Cron scheduler |
+| `databases.spec.ts` | 7 | Managed databases list |
+| `kubernetes.spec.ts` | 7 | Kubernetes clusters list |
+| `sync-logs.spec.ts` | 8 | Sync log history |
+| `ssh.spec.ts` | 6 | SSH credentials |
+| `settings.spec.ts` | 4 | App settings |
+| `visual.spec.ts` | 2 | Screenshot per theme (dark + light) |
 
 ---
 
@@ -479,7 +490,7 @@ To report a security vulnerability, please use [GitHub Security Advisories](http
 **Production hardening checklist:**
 - Set a strong, unique `SECRET_KEY` (use `openssl rand -hex 32`)
 - Set a strong `ADMIN_PASSWORD` before first run
-- Enable MFA on the admin account via **Settings → Two-Factor Authentication**
+- Enable MFA on the admin account via **Admin Setup → Two-Factor Authentication**
 - Do not expose `http://localhost:8000` directly — place behind a reverse proxy with TLS
 - Restrict PostgreSQL access to the backend container only
 
