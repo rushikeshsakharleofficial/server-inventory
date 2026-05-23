@@ -39,6 +39,8 @@ export default function SetupPage() {
   function submitChangePw(ev: React.FormEvent) {
     ev.preventDefault()
     setFieldError('')
+    if (!currentPw.trim()) { setFieldError('Current password is required'); return }
+    if (!newPw) { setFieldError('New password is required'); return }
     if (newPw.length < 6) { setFieldError('New password must be at least 6 characters'); return }
     if (newPw !== confirmPw) { setFieldError('New passwords do not match'); return }
     changePwMutation.mutate({ current_password: currentPw, new_password: newPw })
