@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { X, Plus, Trash2 } from 'lucide-react'
 import { styled } from '../stitches.config'
@@ -184,6 +184,14 @@ export default function AddServerModal({ server, onClose }: Props) {
   })
   const [tags, setTags] = useState<TagRow[]>(() => initialTags(server))
   const [errors, setErrors] = useState<string[]>([])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const mutation = useMutation({
     mutationFn: (payload: Partial<Server>) =>

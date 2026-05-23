@@ -187,6 +187,14 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
     if (preferred) setSelectedCredentialId(String(preferred.id))
   }, [selectedCredentialId, sshCredentials])
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   const sshSyncMutation = useMutation({
     mutationFn: () => serversApi.sshSync(server.id, Number(selectedCredentialId)),
     onSuccess: updatedServer => {
