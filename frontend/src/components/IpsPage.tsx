@@ -144,7 +144,7 @@ export default function IpsPage() {
 
       if (allIps && allIps.length > 0) {
         for (const ip of allIps) {
-          const clean = ip.split('/')[0]
+          const clean = ip.split('/')[0] ?? ip
           const type: IpRow['type'] = (srv.public_ip && clean === srv.public_ip)
             ? 'public'
             : isPrivateIp(clean) ? 'private' : 'interface'
@@ -302,7 +302,7 @@ export default function IpsPage() {
               result.ips.map((ip, j) => (
                 <tr key={`stream-${result.server_id}-${ip}-${j}`} style={{ opacity: 0.75, background: 'var(--ac-bg)' }}>
                   <TD>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'var(--ac)' }}>{ip.split('/')[0]}</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'var(--ac)' }}>{ip.split('/')[0] ?? ip}</span>
                   </TD>
                   <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>live</span></TD>
                   <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>IPv{ip.includes(':') ? 6 : 4}</span></TD>
