@@ -12,7 +12,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
-from ..ssh_utils import fetch_ssh_ips
+from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
 
@@ -463,32 +463,81 @@ def ssh_fetch_ips_stream(
         .all()
     )
 
-    def _fetch_one(srv: models.Server) -> tuple[models.Server, list[str]]:
-        host = srv.public_ip or srv.private_ip
-        ips = fetch_ssh_ips(host, ssh_cred) if host else []
-        return srv, ips
-
     def generate():
+        import paramiko
+        from ..crypto import decrypt_str
+
+        jump_client = None
+        jump_transport = None
+        pkey = None
+
+        # ── One-time setup: jump connection + key load ─────────────────────
+        try:
+            if getattr(ssh_cred, "proxy_host", None):
+                _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
+                _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
+                jump_client = paramiko.SSHClient()
+                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                jk: dict = {
+                    "hostname": ssh_cred.proxy_host,
+                    "port":     ssh_cred.proxy_port or 22,
+                    "username": ssh_cred.proxy_username or "root",
+                    "timeout":  15,
+                }
+                if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
+                    jk["pkey"] = _load_pkey(_proxy_key)
+                elif _proxy_pass:
+                    jk["password"]      = _proxy_pass
+                    jk["look_for_keys"] = False
+                    jk["allow_agent"]   = False
+                jump_client.connect(**jk)
+                jump_transport = jump_client.get_transport()
+
+            if ssh_cred.private_key:
+                pkey = _load_pkey(decrypt_str(ssh_cred.private_key))
+        except Exception as exc:  # noqa: BLE001
+            yield json.dumps({"error": f"Jump/key setup failed: {exc}"}) + "\n"
+            return
+
+        # ── Concurrent fetch using shared jump transport ───────────────────
+        def _fetch(srv: models.Server) -> tuple[models.Server, list[str]]:
+            host = srv.public_ip or srv.private_ip
+            if not host:
+                return srv, []
+            if jump_transport and pkey:
+                ips = fetch_ips_via_transport(
+                    host, ssh_cred.port or 22,
+                    ssh_cred.username, pkey, jump_transport,
+                )
+            else:
+                ips = fetch_ssh_ips(host, ssh_cred)
+            return srv, ips
+
         changed: list[models.Server] = []
-        with ThreadPoolExecutor(max_workers=10) as ex:
-            futures = {ex.submit(_fetch_one, srv): srv for srv in servers}
-            for fut in as_completed(futures):
-                try:
-                    srv, ips = fut.result()
-                    srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
-                    changed.append(srv)
-                    yield json.dumps({
-                        "server_id":   srv.id,
-                        "server_name": srv.name,
-                        "provider":    srv.provider,
-                        "host":        srv.public_ip or srv.private_ip or "",
-                        "ips":         ips,
-                        "success":     bool(ips),
-                    }) + "\n"
-                except Exception:  # noqa: BLE001
-                    pass
-        if changed:
-            db.commit()
+        try:
+            with ThreadPoolExecutor(max_workers=20) as ex:
+                futures = {ex.submit(_fetch, srv): srv for srv in servers}
+                for fut in as_completed(futures):
+                    try:
+                        srv, ips = fut.result()
+                        srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
+                        changed.append(srv)
+                        yield json.dumps({
+                            "server_id":   srv.id,
+                            "server_name": srv.name,
+                            "provider":    srv.provider,
+                            "host":        srv.public_ip or srv.private_ip or "",
+                            "ips":         ips,
+                            "success":     bool(ips),
+                        }) + "\n"
+                    except Exception:  # noqa: BLE001
+                        pass
+        finally:
+            if changed:
+                db.commit()
+            if jump_client:
+                try: jump_client.close()
+                except Exception: pass  # noqa: BLE001
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 

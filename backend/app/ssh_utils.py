@@ -25,7 +25,7 @@ def _load_pkey(key_str: str):
 def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
     """SSH into *host* using *ssh_cred* (including proxy if configured).
 
-    Runs `ip a` and returns all non-loopback IP addresses.
+    Runs `ip -br a` (compact) or `ip a` as fallback.
     Returns empty list on any connection or auth failure.
     """
     import paramiko
@@ -46,8 +46,8 @@ def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
             "hostname":       host,
             "port":           ssh_cred.port or 22,
             "username":       ssh_cred.username,
-            "timeout":        10,
-            "banner_timeout": 10,
+            "timeout":        8,
+            "banner_timeout": 8,
         }
 
         if ssh_cred.auth_method == "key" and _private_key:
@@ -82,23 +82,59 @@ def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
             )
 
         client.connect(**connect_kwargs)
-        _, stdout, _ = client.exec_command(
-            "ip a 2>/dev/null || ip addr 2>/dev/null", timeout=10
-        )
-        output = stdout.read().decode("utf-8", errors="replace")
+        return _run_ip_cmd(client)
 
-        all_ips = re.findall(r"inet6?\s+([\da-f:.]+)/\d+", output)
-        return [ip for ip in all_ips if not ip.startswith("127.") and ip != "::1"]
-
-    except Exception:  # noqa: BLE001 — best-effort, never propagate
+    except Exception:  # noqa: BLE001
         return []
     finally:
-        try:
-            client.close()
-        except Exception:  # noqa: BLE001
-            pass
+        try: client.close()
+        except Exception: pass  # noqa: BLE001
         if jump_client:
-            try:
-                jump_client.close()
-            except Exception:  # noqa: BLE001
-                pass
+            try: jump_client.close()
+            except Exception: pass  # noqa: BLE001
+
+
+def fetch_ips_via_transport(
+    host: str,
+    port: int,
+    username: str,
+    pkey: Any,
+    jump_transport: Any,
+) -> list[str]:
+    """Fetch IPs using a shared pre-established jump transport.
+
+    No per-call jump handshake — opens only a new channel.
+    """
+    import paramiko
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        sock = jump_transport.open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
+        client.connect(
+            host,
+            username=username,
+            pkey=pkey,
+            sock=sock,
+            timeout=8,
+            banner_timeout=8,
+        )
+        return _run_ip_cmd(client)
+    except Exception:  # noqa: BLE001
+        return []
+    finally:
+        try: client.close()
+        except Exception: pass  # noqa: BLE001
+
+
+def _run_ip_cmd(client: Any) -> list[str]:
+    """Run `ip -br a` (compact) with fallback to `ip a`; parse all non-loopback IPs."""
+    _, stdout, _ = client.exec_command(
+        "ip -br a 2>/dev/null || ip a 2>/dev/null", timeout=8
+    )
+    output = stdout.read().decode("utf-8", errors="replace")
+    all_ips = re.findall(r"([\da-f:.]+)/\d+", output)
+    return [
+        ip for ip in all_ips
+        if not ip.startswith("127.") and ip != "::1" and ip not in ("0.0.0.0", "::")
+    ]
