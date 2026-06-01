@@ -47,6 +47,7 @@ export default function IpsPage() {
   const [typeFilter, setTypeFilter] = useState<'' | 'public' | 'private' | 'interface'>('')
   const [versionFilter, setVersionFilter] = useState<'' | '4' | '6'>('')
   const [selectedCredId, setSelectedCredId] = useState<string>('')
+  const [page, setPage] = useState(1)
   const [fetching, setFetching]     = useState(false)
   const [streamResults, setStreamResults] = useState<StreamResult[]>([])
   const abortRef = useRef<AbortController | null>(null)
@@ -158,6 +159,8 @@ export default function IpsPage() {
     return out
   }, [servers])
 
+  const PAGE_SIZE = 50
+
   const filtered = useMemo(() => {
     return rows.filter(r => {
       if (search && !r.ip.includes(search) && !r.server.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -166,6 +169,14 @@ export default function IpsPage() {
       return true
     })
   }, [rows, search, typeFilter, versionFilter])
+
+  useEffect(() => { setPage(1) }, [search, typeFilter, versionFilter])
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const pageRows   = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page, PAGE_SIZE],
+  )
 
   const TypeIcon = ({ type }: { type: IpRow['type'] }) => {
     if (type === 'public')    return <Globe    size={12} style={{ color: 'var(--ac)',  flexShrink: 0 }} />
@@ -312,7 +323,7 @@ export default function IpsPage() {
                 </tr>
               ))
             )}
-            {filtered.map((row, i) => (
+            {pageRows.map((row, i) => (
               <tr key={`${row.server.id}-${row.ip}-${i}`}>
                 <TD>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: typeColor(row.type) }}>
@@ -355,6 +366,71 @@ export default function IpsPage() {
           </TBody>
         </Table>
       </TableContainer>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Flex
+          align="center"
+          justify="between"
+          style={{
+            padding: '12px 24px',
+            borderTop: '1px solid var(--bd)',
+            backgroundColor: 'var(--bg-s1)',
+            borderRadius: '0 0 4px 4px',
+            border: '1px solid var(--bd)',
+            borderTopColor: 'transparent',
+          }}
+        >
+          <Text variant="small" style={{ fontFamily: 'monospace' }}>
+            Page {page} of {totalPages} · {filtered.length} total
+          </Text>
+          <Flex align="center" gap={1}>
+            <Button
+              intent="ghost"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              size="sm"
+              style={{ padding: '6px 12px' }}
+            >
+              Prev
+            </Button>
+            {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
+              const p = i + 1
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  style={{
+                    width: '32px', height: '32px',
+                    borderRadius: '2px', border: 'none',
+                    cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                    transition: 'all 150ms ease',
+                    backgroundColor: page === p ? 'var(--ac)' : 'transparent',
+                    color: page === p ? 'var(--btn-primary-fg)' : 'var(--tx2)',
+                  }}
+                  onMouseEnter={e => {
+                    if (page !== p) e.currentTarget.style.backgroundColor = 'var(--bg-s3)'
+                  }}
+                  onMouseLeave={e => {
+                    if (page !== p) e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                >
+                  {p}
+                </button>
+              )
+            })}
+            <Button
+              intent="ghost"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              size="sm"
+              style={{ padding: '6px 12px' }}
+            >
+              Next
+            </Button>
+          </Flex>
+        </Flex>
+      )}
     </div>
   )
 }
