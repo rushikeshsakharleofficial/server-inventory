@@ -6,7 +6,7 @@ import { useToast } from '../hooks/useToast'
 import type { Server } from '../types'
 import ProviderBadge from './ProviderBadge'
 import {
-  Card, Flex, Text, Input, Select,
+  Card, Flex, Text, Input, Select, Button,
   TableContainer, Table, THead, TH, TBody, TD,
 } from './StitchUI'
 
