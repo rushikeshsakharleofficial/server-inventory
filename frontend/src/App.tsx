@@ -15,6 +15,7 @@ import DashboardPage from './components/DashboardPage'
 import DatabasesPage from './components/DatabasesPage'
 import KubernetesPage from './components/KubernetesPage'
 import BlockStoragePage from './components/BlockStoragePage'
+import IpsPage from './components/IpsPage'
 import SSHPage from './components/SSHPage'
 import SettingsPage from './components/SettingsPage'
 import CronsPage from './components/CronsPage'
@@ -71,6 +72,7 @@ const PATH_TO_VIEW: Record<string, View> = {
   '/inventory/databases': 'databases',
   '/inventory/kubernetes':'kubernetes',
   '/inventory/block-storage': 'block_storage',
+  '/inventory/ips':       'ips',
   '/providers':           'providers',
   '/sync-logs':           'sync-logs',
   '/crons':               'crons',
@@ -86,6 +88,7 @@ const VIEW_TO_PATH: Record<View, string> = {
   'databases':      '/inventory/databases',
   'kubernetes':     '/inventory/kubernetes',
   'block_storage':  '/inventory/block-storage',
+  'ips':           '/inventory/ips',
   'providers':      '/providers',
   'sync-logs':      '/sync-logs',
   'crons':          '/crons',
@@ -174,6 +177,7 @@ function AppContent() {
         {view === 'databases' && <DatabasesPage />}
         {view === 'kubernetes' && <KubernetesPage />}
         {view === 'block_storage' && <BlockStoragePage />}
+        {view === 'ips' && <IpsPage />}
 
         {view === 'providers' && (
           <div className="animate-fade-in">

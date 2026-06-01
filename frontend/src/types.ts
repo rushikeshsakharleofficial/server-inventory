@@ -99,7 +99,7 @@ export interface CronJob {
   updated_at?: string
 }
 
-export type View = 'dashboard' | 'servers' | 'databases' | 'kubernetes' | 'block_storage' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings' | 'users' | 'setup'
+export type View = 'dashboard' | 'servers' | 'databases' | 'kubernetes' | 'block_storage' | 'ips' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings' | 'users' | 'setup'
 
 export interface DatabaseInstance {
   id: number

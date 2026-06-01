@@ -4,7 +4,7 @@ import {
   Server, Cloud, Activity, RefreshCw, Plus,
   Menu, X, Settings, Wifi, Users, LogOut, Shield, PencilLine, Eye,
   CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal, Timer,
-  Layers, Database, Box, ChevronDown, HardDrive,
+  Layers, Database, Box, ChevronDown, HardDrive, Network,
 } from 'lucide-react'
 import { syncApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
@@ -22,13 +22,14 @@ interface LayoutProps {
   children: React.ReactNode
 }
 
-const INVENTORY_VIEWS: View[] = ['servers', 'databases', 'kubernetes', 'block_storage']
+const INVENTORY_VIEWS: View[] = ['servers', 'databases', 'kubernetes', 'block_storage', 'ips']
 
 const INVENTORY_SUB: { id: View; label: string; Icon: React.ElementType }[] = [
   { id: 'servers',       label: 'Servers',       Icon: Server      },
   { id: 'databases',     label: 'Databases',     Icon: Database    },
   { id: 'kubernetes',    label: 'Kubernetes',    Icon: Box         },
   { id: 'block_storage', label: 'Block Storage', Icon: HardDrive   },
+  { id: 'ips',           label: 'IP Addresses',  Icon: Network     },
 ]
 
 const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
@@ -45,6 +46,7 @@ const VIEW_TITLE: Record<View, string> = {
   databases:       'Databases',
   kubernetes:      'Kubernetes',
   block_storage:   'Block Storage',
+  ips:             'IP Addresses',
   providers:       'Cloud Providers',
   'sync-logs':     'Sync Logs',
   crons:           'Cron Jobs',
