@@ -27,7 +27,7 @@ import {
   TD as Td,
 } from './StitchUI'
 
-const PROVIDERS = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh', 'custom_dc']
+const PROVIDERS = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh', 'hivelocity', 'custom_dc']
 
 const PRESETS: { label: string; expr: string; desc: string }[] = [
   { label: 'Every hour',    expr: '0 * * * *',    desc: 'Runs at minute 0 of every hour'       },

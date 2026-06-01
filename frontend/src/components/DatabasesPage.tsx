@@ -163,7 +163,7 @@ export default function DatabasesPage() {
               }}
             >
               <option value="">All Providers</option>
-              {['aws', 'gcp', 'azure', 'linode', 'digitalocean'].map(p => (
+              {['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'hivelocity'].map(p => (
                 <option key={p} value={p}>
                   {p.toUpperCase()}
                 </option>

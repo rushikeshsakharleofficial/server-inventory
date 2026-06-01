@@ -40,7 +40,7 @@ const STATUS_CFG: Record<
   unknown:    { bg: 'var(--sgr-bg)', text: 'var(--sgr)', border: 'var(--sgr-bd)', dot: 'solid'  },
 }
 
-const PROVIDERS = ['aws','gcp','azure','linode','digitalocean','ovh','custom_dc']
+const PROVIDERS = ['aws','gcp','azure','linode','digitalocean','ovh','hivelocity','custom_dc']
 const STATUSES: ServerStatus[] = ['running','stopped','pending','terminated','unknown']
 const PAGE_SIZE = 20
 

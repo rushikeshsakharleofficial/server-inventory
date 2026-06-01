@@ -1,4 +1,4 @@
-export type Provider = 'aws' | 'gcp' | 'azure' | 'linode' | 'digitalocean' | 'ovh' | 'custom_dc'
+export type Provider = 'aws' | 'gcp' | 'azure' | 'linode' | 'digitalocean' | 'ovh' | 'hivelocity' | 'custom_dc'
 export type ServerStatus = 'running' | 'stopped' | 'terminated' | 'pending' | 'unknown'
 
 export interface Server {
