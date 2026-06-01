@@ -9,11 +9,36 @@ from ..database import get_db, DATABASE_URL
 from ..providers import get_provider
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_config
+from ..ssh_utils import fetch_ssh_ips
 from ..ws_manager import manager
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
 _SYNC_STOPPED_MSG = "Sync stopped by user"
+
+
+def _ssh_fetch_ips(db, servers: list) -> None:
+    """Best-effort: SSH each server with the default credential and store all_ips."""
+    if not servers:
+        return
+    ssh_cred = (
+        db.query(models.SSHCredential)
+        .filter(models.SSHCredential.is_default.is_(True))
+        .first()
+    )
+    if not ssh_cred:
+        return
+    changed = False
+    for svr in servers:
+        host = svr.public_ip or svr.private_ip
+        if not host:
+            continue
+        ips = fetch_ssh_ips(host, ssh_cred)
+        if ips:
+            svr.ssh_info = {**(svr.ssh_info or {}), "all_ips": ips}
+            changed = True
+    if changed:
+        db.commit()
 
 # Per-log cancellation events (process-local — single worker only)
 _stop_events: dict[int, threading.Event] = {}
@@ -84,6 +109,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                             existing_map[obj.cloud_id] = obj
 
                 allowed_cols = {c.key for c in models.Server.__table__.columns}
+                new_servers: list[models.Server] = []
                 for srv in srv_list:
                     if stop_event.is_set():
                         raise RuntimeError(_SYNC_STOPPED_MSG)
@@ -101,9 +127,13 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                         new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
                         new_srv.last_synced = datetime.now(timezone.utc)
                         db.add(new_srv)
+                        new_servers.append(new_srv)
                         added += 1
 
                 db.commit()
+
+                # SSH IP fetch — best-effort, runs after provider sync
+                _ssh_fetch_ips(db, list(existing_map.values()) + new_servers)
 
                 # Take a snapshot after successful sync
                 try:

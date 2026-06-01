@@ -377,9 +377,28 @@ export default function ServerTable({
 
                   {/* Public IP */}
                   <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {server.public_ip ?? '—'}
-                    </span>
+                    {(() => {
+                      const sshAllIps = Array.isArray((server.ssh_info as Record<string,unknown>)?.all_ips)
+                        ? (server.ssh_info as Record<string,unknown>).all_ips as string[]
+                        : null
+                      const primary = server.public_ip ?? (sshAllIps?.[0]) ?? null
+                      const extra = sshAllIps ? sshAllIps.filter(ip => ip !== primary) : []
+                      return (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
+                          <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {primary ?? '—'}
+                          </span>
+                          {extra.length > 0 && (
+                            <span
+                              title={extra.join('\n')}
+                              style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--ac)', background: 'var(--ac)14', border: '1px solid var(--ac)30', borderRadius: '4px', padding: '0 4px', cursor: 'default', flexShrink: 0 }}
+                            >
+                              +{extra.length}
+                            </span>
+                          )}
+                        </span>
+                      )
+                    })()}
                   </TD>
 
                   {/* Private IP */}

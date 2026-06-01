@@ -1485,6 +1485,46 @@ def _hivelocity_server_map(server: models.Server, config: dict) -> dict:
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
 
+def _append_ip_nodes(server: models.Server, result: dict) -> dict:
+    """Add IP address nodes from ssh_info.all_ips for any provider's server map."""
+    ssh_info = server.ssh_info or {}
+    all_ips: list[str] = []
+    if isinstance(ssh_info.get("all_ips"), list):
+        all_ips = ssh_info["all_ips"]
+    elif server.public_ip:
+        all_ips = [server.public_ip]
+        if server.private_ip and server.private_ip != server.public_ip:
+            all_ips.append(server.private_ip)
+
+    # Collect IPs already in nodes to avoid duplicates
+    existing_labels = {n.get("label", "") for n in result.get("nodes", [])}
+
+    # Find the compute/server root node id
+    root_id = next(
+        (n["id"] for n in result.get("nodes", []) if n.get("category") == "compute"),
+        None,
+    )
+    if root_id is None or not all_ips:
+        return result
+
+    nodes = list(result.get("nodes", []))
+    edges = list(result.get("edges", []))
+
+    for idx, ip in enumerate(all_ips):
+        if ip in existing_labels:
+            continue
+        ip_node_id = f"ip-{server.id}-{idx}"
+        label = ip
+        is_primary = ip == server.public_ip
+        nodes.append(_node(ip_node_id, "ip", "network", label, {
+            "type": "primary" if is_primary else "additional",
+        }))
+        edges.append(_edge(root_id, ip_node_id, "primary IP" if is_primary else "IP"))
+        existing_labels.add(ip)
+
+    return {**result, "nodes": nodes, "edges": edges}
+
+
 def _build_map(resource_type: str, resource, provider: str, config: dict) -> dict:
     dispatch = {
         ("aws", "server"):     _aws_server_map,
@@ -1508,7 +1548,10 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
     fn = dispatch.get((provider, resource_type))
     if fn is None:
         return {"nodes": [], "edges": []}
-    return fn(resource, config)
+    result = fn(resource, config)
+    if resource_type == "server":
+        result = _append_ip_nodes(resource, result)
+    return result
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
