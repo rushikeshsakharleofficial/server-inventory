@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, Globe, Lock, Wifi, RefreshCw } from 'lucide-react'
-import { serversApi, sshCredentialsApi } from '../api'
+import { http, sshCredentialsApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import type { Server } from '../types'
 import ProviderBadge from './ProviderBadge'
@@ -15,6 +15,15 @@ interface IpRow {
   type: 'public' | 'private' | 'interface'
   server: Server
   version: 4 | 6
+}
+
+interface StreamResult {
+  server_id: number
+  server_name: string
+  provider: string
+  host: string
+  ips: string[]
+  success: boolean
 }
 
 function ipVersion(ip: string): 4 | 6 {
@@ -38,6 +47,9 @@ export default function IpsPage() {
   const [typeFilter, setTypeFilter] = useState<'' | 'public' | 'private' | 'interface'>('')
   const [versionFilter, setVersionFilter] = useState<'' | '4' | '6'>('')
   const [selectedCredId, setSelectedCredId] = useState<string>('')
+  const [fetching, setFetching]     = useState(false)
+  const [streamResults, setStreamResults] = useState<StreamResult[]>([])
+  const abortRef = useRef<AbortController | null>(null)
 
   const { data: sshCreds = [] } = useQuery({
     queryKey: ['ssh-credentials'],
@@ -45,24 +57,62 @@ export default function IpsPage() {
     staleTime: 60_000,
   })
 
-  const { data: servers = [], isLoading, isError } = useQuery({
+  const { data: servers = [], isLoading, isError } = useQuery<Server[]>({
     queryKey: ['servers'],
-    queryFn: () => serversApi.list(),
+    queryFn: () => http.get<Server[]>('/api/servers').then(r => r.data),
     staleTime: 30_000,
   })
 
-  const fetchMutation = useMutation({
-    mutationFn: () => serversApi.sshFetchAllIps(selectedCredId ? parseInt(selectedCredId) : undefined),
-    onSuccess: (data) => {
-      const total = data.reduce((sum, r) => sum + r.ips.length, 0)
-      toast.success(`Fetched ${total} IPs from ${data.length} servers`)
+  async function startFetch() {
+    if (fetching) { abortRef.current?.abort(); return }
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setFetching(true)
+    setStreamResults([])
+
+    const token = localStorage.getItem('si_token')
+    const url = '/api/servers/ssh-fetch-ips-stream' +
+      (selectedCredId ? `?ssh_credential_id=${selectedCredId}` : '')
+
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: ctrl.signal,
+      })
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}))
+        toast.error(body?.detail || 'SSH fetch failed')
+        return
+      }
+
+      const reader = resp.body!.getReader()
+      const dec = new TextDecoder()
+      let buf = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += dec.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop()!
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const result: StreamResult = JSON.parse(line)
+            setStreamResults(prev => [...prev, result])
+          } catch { /* skip malformed */ }
+        }
+      }
+
       qc.invalidateQueries({ queryKey: ['servers'] })
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast.error(msg || 'SSH fetch failed — check default credential')
-    },
-  })
+      toast.success('SSH IP fetch complete')
+    } catch (e: unknown) {
+      if ((e as Error)?.name !== 'AbortError') toast.error('SSH fetch error')
+    } finally {
+      setFetching(false)
+    }
+  }
 
   const rows = useMemo<IpRow[]>(() => {
     const out: IpRow[] = []
@@ -147,20 +197,20 @@ export default function IpsPage() {
             ))}
           </select>
         <button
-          onClick={() => fetchMutation.mutate()}
-          disabled={fetchMutation.isPending}
+          onClick={startFetch}
+          disabled={false}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
             padding: '0.45rem 0.9rem',
             background: 'var(--ac)', color: 'var(--btn-primary-fg)',
             border: 'none', borderRadius: '2px', cursor: 'pointer',
             fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em',
-            opacity: fetchMutation.isPending ? 0.6 : 1,
+            opacity: fetching ? 0.85 : 1,
             transition: 'all 140ms ease',
           }}
         >
-          <RefreshCw size={13} style={{ animation: fetchMutation.isPending ? 'spin 1s linear infinite' : 'none' }} />
-          {fetchMutation.isPending ? 'Fetching…' : 'Fetch via SSH'}
+          <RefreshCw size={13} style={{ animation: fetching ? 'spin 1s linear infinite' : 'none' }} />
+          {fetching ? `Fetching… (${streamResults.length})` : 'Fetch via SSH'}
         </button>
         </Flex>
       </Flex>
@@ -233,6 +283,21 @@ export default function IpsPage() {
                   No IPs found. Run a sync or SSH sync to populate.
                 </TD>
               </tr>
+            )}
+            {/* Live stream results shown while fetching */}
+            {fetching && streamResults.map(result =>
+              result.ips.map((ip, j) => (
+                <tr key={`stream-${result.server_id}-${ip}-${j}`} style={{ opacity: 0.75, background: 'var(--ac-bg)' }}>
+                  <TD>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'var(--ac)' }}>{ip.split('/')[0]}</span>
+                  </TD>
+                  <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>live</span></TD>
+                  <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>IPv{ip.includes(':') ? 6 : 4}</span></TD>
+                  <TD><span style={{ fontSize: '13px', color: 'var(--tx1)' }}>{result.server_name}</span></TD>
+                  <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>{result.provider}</span></TD>
+                  <TD />
+                </tr>
+              ))
             )}
             {filtered.map((row, i) => (
               <tr key={`${row.server.id}-${row.ip}-${i}`}>

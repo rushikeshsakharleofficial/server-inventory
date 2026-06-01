@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Annotated
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .. import models, schemas
@@ -436,6 +437,60 @@ def ssh_fetch_all_ips(
         db.commit()
 
     return results
+
+
+@router.post("/ssh-fetch-ips-stream")
+def ssh_fetch_ips_stream(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+    ssh_credential_id: int | None = Query(None),
+) -> StreamingResponse:
+    """Stream SSH IP results as NDJSON — one line per server as it completes."""
+    import json
+
+    if ssh_credential_id:
+        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
+        if not ssh_cred:
+            raise HTTPException(status_code=404, detail="SSH credential not found")
+    else:
+        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.is_default.is_(True)).first()
+    if not ssh_cred:
+        raise HTTPException(status_code=400, detail="No SSH credential selected and no default configured")
+
+    servers = (
+        db.query(models.Server)
+        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
+        .all()
+    )
+
+    def _fetch_one(srv: models.Server) -> tuple[models.Server, list[str]]:
+        host = srv.public_ip or srv.private_ip
+        ips = fetch_ssh_ips(host, ssh_cred) if host else []
+        return srv, ips
+
+    def generate():
+        changed: list[models.Server] = []
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futures = {ex.submit(_fetch_one, srv): srv for srv in servers}
+            for fut in as_completed(futures):
+                try:
+                    srv, ips = fut.result()
+                    srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
+                    changed.append(srv)
+                    yield json.dumps({
+                        "server_id":   srv.id,
+                        "server_name": srv.name,
+                        "provider":    srv.provider,
+                        "host":        srv.public_ip or srv.private_ip or "",
+                        "ips":         ips,
+                        "success":     bool(ips),
+                    }) + "\n"
+                except Exception:  # noqa: BLE001
+                    pass
+        if changed:
+            db.commit()
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 @router.delete("/{server_id}", status_code=204)
