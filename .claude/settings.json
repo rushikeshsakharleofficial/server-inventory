@@ -1,26 +1,31 @@
 {
   "permissions": {
-    "allow": ["Bash(curl *)"]
+    "allow": [
+      "Bash(curl *)",
+      "mcp__code-review-graph__*"
+    ]
   },
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-review-graph update --skip-flows",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "code-outline-graph update . 2>/dev/null; true"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "code-outline-graph update . 2>/dev/null; true"
+            "command": "code-review-graph status",
+            "timeout": 10
           }
         ]
       }

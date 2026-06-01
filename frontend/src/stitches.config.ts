@@ -72,12 +72,13 @@ export const {
     },
     fonts: {
       sans: "'DM Sans', system-ui, sans-serif",
+      display: "'Cormorant Garamond', Georgia, serif",
     },
     radii: {
-      sm: '4px',
-      md: '8px',
-      lg: '12px',
-      xl: '16px',
+      sm: '2px',
+      md: '3px',
+      lg: '4px',
+      xl: '6px',
       full: '9999px',
     },
     shadows: {

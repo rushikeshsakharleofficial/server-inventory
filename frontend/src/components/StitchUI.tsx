@@ -6,19 +6,19 @@ export const Flex = styled('div', {
   display: 'flex',
   variants: {
     direction: {
-      row: { flexDirection: 'row' },
+      row:    { flexDirection: 'row' },
       column: { flexDirection: 'column' },
     },
     align: {
-      start: { alignItems: 'flex-start' },
-      center: { alignItems: 'center' },
-      end: { alignItems: 'flex-end' },
+      start:   { alignItems: 'flex-start' },
+      center:  { alignItems: 'center' },
+      end:     { alignItems: 'flex-end' },
       stretch: { alignItems: 'stretch' },
     },
     justify: {
-      start: { justifyContent: 'flex-start' },
-      center: { justifyContent: 'center' },
-      end: { justifyContent: 'flex-end' },
+      start:   { justifyContent: 'flex-start' },
+      center:  { justifyContent: 'center' },
+      end:     { justifyContent: 'flex-end' },
       between: { justifyContent: 'space-between' },
     },
     gap: {
@@ -31,15 +31,15 @@ export const Flex = styled('div', {
       8: { gap: '$8' },
     },
     wrap: {
-      true: { flexWrap: 'wrap' },
+      true:  { flexWrap: 'wrap' },
       false: { flexWrap: 'nowrap' },
     },
   },
   defaultVariants: {
     direction: 'row',
-    align: 'stretch',
-    justify: 'start',
-    wrap: 'false',
+    align:     'stretch',
+    justify:   'start',
+    wrap:      'false',
   },
 });
 
@@ -47,10 +47,10 @@ export const Grid = styled('div', {
   display: 'grid',
   variants: {
     columns: {
-      1: { gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' },
-      2: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' },
-      3: { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' },
-      4: { gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' },
+      1:    { gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' },
+      2:    { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' },
+      3:    { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' },
+      4:    { gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' },
       auto: { gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' },
     },
     gap: {
@@ -75,20 +75,21 @@ export const Card = styled('div', {
   borderRadius: '$lg',
   boxShadow: '$card',
   padding: '$5',
-  transition: 'border-color 200ms ease, box-shadow 200ms ease',
+  transition: 'border-color 180ms ease, box-shadow 180ms ease',
   variants: {
     hoverable: {
       true: {
         '&:hover': {
           borderColor: '$cardHoverBorder',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.3), 0 0 0 1px var(--ac-bd)',
         },
       },
     },
     glass: {
       true: {
         backgroundColor: '$glassBg',
-        backdropFilter: 'blur(32px) saturate(180%)',
-        webkitBackdropFilter: 'blur(32px) saturate(180%)',
+        backdropFilter: 'blur(24px) saturate(160%)',
+        webkitBackdropFilter: 'blur(24px) saturate(160%)',
         border: '1px solid $glassBorder',
         boxShadow: '$glass',
       },
@@ -96,8 +97,8 @@ export const Card = styled('div', {
     modal: {
       true: {
         backgroundColor: '$glassBg',
-        backdropFilter: 'blur(32px) saturate(180%)',
-        webkitBackdropFilter: 'blur(32px) saturate(180%)',
+        backdropFilter: 'blur(24px) saturate(160%)',
+        webkitBackdropFilter: 'blur(24px) saturate(160%)',
         border: '1px solid $glassBorder',
         boxShadow: '$modal',
       },
@@ -108,15 +109,16 @@ export const Card = styled('div', {
 // ── Typography ───────────────────────────────────────────────────────────────
 
 export const Heading = styled('h2', {
-  fontFamily: '$sans',
+  fontFamily: '$display',
   color: '$tx1',
   margin: 0,
+  fontStyle: 'italic',
   variants: {
     level: {
-      h1: { fontSize: '$2xl', fontWeight: 800, tracking: '-0.025em' },
-      h2: { fontSize: '$xl', fontWeight: 700, tracking: '-0.02em' },
-      h3: { fontSize: '$lg', fontWeight: 600 },
-      h4: { fontSize: '$base', fontWeight: 600 },
+      h1: { fontSize: '2rem',   fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.1 },
+      h2: { fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.2 },
+      h3: { fontSize: '1.15rem', fontWeight: 600, lineHeight: 1.3 },
+      h4: { fontSize: '1rem',   fontWeight: 600, lineHeight: 1.4 },
     },
   },
   defaultVariants: {
@@ -129,11 +131,19 @@ export const Text = styled('p', {
   margin: 0,
   variants: {
     variant: {
-      body: { fontSize: '$sm', color: '$tx1', fontWeight: 400 },
-      muted: { fontSize: '$sm', color: '$tx2', fontWeight: 400 },
-      small: { fontSize: '$xs', color: '$tx2', fontWeight: 400 },
-      smallMuted: { fontSize: '$xs', color: '$tx3', fontWeight: 400 },
-      label: { fontSize: '$xs', color: '$tx3', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' },
+      body:       { fontSize: '$sm',  color: '$tx1', fontWeight: 400 },
+      muted:      { fontSize: '$sm',  color: '$tx2', fontWeight: 400 },
+      small:      { fontSize: '$xs',  color: '$tx2', fontWeight: 400 },
+      smallMuted: { fontSize: '$xs',  color: '$tx3', fontWeight: 400 },
+      label: {
+        fontSize: '10px',
+        color: '$tx3',
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.10em',
+        fontFamily: "'JetBrains Mono', monospace",
+        fontStyle: 'normal',
+      },
     },
   },
   defaultVariants: {
@@ -147,18 +157,17 @@ export const Input = styled('input', {
   width: '100%',
   backgroundColor: '$bgS2',
   border: '1px solid $border',
-  borderRadius: '$md',
+  borderRadius: '$sm',
   padding: '0.5rem 0.75rem',
   fontSize: '$sm',
   color: '$tx1',
   transition: 'all 150ms ease',
   outline: 'none',
-  '&::placeholder': {
-    color: '$tx3',
-  },
+  fontFamily: '$sans',
+  '&::placeholder': { color: '$tx3' },
   '&:focus': {
     borderColor: '$accent',
-    boxShadow: '0 0 0 1px var(--ac)',
+    boxShadow: '0 0 0 2px var(--ac-bg)',
   },
 });
 
@@ -166,7 +175,7 @@ export const Select = styled('select', {
   width: '100%',
   backgroundColor: '$bgS2',
   border: '1px solid $border',
-  borderRadius: '$md',
+  borderRadius: '$sm',
   padding: '0.5rem 0.75rem',
   fontSize: '$sm',
   color: '$tx1',
@@ -175,7 +184,7 @@ export const Select = styled('select', {
   cursor: 'pointer',
   '&:focus': {
     borderColor: '$accent',
-    boxShadow: '0 0 0 1px var(--ac)',
+    boxShadow: '0 0 0 2px var(--ac-bg)',
   },
   '& option': {
     backgroundColor: 'var(--select-bg)',
@@ -187,38 +196,38 @@ export const Textarea = styled('textarea', {
   width: '100%',
   backgroundColor: '$bgS2',
   border: '1px solid $border',
-  borderRadius: '$md',
+  borderRadius: '$sm',
   padding: '0.5rem 0.75rem',
   fontSize: '$sm',
   color: '$tx1',
   transition: 'all 150ms ease',
   outline: 'none',
   fontFamily: '$sans',
-  '&::placeholder': {
-    color: '$tx3',
-  },
+  '&::placeholder': { color: '$tx3' },
   '&:focus': {
     borderColor: '$accent',
-    boxShadow: '0 0 0 1px var(--ac)',
+    boxShadow: '0 0 0 2px var(--ac-bg)',
   },
 });
 
-// ── Buttons & Clickables ─────────────────────────────────────────────────────
+// ── Buttons ──────────────────────────────────────────────────────────────────
 
 export const Button = styled('button', {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   gap: '$2',
-  borderRadius: '$md',
+  borderRadius: '$sm',
   fontSize: '$sm',
-  fontWeight: 700,
-  transition: 'all 150ms ease',
+  fontWeight: 600,
+  letterSpacing: '0.02em',
+  transition: 'all 140ms ease',
   cursor: 'pointer',
   border: 'none',
   outline: 'none',
+  fontFamily: '$sans',
   '&:disabled': {
-    opacity: 0.4,
+    opacity: 0.38,
     cursor: 'not-allowed',
   },
   variants: {
@@ -228,6 +237,7 @@ export const Button = styled('button', {
         color: '$btnFg',
         '&:hover:not(:disabled)': {
           backgroundColor: '$accentHover',
+          boxShadow: '0 2px 8px var(--ac-glow)',
         },
       },
       secondary: {
@@ -236,14 +246,13 @@ export const Button = styled('button', {
         border: '1px solid $border',
         '&:hover:not(:disabled)': {
           backgroundColor: '$bgS3',
+          borderColor: '$borderStrong',
         },
       },
       danger: {
         backgroundColor: '$statusRed',
         color: '#ffffff',
-        '&:hover:not(:disabled)': {
-          opacity: 0.9,
-        },
+        '&:hover:not(:disabled)': { opacity: 0.88 },
       },
       ghost: {
         backgroundColor: 'transparent',
@@ -252,52 +261,44 @@ export const Button = styled('button', {
         '&:hover:not(:disabled)': {
           backgroundColor: '$bgS3',
           color: '$tx1',
+          borderColor: '$borderStrong',
         },
       },
       glass: {
-        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid $border',
-        color: '$tx1',
-        backdropFilter: 'blur(8px)',
+        backgroundColor: 'rgba(200, 136, 58, 0.04)',
+        border: '1px solid var(--ac-bd)',
+        color: '$accent',
         '&:hover:not(:disabled)': {
-          backgroundColor: 'rgba(255, 255, 255, 0.08)',
-          borderColor: '$accent',
+          backgroundColor: 'var(--ac-bg)',
+          boxShadow: '0 0 12px var(--ac-glow)',
         },
       },
     },
     size: {
-      sm: {
-        padding: '0.375rem 0.75rem',
-        fontSize: '$xs',
-      },
-      md: {
-        padding: '0.5rem 1rem',
-        fontSize: '$sm',
-      },
-      lg: {
-        padding: '0.75rem 1.5rem',
-        fontSize: '$base',
-      },
+      sm: { padding: '0.3rem 0.65rem', fontSize: '$xs' },
+      md: { padding: '0.45rem 0.9rem', fontSize: '$sm' },
+      lg: { padding: '0.65rem 1.4rem', fontSize: '$base' },
     },
   },
   defaultVariants: {
     intent: 'secondary',
-    size: 'md',
+    size:   'md',
   },
 });
 
-// ── Badges & Status Indicators ───────────────────────────────────────────────
+// ── Badges & Status ──────────────────────────────────────────────────────────
 
 export const Badge = styled('span', {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '0.125rem 0.5rem',
-  borderRadius: '$full',
-  fontSize: '$xs',
-  fontWeight: 700,
+  padding: '0.1rem 0.45rem',
+  borderRadius: '2px',
+  fontSize: '10px',
+  fontWeight: 600,
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
+  letterSpacing: '0.08em',
+  fontFamily: "'JetBrains Mono', monospace",
   variants: {
     status: {
       green: {
@@ -333,15 +334,15 @@ export const Badge = styled('span', {
 });
 
 export const StatusDot = styled('div', {
-  width: '8px',
-  height: '8px',
+  width: '7px',
+  height: '7px',
   borderRadius: '$full',
   flexShrink: 0,
   variants: {
     running: {
       true: {
         backgroundColor: '$statusGreen',
-        animation: `${pulseRing} 2s ease-in-out infinite`,
+        animation: `${pulseRing} 2.5s ease-in-out infinite`,
       },
       false: {
         backgroundColor: '$statusGray',
@@ -373,30 +374,27 @@ export const THead = styled('thead', {
 });
 
 export const TH = styled('th', {
-  padding: '$3 $5',
+  padding: '0.625rem 1.25rem',
   fontSize: '10px',
-  fontWeight: 700,
+  fontWeight: 600,
   textTransform: 'uppercase',
-  letterSpacing: '0.1em',
+  letterSpacing: '0.12em',
   color: '$tx3',
   whiteSpace: 'nowrap',
+  fontFamily: "'JetBrains Mono', monospace",
 });
 
 export const TBody = styled('tbody', {
   '& tr': {
     borderBottom: '1px solid $border',
-    transition: 'background-color 150ms ease',
-    '&:hover': {
-      backgroundColor: '$bgS2',
-    },
-    '&:last-child': {
-      borderBottom: 'none',
-    },
+    transition: 'background-color 120ms ease',
+    '&:hover': { backgroundColor: '$bgS2' },
+    '&:last-child': { borderBottom: 'none' },
   },
 });
 
 export const TD = styled('td', {
-  padding: '$4 $5',
+  padding: '0.75rem 1.25rem',
   fontSize: '$sm',
   color: '$tx1',
 });
