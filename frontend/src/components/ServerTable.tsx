@@ -143,6 +143,7 @@ export default function ServerTable({
         cursor: field ? 'pointer' : 'default',
         textAlign: center ? 'center' : 'left',
         width: compact ? width : undefined,
+        fontFamily: "'JetBrains Mono', monospace",
       }}
     >
       <Flex align="center" gap={1} style={{ justifyContent: center ? 'center' : 'flex-start' }}>
@@ -227,6 +228,12 @@ export default function ServerTable({
         </Button>
       </Flex>
 
+      {/* Manifest header */}
+              <div style={{ padding: '10px 20px 8px', borderBottom: '1px solid var(--bd)', marginBottom: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx2)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Infrastructure Manifest</span>
+                <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>{sorted.length} NODES</span>
+              </div>
+
       {/* Table */}
       <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none', overflowX: compact ? 'hidden' : 'auto' }}>
         <Table aria-label="Server inventory" style={{ tableLayout: compact ? 'fixed' : 'auto', width: '100%' }}>
@@ -303,7 +310,7 @@ export default function ServerTable({
                 >
                   {/* Name */}
                   <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.name}>{server.name}</p>
+                    <p style={{ margin: 0, fontSize: '12px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--ac)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.name}>{server.name}</p>
                     {server.hostname && (
                       <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: 'var(--tx3)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.hostname}>{server.hostname}</p>
                     )}

@@ -3,7 +3,8 @@
     "allow": [
       "Bash(curl *)",
       "mcp__code-review-graph__*",
-      "mcp__playwright__*"
+      "mcp__playwright__*",
+      "mcp__stitch__*"
     ]
   },
   "hooks": {

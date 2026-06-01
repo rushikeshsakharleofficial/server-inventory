@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { serversApi } from '../api'
 import { SkeletonCard } from './Skeleton'
-import { Grid, Card, Flex, Text, StatusDot } from './StitchUI'
+import { Grid, Card } from './StitchUI'
 
 const PROVIDER_COLORS: Record<string, string> = {
   aws:          '#FF9900',
@@ -25,35 +25,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   custom_dc:    'Custom',
 }
 
-function DonutSVG({ data }: { data: Array<{ value: number; color: string }> }) {
-  const total = data.reduce((s, d) => s + d.value, 0)
-  if (total === 0) return <circle cx="18" cy="18" r="16" fill="none" stroke="var(--bd)" strokeWidth="4" />
-
-  let offset = 0
-  const circumference = 2 * Math.PI * 16
-  return (
-    <>
-      <circle cx="18" cy="18" r="16" fill="none" stroke="var(--bd)" strokeWidth="4" />
-      {data.filter(d => d.value > 0).map((d) => {
-        const pct = d.value / total
-        const dash = pct * circumference
-        const el = (
-          <circle
-            key={d.color}
-            cx="18" cy="18" r="16"
-            fill="none"
-            stroke={d.color}
-            strokeWidth="4"
-            strokeDasharray={`${dash} ${circumference - dash}`}
-            strokeDashoffset={-offset}
-          />
-        )
-        offset += dash
-        return el
-      })}
-    </>
-  )
-}
 
 export default function StatsCards() {
   const { data: stats, isLoading } = useQuery({
@@ -81,72 +52,57 @@ export default function StatsCards() {
 
   return (
     <Grid columns={{ '@initial': 2, '@xl': 4 }} gap={4}>
-      {/* Total */}
-      <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
-          <Text variant="label">Total Servers</Text>
-          <svg style={{ width: '16px', height: '16px', color: 'var(--tx3)', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 6h14M5 18h14" />
-          </svg>
-        </Flex>
-        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--tx1)', fontFamily: 'DM Sans', lineHeight: 1 }}>{total}</Text>
-        <Text variant="smallMuted" style={{ marginTop: '8px', fontFamily: 'monospace' }}>
-          {Object.keys(stats?.by_provider ?? {}).length} provider{Object.keys(stats?.by_provider ?? {}).length !== 1 ? 's' : ''}
-        </Text>
+      {/* Total Servers */}
+      <Card hoverable style={{ position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, right: 0, width: '64px', height: '64px', background: 'rgba(200,136,58,0.05)', transform: 'rotate(45deg)', transformOrigin: 'top right', transition: 'background 200ms' }} />
+        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Total Assets</p>
+        <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--tx1)', lineHeight: 1, margin: '0 0 12px 0' }}>{total}</p>
+        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>
+          {Object.keys(stats?.by_provider ?? {}).length} ACTIVE PROVIDER{Object.keys(stats?.by_provider ?? {}).length !== 1 ? 'S' : ''}
+        </p>
       </Card>
 
       {/* Running */}
-      <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
-          <Text variant="label">Running</Text>
-          <StatusDot running />
-        </Flex>
-        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--sg)', fontFamily: 'DM Sans', lineHeight: 1 }}>{running}</Text>
-        <Text style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--sg)' }}>
-          {runPct}% of fleet healthy
-        </Text>
+      <Card hoverable style={{ position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '3px' }}>
+          {[0,1,2].map(i => <span key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--sg)' }} />)}
+        </div>
+        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Operational</p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', marginBottom: '12px' }}>
+          <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--sg)', lineHeight: 1, margin: 0 }}>{running}</p>
+          <span style={{ fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', marginBottom: '4px' }}>/ {runPct}%</span>
+        </div>
+        <div style={{ height: '2px', background: 'var(--bd)', width: '100%' }}>
+          <div style={{ height: '100%', background: 'var(--sg)', width: `${runPct}%`, transition: 'width 500ms ease' }} />
+        </div>
       </Card>
 
       {/* Stopped */}
       <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
-          <Text variant="label">Stopped</Text>
-          <StatusDot running={false} style={{ backgroundColor: 'var(--sr)' }} />
-        </Flex>
-        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--sr)', fontFamily: 'DM Sans', lineHeight: 1 }}>{stopped}</Text>
-        <Text style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--sr)' }}>
-          {total > 0 ? `${100 - runPct}% idle` : 'No servers'}
-        </Text>
+        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Offline</p>
+        <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--sr)', lineHeight: 1, margin: '0 0 12px 0' }}>{stopped}</p>
+        {stopped > 0 && (
+          <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--sr)', letterSpacing: '0.1em', opacity: 0.8 }}>⚠ ATTENTION REQUIRED</p>
+        )}
+        {stopped === 0 && (
+          <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>ALL NODES NOMINAL</p>
+        )}
       </Card>
 
       {/* Provider Distribution */}
       <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '12px' }}>
-          <Text variant="label">Providers</Text>
-          <Text variant="small" style={{ fontFamily: 'monospace' }}>Live</Text>
-        </Flex>
-        {providerData.length === 0 ? (
-          <Text variant="muted" style={{ marginTop: '16px' }}>No providers yet</Text>
-        ) : (
-          <Flex align="center" gap={4}>
-            <div style={{ position: 'relative', width: '64px', height: '64px', flexShrink: 0 }}>
-              <svg style={{ width: '64px', height: '64px', transform: 'rotate(-90deg)' }} viewBox="0 0 36 36">
-                <DonutSVG data={providerData} />
-              </svg>
-            </div>
-            <Flex direction="column" gap={1} style={{ flex: 1, minWidth: 0 }}>
-              {providerData.slice(0, 4).map(d => (
-                <Flex key={d.key} justify="between" align="center" gap={2} style={{ width: '100%' }}>
-                  <Flex align="center" gap={1} style={{ minWidth: 0 }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, backgroundColor: d.color }} />
-                    <span style={{ fontSize: '10px', color: 'var(--tx1)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
-                  </Flex>
-                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--tx2)' }}>{d.value}</span>
-                </Flex>
-              ))}
-            </Flex>
-          </Flex>
-        )}
+        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Active Providers</p>
+        <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--tx1)', lineHeight: 1, margin: '0 0 12px 0' }}>{Object.keys(stats?.by_provider ?? {}).length}</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {providerData.slice(0, 4).map(d => (
+            <span key={d.key} style={{
+              fontSize: '8px', fontFamily: "'JetBrains Mono', monospace",
+              padding: '2px 6px', border: `1px solid ${d.color}40`,
+              color: d.color, background: `${d.color}10`,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+            }}>{d.label} {d.value}</span>
+          ))}
+        </div>
       </Card>
     </Grid>
   )

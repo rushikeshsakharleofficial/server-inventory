@@ -125,7 +125,10 @@ const NavButton = styled('button', {
   alignItems: 'center',
   gap: '$3',
   padding: '0.625rem $4',
-  fontSize: '$sm',
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: '10px',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
   color: '$tx2',
   backgroundColor: 'transparent',
   border: 'none',
@@ -338,12 +341,9 @@ export default function Layout({
       <Sidebar open={open} aria-label="Sidebar navigation">
         {/* Logo */}
         <LogoContainer>
-          <LogoIconWrap>
-            <Wifi size={15} className="text-black" />
-          </LogoIconWrap>
           <div className="overflow-hidden">
-            <p style={{ fontSize: '15px', fontFamily: 'DM Sans', fontWeight: 800, color: 'var(--ac)', margin: 0, letterSpacing: '-0.015em' }}>ServerInventory</p>
-            <p style={{ fontSize: '9px', color: 'var(--tx3)', fontFamily: 'monospace', margin: '2px 0 0 0', letterSpacing: '0.2em', textTransform: 'uppercase' }}>INFRASTRUCTURE CONSOLE</p>
+            <p style={{ fontSize: '22px', fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 700, color: 'var(--ac)', margin: 0, letterSpacing: '-0.01em', lineHeight: 1 }}>MERIDIAN</p>
+            <p style={{ fontSize: '8px', color: 'var(--tx3)', fontFamily: "'JetBrains Mono', monospace", margin: '4px 0 0 0', letterSpacing: '0.2em', textTransform: 'uppercase' }}>NAVIGATOR MISSION CONTROL</p>
           </div>
         </LogoContainer>
 
@@ -406,6 +406,15 @@ export default function Layout({
 
         {/* Footer */}
         <SidebarFooter>
+          {/* Uplink status */}
+          <div style={{ padding: '12px 16px 8px', borderTop: '1px solid var(--bd)', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--sg)', flexShrink: 0, animation: 'pulse-ring 2.5s ease-in-out infinite' }} />
+              <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--sg)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                {user ? `${user.role.toUpperCase()} · ${user.username}` : 'OFFLINE'}
+              </span>
+            </div>
+          </div>
           <NavButton
             onClick={() => onViewChange('providers')}
             active={currentView === 'providers'}
