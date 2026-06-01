@@ -195,13 +195,13 @@
     --tx3: #5A5048;
     --txd: #2E2820;
 
-    /* Accent — amber gold */
-    --ac:      #C8883A;
-    --ach:     #D4973F;
-    --acs:     #1C1506;
-    --ac-bg:   rgba(200, 136, 58, 0.08);
-    --ac-bd:   rgba(200, 136, 58, 0.22);
-    --ac-glow: rgba(200, 136, 58, 0.28);
+    /* Accent — white */
+    --ac:      #FFFFFF;
+    --ach:     #E8E8E8;
+    --acs:     #161616;
+    --ac-bg:   rgba(255, 255, 255, 0.06);
+    --ac-bd:   rgba(255, 255, 255, 0.18);
+    --ac-glow: rgba(255, 255, 255, 0.12);
 
     /* Status — sage green */
     --sg:      #5BA870;
@@ -222,31 +222,31 @@
     --sgr-bd:  rgba(122, 110, 96, 0.18);
 
     --glass-bg: rgba(11, 10, 8, 0.97);
-    --glass-bd: rgba(200, 136, 58, 0.18);
+    --glass-bd: rgba(255, 255, 255, 0.12);
 
     --btn-primary-fg: #0B0A08;
 
     --sidebar-from: #0E0C09;
     --sidebar-to:   #0B0A08;
     --header-bg:    rgba(11, 10, 8, 0.94);
-    --nav-active-bg: rgba(200, 136, 58, 0.07);
-    --nav-active-bd: rgba(200, 136, 58, 0.20);
-    --card-hover-bd: rgba(200, 136, 58, 0.18);
+    --nav-active-bg: rgba(255, 255, 255, 0.06);
+    --nav-active-bd: rgba(255, 255, 255, 0.16);
+    --card-hover-bd: rgba(255, 255, 255, 0.12);
 
     --skel-from: #181610;
     --skel-to:   #221E16;
 
     --scroll-track: #0E0C09;
     --scroll-thumb: #2E2820;
-    --scroll-hover: #C8883A;
+    --scroll-hover: #FFFFFF;
 
     --select-bg: #181610;
 
-    --topo-color: rgba(200, 136, 58, 0.022);
+    --topo-color: rgba(255, 255, 255, 0.04);
 
     --shadow-card:
       0 1px 4px rgba(0, 0, 0, 0.6),
-      0 0 0 1px rgba(200, 136, 58, 0.05);
+      0 0 0 1px rgba(255, 255, 255, 0.04);
     --shadow-glass:
       0 8px 40px rgba(0, 0, 0, 0.75),
       inset 0 1px 0 rgba(200, 136, 58, 0.08);
@@ -271,12 +271,12 @@
     --tx3: #9A8E76;
     --txd: #C4B898;
 
-    --ac:      #9A6018;
-    --ach:     #7A4C10;
-    --acs:     #FFF8EC;
-    --ac-bg:   rgba(154, 96, 24, 0.07);
-    --ac-bd:   rgba(154, 96, 24, 0.18);
-    --ac-glow: rgba(154, 96, 24, 0.20);
+    --ac:      #111111;
+    --ach:     #000000;
+    --acs:     #F0F0F0;
+    --ac-bg:   rgba(17, 17, 17, 0.07);
+    --ac-bd:   rgba(17, 17, 17, 0.18);
+    --ac-glow: rgba(17, 17, 17, 0.12);
 
     --sg:      #2E7D4A;
     --sg-bg:   rgba(46, 125, 74, 0.07);
@@ -293,27 +293,27 @@
     --sgr-bd:  rgba(122, 112, 96, 0.18);
 
     --glass-bg: rgba(255, 253, 248, 0.97);
-    --glass-bd: rgba(154, 96, 24, 0.16);
+    --glass-bd: rgba(17, 17, 17, 0.14);
 
-    --btn-primary-fg: #FFFDF8;
+    --btn-primary-fg: #FFFFFF;
 
     --sidebar-from: #EDE7D8;
     --sidebar-to:   #F5F0E6;
     --header-bg:    rgba(255, 253, 248, 0.94);
-    --nav-active-bg: rgba(154, 96, 24, 0.06);
-    --nav-active-bd: rgba(154, 96, 24, 0.18);
-    --card-hover-bd: rgba(154, 96, 24, 0.16);
+    --nav-active-bg: rgba(17, 17, 17, 0.06);
+    --nav-active-bd: rgba(17, 17, 17, 0.18);
+    --card-hover-bd: rgba(17, 17, 17, 0.12);
 
     --skel-from: #E0D8C6;
     --skel-to:   #D4CAAE;
 
     --scroll-track: #EDE7D8;
     --scroll-thumb: #C4B898;
-    --scroll-hover: #9A6018;
+    --scroll-hover: #111111;
 
     --select-bg: #FFFDF8;
 
-    --topo-color: rgba(154, 96, 24, 0.025);
+    --topo-color: rgba(0, 0, 0, 0.04);
 
     --shadow-card:
       0 1px 4px rgba(0, 0, 0, 0.08),
