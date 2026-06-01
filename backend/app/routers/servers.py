@@ -384,15 +384,21 @@ async def trust_host_key(
 def ssh_fetch_all_ips(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
+    ssh_credential_id: int | None = Query(None),
 ) -> list[dict]:
     """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
-    ssh_cred = (
-        db.query(models.SSHCredential)
-        .filter(models.SSHCredential.is_default.is_(True))
-        .first()
-    )
+    if ssh_credential_id:
+        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
+        if not ssh_cred:
+            raise HTTPException(status_code=404, detail="SSH credential not found")
+    else:
+        ssh_cred = (
+            db.query(models.SSHCredential)
+            .filter(models.SSHCredential.is_default.is_(True))
+            .first()
+        )
     if not ssh_cred:
-        raise HTTPException(status_code=400, detail="No default SSH credential configured")
+        raise HTTPException(status_code=400, detail="No SSH credential selected and no default configured")
 
     servers = (
         db.query(models.Server)

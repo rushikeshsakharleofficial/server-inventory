@@ -37,8 +37,8 @@ export const serversApi = {
 
   delete: (id: number) => http.delete(`/api/servers/${id}`),
 
-  sshFetchAllIps: (): Promise<Array<{ server_id: number; server_name: string; provider: string; host: string; ips: string[] }>> =>
-    http.post('/api/servers/ssh-fetch-all-ips').then(r => r.data),
+  sshFetchAllIps: (ssh_credential_id?: number): Promise<Array<{ server_id: number; server_name: string; provider: string; host: string; ips: string[] }>> =>
+    http.post('/api/servers/ssh-fetch-all-ips', null, { params: ssh_credential_id ? { ssh_credential_id } : {} }).then(r => r.data),
 
   sshSync: (id: number, sshCredentialId: number) =>
     http

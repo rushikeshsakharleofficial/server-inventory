@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, Globe, Lock, Wifi, RefreshCw } from 'lucide-react'
-import { serversApi } from '../api'
+import { serversApi, sshCredentialsApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import type { Server } from '../types'
 import ProviderBadge from './ProviderBadge'
@@ -34,9 +34,16 @@ function isPrivateIp(ip: string): boolean {
 export default function IpsPage() {
   const qc = useQueryClient()
   const { toast } = useToast()
-  const [search, setSearch]     = useState('')
+  const [search, setSearch]         = useState('')
   const [typeFilter, setTypeFilter] = useState<'' | 'public' | 'private' | 'interface'>('')
   const [versionFilter, setVersionFilter] = useState<'' | '4' | '6'>('')
+  const [selectedCredId, setSelectedCredId] = useState<string>('')
+
+  const { data: sshCreds = [] } = useQuery({
+    queryKey: ['ssh-credentials'],
+    queryFn: sshCredentialsApi.list,
+    staleTime: 60_000,
+  })
 
   const { data: servers = [], isLoading, isError } = useQuery({
     queryKey: ['servers'],
@@ -45,7 +52,7 @@ export default function IpsPage() {
   })
 
   const fetchMutation = useMutation({
-    mutationFn: serversApi.sshFetchAllIps,
+    mutationFn: () => serversApi.sshFetchAllIps(selectedCredId ? parseInt(selectedCredId) : undefined),
     onSuccess: (data) => {
       const total = data.reduce((sum, r) => sum + r.ips.length, 0)
       toast.success(`Fetched ${total} IPs from ${data.length} servers`)
@@ -121,6 +128,24 @@ export default function IpsPage() {
             {isLoading ? 'Loading…' : `${filtered.length} addresses across ${servers.length} servers`}
           </Text>
         </div>
+        <Flex align="center" gap={2}>
+          <select
+            value={selectedCredId}
+            onChange={e => setSelectedCredId(e.target.value)}
+            style={{
+              background: 'var(--bg-s2)', border: '1px solid var(--bd)',
+              borderRadius: '2px', color: 'var(--tx1)', padding: '0.4rem 0.65rem',
+              fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer',
+              minWidth: '160px',
+            }}
+          >
+            <option value="">Default credential</option>
+            {sshCreds.map(c => (
+              <option key={c.id} value={String(c.id)}>
+                {c.name}{c.is_default ? ' ★' : ''}
+              </option>
+            ))}
+          </select>
         <button
           onClick={() => fetchMutation.mutate()}
           disabled={fetchMutation.isPending}
@@ -137,6 +162,7 @@ export default function IpsPage() {
           <RefreshCw size={13} style={{ animation: fetchMutation.isPending ? 'spin 1s linear infinite' : 'none' }} />
           {fetchMutation.isPending ? 'Fetching…' : 'Fetch via SSH'}
         </button>
+        </Flex>
       </Flex>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
