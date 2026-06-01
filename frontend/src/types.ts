@@ -66,6 +66,12 @@ export interface SSHCredential {
   port: number
   is_default: boolean
   notes?: string
+  proxy_host?: string
+  proxy_port?: number
+  proxy_username?: string
+  proxy_auth_method?: string
+  proxy_password?: string
+  proxy_private_key?: string
   created_at?: string
   updated_at?: string
 }

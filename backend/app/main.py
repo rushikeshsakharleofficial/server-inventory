@@ -39,9 +39,27 @@ def _migrate_mfa_columns() -> None:
         conn.commit()
 
 
+def _migrate_ssh_proxy_columns() -> None:
+    """Add proxy/jump-server columns to ssh_credentials if they don't exist yet."""
+    with engine.connect() as conn:
+        for col, definition in [
+            ("proxy_host",        "VARCHAR(255)"),
+            ("proxy_port",        "INTEGER DEFAULT 22"),
+            ("proxy_username",    "VARCHAR(128)"),
+            ("proxy_auth_method", "VARCHAR(16) DEFAULT 'password'"),
+            ("proxy_password",    "VARCHAR(512)"),
+            ("proxy_private_key", "TEXT"),
+        ]:
+            conn.execute(text(
+                f"ALTER TABLE ssh_credentials ADD COLUMN IF NOT EXISTS {col} {definition}"
+            ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
+    _migrate_ssh_proxy_columns()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()

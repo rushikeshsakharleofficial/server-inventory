@@ -164,6 +164,12 @@ class SSHCredentialCreate(BaseModel):
     port: int = 22
     is_default: bool = False
     notes: str | None = None
+    proxy_host:        str | None = None
+    proxy_port:        int = 22
+    proxy_username:    str | None = None
+    proxy_auth_method: str = "password"
+    proxy_password:    str | None = None
+    proxy_private_key: str | None = None
 
 
 class SSHCredentialResponse(BaseModel):
@@ -176,6 +182,12 @@ class SSHCredentialResponse(BaseModel):
     port: int
     is_default: bool
     notes: str | None = None
+    proxy_host:        str | None = None
+    proxy_port:        int = 22
+    proxy_username:    str | None = None
+    proxy_auth_method: str = "password"
+    proxy_password:    str | None = None   # masked in endpoint
+    proxy_private_key: str | None = None   # masked in endpoint
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -191,6 +203,12 @@ class SSHCredentialUpdate(BaseModel):
     port: int | None = None
     is_default: bool | None = None
     notes: str | None = None
+    proxy_host:        str | None = None
+    proxy_port:        int | None = None
+    proxy_username:    str | None = None
+    proxy_auth_method: str | None = None
+    proxy_password:    str | None = None
+    proxy_private_key: str | None = None
 
 
 class ServerSnapshotResponse(BaseModel):

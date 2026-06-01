@@ -168,18 +168,50 @@ async def ssh_sync_server(
             _private_key = decrypt_str(ssh_cred.private_key) if ssh_cred.private_key else None
             _password = decrypt_str(ssh_cred.password) if ssh_cred.password else None
 
+            def _load_pkey(key_str: str):
+                for cls in (paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey, paramiko.DSSKey):
+                    try:
+                        return cls.from_private_key(io.StringIO(key_str))
+                    except Exception:
+                        continue
+                raise ValueError("Unsupported SSH private key type")
+
             if ssh_cred.auth_method == "key":
                 if not _private_key:
                     return None, "Selected SSH credential has no private key"
-                connect_kwargs["pkey"] = paramiko.RSAKey.from_private_key(
-                    io.StringIO(_private_key)
-                )
+                connect_kwargs["pkey"] = _load_pkey(_private_key)
             elif _password:
                 connect_kwargs["password"] = _password
                 connect_kwargs["look_for_keys"] = False
                 connect_kwargs["allow_agent"] = False
             else:
                 return None, "Selected SSH credential has no password"
+
+            # Jump/proxy server — open channel through jump host if configured
+            jump_client = None
+            if getattr(ssh_cred, "proxy_host", None):
+                _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
+                _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
+                jump_client = paramiko.SSHClient()
+                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                jump_kwargs: dict = {
+                    "hostname": ssh_cred.proxy_host,
+                    "port":     ssh_cred.proxy_port or 22,
+                    "username": ssh_cred.proxy_username or "root",
+                    "timeout":  10,
+                }
+                if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
+                    jump_kwargs["pkey"] = _load_pkey(_proxy_key)
+                elif _proxy_pass:
+                    jump_kwargs["password"]      = _proxy_pass
+                    jump_kwargs["look_for_keys"] = False
+                    jump_kwargs["allow_agent"]   = False
+                jump_client.connect(**jump_kwargs)
+                connect_kwargs["sock"] = jump_client.get_transport().open_channel(
+                    "direct-tcpip",
+                    (host, ssh_cred.port or 22),
+                    ("127.0.0.1", 0),
+                )
 
             client.connect(**connect_kwargs)
 
@@ -227,13 +259,19 @@ async def ssh_sync_server(
                 "last_ssh_sync": datetime.now(timezone.utc).isoformat(),
             }
             client.close()
+            if jump_client:
+                jump_client.close()
             return ssh_info, None
 
         except paramiko.AuthenticationException:
             client.close()
+            if jump_client:
+                jump_client.close()
             return None, "Authentication failed — check username and credentials"
         except (socket.timeout, paramiko.SSHException, OSError) as e:
             client.close()
+            if jump_client:
+                jump_client.close()
             msg = str(e)
             if "not found in known_hosts" in msg or "not in known_hosts" in msg:
                 return None, "Host key verification failed — server not in trusted hosts"
@@ -246,6 +284,8 @@ async def ssh_sync_server(
             return None, "SSH connection failed — check host address and network"
         except Exception:  # noqa: BLE001 — catch-all for unexpected SSH errors
             client.close()
+            if jump_client:
+                jump_client.close()
             return None, "SSH connection failed — unexpected error"
 
     ssh_info, err = await asyncio.get_running_loop().run_in_executor(None, _do_ssh)
