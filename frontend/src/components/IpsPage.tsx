@@ -368,7 +368,7 @@ export default function IpsPage() {
       </TableContainer>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {(
         <Flex
           align="center"
           justify="between"
@@ -382,7 +382,7 @@ export default function IpsPage() {
           }}
         >
           <Text variant="small" style={{ fontFamily: 'monospace' }}>
-            Page {page} of {totalPages} · {filtered.length} total
+            Page {page} of {Math.max(1, totalPages)} · {filtered.length} total
           </Text>
           <Flex align="center" gap={1}>
             <Button
@@ -422,7 +422,7 @@ export default function IpsPage() {
             <Button
               intent="ghost"
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
+              disabled={page >= Math.max(1, totalPages)}
               size="sm"
               style={{ padding: '6px 12px' }}
             >
