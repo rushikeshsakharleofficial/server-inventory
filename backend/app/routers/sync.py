@@ -8,6 +8,7 @@ from .. import models, schemas
 from ..database import get_db, DATABASE_URL
 from ..providers import get_provider
 from ..auth import get_current_user, require_write
+from ..crypto import decrypt_config
 from ..ws_manager import manager
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
@@ -27,7 +28,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
     db = sessionmaker(bind=engine)()
 
     try:
-        q = db.query(models.Credential).filter(models.Credential.is_active == True)
+        q = db.query(models.Credential).filter(models.Credential.is_active.is_(True))
         if provider_name:
             q = q.filter(models.Credential.provider == provider_name)
 
@@ -54,7 +55,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                 if stop_event.is_set():
                     raise RuntimeError(_SYNC_STOPPED_MSG)
 
-                provider = get_provider(cred.provider, cred.config)
+                provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
 
                 # 300s timeout on the provider fetch
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
@@ -67,21 +68,28 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                 if stop_event.is_set():
                     raise RuntimeError(_SYNC_STOPPED_MSG)
 
+                # Pre-fetch all existing servers for this provider in one query
+                cloud_ids = [s.get("cloud_id") for s in srv_list if s.get("cloud_id")]
+                existing_map: dict[str, models.Server] = {}
+                if cloud_ids:
+                    for obj in (
+                        db.query(models.Server)
+                        .filter(
+                            models.Server.cloud_id.in_(cloud_ids),
+                            models.Server.provider == cred.provider,
+                        )
+                        .all()
+                    ):
+                        if obj.cloud_id:
+                            existing_map[obj.cloud_id] = obj
+
+                allowed_cols = {c.key for c in models.Server.__table__.columns}
                 for srv in srv_list:
                     if stop_event.is_set():
                         raise RuntimeError(_SYNC_STOPPED_MSG)
 
                     cloud_id = srv.get("cloud_id")
-                    existing = None
-                    if cloud_id:
-                        existing = (
-                            db.query(models.Server)
-                            .filter(
-                                models.Server.cloud_id == cloud_id,
-                                models.Server.provider == cred.provider,
-                            )
-                            .first()
-                        )
+                    existing = existing_map.get(cloud_id) if cloud_id else None
 
                     if existing:
                         for k, v in srv.items():
@@ -90,8 +98,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                         existing.last_synced = datetime.now(timezone.utc)
                         updated += 1
                     else:
-                        allowed = {c.key for c in models.Server.__table__.columns}
-                        new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed})
+                        new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
                         new_srv.last_synced = datetime.now(timezone.utc)
                         db.add(new_srv)
                         added += 1

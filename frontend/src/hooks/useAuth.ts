@@ -49,6 +49,11 @@ function loadStored(): { user: AuthUser | null; token: string | null } {
     if (!token) return { token: null, user: null }
     const payload = decodeJwtPayload(token)
     if (!payload?.sub || !payload?.role) return { token, user: null }
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      localStorage.removeItem('si_token')
+      localStorage.removeItem('si_user')
+      return { token: null, user: null }
+    }
     const user: AuthUser = { username: payload.sub, role: payload.role as UserRole }
     return { token, user }
   } catch {

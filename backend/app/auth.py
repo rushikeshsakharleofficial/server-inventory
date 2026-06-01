@@ -26,6 +26,9 @@ def _is_production() -> bool:
     return env_name in _PRODUCTION_ENVS
 
 
+_DEV_KEY_FILE = os.path.join(os.path.dirname(__file__), "..", ".dev_secret_key")
+
+
 def _load_secret_key() -> str:
     secret_key = os.getenv("SECRET_KEY")
     if secret_key and secret_key not in _INSECURE_SECRET_VALUES:
@@ -34,7 +37,19 @@ def _load_secret_key() -> str:
         raise RuntimeError(
             "SECRET_KEY must be set to a strong unique value in production"
         )
-    return secrets.token_urlsafe(32)
+    key_path = os.path.abspath(_DEV_KEY_FILE)
+    if os.path.exists(key_path):
+        with open(key_path) as f:
+            stored = f.read().strip()
+        if stored:
+            return stored
+    new_key = secrets.token_urlsafe(32)
+    try:
+        with open(key_path, "w") as f:
+            f.write(new_key)
+    except OSError:
+        pass
+    return new_key
 
 
 SECRET_KEY = _load_secret_key()

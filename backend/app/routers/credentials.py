@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write, require_admin
+from ..crypto import encrypt_config, decrypt_config
 
 router = APIRouter(prefix="/api/credentials", tags=["credentials"])
 
@@ -37,7 +38,7 @@ def list_credentials(
             "name": c.name,
             "provider": c.provider,
             "is_active": c.is_active,
-            "config": _mask_config(c.config or {}),
+            "config": _mask_config(decrypt_config(c.config or {})),
             "created_at": c.created_at,
         }
         for c in creds
@@ -50,7 +51,9 @@ def create_credential(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
 ) -> dict:
-    db_cred = models.Credential(**cred.model_dump())
+    data = cred.model_dump()
+    data["config"] = encrypt_config(data.get("config") or {})
+    db_cred = models.Credential(**data)
     db.add(db_cred)
     db.commit()
     db.refresh(db_cred)
@@ -59,7 +62,7 @@ def create_credential(
         "name": db_cred.name,
         "provider": db_cred.provider,
         "is_active": db_cred.is_active,
-        "config": _mask_config(db_cred.config or {}),
+        "config": _mask_config(decrypt_config(db_cred.config or {})),
         "created_at": db_cred.created_at,
     }
 
@@ -94,6 +97,6 @@ def toggle_credential(
         "name": cred.name,
         "provider": cred.provider,
         "is_active": cred.is_active,
-        "config": _mask_config(cred.config or {}),
+        "config": _mask_config(decrypt_config(cred.config or {})),
         "created_at": cred.created_at,
     }

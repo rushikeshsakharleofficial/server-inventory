@@ -1,5 +1,6 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Request
+from ..limiter import limiter
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from .. import models, schemas
@@ -10,7 +11,9 @@ router = APIRouter(tags=["auth & users"])
 
 
 @router.post("/api/auth/login", response_model=schemas.LoginResponse)
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
     remember_me: bool | None = Form(default=False),
     db: Annotated[Session, Depends(get_db)] = None,
@@ -112,7 +115,7 @@ def change_password(
 ) -> None:
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(payload.new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    if len(payload.new_password) < 10:
+        raise HTTPException(status_code=400, detail="New password must be at least 10 characters")
     current_user.hashed_password = hash_password(payload.new_password)
     db.commit()

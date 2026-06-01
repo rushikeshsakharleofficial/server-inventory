@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..auth import get_current_user, require_write
+from ..crypto import decrypt_config
 from ..database import DATABASE_URL, get_db
 
 router = APIRouter(prefix="/api/kubernetes", tags=["kubernetes"])
@@ -17,36 +18,40 @@ def _sync_kubernetes(provider_name: str | None, db_url: str) -> None:
 
     from ..providers import get_provider
 
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, pool_pre_ping=True)
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
     try:
-        cred_query = db.query(models.Credential).filter(models.Credential.is_active == True)
+        cred_query = db.query(models.Credential).filter(models.Credential.is_active.is_(True))
         if provider_name:
             cred_query = cred_query.filter(models.Credential.provider == provider_name)
         creds = cred_query.all()
 
         for cred in creds:
             try:
-                provider = get_provider(cred.provider, cred.config)
+                provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
                 clusters = provider.fetch_kubernetes()
             except Exception:  # noqa: BLE001 — skip credential on any provider error
                 continue
 
             now = datetime.now(timezone.utc)
+            cloud_ids = [c.get("cloud_id") for c in clusters if c.get("cloud_id")]
+            existing_map: dict[str, models.KubernetesCluster] = {}
+            if cloud_ids:
+                for obj in (
+                    db.query(models.KubernetesCluster)
+                    .filter(
+                        models.KubernetesCluster.cloud_id.in_(cloud_ids),
+                        models.KubernetesCluster.provider == cred.provider,
+                    )
+                    .all()
+                ):
+                    if obj.cloud_id:
+                        existing_map[obj.cloud_id] = obj
+
             for c in clusters:
                 cloud_id = c.get("cloud_id")
-                existing = None
-                if cloud_id:
-                    existing = (
-                        db.query(models.KubernetesCluster)
-                        .filter(
-                            models.KubernetesCluster.cloud_id == cloud_id,
-                            models.KubernetesCluster.provider == cred.provider,
-                        )
-                        .first()
-                    )
-
+                existing = existing_map.get(cloud_id) if cloud_id else None
                 if existing:
                     for k, v in c.items():
                         if hasattr(existing, k):

@@ -8,6 +8,9 @@ reload_job() / remove_job() so the live schedule stays in sync with the DB.
 from datetime import datetime, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+import logging
+
+logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -83,7 +86,7 @@ def load_jobs(db_url: str) -> None:
     sched = get_scheduler()
 
     try:
-        jobs = db.query(models.CronJob).filter(models.CronJob.is_active == True).all()
+        jobs = db.query(models.CronJob).filter(models.CronJob.is_active.is_(True)).all()
         for job in jobs:
             _schedule_job(sched, job, db_url)
             # Update next_run_at in DB
@@ -92,7 +95,7 @@ def load_jobs(db_url: str) -> None:
                 job.next_run_at = nxt.replace(tzinfo=None)
         db.commit()
     except Exception:
-        pass
+        logger.exception("Failed to load cron jobs")
     finally:
         db.close()
 
@@ -111,8 +114,8 @@ def _schedule_job(sched: BackgroundScheduler, job, db_url: str) -> None:
             replace_existing=True,
             misfire_grace_time=300,
         )
-    except Exception as e:
-        print(f"[Scheduler] Failed to schedule job {job.id} ({job.cron_expr}): {e}")
+    except Exception:
+        logger.exception("Failed to schedule job %s (%s)", job.id, job.cron_expr)
 
 
 def reload_job(job_id: int, db_url: str) -> None:
@@ -173,9 +176,9 @@ def _housekeeping(db_url: str) -> None:
         )
         db.commit()
         if deleted_logs or deleted_snaps:
-            print(f"[Housekeeping] Pruned {deleted_logs} sync_logs, {deleted_snaps} snapshots older than 1 year")
-    except Exception as e:
-        print(f"[Housekeeping] Error: {e}")
+            logger.info("Pruned %d sync_logs, %d snapshots older than 1 year", deleted_logs, deleted_snaps)
+    except Exception:
+        logger.exception("Housekeeping failed")
         db.rollback()
     finally:
         db.close()

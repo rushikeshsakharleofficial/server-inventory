@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
+from ..crypto import decrypt_str
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
 
@@ -164,14 +165,17 @@ async def ssh_sync_server(
                 "timeout": 10,
                 "banner_timeout": 10,
             }
+            _private_key = decrypt_str(ssh_cred.private_key) if ssh_cred.private_key else None
+            _password = decrypt_str(ssh_cred.password) if ssh_cred.password else None
+
             if ssh_cred.auth_method == "key":
-                if not ssh_cred.private_key:
+                if not _private_key:
                     return None, "Selected SSH credential has no private key"
                 connect_kwargs["pkey"] = paramiko.RSAKey.from_private_key(
-                    io.StringIO(ssh_cred.private_key)
+                    io.StringIO(_private_key)
                 )
-            elif ssh_cred.password:
-                connect_kwargs["password"] = ssh_cred.password
+            elif _password:
+                connect_kwargs["password"] = _password
                 connect_kwargs["look_for_keys"] = False
                 connect_kwargs["allow_agent"] = False
             else:

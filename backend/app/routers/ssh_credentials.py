@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
+from ..crypto import encrypt_str
 
 router = APIRouter(prefix="/api/ssh-credentials", tags=["ssh-credentials"])
 
@@ -49,7 +50,12 @@ def create_ssh_credential(
     if payload.is_default:
         db.query(models.SSHCredential).update({"is_default": False})
 
-    cred = models.SSHCredential(**payload.model_dump())
+    data = payload.model_dump()
+    if data.get("password"):
+        data["password"] = encrypt_str(data["password"])
+    if data.get("private_key"):
+        data["private_key"] = encrypt_str(data["private_key"])
+    cred = models.SSHCredential(**data)
     db.add(cred)
     db.commit()
     db.refresh(cred)
@@ -74,6 +80,11 @@ def update_ssh_credential(
         db.query(models.SSHCredential).filter(
             models.SSHCredential.id != cred_id
         ).update({"is_default": False})
+
+    if "password" in updates and updates["password"]:
+        updates["password"] = encrypt_str(updates["password"])
+    if "private_key" in updates and updates["private_key"]:
+        updates["private_key"] = encrypt_str(updates["private_key"])
 
     for field, value in updates.items():
         setattr(cred, field, value)

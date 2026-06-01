@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search,
@@ -105,15 +105,22 @@ export default function ServerTable({
     onError: () => toast.error('Failed to delete server'),
   })
 
-  const sorted = [...servers].sort((a, b) => {
-    const av = (a[sortField] as string | number | undefined) ?? ''
-    const bv = (b[sortField] as string | number | undefined) ?? ''
-    const cmp = av < bv ? -1 : av > bv ? 1 : 0
-    return sortDir === 'asc' ? cmp : -cmp
-  })
+  const sorted = useMemo(
+    () =>
+      [...servers].sort((a, b) => {
+        const av = (a[sortField] as string | number | undefined) ?? ''
+        const bv = (b[sortField] as string | number | undefined) ?? ''
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0
+        return sortDir === 'asc' ? cmp : -cmp
+      }),
+    [servers, sortField, sortDir],
+  )
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE)
-  const rows       = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const rows = useMemo(
+    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sorted, page],
+  )
 
   function toggleSort(f: SortField) {
     if (sortField === f) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))

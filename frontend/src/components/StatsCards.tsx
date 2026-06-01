@@ -32,12 +32,12 @@ function DonutSVG({ data }: { data: Array<{ value: number; color: string }> }) {
   return (
     <>
       <circle cx="18" cy="18" r="16" fill="none" stroke="var(--bd)" strokeWidth="4" />
-      {data.filter(d => d.value > 0).map((d, i) => {
+      {data.filter(d => d.value > 0).map((d) => {
         const pct = d.value / total
         const dash = pct * circumference
         const el = (
           <circle
-            key={i}
+            key={d.color}
             cx="18" cy="18" r="16"
             fill="none"
             stroke={d.color}

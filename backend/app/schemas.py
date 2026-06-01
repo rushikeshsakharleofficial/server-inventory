@@ -86,7 +86,7 @@ class SyncLogResponse(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
-    password: str
+    password: str = Field(min_length=10)
     role: Literal["read", "write"] = "read"
 
 

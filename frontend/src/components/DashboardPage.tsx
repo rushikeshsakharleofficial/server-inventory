@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   LineChart,
@@ -42,6 +43,9 @@ const PROVIDER_LABELS: Record<string, string> = {
   ovh:          'OVH Cloud',
   custom_dc:    'Custom DC',
 }
+
+const CHART_MARGIN = { top: 4, right: 12, left: -10, bottom: 0 } as const
+const TICK_STYLE = { fill: 'var(--tx3)', fontSize: 11 } as const
 
 function fmtDate(dateStr: string) {
   const d = new Date(dateStr)
@@ -130,14 +134,18 @@ export default function DashboardPage() {
     staleTime: 60_000,
   })
 
-  const lineData = (history ?? []).map(snap => ({
-    date:  fmtDate(snap.date),
-    total: snap.total,
-  }))
+  const lineData = useMemo(
+    () => (history ?? []).map(snap => ({ date: fmtDate(snap.date), total: snap.total })),
+    [history],
+  )
 
-  const barData = Object.entries(stats?.by_provider ?? {})
-    .map(([provider, count]) => ({ provider, count }))
-    .sort((a, b) => b.count - a.count)
+  const barData = useMemo(
+    () =>
+      Object.entries(stats?.by_provider ?? {})
+        .map(([provider, count]) => ({ provider, count }))
+        .sort((a, b) => b.count - a.count),
+    [stats],
+  )
 
   return (
     <Flex direction="column" gap={5}>
@@ -163,17 +171,17 @@ export default function DashboardPage() {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={lineData} margin={{ top: 4, right: 12, left: -10, bottom: 0 }}>
+            <LineChart data={lineData} margin={CHART_MARGIN}>
               <CartesianGrid stroke="var(--bd)" strokeDasharray="4 4" vertical={false} />
               <XAxis
                 dataKey="date"
-                tick={{ fill: 'var(--tx3)', fontSize: 11 }}
+                tick={TICK_STYLE}
                 axisLine={false}
                 tickLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fill: 'var(--tx3)', fontSize: 11 }}
+                tick={TICK_STYLE}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
