@@ -118,11 +118,21 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                     existing = existing_map.get(cloud_id) if cloud_id else None
 
                     if existing:
+                        old_status = existing.status
                         for k, v in srv.items():
                             if hasattr(existing, k):
                                 setattr(existing, k, v)
                         existing.last_synced = datetime.now(timezone.utc)
                         updated += 1
+                        if old_status != existing.status:
+                            manager.broadcast({
+                                "type":        "server_status_changed",
+                                "server_id":   existing.id,
+                                "server_name": existing.name,
+                                "provider":    existing.provider,
+                                "old_status":  old_status,
+                                "new_status":  existing.status,
+                            })
                     else:
                         new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
                         new_srv.last_synced = datetime.now(timezone.utc)

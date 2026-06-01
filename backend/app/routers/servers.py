@@ -13,6 +13,7 @@ from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
 from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey
+from ..ws_manager import manager as ws_manager
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
 
@@ -522,14 +523,17 @@ def ssh_fetch_ips_stream(
                         srv, ips = fut.result()
                         srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
                         changed.append(srv)
-                        yield json.dumps({
+                        _result = {
+                            "type":        "ip_fetch_result",
                             "server_id":   srv.id,
                             "server_name": srv.name,
                             "provider":    srv.provider,
                             "host":        srv.public_ip or srv.private_ip or "",
                             "ips":         ips,
                             "success":     bool(ips),
-                        }) + "\n"
+                        }
+                        ws_manager.broadcast(_result)
+                        yield json.dumps(_result) + "\n"
                     except Exception:  # noqa: BLE001
                         pass
         finally:

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, Globe, Lock, Wifi, RefreshCw } from 'lucide-react'
 import { http, sshCredentialsApi } from '../api'
@@ -113,6 +113,19 @@ export default function IpsPage() {
       setFetching(false)
     }
   }
+
+  // Listen to WS ip_fetch_result events from other clients / shared state
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const event = (e as CustomEvent<{ type: string; server_name?: string; ips?: string[]; success?: boolean }>).detail
+      if (event.type === 'ip_fetch_result' && event.success && !fetching) {
+        // Another session or background fetch completed — refresh server list
+        qc.invalidateQueries({ queryKey: ['servers'] })
+      }
+    }
+    window.addEventListener('ws:server-event', handler)
+    return () => window.removeEventListener('ws:server-event', handler)
+  }, [fetching, qc])
 
   const rows = useMemo<IpRow[]>(() => {
     const out: IpRow[] = []

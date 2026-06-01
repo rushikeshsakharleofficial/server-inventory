@@ -292,10 +292,25 @@ export default function Layout({
         toast.error(`Sync failed: ${event.error_message ?? 'unknown error'}`)
       }
       setTimeout(() => setSyncStatus('idle'), 5000)
+
+    } else if (event.type === 'server_status_changed') {
+      const prev = event.old_status ?? ''
+      const next = event.new_status ?? ''
+      const name = event.server_name ?? 'Server'
+      if (next === 'running' && prev !== 'running') {
+        toast.success(`${name} → online`)
+      } else if ((next === 'stopped' || next === 'terminated') && prev === 'running') {
+        toast.error(`${name} → offline`)
+      }
+      qc.invalidateQueries({ queryKey: ['servers'] })
+      qc.invalidateQueries({ queryKey: ['stats']   })
     }
+
+    // Broadcast all WS events to window so any component can subscribe
+    window.dispatchEvent(new CustomEvent('ws:server-event', { detail: event }))
   }, [qc, toast])
 
-  useWebSocket(handleWsEvent)
+  const { isConnected } = useWebSocket(handleWsEvent)
 
   const syncMutation = useMutation({
     mutationFn: () => syncApi.trigger(),
@@ -456,6 +471,16 @@ export default function Layout({
           </Flex>
 
           <Flex align="center" gap={2}>
+            {/* WS connection indicator */}
+            <div
+              title={isConnected ? 'Live — WebSocket connected' : 'Reconnecting…'}
+              style={{
+                width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
+                backgroundColor: isConnected ? 'var(--sg)' : 'var(--sy)',
+                boxShadow: isConnected ? '0 0 6px var(--sg-glow)' : 'none',
+                transition: 'all 300ms ease',
+              }}
+            />
             {/* Role badge */}
             {user && (
               <div
