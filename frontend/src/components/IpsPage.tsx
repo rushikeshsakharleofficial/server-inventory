@@ -145,7 +145,7 @@ export default function IpsPage() {
       if (allIps && allIps.length > 0) {
         for (const ip of allIps) {
           const clean = ip.split('/')[0]
-          const type: IpRow['type'] = clean === srv.public_ip
+          const type: IpRow['type'] = (srv.public_ip && clean === srv.public_ip)
             ? 'public'
             : isPrivateIp(clean) ? 'private' : 'interface'
           addIp(clean, type)
