@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Server, Cloud, Activity, RefreshCw, Plus,
-  Menu, X, Settings, Wifi, Users, LogOut, Shield, PencilLine, Eye,
+  Menu, X, Settings, Users, LogOut, Shield, PencilLine, Eye,
   CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal, Timer,
   Layers, Database, Box, ChevronDown, HardDrive, Network,
 } from 'lucide-react'
@@ -99,16 +99,6 @@ const LogoContainer = styled('div', {
   gap: '$3',
 });
 
-const LogoIconWrap = styled('div', {
-  width: '32px',
-  height: '32px',
-  borderRadius: '$md',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: '$accent',
-  flexShrink: 0,
-});
 
 const NavContainer = styled('nav', {
   flex: 1,
