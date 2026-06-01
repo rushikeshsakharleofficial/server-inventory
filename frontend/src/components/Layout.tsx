@@ -332,8 +332,8 @@ export default function Layout({
         {/* Logo */}
         <LogoContainer>
           <div className="overflow-hidden">
-            <p style={{ fontSize: '22px', fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontWeight: 700, color: 'var(--ac)', margin: 0, letterSpacing: '-0.01em', lineHeight: 1 }}>MERIDIAN</p>
-            <p style={{ fontSize: '8px', color: 'var(--tx3)', fontFamily: "'JetBrains Mono', monospace", margin: '4px 0 0 0', letterSpacing: '0.2em', textTransform: 'uppercase' }}>NAVIGATOR MISSION CONTROL</p>
+            <p style={{ fontSize: '15px', fontFamily: "'DM Sans', system-ui, sans-serif", fontStyle: 'normal', fontWeight: 800, color: 'var(--ac)', margin: 0, letterSpacing: '-0.015em', lineHeight: 1 }}>ServerInventory</p>
+            <p style={{ fontSize: '8px', color: 'var(--tx3)', fontFamily: "'JetBrains Mono', monospace", margin: '4px 0 0 0', letterSpacing: '0.2em', textTransform: 'uppercase' }}>INFRASTRUCTURE CONSOLE</p>
           </div>
         </LogoContainer>
 
