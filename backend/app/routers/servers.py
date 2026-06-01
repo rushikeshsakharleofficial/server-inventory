@@ -1,6 +1,7 @@
 import io
 import asyncio
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Annotated
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,6 +11,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
+from ..ssh_utils import fetch_ssh_ips
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
 
@@ -376,6 +378,55 @@ async def trust_host_key(
         raise HTTPException(status_code=502, detail=err or "Failed to trust host key")
 
     return schemas.HostKeyTrustResponse(**result)
+
+
+@router.post("/ssh-fetch-all-ips")
+def ssh_fetch_all_ips(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+) -> list[dict]:
+    """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
+    ssh_cred = (
+        db.query(models.SSHCredential)
+        .filter(models.SSHCredential.is_default.is_(True))
+        .first()
+    )
+    if not ssh_cred:
+        raise HTTPException(status_code=400, detail="No default SSH credential configured")
+
+    servers = (
+        db.query(models.Server)
+        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
+        .all()
+    )
+
+    def _fetch_one(srv: models.Server) -> tuple[models.Server, list[str]]:
+        host = srv.public_ip or srv.private_ip
+        ips = fetch_ssh_ips(host, ssh_cred) if host else []
+        return srv, ips
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futures = {ex.submit(_fetch_one, srv): srv for srv in servers}
+        for fut in as_completed(futures):
+            try:
+                srv, ips = fut.result()
+                if ips:
+                    srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
+                    results.append({
+                        "server_id":  srv.id,
+                        "server_name": srv.name,
+                        "provider":   srv.provider,
+                        "host":       srv.public_ip or srv.private_ip,
+                        "ips":        ips,
+                    })
+            except Exception:  # noqa: BLE001
+                pass
+
+    if results:
+        db.commit()
+
+    return results
 
 
 @router.delete("/{server_id}", status_code=204)

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Search, Globe, Lock, Wifi } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Search, Globe, Lock, Wifi, RefreshCw } from 'lucide-react'
 import { serversApi } from '../api'
+import { useToast } from '../hooks/useToast'
 import type { Server } from '../types'
 import ProviderBadge from './ProviderBadge'
 import {
@@ -31,6 +32,8 @@ function isPrivateIp(ip: string): boolean {
 }
 
 export default function IpsPage() {
+  const qc = useQueryClient()
+  const { toast } = useToast()
   const [search, setSearch]     = useState('')
   const [typeFilter, setTypeFilter] = useState<'' | 'public' | 'private' | 'interface'>('')
   const [versionFilter, setVersionFilter] = useState<'' | '4' | '6'>('')
@@ -39,6 +42,19 @@ export default function IpsPage() {
     queryKey: ['servers'],
     queryFn: () => serversApi.list(),
     staleTime: 30_000,
+  })
+
+  const fetchMutation = useMutation({
+    mutationFn: serversApi.sshFetchAllIps,
+    onSuccess: (data) => {
+      const total = data.reduce((sum, r) => sum + r.ips.length, 0)
+      toast.success(`Fetched ${total} IPs from ${data.length} servers`)
+      qc.invalidateQueries({ queryKey: ['servers'] })
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(msg || 'SSH fetch failed — check default credential')
+    },
   })
 
   const rows = useMemo<IpRow[]>(() => {
@@ -105,7 +121,24 @@ export default function IpsPage() {
             {isLoading ? 'Loading…' : `${filtered.length} addresses across ${servers.length} servers`}
           </Text>
         </div>
+        <button
+          onClick={() => fetchMutation.mutate()}
+          disabled={fetchMutation.isPending}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '0.45rem 0.9rem',
+            background: 'var(--ac)', color: 'var(--btn-primary-fg)',
+            border: 'none', borderRadius: '2px', cursor: 'pointer',
+            fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em',
+            opacity: fetchMutation.isPending ? 0.6 : 1,
+            transition: 'all 140ms ease',
+          }}
+        >
+          <RefreshCw size={13} style={{ animation: fetchMutation.isPending ? 'spin 1s linear infinite' : 'none' }} />
+          {fetchMutation.isPending ? 'Fetching…' : 'Fetch via SSH'}
+        </button>
       </Flex>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Filters */}
       <Card style={{ padding: '14px 16px' }}>
