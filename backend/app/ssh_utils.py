@@ -8,9 +8,13 @@ if TYPE_CHECKING:
 
 
 def _load_pkey(key_str: str):
-    """Auto-detect and load an SSH private key (Ed25519, RSA, ECDSA, or DSS)."""
+    """Auto-detect and load an SSH private key (Ed25519, RSA, ECDSA)."""
     import paramiko
-    for cls in (paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey, paramiko.DSSKey):
+    key_classes = [paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey]
+    # DSSKey removed in paramiko 5.x
+    if hasattr(paramiko, "DSSKey"):
+        key_classes.append(paramiko.DSSKey)  # type: ignore[attr-defined]
+    for cls in key_classes:
         try:
             return cls.from_private_key(io.StringIO(key_str))
         except Exception:

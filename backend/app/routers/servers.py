@@ -171,7 +171,10 @@ async def ssh_sync_server(
             _password = decrypt_str(ssh_cred.password) if ssh_cred.password else None
 
             def _load_pkey(key_str: str):
-                for cls in (paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey, paramiko.DSSKey):
+                key_classes = [paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey]
+                if hasattr(paramiko, "DSSKey"):
+                    key_classes.append(paramiko.DSSKey)  # type: ignore[attr-defined]
+                for cls in key_classes:
                     try:
                         return cls.from_private_key(io.StringIO(key_str))
                     except Exception:
