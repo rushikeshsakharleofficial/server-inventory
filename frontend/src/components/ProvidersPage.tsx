@@ -41,6 +41,7 @@ const PROVIDER_DESC: Record<string, string> = {
   linode:       'Akamai Cloud (Linode) — Nanode to Dedicated instances',
   digitalocean: 'DigitalOcean Droplets — all sizes and regions',
   ovh:          'OVH Cloud — bare metal, VPS and Public Cloud instances',
+  hivelocity:   'Hivelocity — bare metal and VPS servers',
   custom_dc:    'Manually managed on-premise servers',
 }
 
@@ -78,10 +79,11 @@ const PROVIDER_FIELDS: Record<string, FieldDef[]> = {
     { key: 'application_secret', label: 'Application Secret', type: 'password' },
     { key: 'consumer_key',       label: 'Consumer Key',       type: 'password' },
   ],
+  hivelocity: [{ key: 'api_key', label: 'API Key', type: 'password', hint: '64-char hex key' }],
 }
 
-const PROVIDERS: Provider[] = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh']
-const SECRET_KEYS = new Set(['secret_access_key', 'client_secret', 'api_token', 'service_account_json', 'application_secret', 'consumer_key', 'private_key'])
+const PROVIDERS: Provider[] = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh', 'hivelocity']
+const SECRET_KEYS = new Set(['secret_access_key', 'client_secret', 'api_token', 'api_key', 'service_account_json', 'application_secret', 'consumer_key', 'private_key'])
 
 export default function ProvidersPage() {
   const qc = useQueryClient()

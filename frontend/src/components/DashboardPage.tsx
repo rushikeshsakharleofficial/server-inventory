@@ -31,6 +31,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   linode:       '#02B159',
   digitalocean: '#0080FF',
   ovh:          '#123F6D',
+  hivelocity:   '#E84545',
   custom_dc:    '#8B5CF6',
 }
 
@@ -41,6 +42,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   linode:       'Linode',
   digitalocean: 'DigitalOcean',
   ovh:          'OVH Cloud',
+  hivelocity:   'Hivelocity',
   custom_dc:    'Custom DC',
 }
 
