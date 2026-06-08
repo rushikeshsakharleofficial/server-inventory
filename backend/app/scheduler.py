@@ -41,11 +41,13 @@ def _run_cron(job_id: int, db_url: str) -> None:
     Session = sessionmaker(bind=engine)
     db = Session()
 
+    job_provider: str | None = None
     try:
         job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
         if not job or not job.is_active:
             return
 
+        job_provider = job.provider
         # Mark as running
         job.last_run_at = datetime.now(timezone.utc)
         job.last_run_status = "running"
@@ -59,7 +61,7 @@ def _run_cron(job_id: int, db_url: str) -> None:
 
     # Run the actual sync (reuse existing logic, separate DB session inside)
     try:
-        _run_sync(job.provider, db_url)
+        _run_sync(job_provider, db_url)
         status = "success"
     except Exception:
         status = "failed"

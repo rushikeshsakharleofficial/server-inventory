@@ -26,11 +26,11 @@ export default function MfaSetupSection() {
 
   const { data: statusData } = useQuery({
     queryKey: ['mfa-status'],
-    queryFn: () => mfaApi.status().then(r => r.data),
+    queryFn: () => mfaApi.status(),
   })
 
   const setupMutation = useMutation({
-    mutationFn: () => mfaApi.setup().then(r => r.data),
+    mutationFn: () => mfaApi.setup(),
     onSuccess: (data) => {
       setSetupData(data)
       setCode('')

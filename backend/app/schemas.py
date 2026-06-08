@@ -158,7 +158,7 @@ class StatsResponse(BaseModel):
 class SSHCredentialCreate(BaseModel):
     name: str
     username: str
-    auth_method: str = "password"
+    auth_method: Literal["password", "key"] = "password"
     password: str | None = None
     private_key: str | None = None
     port: int = 22
@@ -167,7 +167,7 @@ class SSHCredentialCreate(BaseModel):
     proxy_host:        str | None = None
     proxy_port:        int = 22
     proxy_username:    str | None = None
-    proxy_auth_method: str = "password"
+    proxy_auth_method: Literal["password", "key"] = "password"
     proxy_password:    str | None = None
     proxy_private_key: str | None = None
 
@@ -197,7 +197,7 @@ class SSHCredentialResponse(BaseModel):
 class SSHCredentialUpdate(BaseModel):
     name: str | None = None
     username: str | None = None
-    auth_method: str | None = None
+    auth_method: Literal["password", "key"] | None = None
     password: str | None = None
     private_key: str | None = None
     port: int | None = None
@@ -206,7 +206,7 @@ class SSHCredentialUpdate(BaseModel):
     proxy_host:        str | None = None
     proxy_port:        int | None = None
     proxy_username:    str | None = None
-    proxy_auth_method: str | None = None
+    proxy_auth_method: Literal["password", "key"] | None = None
     proxy_password:    str | None = None
     proxy_private_key: str | None = None
 

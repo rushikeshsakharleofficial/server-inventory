@@ -229,7 +229,7 @@ def stop_sync(
 def get_sync_logs(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=500),
 ) -> list[models.SyncLog]:
     return (
         db.query(models.SyncLog)

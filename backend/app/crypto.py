@@ -1,8 +1,11 @@
 import json
+import logging
 import os
 from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
+
+_log = logging.getLogger(__name__)
 
 _DEV_CRED_KEY_FILE = Path(__file__).parent.parent / ".dev_cred_key"
 _PRODUCTION_ENVS = {"prod", "production"}
@@ -55,10 +58,14 @@ def encrypt_str(value: str) -> str:
 
 
 def decrypt_str(value: str) -> str:
-    """Decrypt a Fernet-encrypted string. Returns plaintext on InvalidToken (tolerant read)."""
+    """Decrypt a Fernet-encrypted string. Returns raw value on failure and logs a warning."""
     try:
         return _fernet.decrypt(value.encode()).decode()
-    except (InvalidToken, Exception):
+    except InvalidToken:
+        _log.error("decrypt_str: InvalidToken — possible key mismatch or tampered ciphertext")
+        return value
+    except Exception as exc:
+        _log.error("decrypt_str: unexpected decryption error: %s", exc)
         return value
 
 
@@ -69,13 +76,17 @@ def encrypt_config(cfg: dict) -> dict:
 
 
 def decrypt_config(cfg: dict) -> dict:
-    """Decrypt a config dict encrypted by encrypt_config. Returns plaintext on failure (tolerant read)."""
+    """Decrypt a config dict encrypted by encrypt_config. Returns raw dict on failure and logs a warning."""
     if not isinstance(cfg, dict):
         return cfg
     if "_enc" in cfg:
         try:
             decrypted = _fernet.decrypt(cfg["_enc"].encode()).decode()
             return json.loads(decrypted)
-        except (InvalidToken, Exception):
+        except InvalidToken:
+            _log.error("decrypt_config: InvalidToken — possible key mismatch or tampered config")
+            return cfg
+        except Exception as exc:
+            _log.error("decrypt_config: unexpected decryption error: %s", exc)
             return cfg
     return cfg

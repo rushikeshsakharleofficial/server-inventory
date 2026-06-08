@@ -5,9 +5,8 @@ services:
     environment:
       POSTGRES_DB: server_inventory
       POSTGRES_USER: inventory
-      POSTGRES_PASSWORD: inventory
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Do NOT expose 5432 externally — backend reaches postgres via Docker bridge
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,10 +22,16 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql://inventory:inventory@postgres:5432/server_inventory
+      - DATABASE_URL=postgresql://inventory:${POSTGRES_PASSWORD}@postgres:5432/server_inventory
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin@1234}
-      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,7 +42,8 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

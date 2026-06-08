@@ -82,12 +82,18 @@ export default function IpsPage() {
         signal: ctrl.signal,
       })
       if (!resp.ok) {
+        if (resp.status === 401) { window.dispatchEvent(new Event('auth:expired')); return }
         const body = await resp.json().catch(() => ({}))
         toast.error(body?.detail || 'SSH fetch failed')
         return
       }
 
-      const reader = resp.body!.getReader()
+      if (!resp.body) {
+        toast.error('Server did not return a stream')
+        return
+      }
+
+      const reader = resp.body.getReader()
       const dec = new TextDecoder()
       let buf = ''
 
@@ -96,7 +102,7 @@ export default function IpsPage() {
         if (done) break
         buf += dec.decode(value, { stream: true })
         const lines = buf.split('\n')
-        buf = lines.pop()!
+        buf = lines.pop() ?? ''
         for (const line of lines) {
           if (!line.trim()) continue
           try {

@@ -1,5 +1,6 @@
 """Shared SSH utilities used by both the sync pipeline and on-demand endpoints."""
 import io
+import os
 import re
 from typing import Any, TYPE_CHECKING
 
@@ -39,7 +40,12 @@ def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
 
     jump_client = None
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+    if os.path.exists(known_hosts_path):
+        client.load_host_keys(known_hosts_path)
+    else:
+        client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
     try:
         connect_kwargs: dict[str, Any] = {
@@ -61,7 +67,12 @@ def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
             _proxy_pass = decrypt_str(ssh_cred.proxy_password)    if ssh_cred.proxy_password    else None
             _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
             jump_client = paramiko.SSHClient()
-            jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            known_hosts_path_j = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+            if os.path.exists(known_hosts_path_j):
+                jump_client.load_host_keys(known_hosts_path_j)
+            else:
+                jump_client.load_system_host_keys()
+            jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
             jump_kwargs: dict[str, Any] = {
                 "hostname": ssh_cred.proxy_host,
                 "port":     ssh_cred.proxy_port or 22,
@@ -108,7 +119,12 @@ def fetch_ips_via_transport(
     import paramiko
 
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+    if os.path.exists(known_hosts_path):
+        client.load_host_keys(known_hosts_path)
+    else:
+        client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     try:
         sock = jump_transport.open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
         client.connect(

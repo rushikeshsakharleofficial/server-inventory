@@ -66,7 +66,7 @@ export default function UsersPage() {
   const [errors, setErrors]           = useState<string[]>([])
   const [confirmId, setConfirmId]     = useState<number | null>(null)
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: usersApi.list,
   })
@@ -248,7 +248,16 @@ export default function UsersPage() {
               </tr>
             </THead>
             <TBody>
-              {isLoading ? (
+              {isError ? (
+                <tr>
+                  <TD colSpan={4} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--sr)' }}>
+                    Failed to load users.{' '}
+                    <button onClick={() => refetch()} style={{ color: 'var(--ac)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                      Retry
+                    </button>
+                  </TD>
+                </tr>
+              ) : isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i}>
                     <TD>
@@ -265,8 +274,7 @@ export default function UsersPage() {
                     <TD><div className="skeleton h-5 rounded-sm w-24 ml-auto" /></TD>
                   </tr>
                 ))
-              ) : (
-                users.map(user => {
+              ) : users.map(user => {
                   const roleCfg = getRoleCfg(user.role)
                   return (
                     <tr key={user.id} style={{ opacity: user.is_active ? 1 : 0.6 }}>
@@ -373,7 +381,7 @@ export default function UsersPage() {
                     </tr>
                   )
                 })
-              )}
+              }
             </TBody>
           </Table>
         </TableContainer>

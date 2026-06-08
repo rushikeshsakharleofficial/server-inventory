@@ -1,0 +1,136 @@
+[     600ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[     662ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[     665ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[     666ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[     673ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1964:175
+[     729ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[     774ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[    1704ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[    1730ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[    3571ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[    3572ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[    3692ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[    4018ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=8e463dd3-2047-4405-951b-7d1ff95ad6cd&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[    4230ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[    4668ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[    4690ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=8e463dd3-2047-4405-951b-7d1ff95ad6cd&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   16571ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[   16572ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   16617ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[   16617ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[   16623ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1974:175
+[   16659ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[   16659ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   17177ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   17228ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   20936ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[   20936ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[   20968ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[   21253ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=be7e286e-08ba-414d-83a8-ef0051b91120&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   21387ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[   21786ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[   21812ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=be7e286e-08ba-414d-83a8-ef0051b91120&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   37501ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[   37620ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[   37621ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[   37648ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   37667ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1964:175
+[   37718ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[   37788ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   38277ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   38289ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   40608ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[   40637ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[   40637ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[   40963ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=57473452-b837-4033-9967-780c80d746b7&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   41091ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[   41479ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[   41503ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=57473452-b837-4033-9967-780c80d746b7&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   53406ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[   53454ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   53459ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[   53459ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[   53466ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1974:175
+[   53555ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[   53563ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   53993ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   54008ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   54967ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[   54968ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[   54988ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[   55287ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=523bdf90-5481-4695-bbf7-2672ee752a3f&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   55418ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[   55824ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[   55846ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=523bdf90-5481-4695-bbf7-2672ee752a3f&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   72525ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[   72633ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   72637ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[   72638ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[   72642ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1964:175
+[   72766ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   72768ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[   73254ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   73265ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   75542ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[   75568ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[   75569ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[   75854ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=eb472ee7-b268-498a-814f-e6f4a322630c&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   75995ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[   76393ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[   76417ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=eb472ee7-b268-498a-814f-e6f4a322630c&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   88737ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[   88738ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   88797ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[   88797ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[   88804ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1974:175
+[   88836ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[   88874ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[   89238ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   89247ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[   90409ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[   90414ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[   90443ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[   90743ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=f2705473-214f-4a4b-b32d-3101798a1cd2&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[   90883ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[   91273ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[   91297ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=f2705473-214f-4a4b-b32d-3101798a1cd2&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[  117459ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[  117579ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[  117580ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1963
+[  117581ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[  117610ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1964:175
+[  117713ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[  117725ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[  118203ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[  118212ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[  120682ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[  120683ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[  120689ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[  120960ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=8e15801c-fd1e-404f-a5e1-24c95e2e5bf8&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[  121092ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[  121550ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[  121575ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=8e15801c-fd1e-404f-a5e1-24c95e2e5bf8&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[  133802ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.googleadservices.com/pagead/conversion.js:0
+[  133802ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[  133837ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[  133837ms] [WARNING] A parser-blocking, cross site (i.e. different eTLD+1) script, https://munchkin.marketo.net/munchkin.js, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details. @ https://www.proofpoint.com/us/ipcheck:1973
+[  133852ms] ReferenceError: Munchkin is not defined
+    at https://www.proofpoint.com/us/ipcheck:1974:175
+[  133912ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://munchkin.marketo.net/munchkin.js:0
+[  133931ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://dev.visualwebsiteoptimizer.com/collect/v.gif?cd=0&a=1002484&d=proofpoint.com&u=D1B2F05A189F36C006AB0C846734DB65E&h=322c99b3a4d81390fdb52490d38dcec9&t=false:0
+[  134317ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[  134334ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://js-agent.newrelic.com/nr-spa-1.315.0.min.js:0
+[  139768ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location:0
+[  139769ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://cdn.cookielaw.org/scripttemplates/202604.2.0/otBannerSdk.js:0
+[  139793ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=:0
+[  140094ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=0cf17249-c2ac-402b-a0fe-32ca631d231c&uuid=85f5218c-c826-432f-928f-a0410797876f:0
+[  140242ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447:0
+[  140647ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://o209747.ingest.us.sentry.io/api/4508915056574464/envelope/?sentry_key=c36ec735e564530732f0d75311d173b6&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.119.1:0
+[  140671ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://app.qualified.com/w/1/Vs3YWcqFMC66kpD4/visitor_events?wu=0cf17249-c2ac-402b-a0fe-32ca631d231c&uuid=85f5218c-c826-432f-928f-a0410797876f:0

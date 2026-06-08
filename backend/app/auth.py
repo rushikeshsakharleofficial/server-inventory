@@ -12,6 +12,7 @@ from .database import get_db
 _INSECURE_SECRET_VALUES = {
     "dev-secret-key-" + "CHANGE-in-production",
     "generate-a-long-random-string-here",
+    "change-this-secret-key-in-production",
 }
 _PRODUCTION_ENVS = {"prod", "production"}
 

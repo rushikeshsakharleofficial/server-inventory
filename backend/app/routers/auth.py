@@ -25,7 +25,7 @@ def login(
             detail="Invalid username or password",
         )
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account is disabled")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
     if user.totp_enabled and user.totp_secret:
         mfa_token = create_mfa_challenge_token(user.username)

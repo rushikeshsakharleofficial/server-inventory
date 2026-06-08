@@ -1,0 +1,164 @@
+- generic [ref=e2]:
+  - generic [ref=e31]:
+    - complementary "Sidebar navigation" [ref=e32]:
+      - generic [ref=e34]:
+        - paragraph [ref=e35]: ServerInventory
+        - paragraph [ref=e36]: INFRASTRUCTURE CONSOLE
+      - navigation [ref=e37]:
+        - button "Dashboard" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e44]: Dashboard
+        - generic [ref=e45]:
+          - button "Inventory" [ref=e46] [cursor=pointer]:
+            - img [ref=e47]
+            - generic [ref=e51]: Inventory
+            - img [ref=e52]
+          - generic [ref=e54]:
+            - button "Servers" [ref=e55] [cursor=pointer]:
+              - img [ref=e56]
+              - generic [ref=e59]: Servers
+            - button "Databases" [ref=e60] [cursor=pointer]:
+              - img [ref=e61]
+              - generic [ref=e65]: Databases
+            - button "Kubernetes" [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+              - generic [ref=e70]: Kubernetes
+            - button "Block Storage" [ref=e71] [cursor=pointer]:
+              - img [ref=e72]
+              - generic [ref=e74]: Block Storage
+            - button "IP Addresses" [ref=e75] [cursor=pointer]:
+              - img [ref=e76]
+              - generic [ref=e81]: IP Addresses
+        - button "Cloud Providers" [ref=e82] [cursor=pointer]:
+          - img [ref=e83]
+          - generic [ref=e85]: Cloud Providers
+        - button "Sync Logs" [ref=e86] [cursor=pointer]:
+          - img [ref=e87]
+          - generic [ref=e89]: Sync Logs
+        - button "Cron Jobs" [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+          - generic [ref=e94]: Cron Jobs
+        - button "SSH" [ref=e95] [cursor=pointer]:
+          - img [ref=e96]
+          - generic [ref=e98]: SSH
+        - button "Settings" [ref=e99] [cursor=pointer]:
+          - img [ref=e100]
+          - generic [ref=e101]: Settings
+      - generic [ref=e102]:
+        - generic [ref=e106]: ADMIN · admin
+        - button "Manage Credentials" [ref=e107] [cursor=pointer]:
+          - img [ref=e108]
+          - generic [ref=e111]: Manage Credentials
+        - button "Manage Users" [ref=e112] [cursor=pointer]:
+          - img [ref=e113]
+          - generic [ref=e118]: Manage Users
+        - button "Admin Setup" [ref=e119] [cursor=pointer]:
+          - img [ref=e120]
+          - generic [ref=e121]: Admin Setup
+    - generic [ref=e122]:
+      - banner [ref=e123]:
+        - generic [ref=e124]:
+          - button "Close sidebar" [ref=e125] [cursor=pointer]:
+            - img [ref=e126]
+          - heading "Server Inventory" [level=1] [ref=e129]
+        - generic [ref=e130]:
+          - generic "Live — WebSocket connected" [ref=e131]
+          - generic [ref=e132]:
+            - img [ref=e133]
+            - generic [ref=e135]: admin
+          - button "Switch to dark mode" [ref=e136]:
+            - img [ref=e137]
+            - img [ref=e143]
+          - button "Add Server" [ref=e145] [cursor=pointer]:
+            - img [ref=e146]
+            - generic [ref=e147]: Add Server
+          - button "Sync all cloud providers" [ref=e149] [cursor=pointer]:
+            - img [ref=e150]
+            - generic [ref=e155]: Sync All
+          - button "Sign out" [ref=e156] [cursor=pointer]:
+            - img [ref=e157]
+      - main [ref=e160]:
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - generic [ref=e165]:
+              - img [ref=e166]
+              - textbox "Search servers" [ref=e169]:
+                - /placeholder: Search name, IP, hostname…
+            - combobox "Filter by provider" [ref=e170] [cursor=pointer]:
+              - option "All Providers" [selected]
+              - option "AWS"
+              - option "GCP"
+              - option "AZURE"
+              - option "LINODE"
+              - option "DIGITALOCEAN"
+              - option "OVH"
+              - option "HIVELOCITY"
+              - option "CUSTOM DC"
+            - combobox "Filter by status" [ref=e171] [cursor=pointer]:
+              - option "All Statuses" [selected]
+              - option "Running"
+              - option "Stopped"
+              - option "Pending"
+              - option "Terminated"
+              - option "Unknown"
+            - paragraph [ref=e173]: 0 servers found
+            - button "Custom DC" [ref=e174] [cursor=pointer]:
+              - img [ref=e175]
+              - text: Custom DC
+          - generic [ref=e176]:
+            - generic [ref=e177]: Infrastructure Manifest
+            - generic [ref=e178]: 0 NODES
+          - table "Server inventory" [ref=e180]:
+            - rowgroup [ref=e181]:
+              - row "Name Provider Region Type Status Public IP Private IP vCPU RAM (GB) OS Last Synced" [ref=e182]:
+                - columnheader "Name" [ref=e183] [cursor=pointer]:
+                  - generic [ref=e184]:
+                    - generic [ref=e185]: Name
+                    - img [ref=e186]
+                - columnheader "Provider" [ref=e188] [cursor=pointer]:
+                  - generic [ref=e189]:
+                    - generic [ref=e190]: Provider
+                    - img [ref=e191]
+                - columnheader "Region" [ref=e194] [cursor=pointer]:
+                  - generic [ref=e195]:
+                    - generic [ref=e196]: Region
+                    - img [ref=e197]
+                - columnheader "Type" [ref=e200] [cursor=pointer]:
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: Type
+                    - img [ref=e203]
+                - columnheader "Status" [ref=e206] [cursor=pointer]:
+                  - generic [ref=e207]:
+                    - generic [ref=e208]: Status
+                    - img [ref=e209]
+                - columnheader "Public IP" [ref=e212] [cursor=pointer]:
+                  - generic [ref=e213]:
+                    - generic [ref=e214]: Public IP
+                    - img [ref=e215]
+                - columnheader "Private IP" [ref=e218] [cursor=pointer]:
+                  - generic [ref=e219]:
+                    - generic [ref=e220]: Private IP
+                    - img [ref=e221]
+                - columnheader "vCPU" [ref=e224] [cursor=pointer]:
+                  - generic [ref=e225]:
+                    - generic [ref=e226]: vCPU
+                    - img [ref=e227]
+                - columnheader "RAM (GB)" [ref=e230] [cursor=pointer]:
+                  - generic [ref=e231]:
+                    - generic [ref=e232]: RAM (GB)
+                    - img [ref=e233]
+                - columnheader "OS" [ref=e236] [cursor=pointer]:
+                  - generic [ref=e237]:
+                    - generic [ref=e238]: OS
+                    - img [ref=e239]
+                - columnheader "Last Synced" [ref=e242] [cursor=pointer]:
+                  - generic [ref=e243]:
+                    - generic [ref=e244]: Last Synced
+                    - img [ref=e245]
+                - columnheader [ref=e248]
+            - rowgroup [ref=e249]:
+              - row "No servers found. Add your first custom server →" [ref=e250]:
+                - cell "No servers found. Add your first custom server →" [ref=e251]:
+                  - paragraph [ref=e252]: No servers found.
+                  - button "Add your first custom server →" [ref=e253] [cursor=pointer]
+  - generic "Notifications"

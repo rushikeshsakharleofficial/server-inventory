@@ -223,6 +223,7 @@ export default function Layout({
   useEffect(() => {
     function handleResize() {
       if (window.innerWidth < 768) setOpen(false)
+      else setOpen(true)
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)

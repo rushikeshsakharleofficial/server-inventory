@@ -195,12 +195,13 @@ async def ssh_sync_server(
                 return None, "Selected SSH credential has no password"
 
             # Jump/proxy server — open channel through jump host if configured
+            # Initialized before the proxy block so except handlers can always close it
             jump_client = None
             if getattr(ssh_cred, "proxy_host", None):
                 _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
                 _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
                 jump_client = paramiko.SSHClient()
-                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
                 jump_kwargs: dict = {
                     "hostname": ssh_cred.proxy_host,
                     "port":     ssh_cred.proxy_port or 22,
@@ -478,7 +479,7 @@ def ssh_fetch_ips_stream(
                 _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
                 _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
                 jump_client = paramiko.SSHClient()
-                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
                 jk: dict = {
                     "hostname": ssh_cred.proxy_host,
                     "port":     ssh_cred.proxy_port or 22,

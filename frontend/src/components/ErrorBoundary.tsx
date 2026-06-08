@@ -51,7 +51,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   toggleDetails = () => {
-    this.setState((prev) => ({ showDetails: !prev }))
+    this.setState((prev) => ({ showDetails: !prev.showDetails }))
   }
 
   override render() {
