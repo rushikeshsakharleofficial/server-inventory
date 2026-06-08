@@ -20,3 +20,11 @@ dist/
 AGENTS.md
 GEMINI.md
 *.local.json
+
+
+.claude/skills/
+.cursorrules
+.opencode.json
+.playwright-mcp/
+.windsurfrules
+AUDIT_REPORT.md
