@@ -93,8 +93,8 @@ const Sidebar = styled('aside', {
 });
 
 const LogoContainer = styled('div', {
-  height: '52px',
-  padding: '0 16px',
+  height: '56px',
+  padding: '0 14px',
   display: 'flex',
   alignItems: 'center',
   gap: '10px',
@@ -113,9 +113,17 @@ const NavLabel = styled('p', {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   color: '$tx3',
-  padding: '0 $2',
-  marginBottom: '2px',
+  padding: '0 10px',
+  margin: '12px 0 3px 0',
   fontFamily: '$sans',
+  userSelect: 'none',
+});
+
+const NavDivider = styled('div', {
+  height: '1px',
+  background: 'var(--bd)',
+  margin: '4px 6px',
+  opacity: 0.6,
 });
 
 const NavContainer = styled('nav', {
@@ -136,27 +144,28 @@ const NavButton = styled('button', {
   height: '34px',
   fontSize: '13px',
   fontWeight: 400,
-  color: '$tx2',
+  color: 'var(--tx3)',
   backgroundColor: 'transparent',
   border: 'none',
   borderRadius: '6px',
-  transition: 'all 120ms ease',
+  transition: 'background-color 120ms ease, color 120ms ease',
   cursor: 'pointer',
   textAlign: 'left',
   outline: 'none',
   fontFamily: '$sans',
   '&:hover': {
-    color: '$tx1',
-    backgroundColor: 'var(--bg-s2)',
+    color: 'var(--tx1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   variants: {
     active: {
       true: {
-        color: '$accent',
+        color: 'var(--ac)',
         fontWeight: 500,
-        backgroundColor: '$navActiveBg',
-        boxShadow: 'inset 2px 0 0 var(--ac)',
-        '& svg': { color: '$accent' },
+        backgroundColor: 'rgba(99,102,241,0.12)',
+        boxShadow: 'inset 3px 0 0 var(--ac)',
+        '& svg': { color: 'var(--ac) !important' },
+        '&:hover': { backgroundColor: 'rgba(99,102,241,0.16)' },
       },
     },
   },
@@ -179,39 +188,40 @@ const SubNavButton = styled('button', {
   alignItems: 'center',
   gap: '8px',
   padding: '0 10px',
-  height: '32px',
+  height: '30px',
   fontSize: '12.5px',
   borderRadius: '6px',
-  color: '$tx3',
+  color: 'var(--tx3)',
   backgroundColor: 'transparent',
   border: 'none',
-  transition: 'all 120ms ease',
+  transition: 'background-color 120ms ease, color 120ms ease',
   cursor: 'pointer',
   textAlign: 'left',
   outline: 'none',
   fontFamily: '$sans',
   '&:hover': {
-    color: '$tx1',
-    backgroundColor: 'var(--bg-s2)',
+    color: 'var(--tx1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   variants: {
     active: {
       true: {
-        color: '$accent',
+        color: 'var(--ac)',
         fontWeight: 500,
-        backgroundColor: '$navActiveBg',
-        boxShadow: 'inset 2px 0 0 var(--ac)',
+        backgroundColor: 'rgba(99,102,241,0.10)',
+        boxShadow: 'inset 3px 0 0 var(--ac)',
+        '&:hover': { backgroundColor: 'rgba(99,102,241,0.14)' },
       },
     },
   },
 });
 
 const SidebarFooter = styled('div', {
-  padding: '6px 8px 10px',
+  padding: '8px',
   borderTop: '1px solid $border',
   display: 'flex',
   flexDirection: 'column',
-  gap: '1px',
+  gap: '2px',
 });
 
 const MainArea = styled('div', {
@@ -352,41 +362,42 @@ export default function Layout({
         {/* Logo */}
         <LogoContainer>
           <div style={{
-            width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0,
-            background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+            width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+            background: 'linear-gradient(135deg, #6366F1 0%, #4338CA 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(99,102,241,0.35)',
           }}>
-            <Server size={14} color="#fff" />
+            <Server size={16} color="#fff" strokeWidth={2} />
           </div>
           <div style={{ overflow: 'hidden' }}>
-            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', margin: 0, letterSpacing: '-0.01em', lineHeight: 1 }}>ServerInventory</p>
-            <p style={{ fontSize: '10px', color: 'var(--tx3)', margin: '2px 0 0 0' }}>Infrastructure Console</p>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>ServerInventory</p>
+            <p style={{ fontSize: '10px', color: 'var(--tx3)', margin: '2px 0 0 0', letterSpacing: '0.01em' }}>Infrastructure Console</p>
           </div>
         </LogoContainer>
 
         {/* Nav */}
         <NavContainer role="navigation">
+          <NavLabel>Overview</NavLabel>
           <NavButton
             onClick={() => onViewChange('dashboard')}
             active={currentView === 'dashboard'}
             aria-current={currentView === 'dashboard' ? 'page' : undefined}
           >
-            <LayoutDashboard size={15} style={{ flexShrink: 0, color: currentView === 'dashboard' ? 'var(--ac)' : 'var(--tx3)' }} />
+            <LayoutDashboard size={15} style={{ flexShrink: 0 }} />
             <span className="truncate">Dashboard</span>
           </NavButton>
 
-          <div style={{ height: '1px', background: 'var(--bd)', margin: '6px 4px' }} />
-
+          <NavLabel>Infrastructure</NavLabel>
           <div>
             <NavButton
               onClick={() => setInventoryOpen(o => !o)}
-              active={isInventoryView}
+              active={isInventoryView && !inventoryOpen ? true : undefined}
             >
-              <Layers size={15} style={{ flexShrink: 0, color: isInventoryView ? 'var(--ac)' : 'var(--tx3)' }} />
-              <span className="flex-1 text-left truncate">Resources</span>
+              <Layers size={15} style={{ flexShrink: 0, color: isInventoryView ? 'var(--ac)' : undefined }} />
+              <span className="flex-1 text-left truncate" style={{ color: isInventoryView ? 'var(--ac)' : undefined }}>Resources</span>
               <ChevronDown
                 size={13}
-                style={{ flexShrink: 0, color: 'var(--tx3)', transition: 'transform 150ms ease', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                style={{ flexShrink: 0, transition: 'transform 150ms ease', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
               />
             </NavButton>
 
@@ -407,8 +418,7 @@ export default function Layout({
             )}
           </div>
 
-          <div style={{ height: '1px', background: 'var(--bd)', margin: '6px 4px' }} />
-
+          <NavLabel>Operations</NavLabel>
           {NAV.map(({ id, label, Icon }) => (
             <NavButton
               key={id}
@@ -416,7 +426,7 @@ export default function Layout({
               active={currentView === id}
               aria-current={currentView === id ? 'page' : undefined}
             >
-              <Icon size={15} style={{ flexShrink: 0, color: currentView === id ? 'var(--ac)' : 'var(--tx3)' }} />
+              <Icon size={15} style={{ flexShrink: 0 }} />
               <span className="truncate">{label}</span>
             </NavButton>
           ))}
@@ -424,49 +434,74 @@ export default function Layout({
 
         {/* Footer */}
         <SidebarFooter>
-          {/* User status */}
+          {/* Admin nav items */}
+          {isAdmin && (
+            <>
+              <NavLabel style={{ marginTop: '4px' }}>Admin</NavLabel>
+              <NavButton
+                onClick={() => onViewChange('users')}
+                active={currentView === 'users'}
+              >
+                <Users size={15} style={{ flexShrink: 0 }} />
+                <span className="truncate">Users</span>
+              </NavButton>
+              <NavButton
+                onClick={() => onViewChange('setup')}
+                active={currentView === 'setup'}
+              >
+                <SlidersHorizontal size={15} style={{ flexShrink: 0 }} />
+                <span className="truncate">Admin Setup</span>
+              </NavButton>
+            </>
+          )}
+
+          {/* User card */}
           {user && (
-            <div style={{ padding: '6px 10px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '9px' }}>
+            <div style={{
+              marginTop: '6px',
+              padding: '8px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '9px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid var(--bd)',
+              borderRadius: '8px',
+            }}>
+              {/* Avatar */}
               <div style={{
-                width: '28px', height: '28px', borderRadius: '6px', flexShrink: 0,
-                background: 'var(--ac)',
+                width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0,
+                background: 'linear-gradient(135deg, #6366F1 0%, #4338CA 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '12px', fontWeight: 600, color: '#fff',
+                fontSize: '12px', fontWeight: 700, color: '#fff',
+                letterSpacing: '-0.01em',
+                boxShadow: '0 1px 4px rgba(99,102,241,0.25)',
               }}>
                 {user.username[0]?.toUpperCase()}
               </div>
-              <div style={{ overflow: 'hidden', flex: 1 }}>
-                <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username}</p>
-                <p style={{ margin: 0, fontSize: '11px', color: 'var(--tx3)', textTransform: 'capitalize' }}>{user.role}</p>
+              {/* Info */}
+              <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: '12.5px', fontWeight: 500, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>{user.username}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '1px' }}>
+                  <div style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--sg)', flexShrink: 0, boxShadow: '0 0 4px var(--sg-glow)' }} />
+                  <p style={{ margin: 0, fontSize: '10.5px', color: 'var(--tx3)', textTransform: 'capitalize', lineHeight: 1 }}>{user.role}</p>
+                </div>
               </div>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--sg)', flexShrink: 0 }} />
+              {/* Logout */}
+              <button
+                onClick={logout}
+                title="Sign out"
+                aria-label="Sign out"
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center',
+                  color: 'var(--tx3)', transition: 'all 150ms ease', flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = 'var(--sr)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--tx3)'; }}
+              >
+                <LogOut size={14} />
+              </button>
             </div>
-          )}
-          <NavButton
-            onClick={() => onViewChange('providers')}
-            active={currentView === 'providers'}
-          >
-            <Settings size={15} style={{ flexShrink: 0, color: currentView === 'providers' ? 'var(--ac)' : 'var(--tx3)' }} />
-            <span className="truncate">Credentials</span>
-          </NavButton>
-
-          {isAdmin && (
-            <NavButton
-              onClick={() => onViewChange('users')}
-              active={currentView === 'users'}
-            >
-              <Users size={15} style={{ flexShrink: 0, color: currentView === 'users' ? 'var(--ac)' : 'var(--tx3)' }} />
-              <span className="truncate">Users</span>
-            </NavButton>
-          )}
-          {isAdmin && (
-            <NavButton
-              onClick={() => onViewChange('setup')}
-              active={currentView === 'setup'}
-            >
-              <SlidersHorizontal size={15} style={{ flexShrink: 0, color: currentView === 'setup' ? 'var(--ac)' : 'var(--tx3)' }} />
-              <span className="truncate">Admin Setup</span>
-            </NavButton>
           )}
         </SidebarFooter>
       </Sidebar>

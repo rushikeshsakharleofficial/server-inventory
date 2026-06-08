@@ -179,7 +179,7 @@
     --glass-bg: rgba(9, 9, 11, 0.95);
     --glass-bd: rgba(255, 255, 255, 0.06);
 
-    --sidebar-bg:    #09090B;  /* same as base — only right border separates */
+    --sidebar-bg:    #0C0C0E;  /* slightly distinct from base */
     --header-bg:     #09090B;
     --nav-active-bg: rgba(99, 102, 241, 0.08);
     --card-hover-bd: #3F3F46;

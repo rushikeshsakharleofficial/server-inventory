@@ -24,38 +24,8 @@ import MfaChallengePage from './components/MfaChallengePage'
 import ServerDetailModal from './components/ServerDetailModal'
 import ErrorBoundary from './components/ErrorBoundary'
 import { GooeyFilter } from './components/Toggle'
+import { ArrowLeft } from 'lucide-react'
 import type { View, Server } from './types'
-import { styled } from './stitches.config'
-
-const SplitPane = styled('div', {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '$5',
-  width: '100%',
-  alignItems: 'stretch',
-  '@lg': {
-    flexDirection: 'row',
-  },
-});
-
-const TablePane = styled('div', {
-  flex: 1,
-  minWidth: 0,
-  overflow: 'hidden',
-});
-
-const DetailPane = styled('div', {
-  width: '100%',
-  flexShrink: 0,
-  '@lg': {
-    width: '450px',
-    maxWidth: 'min(450px, calc(100% - 400px))',
-    position: 'sticky',
-    top: '0px',
-    height: 'calc(100vh - 102px)',
-    overflow: 'hidden',
-  },
-});
 
 
 const queryClient = new QueryClient({
@@ -143,27 +113,37 @@ function AppContent() {
         )}
 
         {view === 'servers' && (
-          <div className="space-y-5 animate-fade-in">
+          <div className="animate-fade-in">
             {selectedServer ? (
-              <SplitPane>
-                <TablePane>
-                  <ServerTable
-                    onAddServer={() => setShowAddServer(true)}
-                    onServerClick={setSelectedServer}
-                    onEditServer={canWrite ? setEditingServer : undefined}
-                    compact={true}
-                    selectedServerId={selectedServer.id}
-                  />
-                </TablePane>
-                <DetailPane>
-                  <ServerDetailModal
-                    server={selectedServer}
-                    onClose={() => setSelectedServer(null)}
-                    onServerUpdated={setSelectedServer}
-                    inline={true}
-                  />
-                </DetailPane>
-              </SplitPane>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                {/* Back button row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                  <button
+                    onClick={() => setSelectedServer(null)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      background: 'transparent', border: '1px solid var(--bd)', borderRadius: '6px',
+                      padding: '5px 12px', fontSize: '12.5px', fontWeight: 500, color: 'var(--tx2)',
+                      cursor: 'pointer', transition: 'all 150ms ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--bd-strong)'; e.currentTarget.style.color = 'var(--tx1)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx2)'; }}
+                  >
+                    <ArrowLeft size={13} />
+                    Back to Servers
+                  </button>
+                  <span style={{ fontSize: '12px', color: 'var(--tx3)' }}>
+                    {selectedServer.name}
+                  </span>
+                </div>
+                {/* Full-page detail */}
+                <ServerDetailModal
+                  server={selectedServer}
+                  onClose={() => setSelectedServer(null)}
+                  onServerUpdated={setSelectedServer}
+                  inline={true}
+                />
+              </div>
             ) : (
               <ServerTable
                 onAddServer={() => setShowAddServer(true)}

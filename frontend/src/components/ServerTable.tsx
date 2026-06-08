@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search,
@@ -47,23 +47,15 @@ const PAGE_SIZE = 20
 type SortField = keyof Server
 type SortDir   = 'asc' | 'desc'
 
-function fmt(d?: string) {
-  if (!d) return '—'
-  return new Date(d).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
-}
 
 export default function ServerTable({
   onAddServer,
   onServerClick,
   onEditServer,
-  compact = false,
-  selectedServerId,
 }: {
   onAddServer: () => void
   onServerClick?: (server: Server) => void
   onEditServer?: (server: Server) => void
-  compact?: boolean
-  selectedServerId?: number
 }) {
   const [search, setSearch]         = useState('')
   const [debounced, setDebounced]   = useState('')
@@ -134,17 +126,8 @@ export default function ServerTable({
       : <ChevronDown size={12} style={{ color: 'var(--ac)' }} />
   }
 
-  const RenderTH = ({
-    label, field, center = false, width,
-  }: { label: string; field?: SortField; center?: boolean; width?: string }) => (
-    <TH
-      onClick={field ? () => toggleSort(field) : undefined}
-      style={{
-        cursor: field ? 'pointer' : 'default',
-        textAlign: center ? 'center' : 'left',
-        width: compact ? width : undefined,
-      }}
-    >
+  const RenderTH = ({ label, field, style, center = false }: { label: string; field?: SortField; style?: React.CSSProperties; center?: boolean }) => (
+    <TH onClick={field ? () => toggleSort(field) : undefined} style={{ cursor: field ? 'pointer' : 'default', textAlign: center ? 'center' : 'left', ...style }}>
       <Flex align="center" gap={1} style={{ justifyContent: center ? 'center' : 'flex-start' }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
         {field && <SortIcon field={field} />}
@@ -236,28 +219,21 @@ export default function ServerTable({
       </Flex>
 
       {/* Table */}
-      <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none', overflowX: compact ? 'hidden' : 'auto' }}>
-        <Table aria-label="Server inventory" style={{ tableLayout: compact ? 'fixed' : 'auto', width: '100%' }}>
+      <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none', overflowX: 'hidden' }}>
+        <Table aria-label="Server inventory" style={{ tableLayout: 'fixed', width: '100%' }}>
           <THead>
             <tr>
-              <RenderTH label="Name"        field="name" width="35%" />
-              <RenderTH label="Provider"    field="provider" width="15%" />
-              {!compact && <RenderTH label="Region"      field="region" />}
-              {!compact && <RenderTH label="Type"        field="instance_type" />}
-              <RenderTH label="Status"      field="status" width="15%" />
-              <RenderTH label="Public IP"   field="public_ip" width="20%" />
-              {!compact && <RenderTH label="Private IP"  field="private_ip" />}
-              {!compact && <RenderTH label="vCPU"        field="vcpu"      center />}
-              {!compact && <RenderTH label="RAM (GB)"    field="memory_gb" center />}
-              {!compact && <RenderTH label="OS"          field="os" />}
-              {!compact && <RenderTH label="Last Synced" field="last_synced" />}
-              <RenderTH label="" width="15%" />
+              <RenderTH label="Name"      field="name"      style={{ width: '34%' }} />
+              <RenderTH label="Provider"  field="provider"  style={{ width: '14%' }} />
+              <RenderTH label="Status"    field="status"    style={{ width: '14%' }} />
+              <RenderTH label="Public IP" field="public_ip" style={{ width: '23%' }} />
+              <RenderTH label=""                            style={{ width: '15%' }} />
             </tr>
           </THead>
           <TBody>
             {isError && (
               <tr>
-                <TD colSpan={compact ? 5 : 12} style={{ padding: '64px 0', textAlign: 'center' }}>
+                <TD colSpan={5} style={{ padding: '64px 0', textAlign: 'center' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '28rem', margin: '0 auto', padding: '1.5rem', background: 'var(--sr-bg)', border: '1px solid var(--sr-bd)', borderRadius: '10px' }}>
                     <span style={{ color: 'var(--sr)', marginBottom: '0.5rem', fontSize: '1.25rem' }}>⚠️</span>
                     <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--tx1)', marginBottom: '0.25rem', margin: '0 0 4px' }}>Failed to fetch servers</h3>
@@ -280,7 +256,7 @@ export default function ServerTable({
 
             {!isLoading && !isError && rows.length === 0 && (
               <tr>
-                <TD colSpan={compact ? 5 : 12} style={{ textAlign: 'center', padding: '64px 0' }}>
+                <TD colSpan={5} style={{ textAlign: 'center', padding: '64px 0' }}>
                   <Text variant="muted">No servers found.</Text>
                   {!search && !provider && !status && (
                     <button
@@ -298,16 +274,11 @@ export default function ServerTable({
 
             {rows.map(server => {
               const cfg = STATUS_CFG[server.status] ?? STATUS_CFG.unknown
-              const isSelected = selectedServerId === server.id
               return (
                 <tr
                   key={server.id}
                   onClick={() => onServerClick?.(server)}
                   className={onServerClick ? 'cursor-pointer' : ''}
-                  style={{
-                    backgroundColor: isSelected ? 'var(--ac-bg)' : undefined,
-                    borderLeft: isSelected ? '3px solid var(--ac)' : undefined,
-                  }}
                 >
                   {/* Name */}
                   <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -321,20 +292,6 @@ export default function ServerTable({
                   <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <ProviderBadge provider={server.provider} />
                   </TD>
-
-                  {/* Region */}
-                  {!compact && (
-                    <TD>
-                      <span style={{ fontSize: '14px', color: 'var(--tx2)' }}>{server.region ?? '—'}</span>
-                    </TD>
-                  )}
-
-                  {/* Type */}
-                  {!compact && (
-                    <TD>
-                      <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx3)' }}>{server.instance_type ?? '—'}</span>
-                    </TD>
-                  )}
 
                   {/* Status */}
                   <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -407,47 +364,6 @@ export default function ServerTable({
                       )
                     })()}
                   </TD>
-
-                  {/* Private IP */}
-                  {!compact && (
-                    <TD>
-                      <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx3)' }}>
-                        {server.private_ip ?? '—'}
-                      </span>
-                    </TD>
-                  )}
-
-                  {/* vCPU */}
-                  {!compact && (
-                    <TD style={{ textAlign: 'center' }}>
-                      <span style={{ fontSize: '14px', color: 'var(--tx2)', fontFamily: 'monospace' }}>
-                        {server.vcpu ?? '—'}
-                      </span>
-                    </TD>
-                  )}
-
-                  {/* RAM */}
-                  {!compact && (
-                    <TD style={{ textAlign: 'center' }}>
-                      <span style={{ fontSize: '14px', color: 'var(--tx2)', fontFamily: 'monospace' }}>
-                        {server.memory_gb ?? '—'}
-                      </span>
-                    </TD>
-                  )}
-
-                  {/* OS */}
-                  {!compact && (
-                    <TD>
-                      <span style={{ fontSize: '12px', color: 'var(--tx3)', fontFamily: 'monospace' }}>{server.os ?? '—'}</span>
-                    </TD>
-                  )}
-
-                  {/* Last Synced */}
-                  {!compact && (
-                    <TD>
-                      <span style={{ fontSize: '12px', color: 'var(--tx3)', fontFamily: 'monospace' }}>{fmt(server.last_synced)}</span>
-                    </TD>
-                  )}
 
                   {/* Actions */}
                   <TD onClick={e => e.stopPropagation()} style={{ overflow: 'hidden' }}>

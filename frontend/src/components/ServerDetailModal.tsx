@@ -64,7 +64,6 @@ const ModalContent = styled(Card, {
       true: {
         maxWidth: 'none',
         maxHeight: 'none',
-        height: '100%',
         boxShadow: 'none',
         border: '1px solid $border',
         animation: 'fadeIn 200ms ease-out',
@@ -79,8 +78,7 @@ const ModalHeader = styled(Flex, {
 });
 
 const ScrollableContent = styled('div', {
-  flex: 1,
-  overflowY: 'auto',
+  overflowY: 'visible',
   padding: '$6',
   display: 'flex',
   flexDirection: 'column',
@@ -260,15 +258,11 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
             {server.status}
           </Badge>
         </Flex>
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={onClose}
-          aria-label="Close"
-          style={{ padding: '0.375rem', borderRadius: '8px' }}
-        >
-          <X size={16} />
-        </Button>
+        {!inline && (
+          <Button intent="ghost" size="sm" onClick={onClose} aria-label="Close" style={{ padding: '0.375rem', borderRadius: '8px' }}>
+            <X size={16} />
+          </Button>
+        )}
       </ModalHeader>
 
       {/* Scrollable Content */}
@@ -467,7 +461,7 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
           <Map size={14} />
           Resource Map
         </Button>
-        <Button onClick={onClose} intent="ghost">Close</Button>
+        {!inline && <Button onClick={onClose} intent="ghost">Close</Button>}
       </ModalFooter>
     </ModalContent>
   );
