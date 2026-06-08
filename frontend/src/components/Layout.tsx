@@ -155,6 +155,7 @@ const NavButton = styled('button', {
         color: '$accent',
         fontWeight: 600,
         backgroundColor: '$navActiveBg',
+        boxShadow: 'inset 2px 0 0 var(--ac)',
         '& svg': { color: '$accent' },
       },
     },
@@ -198,6 +199,7 @@ const SubNavButton = styled('button', {
         color: '$accent',
         fontWeight: 600,
         backgroundColor: '$navActiveBg',
+        boxShadow: 'inset 2px 0 0 var(--ac)',
       },
     },
   },
@@ -368,67 +370,60 @@ export default function Layout({
 
         {/* Nav */}
         <NavContainer role="navigation">
-          <NavSection>
-            <NavLabel>Overview</NavLabel>
+          <NavButton
+            onClick={() => onViewChange('dashboard')}
+            active={currentView === 'dashboard'}
+            aria-current={currentView === 'dashboard' ? 'page' : undefined}
+          >
+            <LayoutDashboard size={15} style={{ flexShrink: 0, color: currentView === 'dashboard' ? 'var(--ac)' : 'var(--tx3)' }} />
+            <span className="truncate">Dashboard</span>
+          </NavButton>
+
+          <div style={{ height: '1px', background: 'var(--bd)', margin: '6px 4px' }} />
+
+          <div>
             <NavButton
-              onClick={() => onViewChange('dashboard')}
-              active={currentView === 'dashboard'}
-              aria-current={currentView === 'dashboard' ? 'page' : undefined}
+              onClick={() => setInventoryOpen(o => !o)}
+              active={isInventoryView}
             >
-              <LayoutDashboard size={15} style={{ flexShrink: 0, color: currentView === 'dashboard' ? 'var(--ac)' : 'var(--tx3)' }} />
-              <span className="truncate">Dashboard</span>
+              <Layers size={15} style={{ flexShrink: 0, color: isInventoryView ? 'var(--ac)' : 'var(--tx3)' }} />
+              <span className="flex-1 text-left truncate">Resources</span>
+              <ChevronDown
+                size={13}
+                style={{ flexShrink: 0, color: 'var(--tx3)', transition: 'transform 150ms ease', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
             </NavButton>
-          </NavSection>
 
-          <NavSection>
-            <NavLabel>Inventory</NavLabel>
-            {/* ── Inventory group ── */}
-            <div>
-              <NavButton
-                onClick={() => setInventoryOpen(o => !o)}
-                active={isInventoryView}
-              >
-                <Layers size={15} style={{ flexShrink: 0, color: isInventoryView ? 'var(--ac)' : 'var(--tx3)' }} />
-                <span className="flex-1 text-left truncate">Resources</span>
-                <ChevronDown
-                  size={13}
-                  style={{ flexShrink: 0, color: 'var(--tx3)', transition: 'transform 150ms ease', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                />
-              </NavButton>
+            {inventoryOpen && (
+              <SubNavContainer>
+                {INVENTORY_SUB.map(({ id, label, Icon }) => (
+                  <SubNavButton
+                    key={id}
+                    onClick={() => onViewChange(id)}
+                    active={currentView === id}
+                    aria-current={currentView === id ? 'page' : undefined}
+                  >
+                    <Icon size={13} style={{ flexShrink: 0 }} />
+                    <span className="truncate">{label}</span>
+                  </SubNavButton>
+                ))}
+              </SubNavContainer>
+            )}
+          </div>
 
-              {inventoryOpen && (
-                <SubNavContainer>
-                  {INVENTORY_SUB.map(({ id, label, Icon }) => (
-                    <SubNavButton
-                      key={id}
-                      onClick={() => onViewChange(id)}
-                      active={currentView === id}
-                      aria-current={currentView === id ? 'page' : undefined}
-                    >
-                      <Icon size={13} style={{ flexShrink: 0 }} />
-                      <span className="truncate">{label}</span>
-                    </SubNavButton>
-                  ))}
-                </SubNavContainer>
-              )}
-            </div>
-          </NavSection>
+          <div style={{ height: '1px', background: 'var(--bd)', margin: '6px 4px' }} />
 
-          <NavSection>
-            <NavLabel>Manage</NavLabel>
-            {/* Rest of nav */}
-            {NAV.map(({ id, label, Icon }) => (
-              <NavButton
-                key={id}
-                onClick={() => onViewChange(id)}
-                active={currentView === id}
-                aria-current={currentView === id ? 'page' : undefined}
-              >
-                <Icon size={15} style={{ flexShrink: 0, color: currentView === id ? 'var(--ac)' : 'var(--tx3)' }} />
-                <span className="truncate">{label}</span>
-              </NavButton>
-            ))}
-          </NavSection>
+          {NAV.map(({ id, label, Icon }) => (
+            <NavButton
+              key={id}
+              onClick={() => onViewChange(id)}
+              active={currentView === id}
+              aria-current={currentView === id ? 'page' : undefined}
+            >
+              <Icon size={15} style={{ flexShrink: 0, color: currentView === id ? 'var(--ac)' : 'var(--tx3)' }} />
+              <span className="truncate">{label}</span>
+            </NavButton>
+          ))}
         </NavContainer>
 
         {/* Footer */}
@@ -584,7 +579,7 @@ export default function Layout({
                 )}
 
                 <Button
-                  intent="primary"
+                  intent="ghost"
                   onClick={() => syncMutation.mutate()}
                   disabled={isSyncing || syncMutation.isPending}
                   aria-label="Sync all cloud providers"
@@ -628,7 +623,7 @@ export default function Layout({
         </Header>
 
         {/* Content */}
-        <main style={{ flex: 1, overflow: 'auto', padding: '28px 32px', backgroundColor: 'var(--bg-base)' }} role="main">
+        <main style={{ flex: 1, overflow: 'auto', padding: '28px 32px', backgroundColor: 'var(--bg-base)', backgroundImage: 'var(--bg-dots)', backgroundSize: '24px 24px' }} role="main">
           {children}
         </main>
       </MainArea>

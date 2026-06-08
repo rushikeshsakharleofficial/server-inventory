@@ -227,9 +227,10 @@
 
     --sidebar-bg:    #0E0E18;
     --header-bg:     rgba(12, 12, 20, 0.90);
-    --nav-active-bg: rgba(99, 102, 241, 0.12);
+    --nav-active-bg: rgba(99, 102, 241, 0.10);
     --nav-active-bd: rgba(99, 102, 241, 0.35);
     --card-hover-bd: rgba(99, 102, 241, 0.30);
+    --bg-dots: radial-gradient(circle, rgba(99, 102, 241, 0.055) 1px, transparent 1px);
 
     /* Legacy vars referenced by Layout */
     --sidebar-from: #0E0E18;
@@ -302,6 +303,7 @@
     --nav-active-bg: rgba(99, 102, 241, 0.08);
     --nav-active-bd: rgba(99, 102, 241, 0.25);
     --card-hover-bd: rgba(99, 102, 241, 0.22);
+    --bg-dots: none;
 
     --sidebar-from: #EEEEF8;
     --sidebar-to:   #EEEEF8;
