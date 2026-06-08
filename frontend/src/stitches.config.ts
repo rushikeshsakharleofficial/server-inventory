@@ -71,14 +71,14 @@ export const {
       '3xl': '1.875rem',
     },
     fonts: {
-      sans: "'DM Sans', system-ui, sans-serif",
-      display: "'Cormorant Garamond', Georgia, serif",
+      sans: "'Inter', system-ui, sans-serif",
+      display: "'Inter', system-ui, sans-serif",
     },
     radii: {
-      sm: '2px',
-      md: '3px',
-      lg: '4px',
-      xl: '6px',
+      sm: '6px',
+      md: '8px',
+      lg: '10px',
+      xl: '14px',
       full: '9999px',
     },
     shadows: {

@@ -112,13 +112,12 @@ export const Heading = styled('h2', {
   fontFamily: '$display',
   color: '$tx1',
   margin: 0,
-  fontStyle: 'italic',
   variants: {
     level: {
-      h1: { fontSize: '2rem',   fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.1 },
-      h2: { fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.2 },
-      h3: { fontSize: '1.15rem', fontWeight: 600, lineHeight: 1.3 },
-      h4: { fontSize: '1rem',   fontWeight: 600, lineHeight: 1.4 },
+      h1: { fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.15 },
+      h2: { fontSize: '1.25rem', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25 },
+      h3: { fontSize: '1.05rem', fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.35 },
+      h4: { fontSize: '0.9rem',  fontWeight: 600, lineHeight: 1.4 },
     },
   },
   defaultVariants: {
@@ -136,13 +135,12 @@ export const Text = styled('p', {
       small:      { fontSize: '$xs',  color: '$tx2', fontWeight: 400 },
       smallMuted: { fontSize: '$xs',  color: '$tx3', fontWeight: 400 },
       label: {
-        fontSize: '10px',
+        fontSize: '11px',
         color: '$tx3',
-        fontWeight: 600,
+        fontWeight: 500,
         textTransform: 'uppercase',
-        letterSpacing: '0.10em',
-        fontFamily: "'JetBrains Mono', monospace",
-        fontStyle: 'normal',
+        letterSpacing: '0.06em',
+        fontFamily: '$sans',
       },
     },
   },
@@ -292,13 +290,12 @@ export const Badge = styled('span', {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '0.1rem 0.45rem',
-  borderRadius: '2px',
-  fontSize: '10px',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  fontFamily: "'JetBrains Mono', monospace",
+  padding: '0.2rem 0.6rem',
+  borderRadius: '$full',
+  fontSize: '11px',
+  fontWeight: 500,
+  letterSpacing: '0.01em',
+  fontFamily: '$sans',
   variants: {
     status: {
       green: {
@@ -375,13 +372,13 @@ export const THead = styled('thead', {
 
 export const TH = styled('th', {
   padding: '0.625rem 1.25rem',
-  fontSize: '10px',
-  fontWeight: 600,
+  fontSize: '11px',
+  fontWeight: 500,
   textTransform: 'uppercase',
-  letterSpacing: '0.12em',
+  letterSpacing: '0.06em',
   color: '$tx3',
   whiteSpace: 'nowrap',
-  fontFamily: "'JetBrains Mono', monospace",
+  fontFamily: '$sans',
 });
 
 export const TBody = styled('tbody', {

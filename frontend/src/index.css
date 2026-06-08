@@ -32,8 +32,8 @@
   --color-provider-ovh: #123f6d;
   --color-provider-custom: #8b5cf6;
 
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
   --shadow-glass: var(--shadow-glass);
@@ -95,7 +95,7 @@
   );
   background-size: 400px 100%;
   animation: skeleton-shimmer 2s ease-in-out infinite;
-  border-radius: 2px;
+  border-radius: 6px;
 }
 @utility glass-modal {
   background: var(--glass-bg);
@@ -106,23 +106,22 @@
 }
 @utility input-dark {
   @apply w-full px-3 py-2 text-sm
-           focus:outline-hidden focus:ring-1 focus:ring-accent focus:border-accent
+           focus:outline-hidden focus:ring-2 focus:ring-accent/30 focus:border-accent
            transition-colors duration-150;
   background-color: var(--bg-s2);
   border: 1px solid var(--bd);
-  border-radius: 2px;
+  border-radius: 8px;
   color: var(--tx1);
   &::placeholder { color: var(--tx3); }
 }
 @utility btn-primary {
   @apply inline-flex items-center justify-center gap-1.5 px-4 py-2
-           text-sm font-semibold tracking-wide transition-all duration-150
+           text-sm font-medium tracking-wide transition-all duration-150
            disabled:opacity-40 disabled:cursor-not-allowed;
   background-color: var(--ac);
-  color: var(--btn-primary-fg);
-  border-radius: 2px;
-  letter-spacing: 0.03em;
-  &:hover:not(:disabled) { background-color: var(--ach); }
+  color: #fff;
+  border-radius: 8px;
+  &:hover:not(:disabled) { background-color: var(--ach); box-shadow: 0 0 0 3px var(--ac-bg); }
 }
 @utility btn-ghost {
   @apply inline-flex items-center justify-center gap-1.5 px-4 py-2
@@ -130,7 +129,7 @@
            disabled:opacity-40 disabled:cursor-not-allowed;
   background-color: transparent;
   border: 1px solid var(--bd);
-  border-radius: 2px;
+  border-radius: 8px;
   color: var(--tx2);
   &:hover:not(:disabled) {
     background-color: var(--bg-s3);
@@ -141,7 +140,7 @@
 @utility card-dark {
   background-color: var(--bg-s1);
   border: 1px solid var(--bd);
-  border-radius: 4px;
+  border-radius: 12px;
   box-shadow: var(--shadow-card);
   transition: border-color 200ms ease, box-shadow 200ms ease;
   &:hover { border-color: var(--card-hover-bd); }
@@ -161,169 +160,170 @@
     border-bottom: 1px solid var(--bd);
   }
   & thead th {
-    @apply px-5 py-3 text-left whitespace-nowrap;
-    font-size: 10px;
-    font-weight: 600;
+    @apply px-4 py-3 text-left whitespace-nowrap;
+    font-size: 11px;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.06em;
     color: var(--tx3);
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
   }
   & tbody tr {
     border-bottom: 1px solid var(--bd);
     transition: background-color 120ms ease;
   }
   & tbody tr:hover { background-color: var(--bg-s2); }
-  & tbody td { @apply px-5 py-3; }
+  & tbody td { @apply px-4 py-3; }
 }
 
 @layer utilities {
 
-  /* ── MERIDIAN Dark — "Charted Territory" ──────────────────────────────────── */
+  /* ── Dark Theme ─────────────────────────────────────────────────────────── */
   :root,
   [data-theme='dark'] {
-    --bg-base: #0B0A08;
-    --bg-s1:   #111009;
-    --bg-s2:   #181610;
-    --bg-s3:   #201D16;
+    --bg-base: #0C0C14;
+    --bg-s1:   #12121E;
+    --bg-s2:   #1C1C2C;
+    --bg-s3:   #242436;
 
-    --bd:        #272219;
-    --bd-strong: #38321F;
+    --bd:        #2E2E48;
+    --bd-strong: #3E3E60;
 
-    --tx1: #EDE5D0;
-    --tx2: #9E907A;
-    --tx3: #5A5048;
-    --txd: #2E2820;
+    --tx1: #EEEEFF;
+    --tx2: #8888AA;
+    --tx3: #55556A;
+    --txd: #30303C;
 
-    /* Accent — white */
-    --ac:      #FFFFFF;
-    --ach:     #E8E8E8;
-    --acs:     #161616;
-    --ac-bg:   rgba(255, 255, 255, 0.06);
-    --ac-bd:   rgba(255, 255, 255, 0.18);
-    --ac-glow: rgba(255, 255, 255, 0.12);
+    /* Accent — Indigo */
+    --ac:      #6366F1;
+    --ach:     #4F46E5;
+    --acs:     #1E1B4B;
+    --ac-bg:   rgba(99, 102, 241, 0.10);
+    --ac-bd:   rgba(99, 102, 241, 0.30);
+    --ac-glow: rgba(99, 102, 241, 0.30);
 
-    /* Status — sage green */
-    --sg:      #5BA870;
-    --sg-bg:   rgba(91, 168, 112, 0.08);
-    --sg-bd:   rgba(91, 168, 112, 0.22);
-    --sg-glow: rgba(91, 168, 112, 0.45);
-    /* Status — terracotta */
-    --sr:      #C0584A;
-    --sr-bg:   rgba(192, 88, 74, 0.08);
-    --sr-bd:   rgba(192, 88, 74, 0.22);
-    /* Status — ochre */
-    --sy:      #C8A03C;
-    --sy-bg:   rgba(200, 160, 60, 0.08);
-    --sy-bd:   rgba(200, 160, 60, 0.22);
-    /* Status — warm gray */
-    --sgr:     #7A6E60;
-    --sgr-bg:  rgba(122, 110, 96, 0.08);
-    --sgr-bd:  rgba(122, 110, 96, 0.18);
+    /* Status — Green */
+    --sg:      #22C55E;
+    --sg-bg:   rgba(34, 197, 94, 0.10);
+    --sg-bd:   rgba(34, 197, 94, 0.25);
+    --sg-glow: rgba(34, 197, 94, 0.40);
+    /* Status — Red */
+    --sr:      #EF4444;
+    --sr-bg:   rgba(239, 68, 68, 0.10);
+    --sr-bd:   rgba(239, 68, 68, 0.25);
+    /* Status — Amber */
+    --sy:      #F59E0B;
+    --sy-bg:   rgba(245, 158, 11, 0.10);
+    --sy-bd:   rgba(245, 158, 11, 0.25);
+    /* Status — Gray */
+    --sgr:     #6B7280;
+    --sgr-bg:  rgba(107, 114, 128, 0.10);
+    --sgr-bd:  rgba(107, 114, 128, 0.22);
 
-    --glass-bg: rgba(11, 10, 8, 0.97);
-    --glass-bd: rgba(255, 255, 255, 0.12);
-
-    --btn-primary-fg: #0B0A08;
-
-    --sidebar-from: #0E0C09;
-    --sidebar-to:   #0B0A08;
-    --header-bg:    rgba(11, 10, 8, 0.94);
-    --nav-active-bg: rgba(255, 255, 255, 0.06);
-    --nav-active-bd: rgba(255, 255, 255, 0.16);
-    --card-hover-bd: rgba(255, 255, 255, 0.12);
-
-    --skel-from: #181610;
-    --skel-to:   #221E16;
-
-    --scroll-track: #0E0C09;
-    --scroll-thumb: #2E2820;
-    --scroll-hover: #FFFFFF;
-
-    --select-bg: #181610;
-
-    --topo-color: rgba(255, 255, 255, 0.04);
-
-    --shadow-card:
-      0 1px 4px rgba(0, 0, 0, 0.6),
-      0 0 0 1px rgba(255, 255, 255, 0.04);
-    --shadow-glass:
-      0 8px 40px rgba(0, 0, 0, 0.75),
-      inset 0 1px 0 rgba(200, 136, 58, 0.08);
-    --shadow-modal:
-      0 24px 80px rgba(0, 0, 0, 0.88),
-      0 0 0 1px rgba(200, 136, 58, 0.10),
-      inset 0 1px 0 rgba(200, 136, 58, 0.06);
-  }
-
-  /* ── MERIDIAN Light — "Aged Parchment" ───────────────────────────────────── */
-  [data-theme='light'] {
-    --bg-base: #F5F0E6;
-    --bg-s1:   #FFFDF8;
-    --bg-s2:   #EDE7D8;
-    --bg-s3:   #E0D8C6;
-
-    --bd:        #D0C4A8;
-    --bd-strong: #B4A882;
-
-    --tx1: #1A1408;
-    --tx2: #5A4E38;
-    --tx3: #9A8E76;
-    --txd: #C4B898;
-
-    --ac:      #111111;
-    --ach:     #000000;
-    --acs:     #F0F0F0;
-    --ac-bg:   rgba(17, 17, 17, 0.07);
-    --ac-bd:   rgba(17, 17, 17, 0.18);
-    --ac-glow: rgba(17, 17, 17, 0.12);
-
-    --sg:      #2E7D4A;
-    --sg-bg:   rgba(46, 125, 74, 0.07);
-    --sg-bd:   rgba(46, 125, 74, 0.20);
-    --sg-glow: rgba(46, 125, 74, 0.35);
-    --sr:      #9E3830;
-    --sr-bg:   rgba(158, 56, 48, 0.07);
-    --sr-bd:   rgba(158, 56, 48, 0.20);
-    --sy:      #8B6010;
-    --sy-bg:   rgba(139, 96, 16, 0.07);
-    --sy-bd:   rgba(139, 96, 16, 0.20);
-    --sgr:     #7A7060;
-    --sgr-bg:  rgba(122, 112, 96, 0.07);
-    --sgr-bd:  rgba(122, 112, 96, 0.18);
-
-    --glass-bg: rgba(255, 253, 248, 0.97);
-    --glass-bd: rgba(17, 17, 17, 0.14);
+    --glass-bg: rgba(12, 12, 20, 0.96);
+    --glass-bd: rgba(255, 255, 255, 0.08);
 
     --btn-primary-fg: #FFFFFF;
 
-    --sidebar-from: #EDE7D8;
-    --sidebar-to:   #F5F0E6;
-    --header-bg:    rgba(255, 253, 248, 0.94);
-    --nav-active-bg: rgba(17, 17, 17, 0.06);
-    --nav-active-bd: rgba(17, 17, 17, 0.18);
-    --card-hover-bd: rgba(17, 17, 17, 0.12);
+    --sidebar-bg:    #0E0E18;
+    --header-bg:     rgba(12, 12, 20, 0.90);
+    --nav-active-bg: rgba(99, 102, 241, 0.12);
+    --nav-active-bd: rgba(99, 102, 241, 0.35);
+    --card-hover-bd: rgba(99, 102, 241, 0.30);
 
-    --skel-from: #E0D8C6;
-    --skel-to:   #D4CAAE;
+    /* Legacy vars referenced by Layout */
+    --sidebar-from: #0E0E18;
+    --sidebar-to:   #0E0E18;
 
-    --scroll-track: #EDE7D8;
-    --scroll-thumb: #C4B898;
-    --scroll-hover: #111111;
+    --skel-from: #1C1C2C;
+    --skel-to:   #262640;
 
-    --select-bg: #FFFDF8;
+    --scroll-track: #12121E;
+    --scroll-thumb: #2E2E48;
+    --scroll-hover: #6366F1;
 
-    --topo-color: rgba(0, 0, 0, 0.04);
+    --select-bg: #1C1C2C;
 
     --shadow-card:
-      0 1px 4px rgba(0, 0, 0, 0.08),
-      0 0 0 1px rgba(154, 96, 24, 0.06);
+      0 1px 3px rgba(0, 0, 0, 0.50),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+    --shadow-glass:
+      0 8px 40px rgba(0, 0, 0, 0.70),
+      0 0 0 1px rgba(99, 102, 241, 0.08);
+    --shadow-modal:
+      0 24px 80px rgba(0, 0, 0, 0.85),
+      0 0 0 1px rgba(99, 102, 241, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* ── Light Theme ─────────────────────────────────────────────────────────── */
+  [data-theme='light'] {
+    --bg-base: #F5F5FC;
+    --bg-s1:   #FFFFFF;
+    --bg-s2:   #EEEEF8;
+    --bg-s3:   #E4E4F0;
+
+    --bd:        #DCDCEC;
+    --bd-strong: #C4C4DC;
+
+    --tx1: #0A0A14;
+    --tx2: #44445C;
+    --tx3: #8888A8;
+    --txd: #BBBBCC;
+
+    --ac:      #6366F1;
+    --ach:     #4F46E5;
+    --acs:     #EEF2FF;
+    --ac-bg:   rgba(99, 102, 241, 0.08);
+    --ac-bd:   rgba(99, 102, 241, 0.25);
+    --ac-glow: rgba(99, 102, 241, 0.20);
+
+    --sg:      #16A34A;
+    --sg-bg:   rgba(22, 163, 74, 0.08);
+    --sg-bd:   rgba(22, 163, 74, 0.22);
+    --sg-glow: rgba(22, 163, 74, 0.30);
+    --sr:      #DC2626;
+    --sr-bg:   rgba(220, 38, 38, 0.08);
+    --sr-bd:   rgba(220, 38, 38, 0.22);
+    --sy:      #D97706;
+    --sy-bg:   rgba(217, 119, 6, 0.08);
+    --sy-bd:   rgba(217, 119, 6, 0.22);
+    --sgr:     #6B7280;
+    --sgr-bg:  rgba(107, 114, 128, 0.08);
+    --sgr-bd:  rgba(107, 114, 128, 0.18);
+
+    --glass-bg: rgba(255, 255, 255, 0.96);
+    --glass-bd: rgba(0, 0, 0, 0.10);
+
+    --btn-primary-fg: #FFFFFF;
+
+    --sidebar-bg:    #EEEEF8;
+    --header-bg:     rgba(245, 245, 252, 0.92);
+    --nav-active-bg: rgba(99, 102, 241, 0.08);
+    --nav-active-bd: rgba(99, 102, 241, 0.25);
+    --card-hover-bd: rgba(99, 102, 241, 0.22);
+
+    --sidebar-from: #EEEEF8;
+    --sidebar-to:   #EEEEF8;
+
+    --skel-from: #EDEDF8;
+    --skel-to:   #E0E0F0;
+
+    --scroll-track: #EEEEF8;
+    --scroll-thumb: #C4C4DC;
+    --scroll-hover: #6366F1;
+
+    --select-bg: #FFFFFF;
+
+    --shadow-card:
+      0 1px 3px rgba(0, 0, 0, 0.07),
+      0 0 0 1px rgba(0, 0, 0, 0.04);
     --shadow-glass:
       0 8px 40px rgba(0, 0, 0, 0.12),
-      0 0 0 1px rgba(154, 96, 24, 0.08);
+      0 0 0 1px rgba(99, 102, 241, 0.08);
     --shadow-modal:
-      0 12px 60px rgba(0, 0, 0, 0.16),
-      0 0 0 1px rgba(154, 96, 24, 0.10);
+      0 12px 60px rgba(0, 0, 0, 0.18),
+      0 0 0 1px rgba(99, 102, 241, 0.12);
   }
 
   /* ── Theme transition ─────────────────────────────────────────────────────── */
@@ -350,35 +350,25 @@
   }
 
   body {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     background-color: var(--bg-base);
     color: var(--tx1);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Topographic horizontal rule lines */
-    background-image:
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 31px,
-        var(--topo-color) 31px,
-        var(--topo-color) 32px
-      );
   }
 
   * { box-sizing: border-box; }
 
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track  { background: var(--scroll-track); }
-  ::-webkit-scrollbar-thumb  { background: var(--scroll-thumb); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb  { background: var(--scroll-thumb); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
 
   select option { background-color: var(--select-bg); color: var(--tx1); }
 
-  /* Headings use Cormorant Garamond display font */
   h1, h2, h3, h4 {
-    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 }

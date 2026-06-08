@@ -228,12 +228,6 @@ export default function ServerTable({
         </Button>
       </Flex>
 
-      {/* Manifest header */}
-              <div style={{ padding: '10px 20px 8px', borderBottom: '1px solid var(--bd)', marginBottom: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx2)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Infrastructure Manifest</span>
-                <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>{sorted.length} NODES</span>
-              </div>
-
       {/* Table */}
       <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none', overflowX: compact ? 'hidden' : 'auto' }}>
         <Table aria-label="Server inventory" style={{ tableLayout: compact ? 'fixed' : 'auto', width: '100%' }}>
@@ -310,9 +304,9 @@ export default function ServerTable({
                 >
                   {/* Name */}
                   <TD style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <p style={{ margin: 0, fontSize: '12px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--ac)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.name}>{server.name}</p>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.name}>{server.name}</p>
                     {server.hostname && (
-                      <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: 'var(--tx3)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.hostname}>{server.hostname}</p>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--tx3)', fontFamily: "'JetBrains Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={server.hostname}>{server.hostname}</p>
                     )}
                   </TD>
 
@@ -341,12 +335,11 @@ export default function ServerTable({
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '6px',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
+                        gap: '5px',
+                        padding: '3px 9px',
+                        borderRadius: '99px',
+                        fontSize: '11px',
+                        fontWeight: 500,
                         color: cfg.text,
                         backgroundColor: cfg.bg,
                         border: `1px solid ${cfg.border}`,

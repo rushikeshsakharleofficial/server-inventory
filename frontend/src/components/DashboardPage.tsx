@@ -157,8 +157,8 @@ export default function DashboardPage() {
       <Card>
         <Flex justify="between" align="center" style={{ marginBottom: '24px' }}>
           <div>
-            <Heading level="h2">Server Growth</Heading>
-            <Text variant="muted" style={{ marginTop: '4px' }}>Infrastructure scaling over the last 30 days</Text>
+            <Heading level="h3">Server Growth</Heading>
+            <Text variant="muted" style={{ marginTop: '4px', fontSize: '13px' }}>Infrastructure over the last 30 days</Text>
           </div>
         </Flex>
 
@@ -205,8 +205,8 @@ export default function DashboardPage() {
       {/* Provider Breakdown */}
       <Card>
         <div style={{ marginBottom: '24px' }}>
-          <Heading level="h2">Provider Breakdown</Heading>
-          <Text variant="muted" style={{ marginTop: '4px' }}>Server count per cloud provider</Text>
+          <Heading level="h3">Provider Breakdown</Heading>
+          <Text variant="muted" style={{ marginTop: '4px', fontSize: '13px' }}>Server count per cloud provider</Text>
         </div>
 
         {statsLoading ? (

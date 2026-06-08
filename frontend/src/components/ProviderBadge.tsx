@@ -23,8 +23,12 @@ export default function ProviderBadge({ provider, showLogo = true }: Props) {
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase whitespace-nowrap tracking-tight"
-      style={{ color: cfg.color, backgroundColor: bg, border: `1px solid ${border}` }}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap"
+      style={{
+        color: cfg.color, backgroundColor: bg, border: `1px solid ${border}`,
+        padding: '3px 8px', borderRadius: '99px',
+        fontSize: '11px', fontWeight: 500, letterSpacing: '0.01em',
+      }}
     >
       {showLogo && <ProviderLogo provider={provider} size={11} />}
       {cfg.label}
