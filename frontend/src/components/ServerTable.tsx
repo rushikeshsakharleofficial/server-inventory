@@ -33,11 +33,11 @@ const STATUS_CFG: Record<
   ServerStatus,
   { bg: string; text: string; border: string; dot: 'pulse' | 'solid' | 'running' }
 > = {
-  running:    { bg: 'var(--sg-bg)',  text: 'var(--sg)',  border: 'var(--sg-bd)',  dot: 'running' },
-  stopped:    { bg: 'var(--sr-bg)',  text: 'var(--sr)',  border: 'var(--sr-bd)',  dot: 'solid'   },
-  pending:    { bg: 'var(--sy-bg)',  text: 'var(--sy)',  border: 'var(--sy-bd)',  dot: 'pulse'   },
-  terminated: { bg: 'var(--sgr-bg)', text: 'var(--sgr)', border: 'var(--sgr-bd)', dot: 'solid'  },
-  unknown:    { bg: 'var(--sgr-bg)', text: 'var(--sgr)', border: 'var(--sgr-bd)', dot: 'solid'  },
+  running:    { bg: 'rgba(34,197,94,0.10)',   text: '#22C55E', border: 'rgba(34,197,94,0.20)',   dot: 'running' },
+  stopped:    { bg: 'rgba(245,158,11,0.10)',  text: '#F59E0B', border: 'rgba(245,158,11,0.20)',  dot: 'solid'   },
+  pending:    { bg: 'rgba(245,158,11,0.10)',  text: '#F59E0B', border: 'rgba(245,158,11,0.20)',  dot: 'pulse'   },
+  terminated: { bg: 'rgba(113,113,122,0.10)', text: '#71717A', border: 'rgba(113,113,122,0.20)', dot: 'solid'  },
+  unknown:    { bg: 'rgba(113,113,122,0.10)', text: '#71717A', border: 'rgba(113,113,122,0.20)', dot: 'solid'  },
 }
 
 const PROVIDERS = ['aws','gcp','azure','linode','digitalocean','ovh','hivelocity','custom_dc']
@@ -143,7 +143,6 @@ export default function ServerTable({
         cursor: field ? 'pointer' : 'default',
         textAlign: center ? 'center' : 'left',
         width: compact ? width : undefined,
-        fontFamily: "'JetBrains Mono', monospace",
       }}
     >
       <Flex align="center" gap={1} style={{ justifyContent: center ? 'center' : 'flex-start' }}>
@@ -154,7 +153,15 @@ export default function ServerTable({
   )
 
   return (
-    <Card style={{ padding: 0, overflow: 'hidden' }}>
+    <>
+    <style>{`
+      .server-table-wrap thead { background-color: var(--bg-base) !important; border-bottom: 1px solid var(--bd); }
+      .server-table-wrap thead th { padding: 0 16px; height: 40px; font-family: 'Geist','Inter',system-ui,sans-serif !important; }
+      .server-table-wrap tbody tr { border-bottom: 1px solid var(--bd); transition: background-color 100ms ease; }
+      .server-table-wrap tbody tr:hover { background-color: #0F0F11 !important; }
+      .server-table-wrap tbody td { padding: 0 16px; height: 40px; }
+    `}</style>
+    <Card style={{ padding: 0, overflow: 'hidden' }} className="server-table-wrap">
       {/* Toolbar */}
       <Flex
         align="center"
@@ -251,16 +258,16 @@ export default function ServerTable({
             {isError && (
               <tr>
                 <TD colSpan={compact ? 5 : 12} style={{ padding: '64px 0', textAlign: 'center' }}>
-                  <div className="flex flex-col items-center justify-center max-w-md mx-auto p-6 bg-[#EF4444]/5 border border-[#EF4444]/15 rounded-xl">
-                    <span className="text-[#EF4444] mb-2 text-xl">⚠️</span>
-                    <h3 className="text-sm font-bold text-[#F4F4FF] mb-1">Failed to fetch servers</h3>
-                    <p className="text-xs text-[#8B8AB0] mb-4">
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '28rem', margin: '0 auto', padding: '1.5rem', background: 'var(--sr-bg)', border: '1px solid var(--sr-bd)', borderRadius: '10px' }}>
+                    <span style={{ color: 'var(--sr)', marginBottom: '0.5rem', fontSize: '1.25rem' }}>⚠️</span>
+                    <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--tx1)', marginBottom: '0.25rem', margin: '0 0 4px' }}>Failed to fetch servers</h3>
+                    <p style={{ fontSize: '12px', color: 'var(--tx2)', marginBottom: '1rem', margin: '0 0 16px', textAlign: 'center' }}>
                       Check backend connectivity or console logs. Details: {error instanceof Error ? error.message : 'Offline'}
                     </p>
                     <button
                       type="button"
                       onClick={() => refetch()}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#101018] hover:bg-[#18181F] border border-[#252540] hover:border-[#00D4FF]/30 text-xs font-semibold text-[#F4F4FF] rounded-lg transition-all cursor-pointer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 16px', background: 'var(--bg-s2)', border: '1px solid var(--bd-strong)', fontSize: '12px', fontWeight: 600, color: 'var(--tx1)', borderRadius: '6px', cursor: 'pointer', transition: 'all 150ms ease' }}
                     >
                       Retry Query
                     </button>
@@ -298,7 +305,7 @@ export default function ServerTable({
                   onClick={() => onServerClick?.(server)}
                   className={onServerClick ? 'cursor-pointer' : ''}
                   style={{
-                    backgroundColor: isSelected ? 'rgba(0, 212, 255, 0.05)' : undefined,
+                    backgroundColor: isSelected ? 'var(--ac-bg)' : undefined,
                     borderLeft: isSelected ? '3px solid var(--ac)' : undefined,
                   }}
                 >
@@ -391,7 +398,7 @@ export default function ServerTable({
                           {extra.length > 0 && (
                             <span
                               title={extra.join('\n')}
-                              style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--ac)', background: 'var(--ac)14', border: '1px solid var(--ac)30', borderRadius: '4px', padding: '0 4px', cursor: 'default', flexShrink: 0 }}
+                              style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--ac)', background: 'var(--ac-bg)', border: '1px solid var(--ac-bd)', borderRadius: '4px', padding: '0 4px', cursor: 'default', flexShrink: 0 }}
                             >
                               +{extra.length}
                             </span>
@@ -431,7 +438,7 @@ export default function ServerTable({
                   {/* OS */}
                   {!compact && (
                     <TD>
-                      <span style={{ fontSize: '12px', color: 'var(--tx3)' }}>{server.os ?? '—'}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--tx3)', fontFamily: 'monospace' }}>{server.os ?? '—'}</span>
                     </TD>
                   )}
 
@@ -600,6 +607,7 @@ export default function ServerTable({
         </Flex>
       )}
     </Card>
+    </>
   )
 }
 

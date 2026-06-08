@@ -86,18 +86,18 @@ const Sidebar = styled('aside', {
   backgroundColor: 'var(--sidebar-bg)',
   variants: {
     open: {
-      true: { width: '256px' },
+      true: { width: '220px' },
       false: { width: '0px', overflow: 'hidden', borderRight: 'none' },
     },
   },
 });
 
 const LogoContainer = styled('div', {
-  height: '56px',
-  padding: '0 $5',
+  height: '52px',
+  padding: '0 16px',
   display: 'flex',
   alignItems: 'center',
-  gap: '$3',
+  gap: '10px',
   borderBottom: '1px solid $border',
   flexShrink: 0,
 });
@@ -120,7 +120,7 @@ const NavLabel = styled('p', {
 
 const NavContainer = styled('nav', {
   flex: 1,
-  padding: '$3 $3 $2',
+  padding: '8px 8px 8px',
   overflowY: 'auto',
   display: 'flex',
   flexDirection: 'column',
@@ -131,20 +131,20 @@ const NavButton = styled('button', {
   width: '100%',
   display: 'flex',
   alignItems: 'center',
-  gap: '$3',
-  padding: '0.5rem $3',
-  fontSize: '13.5px',
-  fontWeight: 500,
+  gap: '8px',
+  padding: '0 10px',
+  height: '34px',
+  fontSize: '13px',
+  fontWeight: 400,
   color: '$tx2',
   backgroundColor: 'transparent',
   border: 'none',
-  borderRadius: '$md',
-  transition: 'all 140ms ease',
+  borderRadius: '6px',
+  transition: 'all 120ms ease',
   cursor: 'pointer',
   textAlign: 'left',
   outline: 'none',
   fontFamily: '$sans',
-  letterSpacing: '-0.01em',
   '&:hover': {
     color: '$tx1',
     backgroundColor: 'var(--bg-s2)',
@@ -153,7 +153,7 @@ const NavButton = styled('button', {
     active: {
       true: {
         color: '$accent',
-        fontWeight: 600,
+        fontWeight: 500,
         backgroundColor: '$navActiveBg',
         boxShadow: 'inset 2px 0 0 var(--ac)',
         '& svg': { color: '$accent' },
@@ -177,14 +177,15 @@ const SubNavButton = styled('button', {
   width: '100%',
   display: 'flex',
   alignItems: 'center',
-  gap: '$2',
-  padding: '0.4rem $3',
-  fontSize: '13px',
-  borderRadius: '$md',
+  gap: '8px',
+  padding: '0 10px',
+  height: '32px',
+  fontSize: '12.5px',
+  borderRadius: '6px',
   color: '$tx3',
   backgroundColor: 'transparent',
   border: 'none',
-  transition: 'all 140ms ease',
+  transition: 'all 120ms ease',
   cursor: 'pointer',
   textAlign: 'left',
   outline: 'none',
@@ -197,7 +198,7 @@ const SubNavButton = styled('button', {
     active: {
       true: {
         color: '$accent',
-        fontWeight: 600,
+        fontWeight: 500,
         backgroundColor: '$navActiveBg',
         boxShadow: 'inset 2px 0 0 var(--ac)',
       },
@@ -206,7 +207,7 @@ const SubNavButton = styled('button', {
 });
 
 const SidebarFooter = styled('div', {
-  padding: '$2 $3 $3',
+  padding: '6px 8px 10px',
   borderTop: '1px solid $border',
   display: 'flex',
   flexDirection: 'column',
@@ -222,15 +223,13 @@ const MainArea = styled('div', {
 });
 
 const Header = styled('header', {
-  height: '56px',
+  height: '52px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: '0 $5',
+  padding: '0 20px',
   borderBottom: '1px solid $border',
-  backgroundColor: '$headerBg',
-  backdropFilter: 'blur(20px)',
-  webkitBackdropFilter: 'blur(20px)',
+  backgroundColor: 'var(--header-bg)',
   flexShrink: 0,
 });
 
@@ -352,19 +351,16 @@ export default function Layout({
       <Sidebar open={open} aria-label="Sidebar navigation">
         {/* Logo */}
         <LogoContainer>
-          <div
-            style={{
-              width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-              background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(99,102,241,0.40)',
-            }}
-          >
-            <Server size={16} color="#fff" />
+          <div style={{
+            width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0,
+            background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Server size={14} color="#fff" />
           </div>
           <div style={{ overflow: 'hidden' }}>
-            <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--tx1)', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>ServerInventory</p>
-            <p style={{ fontSize: '10px', color: 'var(--tx3)', margin: '1px 0 0 0', letterSpacing: '0.02em' }}>Infrastructure Console</p>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', margin: 0, letterSpacing: '-0.01em', lineHeight: 1 }}>ServerInventory</p>
+            <p style={{ fontSize: '10px', color: 'var(--tx3)', margin: '2px 0 0 0' }}>Infrastructure Console</p>
           </div>
         </LogoContainer>
 
@@ -430,20 +426,20 @@ export default function Layout({
         <SidebarFooter>
           {/* User status */}
           {user && (
-            <div style={{ padding: '8px 12px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ padding: '6px 10px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '9px' }}>
               <div style={{
-                width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
-                background: 'linear-gradient(135deg, var(--ac) 0%, var(--ach) 100%)',
+                width: '28px', height: '28px', borderRadius: '6px', flexShrink: 0,
+                background: 'var(--ac)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '12px', fontWeight: 700, color: '#fff',
+                fontSize: '12px', fontWeight: 600, color: '#fff',
               }}>
                 {user.username[0]?.toUpperCase()}
               </div>
               <div style={{ overflow: 'hidden', flex: 1 }}>
-                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username}</p>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username}</p>
                 <p style={{ margin: 0, fontSize: '11px', color: 'var(--tx3)', textTransform: 'capitalize' }}>{user.role}</p>
               </div>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--sg)', flexShrink: 0, animation: 'pulse-ring 2.5s ease-in-out infinite' }} />
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--sg)', flexShrink: 0 }} />
             </div>
           )}
           <NavButton
@@ -505,7 +501,7 @@ export default function Layout({
             >
               {open ? <X size={17} /> : <Menu size={17} />}
             </button>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--tx1)', letterSpacing: '-0.01em' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx1)', letterSpacing: '-0.01em' }}>
               {VIEW_TITLE[currentView]}
             </span>
           </Flex>
@@ -623,7 +619,7 @@ export default function Layout({
         </Header>
 
         {/* Content */}
-        <main style={{ flex: 1, overflow: 'auto', padding: '28px 32px', backgroundColor: 'var(--bg-base)', backgroundImage: 'var(--bg-dots)', backgroundSize: '24px 24px' }} role="main">
+        <main style={{ flex: 1, overflow: 'auto', padding: '24px', backgroundColor: 'var(--bg-base)' }} role="main">
           {children}
         </main>
       </MainArea>

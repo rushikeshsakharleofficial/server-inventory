@@ -71,8 +71,8 @@ export const {
       '3xl': '1.875rem',
     },
     fonts: {
-      sans: "'Inter', system-ui, sans-serif",
-      display: "'Inter', system-ui, sans-serif",
+      sans: "'Geist', 'Inter', system-ui, sans-serif",
+      display: "'Geist', 'Inter', system-ui, sans-serif",
     },
     radii: {
       sm: '6px',
