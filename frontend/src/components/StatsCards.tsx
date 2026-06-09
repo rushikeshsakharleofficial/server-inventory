@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { Server, Activity, WifiOff, Cloud } from 'lucide-react'
 import { serversApi } from '../api'
 import { SkeletonCard } from './Skeleton'
-import { Grid, Card } from './StitchUI'
+import { Grid } from './StitchUI'
 
 const PROVIDER_COLORS: Record<string, string> = {
   aws:          '#FF9900',
@@ -25,6 +26,108 @@ const PROVIDER_LABELS: Record<string, string> = {
   custom_dc:    'Custom',
 }
 
+interface StatCardProps {
+  label: string
+  value: string | number
+  sub?: React.ReactNode
+  icon: React.ElementType
+  accentColor: string
+  children?: React.ReactNode
+}
+
+function StatCard({ label, value, sub, icon: Icon, accentColor, children }: StatCardProps) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        backgroundColor: 'var(--bg-s1)',
+        border: '1px solid var(--bd)',
+        borderRadius: '8px',
+        padding: '20px',
+        boxShadow: 'var(--shadow-card)',
+        overflow: 'hidden',
+        transition: 'border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease',
+        willChange: 'transform',
+        transformStyle: 'preserve-3d',
+      }}
+      onMouseMove={e => {
+        const el = e.currentTarget as HTMLDivElement
+        const r = el.getBoundingClientRect()
+        const x = (e.clientX - r.left) / r.width
+        const y = (e.clientY - r.top) / r.height
+        const rx = (y - 0.5) * -7
+        const ry = (x - 0.5) * 9
+        el.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(3px)`
+      }}
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = 'var(--card-hover-bd)'
+        el.style.boxShadow = '0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px var(--ac-bd)'
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = 'var(--bd)'
+        el.style.boxShadow = 'var(--shadow-card)'
+        el.style.transform = 'perspective(700px) rotateX(0deg) rotateY(0deg) translateZ(0)'
+      }}
+    >
+      {/* Top accent line */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: '2px',
+        background: `linear-gradient(90deg, ${accentColor}, transparent)`,
+      }} />
+
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <p style={{
+          fontSize: '10px',
+          fontFamily: "'JetBrains Mono', monospace",
+          color: 'var(--tx3)',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          margin: 0,
+          fontWeight: 500,
+        }}>
+          {label}
+        </p>
+        <div style={{
+          width: '28px', height: '28px',
+          borderRadius: '6px',
+          backgroundColor: `${accentColor}14`,
+          border: `1px solid ${accentColor}28`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Icon size={14} style={{ color: accentColor }} />
+        </div>
+      </div>
+
+      {/* Value */}
+      <p style={{
+        fontSize: '32px',
+        fontFamily: "'JetBrains Mono', monospace",
+        fontWeight: 400,
+        color: 'var(--tx1)',
+        lineHeight: 1,
+        margin: '0 0 12px 0',
+        letterSpacing: '-0.02em',
+      }}>
+        {value}
+      </p>
+
+      {/* Sub content */}
+      {sub && (
+        <div style={{ fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.06em' }}>
+          {sub}
+        </div>
+      )}
+
+      {children}
+    </div>
+  )
+}
 
 export default function StatsCards() {
   const { data: stats, isLoading } = useQuery({
@@ -52,59 +155,79 @@ export default function StatsCards() {
 
   return (
     <Grid columns={{ '@initial': 2, '@xl': 4 }} gap={4}>
-      {/* Total Servers */}
-      <Card hoverable style={{ position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, right: 0, width: '64px', height: '64px', background: 'rgba(200,136,58,0.05)', transform: 'rotate(45deg)', transformOrigin: 'top right', transition: 'background 200ms' }} />
-        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Total Assets</p>
-        <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--tx1)', lineHeight: 1, margin: '0 0 12px 0' }}>{total}</p>
-        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>
-          {Object.keys(stats?.by_provider ?? {}).length} ACTIVE PROVIDER{Object.keys(stats?.by_provider ?? {}).length !== 1 ? 'S' : ''}
-        </p>
-      </Card>
+      {/* Total Assets */}
+      <StatCard
+        label="Total Assets"
+        value={total}
+        icon={Server}
+        accentColor="var(--ac)"
+        sub={`${Object.keys(stats?.by_provider ?? {}).length} active provider${Object.keys(stats?.by_provider ?? {}).length !== 1 ? 's' : ''}`}
+      />
 
-      {/* Running */}
-      <Card hoverable style={{ position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '3px' }}>
-          {[0,1,2].map(i => <span key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--sg)' }} />)}
-        </div>
-        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Operational</p>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', marginBottom: '12px' }}>
-          <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--sg)', lineHeight: 1, margin: 0 }}>{running}</p>
-          <span style={{ fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', marginBottom: '4px' }}>/ {runPct}%</span>
-        </div>
-        <div style={{ height: '2px', background: 'var(--bd)', width: '100%' }}>
-          <div style={{ height: '100%', background: 'var(--sg)', width: `${runPct}%`, transition: 'width 500ms ease' }} />
-        </div>
-      </Card>
+      {/* Operational */}
+      <StatCard
+        label="Operational"
+        value={running}
+        icon={Activity}
+        accentColor="var(--sg)"
+        sub={
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ color: 'var(--sg)' }}>{runPct}% uptime</span>
+            </div>
+            <div style={{ height: '3px', background: 'var(--bd)', borderRadius: '9999px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, var(--sg), var(--sg))',
+                width: `${runPct}%`,
+                borderRadius: '9999px',
+                transition: 'width 600ms cubic-bezier(0.16,1,0.3,1)',
+                boxShadow: '0 0 6px var(--sg-glow)',
+              }} />
+            </div>
+          </div>
+        }
+      />
 
-      {/* Stopped */}
-      <Card hoverable>
-        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Offline</p>
-        <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--sr)', lineHeight: 1, margin: '0 0 12px 0' }}>{stopped}</p>
-        {stopped > 0 && (
-          <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--sr)', letterSpacing: '0.1em', opacity: 0.8 }}>⚠ ATTENTION REQUIRED</p>
-        )}
-        {stopped === 0 && (
-          <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>ALL NODES NOMINAL</p>
-        )}
-      </Card>
+      {/* Offline */}
+      <StatCard
+        label="Offline"
+        value={stopped}
+        icon={WifiOff}
+        accentColor={stopped > 0 ? 'var(--sr)' : 'var(--sgr)'}
+        sub={
+          stopped > 0
+            ? <span style={{ color: 'var(--sr)' }}>⚠ Attention required</span>
+            : <span style={{ color: 'var(--sg)' }}>All nodes nominal</span>
+        }
+      />
 
-      {/* Provider Distribution */}
-      <Card hoverable>
-        <p style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>Active Providers</p>
-        <p style={{ fontSize: '36px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: 'var(--tx1)', lineHeight: 1, margin: '0 0 12px 0' }}>{Object.keys(stats?.by_provider ?? {}).length}</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+      {/* Active Providers */}
+      <StatCard
+        label="Active Providers"
+        value={providerData.length}
+        icon={Cloud}
+        accentColor="var(--sy)"
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
           {providerData.slice(0, 4).map(d => (
             <span key={d.key} style={{
-              fontSize: '8px', fontFamily: "'JetBrains Mono', monospace",
-              padding: '2px 6px', border: `1px solid ${d.color}40`,
-              color: d.color, background: `${d.color}10`,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-            }}>{d.label} {d.value}</span>
+              fontSize: '9px',
+              fontFamily: "'JetBrains Mono', monospace",
+              padding: '2px 7px',
+              borderRadius: '3px',
+              border: `1px solid ${d.color}35`,
+              color: d.color,
+              background: `${d.color}0d`,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              fontWeight: 500,
+            }}>
+              {d.label} <span style={{ opacity: 0.65 }}>{d.value}</span>
+            </span>
           ))}
         </div>
-      </Card>
+      </StatCard>
     </Grid>
   )
 }
-

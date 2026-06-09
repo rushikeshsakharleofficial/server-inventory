@@ -150,64 +150,70 @@ export default function DashboardPage() {
   )
 
   return (
-    <Flex direction="column" gap={5}>
+    <Flex direction="column" gap={6}>
       <StatsCards />
 
-      {/* Server Growth */}
-      <Card>
-        <Flex justify="between" align="center" style={{ marginBottom: '24px' }}>
-          <div>
-            <Heading level="h2">Server Growth</Heading>
-            <Text variant="muted" style={{ marginTop: '4px' }}>Infrastructure scaling over the last 30 days</Text>
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        {/* Server Growth */}
+        <Card>
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>Server Growth</p>
+              <span style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.08em' }}>30D</span>
+            </div>
+            <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--tx3)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>Infrastructure scaling over time</p>
           </div>
-        </Flex>
 
-        {histLoading ? (
-          <ChartSkeleton height={240} />
-        ) : lineData.length === 0 ? (
-          <div
-            className="flex items-center justify-center rounded-xl"
-            style={{ height: 240, background: 'var(--bg-s2)', border: '1px solid var(--bd)' }}
-          >
-            <Text variant="muted">No historical data yet</Text>
+          {histLoading ? (
+            <ChartSkeleton height={220} />
+          ) : lineData.length === 0 ? (
+            <div
+              className="flex items-center justify-center"
+              style={{ height: 220, background: 'var(--bg-s2)', border: '1px solid var(--bd)', borderRadius: '4px' }}
+            >
+              <Text variant="muted">No historical data yet</Text>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={lineData} margin={CHART_MARGIN}>
+                <CartesianGrid stroke="var(--bd)" strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={TICK_STYLE}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={TICK_STYLE}
+                  axisLine={false}
+                  tickLine={false}
+                  allowDecimals={false}
+                />
+                <Tooltip content={<LineTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke={accentColor}
+                  strokeWidth={1.5}
+                  dot={false}
+                  activeDot={{ r: 3, fill: accentColor, strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+
+        {/* Provider Breakdown */}
+        <Card>
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>Provider Breakdown</p>
+              <span style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.08em' }}>{barData.length} ACTIVE</span>
+            </div>
+            <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--tx3)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>Server count per cloud provider</p>
           </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={lineData} margin={CHART_MARGIN}>
-              <CartesianGrid stroke="var(--bd)" strokeDasharray="4 4" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tick={TICK_STYLE}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={TICK_STYLE}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip content={<LineTooltipContent />} />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke={accentColor}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: accentColor, strokeWidth: 0 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </Card>
-
-      {/* Provider Breakdown */}
-      <Card>
-        <div style={{ marginBottom: '24px' }}>
-          <Heading level="h2">Provider Breakdown</Heading>
-          <Text variant="muted" style={{ marginTop: '4px' }}>Server count per cloud provider</Text>
-        </div>
 
         {statsLoading ? (
           <ChartSkeleton height={240} />
@@ -243,7 +249,7 @@ export default function DashboardPage() {
                 tickFormatter={(v: string) => PROVIDER_LABELS[v] ?? v}
               />
               <Tooltip content={<BarTooltipContent />} cursor={{ fill: 'var(--ac-bg)' }} />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={28}>
+              <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={24}>
                 {barData.map(entry => (
                   <Cell
                     key={entry.provider}
@@ -254,7 +260,8 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         )}
-      </Card>
+        </Card>
+      </div>
     </Flex>
   )
 }

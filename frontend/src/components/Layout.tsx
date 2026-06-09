@@ -102,11 +102,25 @@ const LogoContainer = styled('div', {
 
 const NavContainer = styled('nav', {
   flex: 1,
-  padding: '0.5rem 0',
+  padding: '0.75rem 0',
   overflowY: 'auto',
   display: 'flex',
   flexDirection: 'column',
-  gap: '2px',
+  gap: '1px',
+});
+
+const NavSection = styled('div', {
+  padding: '0 $4',
+  marginTop: '16px',
+  marginBottom: '4px',
+  fontSize: '9px',
+  fontFamily: "'JetBrains Mono', monospace",
+  fontWeight: 600,
+  letterSpacing: '0.16em',
+  textTransform: 'uppercase',
+  color: 'var(--tx3)',
+  opacity: 0.7,
+  '&:first-child': { marginTop: '4px' },
 });
 
 const NavButton = styled('button', {
@@ -340,26 +354,28 @@ export default function Layout({
 
         {/* Nav */}
         <NavContainer role="navigation">
-          {/* Dashboard */}
+          {/* ── Main ── */}
+          <NavSection>Main</NavSection>
           <NavButton
             onClick={() => onViewChange('dashboard')}
             active={currentView === 'dashboard'}
             aria-current={currentView === 'dashboard' ? 'page' : undefined}
           >
-            <LayoutDashboard size={16} className="shrink-0" />
+            <LayoutDashboard size={15} className="shrink-0" />
             <span className="truncate">Dashboard</span>
           </NavButton>
 
           {/* ── Inventory group ── */}
+          <NavSection>Inventory</NavSection>
           <div>
             <NavButton
               onClick={() => setInventoryOpen(o => !o)}
               active={isInventoryView}
             >
-              <Layers size={16} className="shrink-0" />
-              <span className="flex-1 text-left truncate">Inventory</span>
+              <Layers size={15} className="shrink-0" />
+              <span className="flex-1 text-left truncate">All Resources</span>
               <ChevronDown
-                size={13}
+                size={12}
                 className={`shrink-0 transition-transform duration-150 ${inventoryOpen ? 'rotate-180' : ''}`}
               />
             </NavButton>
@@ -373,7 +389,7 @@ export default function Layout({
                     active={currentView === id}
                     aria-current={currentView === id ? 'page' : undefined}
                   >
-                    <Icon size={14} className="shrink-0" />
+                    <Icon size={13} className="shrink-0" />
                     <span className="truncate">{label}</span>
                   </SubNavButton>
                 ))}
@@ -381,15 +397,30 @@ export default function Layout({
             )}
           </div>
 
-          {/* Rest of nav */}
-          {NAV.map(({ id, label, Icon }) => (
+          {/* ── Operations ── */}
+          <NavSection>Operations</NavSection>
+          {NAV.slice(0, 4).map(({ id, label, Icon }) => (
             <NavButton
               key={id}
               onClick={() => onViewChange(id)}
               active={currentView === id}
               aria-current={currentView === id ? 'page' : undefined}
             >
-              <Icon size={16} className="shrink-0" />
+              <Icon size={15} className="shrink-0" />
+              <span className="truncate">{label}</span>
+            </NavButton>
+          ))}
+
+          {/* ── Config ── */}
+          <NavSection>Config</NavSection>
+          {NAV.slice(4).map(({ id, label, Icon }) => (
+            <NavButton
+              key={id}
+              onClick={() => onViewChange(id)}
+              active={currentView === id}
+              aria-current={currentView === id ? 'page' : undefined}
+            >
+              <Icon size={15} className="shrink-0" />
               <span className="truncate">{label}</span>
             </NavButton>
           ))}
@@ -397,40 +428,73 @@ export default function Layout({
 
         {/* Footer */}
         <SidebarFooter>
-          {/* Uplink status */}
-          <div style={{ padding: '12px 16px 8px', borderTop: '1px solid var(--bd)', marginBottom: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--sg)', flexShrink: 0, animation: 'pulse-ring 2.5s ease-in-out infinite' }} />
-              <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--sg)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-                {user ? `${user.role.toUpperCase()} · ${user.username}` : 'OFFLINE'}
-              </span>
-            </div>
-          </div>
-          <NavButton
-            onClick={() => onViewChange('providers')}
-            active={currentView === 'providers'}
-          >
-            <Settings size={16} className="shrink-0" />
-            <span className="truncate">Manage Credentials</span>
-          </NavButton>
-
           {isAdmin && (
-            <NavButton
-              onClick={() => onViewChange('users')}
-              active={currentView === 'users'}
-            >
-              <Users size={16} className="shrink-0" />
-              <span className="truncate">Manage Users</span>
-            </NavButton>
+            <>
+              <NavSection style={{ marginTop: '8px' }}>Account</NavSection>
+              <NavButton
+                onClick={() => onViewChange('users')}
+                active={currentView === 'users'}
+              >
+                <Users size={15} className="shrink-0" />
+                <span className="truncate">Manage Users</span>
+              </NavButton>
+              <NavButton
+                onClick={() => onViewChange('setup')}
+                active={currentView === 'setup'}
+              >
+                <SlidersHorizontal size={15} className="shrink-0" />
+                <span className="truncate">Admin Setup</span>
+              </NavButton>
+            </>
           )}
-          {isAdmin && (
-            <NavButton
-              onClick={() => onViewChange('setup')}
-              active={currentView === 'setup'}
-            >
-              <SlidersHorizontal size={16} className="shrink-0" />
-              <span className="truncate">Admin Setup</span>
-            </NavButton>
+
+          {/* User card */}
+          {user && (
+            <div style={{
+              margin: '8px 12px 4px',
+              padding: '10px 12px',
+              borderRadius: '6px',
+              background: 'var(--bg-s2)',
+              border: '1px solid var(--bd)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+              {/* Avatar initials */}
+              <div style={{
+                width: '28px', height: '28px',
+                borderRadius: '6px',
+                backgroundColor: roleColor + '20',
+                border: `1px solid ${roleColor}35`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <RoleIcon size={13} style={{ color: roleColor }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--tx1)', fontFamily: "'DM Sans', system-ui, sans-serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.username}
+                </p>
+                <p style={{ margin: 0, fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: roleColor, letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.85 }}>
+                  {user.role}
+                </p>
+              </div>
+              <button
+                onClick={logout}
+                aria-label="Sign out"
+                title="Sign out"
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: '4px', borderRadius: '4px', display: 'flex',
+                  alignItems: 'center', color: 'var(--tx3)', flexShrink: 0,
+                  transition: 'color 150ms ease',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--sr)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--tx3)' }}
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
           )}
         </SidebarFooter>
       </Sidebar>
@@ -552,33 +616,6 @@ export default function Layout({
               </Flex>
             )}
 
-            {/* Logout */}
-            <button
-              onClick={logout}
-              aria-label="Sign out"
-              title="Sign out"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '8px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                color: 'var(--tx2)',
-                transition: 'all 150ms ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                e.currentTarget.style.color = 'var(--sr)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = 'var(--tx2)';
-              }}
-            >
-              <LogOut size={16} />
-            </button>
           </Flex>
         </Header>
 
