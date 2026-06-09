@@ -143,7 +143,7 @@ const NavButton = styled('button', {
   outline: 'none',
   '&:hover': {
     color: '$accent',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: '$navActiveBg',
   },
   variants: {
     active: {
@@ -185,7 +185,7 @@ const SubNavButton = styled('button', {
   outline: 'none',
   '&:hover': {
     color: '$accent',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: '$navActiveBg',
   },
   variants: {
     active: {

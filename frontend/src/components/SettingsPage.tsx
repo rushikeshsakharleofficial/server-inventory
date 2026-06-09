@@ -17,8 +17,8 @@ import {
 function SkeletonField() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }} aria-hidden="true">
-      <div className="skeleton h-3 w-28 rounded-sm" />
-      <div className="skeleton h-9 w-full rounded-lg" />
+      <div className="skeleton h-3 w-28" />
+      <div className="skeleton h-9 w-full" />
     </div>
   )
 }

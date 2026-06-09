@@ -182,8 +182,8 @@ export default function ProvidersPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading as="h1">Cloud Credentials</Heading>
-          <Text variant="muted" style={{ marginTop: '4px' }}>
+          <Heading as="h1" style={{ fontStyle: 'normal', fontSize: '20px', letterSpacing: '-0.02em' }}>Cloud Credentials</Heading>
+          <Text variant="muted" style={{ marginTop: '4px', fontSize: '12px' }}>
             {creds.length === 0 ? 'No credentials configured' : `${creds.length} credential${creds.length !== 1 ? 's' : ''}`} (
             {creds.filter(c => c.is_active).length} active · {creds.filter(c => !c.is_active).length} disabled)
           </Text>
@@ -215,7 +215,7 @@ export default function ProvidersPage() {
                 style={{
                   fontSize: '13px',
                   padding: '10px 14px',
-                  borderRadius: '8px',
+                  borderRadius: '2px',
                   background: 'var(--sr-bg)',
                   color: 'var(--sr)',
                   border: '1px solid var(--sr-bd)',
@@ -402,7 +402,7 @@ export default function ProvidersPage() {
                                     style={{
                                       width: '28px',
                                       height: '28px',
-                                      borderRadius: '8px',
+                                      borderRadius: '4px',
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
@@ -501,7 +501,7 @@ export default function ProvidersPage() {
                                     style={{
                                       backgroundColor: 'var(--bg-s2)',
                                       border: '1px solid var(--bd)',
-                                      borderRadius: '8px',
+                                      borderRadius: '4px',
                                       padding: '12px 16px',
                                       display: 'flex',
                                       flexWrap: 'wrap',

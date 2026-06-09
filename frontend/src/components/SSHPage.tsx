@@ -254,7 +254,7 @@ export default function SSHPage() {
                       )}
                     </TD>
                     <TD>
-                      <Text style={{ fontFamily: 'monospace', fontSize: '13px' }}>{cred.username}</Text>
+                      <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{cred.username}</Text>
                     </TD>
                     <TD>
                       <AuthBadge method={cred.auth_method} />
@@ -453,7 +453,7 @@ export default function SSHPage() {
             )}
 
             {/* Jump / Proxy Server */}
-            <div style={{ marginBottom: '20px', padding: '16px', borderRadius: '10px', border: '1px solid var(--bd)', background: 'var(--bg-s2)' }}>
+            <div style={{ marginBottom: '20px', padding: '16px', borderRadius: '4px', border: '1px solid var(--bd)', background: 'var(--bg-s2)' }}>
               <Text variant="label" style={{ marginBottom: '12px', display: 'block' }}>Jump Server (optional)</Text>
               <Grid columns={{ '@initial': 1, '@md': 2 }} gap={3} style={{ marginBottom: '12px' }}>
                 <div>

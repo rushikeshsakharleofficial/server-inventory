@@ -229,10 +229,10 @@ export default function ServerTable({
       </Flex>
 
       {/* Manifest header */}
-              <div style={{ padding: '10px 20px 8px', borderBottom: '1px solid var(--bd)', marginBottom: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx2)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Infrastructure Manifest</span>
-                <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>{sorted.length} NODES</span>
-              </div>
+      <div style={{ padding: '8px 24px', borderBottom: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-s2)' }}>
+        <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Infrastructure Manifest</span>
+        <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>{sorted.length} NODES</span>
+      </div>
 
       {/* Table */}
       <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none', overflowX: compact ? 'hidden' : 'auto' }}>
@@ -257,18 +257,18 @@ export default function ServerTable({
             {isError && (
               <tr>
                 <TD colSpan={compact ? 5 : 12} style={{ padding: '64px 0', textAlign: 'center' }}>
-                  <div className="flex flex-col items-center justify-center max-w-md mx-auto p-6 bg-[#EF4444]/5 border border-[#EF4444]/15 rounded-xl">
-                    <span className="text-[#EF4444] mb-2 text-xl">⚠️</span>
-                    <h3 className="text-sm font-bold text-[#F4F4FF] mb-1">Failed to fetch servers</h3>
-                    <p className="text-xs text-[#8B8AB0] mb-4">
-                      Check backend connectivity or console logs. Details: {error instanceof Error ? error.message : 'Offline'}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '400px', margin: '0 auto', padding: '24px', background: 'var(--sr-bg)', border: '1px solid var(--sr-bd)', borderRadius: '4px' }}>
+                    <span style={{ color: 'var(--sr)', marginBottom: '8px', fontSize: '20px' }}>⚠</span>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', margin: '0 0 4px' }}>Failed to fetch servers</p>
+                    <p style={{ fontSize: '12px', color: 'var(--tx3)', margin: '0 0 16px', textAlign: 'center' }}>
+                      {error instanceof Error ? error.message : 'Backend offline'}
                     </p>
                     <button
                       type="button"
                       onClick={() => refetch()}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#101018] hover:bg-[#18181F] border border-[#252540] hover:border-[#00D4FF]/30 text-xs font-semibold text-[#F4F4FF] rounded-lg transition-all cursor-pointer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 16px', background: 'var(--bg-s2)', border: '1px solid var(--bd)', borderRadius: '2px', fontSize: '12px', fontWeight: 600, color: 'var(--tx1)', cursor: 'pointer', transition: 'all 150ms ease' }}
                     >
-                      Retry Query
+                      Retry
                     </button>
                   </div>
                 </TD>
@@ -304,8 +304,8 @@ export default function ServerTable({
                   onClick={() => onServerClick?.(server)}
                   className={onServerClick ? 'cursor-pointer' : ''}
                   style={{
-                    backgroundColor: isSelected ? 'rgba(0, 212, 255, 0.05)' : undefined,
-                    borderLeft: isSelected ? '3px solid var(--ac)' : undefined,
+                    backgroundColor: isSelected ? 'var(--ac-bg)' : undefined,
+                    borderLeft: isSelected ? '2px solid var(--ac)' : undefined,
                   }}
                 >
                   {/* Name */}
@@ -324,14 +324,14 @@ export default function ServerTable({
                   {/* Region */}
                   {!compact && (
                     <TD>
-                      <span style={{ fontSize: '14px', color: 'var(--tx2)' }}>{server.region ?? '—'}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--tx2)', fontFamily: "'JetBrains Mono', monospace" }}>{server.region ?? '—'}</span>
                     </TD>
                   )}
 
                   {/* Type */}
                   {!compact && (
                     <TD>
-                      <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--tx3)' }}>{server.instance_type ?? '—'}</span>
+                      <span style={{ fontSize: '12px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)' }}>{server.instance_type ?? '—'}</span>
                     </TD>
                   )}
 
@@ -420,7 +420,7 @@ export default function ServerTable({
                   {/* vCPU */}
                   {!compact && (
                     <TD style={{ textAlign: 'center' }}>
-                      <span style={{ fontSize: '14px', color: 'var(--tx2)', fontFamily: 'monospace' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--tx2)', fontFamily: "'JetBrains Mono', monospace" }}>
                         {server.vcpu ?? '—'}
                       </span>
                     </TD>
@@ -429,7 +429,7 @@ export default function ServerTable({
                   {/* RAM */}
                   {!compact && (
                     <TD style={{ textAlign: 'center' }}>
-                      <span style={{ fontSize: '14px', color: 'var(--tx2)', fontFamily: 'monospace' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--tx2)', fontFamily: "'JetBrains Mono', monospace" }}>
                         {server.memory_gb ?? '—'}
                       </span>
                     </TD>
@@ -489,7 +489,7 @@ export default function ServerTable({
                               transition: 'all 150ms ease'
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                              e.currentTarget.style.backgroundColor = 'var(--bg-s3)';
                               e.currentTarget.style.color = 'var(--ac)';
                             }}
                             onMouseLeave={(e) => {
@@ -508,7 +508,7 @@ export default function ServerTable({
                             border: 'none',
                             cursor: 'pointer',
                             padding: '6px',
-                            borderRadius: '8px',
+                            borderRadius: '4px',
                             display: 'flex',
                             alignItems: 'center',
                             color: 'var(--tx3)',
@@ -579,7 +579,7 @@ export default function ServerTable({
                   }}
                   onMouseEnter={e => {
                     if (page !== p) {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                      e.currentTarget.style.backgroundColor = 'var(--bg-s3)';
                       e.currentTarget.style.color = 'var(--tx1)';
                     }
                   }}

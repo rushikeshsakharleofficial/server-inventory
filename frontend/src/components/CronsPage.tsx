@@ -413,7 +413,7 @@ export default function CronsPage() {
                         <span
                           style={{
                             fontFamily: 'monospace',
-                            fontSize: '11px',
+                            fontSize: '12px',
                             padding: '2px 6px',
                             borderRadius: '4px',
                             backgroundColor: 'var(--bg-s2)',

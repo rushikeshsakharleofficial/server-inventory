@@ -94,7 +94,7 @@ const MetaRow = styled('div', {
   display: 'flex',
   justifyContent: 'space-between',
   padding: '10px 0',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+  borderBottom: '1px solid var(--bd)',
   fontSize: '$sm',
 });
 
@@ -102,7 +102,7 @@ const TagBadge = styled('span', {
   padding: '2px 8px',
   borderRadius: '4px',
   fontSize: '11px',
-  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  backgroundColor: 'var(--bg-s2)',
   border: '1px solid $border',
   color: '$tx2',
 });
@@ -246,7 +246,7 @@ export default function BlockStoragePage() {
                 onClick={() => handleRowClick(vol)}
                 style={{
                   cursor: 'pointer',
-                  backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.02)' : undefined,
+                  backgroundColor: isSelected ? 'var(--ac-bg)' : undefined,
                   transition: 'background-color 150ms ease',
                 }}
               >
@@ -466,12 +466,12 @@ export default function BlockStoragePage() {
                 </Flex>
 
                 {/* Capacity Gauge */}
-                <Card style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <Card style={{ backgroundColor: 'var(--bg-s1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <Flex justify="between" align="center">
                     <Text variant="muted" style={{ fontWeight: 600 }}>Capacity</Text>
                     <Text style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ac)' }}>{selectedVol.size_gb} GB</Text>
                   </Flex>
-                  <div style={{ height: '6px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ height: '6px', backgroundColor: 'var(--bg-s3)', borderRadius: '3px', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${Math.min(100, (selectedVol.size_gb || 0) / 10)}%`, backgroundColor: 'var(--ac)', borderRadius: '3px' }}></div>
                   </div>
                 </Card>
@@ -504,7 +504,7 @@ export default function BlockStoragePage() {
                 </div>
 
                 {/* Attachment Status */}
-                <Card style={{ borderLeft: '3px solid var(--ac)', padding: '16px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                <Card style={{ borderLeft: '3px solid var(--ac)', padding: '16px', backgroundColor: 'var(--bg-s1)' }}>
                   <Flex direction="column" gap={2}>
                     <Text variant="muted" style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Attachment Status</Text>
                     {selectedVol.attachment ? (
