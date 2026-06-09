@@ -1,6 +1,6 @@
-# ServerInventory
-
 <div align="center">
+
+# ServerInventory
 
 ### Free, Open-Source Multi-Cloud Server Inventory & Infrastructure Management Dashboard
 
@@ -8,17 +8,17 @@
 
 Track servers, databases, Kubernetes clusters, and block storage across AWS, GCP, Azure, DigitalOcean, Linode, OVH, and on-premise — all from one unified dashboard.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![CodeQL](https://github.com/rushikeshsakharleofficial/server-inventory/actions/workflows/codeql.yml/badge.svg)](https://github.com/rushikeshsakharleofficial/server-inventory/actions/workflows/codeql.yml)
-[![GitHub Stars](https://img.shields.io/github/stars/rushikeshsakharleofficial/server-inventory?style=social)](https://github.com/rushikeshsakharleofficial/server-inventory/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/rushikeshsakharleofficial/server-inventory?style=social)](https://github.com/rushikeshsakharleofficial/server-inventory/network/members)
-[![GitHub Issues](https://img.shields.io/github/issues/rushikeshsakharleofficial/server-inventory)](https://github.com/rushikeshsakharleofficial/server-inventory/issues)
+[![License](https://img.shields.io/github/license/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/stargazers)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/rushikeshsakharleofficial/server-inventory/codeql.yml?style=for-the-badge&label=CodeQL)](https://github.com/rushikeshsakharleofficial/server-inventory/actions/workflows/codeql.yml)
+[![SonarCloud](https://img.shields.io/github/actions/workflow/status/rushikeshsakharleofficial/server-inventory/sonar.yml?style=for-the-badge&label=SonarCloud)](https://github.com/rushikeshsakharleofficial/server-inventory/actions/workflows/sonar.yml)
+[![Issues](https://img.shields.io/github/issues/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/issues)
 
 </div>
 
 ---
 
-> **Looking for a free, self-hosted alternative to paid cloud inventory tools?** ServerInventory is an open-source server inventory management system that gives you full visibility across every cloud provider and on-premise datacenter — with no SaaS fees, no data leaving your infrastructure, and no artificial limits.
+> **Looking for a free, self-hosted alternative to paid cloud inventory tools?** ServerInventory gives you full visibility across every cloud provider and on-premise datacenter — no SaaS fees, no data leaving your infrastructure, no artificial limits.
 
 ---
 
@@ -27,7 +27,7 @@ Track servers, databases, Kubernetes clusters, and block storage across AWS, GCP
 - [Why ServerInventory](#why-serverinventory)
 - [Features](#features)
 - [Stack](#stack)
-- [Getting Started](#getting-started)
+- [Quick Start](#quick-start)
 - [Environment Variables](#environment-variables)
 - [Cloud Provider Setup](#cloud-provider-setup)
 - [Development](#development)
@@ -100,11 +100,12 @@ Per-resource network topology viewer showing connected cloud resources:
 
 ### Core Platform Capabilities
 
-- **Live sync via WebSocket** — real-time progress with ability to stop mid-sync
+- **Live sync via WebSocket** — real-time batch progress with ability to stop mid-sync
+- **Throttled DB writes** — assets written in 25-item batches with pacing to prevent write bursts
 - **SSH data collection** — pulls CPU, RAM, kernel, OS, IPs from on-premise servers via paramiko
 - **Cron scheduler** — APScheduler-backed cron jobs with standard 5-field expressions
 - **Role-based access control** — Admin, Write, and Read roles with JWT auth and 90-day remember-me tokens
-- **MFA / TOTP** — per-user two-factor authentication using authenticator apps (Google Authenticator, Authy, etc.)
+- **MFA / TOTP** — per-user two-factor authentication using authenticator apps
 - **Light / Dark / AMOLED theme** — CSS variable system with AMOLED-optimized dark mode
 - **Server snapshots** — daily history powering dashboard growth charts
 - **Auto housekeeping** — prunes logs and snapshots older than 365 days
@@ -130,33 +131,9 @@ Per-resource network topology viewer showing connected cloud resources:
 
 ---
 
-## Installation
+## Quick Start
 
-```bash
-git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
-cd server-inventory
-docker compose up -d
-```
-
-Open http://localhost:5173 — default login: `admin` / `Admin@1234`.
-
-See [Getting Started](#getting-started) for full local setup, environment variables, and production configuration.
-
----
-
-## Getting Started
-
-### Prerequisites
-
-**Docker path (recommended):**
-- Docker + Docker Compose
-
-**Local path:**
-- Python 3.11+
-- Node.js 20+
-- PostgreSQL 16 running on `localhost:5432`
-
-### Quick Start — Docker
+### Docker (recommended)
 
 ```bash
 git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
@@ -176,9 +153,9 @@ Username: admin
 Password: Admin@1234
 ```
 
-> **Security:** Change `ADMIN_PASSWORD` and `SECRET_KEY` before any production or internet-facing deployment. See [Environment Variables](#environment-variables).
+> **Security:** Change `ADMIN_PASSWORD` and `SECRET_KEY` before any production or internet-facing deployment.
 
-### Quick Start — Local (no Docker)
+### Local (no Docker)
 
 Use `start.sh` to launch both services in one step (requires local PostgreSQL):
 
@@ -193,7 +170,7 @@ Or manually in two terminals:
 # Terminal 1 — Backend
 cd backend
 pip install -r requirements.txt
-cp .env.example .env                   # edit DATABASE_URL and SECRET_KEY
+cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -203,8 +180,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
-PostgreSQL must be reachable at the `DATABASE_URL` set in `backend/.env`. Tables are created automatically on first startup.
 
 ---
 
@@ -227,13 +202,13 @@ cp backend/.env.example backend/.env
 
 ## Cloud Provider Setup
 
-Add credentials via **Cloud Providers → Add Credential** in the UI. Required fields per provider:
+Add credentials via **Cloud Providers → Add Credential** in the UI.
 
 ### AWS
 
 Fields: `access_key_id`, `secret_access_key`, `regions` (comma-separated, e.g. `us-east-1,eu-west-1`)
 
-Minimum IAM permissions required:
+Minimum IAM permissions:
 ```
 ec2:Describe*
 rds:Describe*
@@ -274,36 +249,34 @@ Fields: `application_key`, `application_secret`, `consumer_key`, `endpoint` (`ov
 server-inventory/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py           # FastAPI app, lifespan, WebSocket endpoint
-│   │   ├── models.py         # SQLAlchemy ORM models
-│   │   ├── schemas.py        # Pydantic request/response schemas
+│   │   ├── providers/        # Cloud provider sync implementations (aws, gcp, azure, …)
+│   │   ├── routers/          # FastAPI routers (servers, sync, databases, kubernetes, …)
 │   │   ├── auth.py           # JWT auth, password hashing, MFA/TOTP, role guards
 │   │   ├── database.py       # SQLAlchemy engine + session factory
-│   │   ├── stats_utils.py    # Shared stats aggregation (SQL GROUP BY)
+│   │   ├── main.py           # FastAPI app, lifespan, WebSocket endpoint
+│   │   ├── models.py         # SQLAlchemy ORM models
 │   │   ├── scheduler.py      # APScheduler setup
-│   │   ├── ws_manager.py     # WebSocket connection manager
-│   │   ├── routers/          # FastAPI routers (servers, sync, stats, auth, …)
-│   │   └── providers/        # Cloud provider sync implementations
-│   ├── requirements.txt
-│   └── Dockerfile
+│   │   ├── schemas.py        # Pydantic request/response schemas
+│   │   ├── stats_utils.py    # Shared stats aggregation (SQL GROUP BY)
+│   │   └── ws_manager.py     # WebSocket connection manager
+│   ├── Dockerfile
+│   └── requirements.txt
 ├── frontend/
+│   ├── e2e/                  # Playwright E2E tests
+│   ├── public/
 │   ├── src/
-│   │   ├── App.tsx            # Root: routing, auth, modal state
-│   │   ├── stitches.config.ts # Stitches design tokens and theme
-│   │   ├── components/        # Page and UI components
-│   │   ├── hooks/             # useAuth, useTheme, useToast, useWebSocket
-│   │   ├── api.ts             # Axios client + API helpers
-│   │   └── types.ts           # Shared TypeScript types
-│   ├── e2e/                   # Playwright E2E tests
-│   │   ├── auth.spec.ts
-│   │   ├── navigation.spec.ts
-│   │   └── visual.spec.ts
+│   │   ├── components/       # Page and UI components
+│   │   ├── hooks/            # useAuth, useTheme, useToast, useWebSocket
+│   │   ├── App.tsx           # Root: routing, auth, modal state
+│   │   ├── api.ts            # Axios client + API helpers
+│   │   └── types.ts          # Shared TypeScript types
+│   ├── Dockerfile
+│   ├── package.json
 │   ├── playwright.config.ts
-│   ├── tailwind.config.js
 │   └── vite.config.ts
 ├── docker-compose.yml
-├── start.sh                   # Local dev launcher (requires local Postgres)
-├── install-docker.sh          # Docker installation helper
+├── install-docker.sh         # Docker installation helper
+├── start.sh                  # Local dev launcher (requires local Postgres)
 └── LICENSE
 ```
 
@@ -333,16 +306,12 @@ uvicorn app.main:app --reload --port 8000   # dev server with hot reload
 
 Playwright E2E tests cover auth flows, navigation, and visual regression across dark and light themes.
 
-### Prerequisites
-
 Backend must be running on `http://localhost:8000`. The Vite dev server is started automatically by Playwright's `webServer` config.
-
-### Running Tests
 
 ```bash
 cd frontend
 
-# Run all tests (chromium, dark theme)
+# Run all tests
 E2E_PASSWORD='Admin@1234' npm run test:e2e
 
 # Update visual regression snapshots after UI changes
@@ -352,15 +321,11 @@ E2E_PASSWORD='Admin@1234' npx playwright test e2e/visual.spec.ts --update-snapsh
 npm run test:e2e:ui
 ```
 
-### Test Environment Variables
-
 | Variable | Default | Description |
 |:---------|:--------|:------------|
 | `E2E_USERNAME` | `admin` | Admin username for test login |
 | `E2E_PASSWORD` | `Admin@1234` | Admin password — match `ADMIN_PASSWORD` |
 | `VITE_BACKEND_URL` | `http://localhost:8000` | Backend URL for Vite proxy during tests |
-
-### Test Coverage
 
 | Suite | Tests | Description |
 |:------|:-----:|:------------|
@@ -383,19 +348,14 @@ npm run test:e2e:ui
 
 ## Architecture
 
-```
-┌────────────┐     WebSocket     ┌─────────────────┐
-│  React     │◄─────────────────►│  FastAPI        │
-│  Frontend  │  REST API (JWT)   │  Backend        │
-└────────────┘◄─────────────────►│                 │
-                                  │  ┌───────────┐  │
-                                  │  │ APScheduler│  │
-                                  │  └───────────┘  │
-                                  └────────┬────────┘
-                                           │
-                                  ┌────────▼────────┐
-                                  │   PostgreSQL 16  │
-                                  └─────────────────┘
+```mermaid
+graph LR
+    Browser[React Frontend] -- REST + JWT --> API[FastAPI Backend]
+    Browser <-- WebSocket sync events --> API
+    API --> Scheduler[APScheduler]
+    API --> DB[(PostgreSQL 16)]
+    Scheduler --> API
+    API -- fetch_servers / fetch_databases / ... --> Cloud[Cloud Provider APIs]
 ```
 
 ### Data Models
@@ -425,70 +385,36 @@ On startup the backend automatically applies:
 
 ## Contributing
 
-ServerInventory is **100% open source and welcomes all contributions** — from small typo fixes to major new features. There are no gatekeepers and no restrictions on what you can build or change.
+ServerInventory is **100% open source and welcomes all contributions** — from small typo fixes to major new features.
 
-### What we'd love help with
+**What we'd love help with:**
 
-**UI / Frontend**
-- Redesign pages, components, or the entire dashboard
-- Add new themes, improve mobile responsiveness
-- Build new data visualizations or dashboards
-- Migrate styling, add animations, improve accessibility
+- **UI / Frontend** — redesign pages, add themes, improve accessibility, new visualizations
+- **Backend / API** — new cloud providers (Hetzner, Vultr, Scaleway, Cloudflare, etc.), new resource types, performance improvements
+- **Everything else** — integrations, alerting, export/import, CLI tools, documentation, translations
 
-**Backend / API**
-- Add new cloud providers (Hetzner, Vultr, Scaleway, Cloudflare, etc.)
-- Extend existing provider sync coverage
-- Add new resource types (container registries, CDN, DNS, etc.)
-- Performance improvements, query optimization, caching
+**How to contribute:**
 
-**Everything else**
-- New features, integrations, alerting, export/import
-- CLI tools, Terraform/Ansible integrations
-- Documentation, guides, translations
-- Bug fixes of any size
+1. **Fork** the repository
+2. **Create a branch**: `git checkout -b feat/your-feature-name`
+3. **Set up** using Docker or the local path above
+4. **Build check**: `cd frontend && npm run build`
+5. **Open a PR** against `main` with a clear description of what you changed and why
 
-### How to contribute
+No contribution is too small. [Open an issue](https://github.com/rushikeshsakharleofficial/server-inventory/issues) first if you want feedback before writing code.
 
-1. **Fork** the repository on GitHub
-2. **Clone** your fork:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/server-inventory.git
-   cd server-inventory
-   ```
-3. **Create a branch** for your change:
-   ```bash
-   git checkout -b feat/your-feature-name
-   ```
-4. **Set up the development environment** using Docker or the local path above
-5. **Make your changes** — feel free to refactor, redesign, or add entirely new capabilities
-6. **Verify the build** passes:
-   ```bash
-   cd frontend && npm run build
-   ```
-7. **Run E2E tests** (optional but appreciated):
-   ```bash
-   cd frontend && E2E_PASSWORD='Admin@1234' npm run test:e2e
-   ```
-8. **Open a pull request** against `main` with a clear description of what you changed and why
-
-### Guidelines
-
-- **No contribution is too small** — even fixing a typo is welcome
-- **No contribution is too big** — complete rewrites and new subsystems are welcome
-- **Breaking changes** — mention them clearly in the PR description so we can plan accordingly
-- **New cloud providers** — add your implementation under `backend/app/providers/` following existing provider patterns
-- **UI changes** — screenshots or a short description of the visual change helps reviewers
-
-If you're unsure whether your idea fits or want feedback before writing code, [open an issue](https://github.com/rushikeshsakharleofficial/server-inventory/issues) first.
+<a href="https://github.com/rushikeshsakharleofficial/server-inventory/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=rushikeshsakharleofficial/server-inventory" />
+</a>
 
 ---
 
 ## Security
 
-To report a security vulnerability, please use [GitHub Security Advisories](https://github.com/rushikeshsakharleofficial/server-inventory/security/advisories/new) rather than opening a public issue. This allows us to assess and address the issue before public disclosure.
+To report a security vulnerability, use [GitHub Security Advisories](https://github.com/rushikeshsakharleofficial/server-inventory/security/advisories/new) rather than opening a public issue.
 
 **Production hardening checklist:**
-- Set a strong, unique `SECRET_KEY` (use `openssl rand -hex 32`)
+- Set a strong, unique `SECRET_KEY` (`openssl rand -hex 32`)
 - Set a strong `ADMIN_PASSWORD` before first run
 - Enable MFA on the admin account via **Admin Setup → Two-Factor Authentication**
 - Do not expose `http://localhost:8000` directly — place behind a reverse proxy with TLS
@@ -498,16 +424,14 @@ To report a security vulnerability, please use [GitHub Security Advisories](http
 
 ## License
 
-This project is licensed under the **MIT License** — free to use, modify, distribute, and build on, including for commercial purposes.
-
-See [LICENSE](LICENSE) for the full license text.
+MIT — free to use, modify, distribute, and build on, including for commercial purposes. See [LICENSE](LICENSE).
 
 ---
 
 <div align="center">
 
-**ServerInventory** — Free, open-source server inventory management for everyone.
-
 [⭐ Star on GitHub](https://github.com/rushikeshsakharleofficial/server-inventory) · [🐛 Report a Bug](https://github.com/rushikeshsakharleofficial/server-inventory/issues/new?template=bug_report) · [💡 Request a Feature](https://github.com/rushikeshsakharleofficial/server-inventory/issues/new?template=feature_request) · [🤝 Contribute](https://github.com/rushikeshsakharleofficial/server-inventory/fork)
+
+[![Star History Chart](https://api.star-history.com/svg?repos=rushikeshsakharleofficial/server-inventory&type=Date)](https://star-history.com/#rushikeshsakharleofficial/server-inventory&Date)
 
 </div>
