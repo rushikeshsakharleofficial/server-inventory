@@ -40,7 +40,7 @@ function isPrivateIp(ip: string): boolean {
   )
 }
 
-export default function IpsPage() {
+export default function IpsPage({ onServerClick }: { onServerClick?: (server: Server) => void }) {
   const qc = useQueryClient()
   const { toast } = useToast()
   const [search, setSearch]         = useState('')
@@ -332,7 +332,17 @@ export default function IpsPage() {
             {pageRows.map((row, i) => (
               <tr key={`${row.server.id}-${row.ip}-${i}`}>
                 <TD>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: typeColor(row.type) }}>
+                  <span
+                    onClick={() => onServerClick?.(row.server)}
+                    style={{
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: typeColor(row.type),
+                      cursor: onServerClick ? 'pointer' : 'default',
+                      textDecoration: onServerClick ? 'underline' : 'none',
+                      textDecorationStyle: 'dotted',
+                      textUnderlineOffset: '3px',
+                    }}
+                    title={onServerClick ? `Open server: ${row.server.name}` : undefined}
+                  >
                     {row.ip}
                   </span>
                 </TD>

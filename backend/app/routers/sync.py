@@ -1,5 +1,6 @@
 import threading
 import concurrent.futures
+import time
 from typing import Annotated
 from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from sqlalchemy.orm import Session
@@ -15,6 +16,9 @@ from ..ws_manager import manager
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
 _SYNC_STOPPED_MSG = "Sync stopped by user"
+
+SYNC_BATCH_SIZE: int = 25
+SYNC_BATCH_DELAY_S: float = 0.15
 
 
 def _ssh_fetch_ips(db, servers: list) -> None:
@@ -110,37 +114,50 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
 
                 allowed_cols = {c.key for c in models.Server.__table__.columns}
                 new_servers: list[models.Server] = []
-                for srv in srv_list:
+                total = len(srv_list)
+                for batch_start in range(0, total, SYNC_BATCH_SIZE):
                     if stop_event.is_set():
                         raise RuntimeError(_SYNC_STOPPED_MSG)
 
-                    cloud_id = srv.get("cloud_id")
-                    existing = existing_map.get(cloud_id) if cloud_id else None
+                    for srv in srv_list[batch_start : batch_start + SYNC_BATCH_SIZE]:
+                        cloud_id = srv.get("cloud_id")
+                        existing = existing_map.get(cloud_id) if cloud_id else None
 
-                    if existing:
-                        old_status = existing.status
-                        for k, v in srv.items():
-                            if hasattr(existing, k):
-                                setattr(existing, k, v)
-                        existing.last_synced = datetime.now(timezone.utc)
-                        updated += 1
-                        if old_status != existing.status:
-                            manager.broadcast({
-                                "type":        "server_status_changed",
-                                "server_id":   existing.id,
-                                "server_name": existing.name,
-                                "provider":    existing.provider,
-                                "old_status":  old_status,
-                                "new_status":  existing.status,
-                            })
-                    else:
-                        new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
-                        new_srv.last_synced = datetime.now(timezone.utc)
-                        db.add(new_srv)
-                        new_servers.append(new_srv)
-                        added += 1
+                        if existing:
+                            old_status = existing.status
+                            for k, v in srv.items():
+                                if hasattr(existing, k):
+                                    setattr(existing, k, v)
+                            existing.last_synced = datetime.now(timezone.utc)
+                            updated += 1
+                            if old_status != existing.status:
+                                manager.broadcast({
+                                    "type":        "server_status_changed",
+                                    "server_id":   existing.id,
+                                    "server_name": existing.name,
+                                    "provider":    existing.provider,
+                                    "old_status":  old_status,
+                                    "new_status":  existing.status,
+                                })
+                        else:
+                            new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
+                            new_srv.last_synced = datetime.now(timezone.utc)
+                            db.add(new_srv)
+                            new_servers.append(new_srv)
+                            added += 1
 
-                db.commit()
+                    db.commit()
+                    manager.broadcast({
+                        "type":      "sync_progress",
+                        "log_id":    log.id,
+                        "provider":  cred.provider,
+                        "processed": min(batch_start + SYNC_BATCH_SIZE, total),
+                        "total":     total,
+                        "added":     added,
+                        "updated":   updated,
+                    })
+                    if batch_start + SYNC_BATCH_SIZE < total:
+                        time.sleep(SYNC_BATCH_DELAY_S)
 
                 # SSH IP fetch — best-effort, runs after provider sync
                 _ssh_fetch_ips(db, list(existing_map.values()) + new_servers)

@@ -177,7 +177,14 @@ function AppContent() {
         {view === 'databases' && <DatabasesPage />}
         {view === 'kubernetes' && <KubernetesPage />}
         {view === 'block_storage' && <BlockStoragePage />}
-        {view === 'ips' && <IpsPage />}
+        {view === 'ips' && (
+          <IpsPage
+            onServerClick={(server) => {
+              setSelectedServer(server)
+              navigate('servers')
+            }}
+          />
+        )}
 
         {view === 'providers' && (
           <div className="animate-fade-in">

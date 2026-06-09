@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 
 export interface SyncEvent {
   type: 'sync_started' | 'sync_complete' | 'active_syncs' | 'sync_stopped'
-       | 'ip_fetch_result' | 'server_status_changed'
+       | 'sync_progress' | 'ip_fetch_result' | 'server_status_changed'
   log_id?: number
   provider?: string
   status?: string
@@ -10,6 +10,9 @@ export interface SyncEvent {
   servers_updated?: number
   error_message?: string
   syncs?: Array<{ log_id: number; provider: string; status: string }>
+  // sync_progress fields
+  processed?: number
+  total?: number
   // ip_fetch_result fields
   server_id?: number
   server_name?: string

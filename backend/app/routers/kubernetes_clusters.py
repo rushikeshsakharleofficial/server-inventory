@@ -1,3 +1,4 @@
+import time
 from typing import Annotated
 from datetime import datetime, timezone
 
@@ -10,6 +11,9 @@ from ..crypto import decrypt_config
 from ..database import DATABASE_URL, get_db
 
 router = APIRouter(prefix="/api/kubernetes", tags=["kubernetes"])
+
+_BATCH_SIZE = 25
+_BATCH_DELAY_S = 0.15
 
 
 def _sync_kubernetes(provider_name: str | None, db_url: str) -> None:
@@ -49,21 +53,25 @@ def _sync_kubernetes(provider_name: str | None, db_url: str) -> None:
                     if obj.cloud_id:
                         existing_map[obj.cloud_id] = obj
 
-            for c in clusters:
-                cloud_id = c.get("cloud_id")
-                existing = existing_map.get(cloud_id) if cloud_id else None
-                if existing:
-                    for k, v in c.items():
-                        if hasattr(existing, k):
-                            setattr(existing, k, v)
-                    existing.last_synced = now
-                else:
-                    obj = models.KubernetesCluster(
-                        **{k: v for k, v in c.items() if hasattr(models.KubernetesCluster, k)}
-                    )
-                    obj.last_synced = now
-                    db.add(obj)
-            db.commit()
+            total = len(clusters)
+            for batch_start in range(0, total, _BATCH_SIZE):
+                for c in clusters[batch_start : batch_start + _BATCH_SIZE]:
+                    cloud_id = c.get("cloud_id")
+                    existing = existing_map.get(cloud_id) if cloud_id else None
+                    if existing:
+                        for k, v in c.items():
+                            if hasattr(existing, k):
+                                setattr(existing, k, v)
+                        existing.last_synced = now
+                    else:
+                        obj = models.KubernetesCluster(
+                            **{k: v for k, v in c.items() if hasattr(models.KubernetesCluster, k)}
+                        )
+                        obj.last_synced = now
+                        db.add(obj)
+                db.commit()
+                if batch_start + _BATCH_SIZE < total:
+                    time.sleep(_BATCH_DELAY_S)
     finally:
         db.close()
 

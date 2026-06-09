@@ -268,6 +268,7 @@ export default function Layout({
     } else if (event.type === 'sync_started') {
       setActiveSyncs(prev => new Map(prev).set(event.log_id!, event.provider ?? 'unknown'))
       setSyncStatus('idle')
+      setSyncSummary('')
 
     } else if (event.type === 'sync_stopped') {
       setActiveSyncs(prev => {
@@ -277,6 +278,9 @@ export default function Layout({
       })
       setSyncStatus('idle')
       qc.invalidateQueries({ queryKey: ['sync-logs'] })
+
+    } else if (event.type === 'sync_progress') {
+      setSyncSummary(`${event.provider?.toUpperCase()} ${event.processed}/${event.total}`)
 
     } else if (event.type === 'sync_complete') {
       setActiveSyncs(prev => {
@@ -569,13 +573,13 @@ export default function Layout({
             {canWrite && (
               <Flex align="center" gap={2}>
                 {/* Live sync status pill */}
-                {syncStatus !== 'idle' && (
+                {(syncStatus !== 'idle' || (isSyncing && syncSummary !== '')) && (
                   <div
                     className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono max-w-[220px] truncate"
                     style={
-                      syncStatus === 'error'
+                      !isSyncing && syncStatus === 'error'
                         ? { background: 'var(--sr-bg)', color: 'var(--sr)', border: '1px solid var(--sr-bd)' }
-                        : syncStatus === 'done'
+                        : !isSyncing && syncStatus === 'done'
                         ? { background: 'var(--sg-bg)', color: 'var(--sg)', border: '1px solid var(--sg-bd)' }
                         : { background: 'var(--ac-bg)', color: 'var(--ac)', border: '1px solid var(--ac-bd)' }
                     }
