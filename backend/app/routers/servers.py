@@ -1,14 +1,19 @@
 import io
 import asyncio
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Annotated
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
+from ..crypto import decrypt_str
+from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey
+from ..ws_manager import manager as ws_manager
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
 
@@ -24,14 +29,16 @@ def _escape_like(value: str) -> str:
     )
 
 
-@router.get("", response_model=list[schemas.ServerResponse])
+@router.get("", response_model=schemas.Page[schemas.ServerResponse])
 def list_servers(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-) -> list[models.Server]:
+    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
+    offset: int = Query(default=0, ge=0),
+) -> schemas.Page[schemas.ServerResponse]:
     q = db.query(models.Server)
     if provider:
         q = q.filter(models.Server.provider == provider)
@@ -45,7 +52,9 @@ def list_servers(
             | models.Server.private_ip.ilike(like, escape="\\")
             | models.Server.hostname.ilike(like, escape="\\")
         )
-    return q.order_by(models.Server.name).all()
+    total = q.count()
+    items = q.order_by(models.Server.name).offset(offset).limit(limit).all()
+    return schemas.Page(total=total, limit=limit, offset=offset, items=items)
 
 
 @router.get("/stats")
@@ -164,18 +173,57 @@ async def ssh_sync_server(
                 "timeout": 10,
                 "banner_timeout": 10,
             }
+            _private_key = decrypt_str(ssh_cred.private_key) if ssh_cred.private_key else None
+            _password = decrypt_str(ssh_cred.password) if ssh_cred.password else None
+
+            def _load_pkey(key_str: str):
+                key_classes = [paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey]
+                if hasattr(paramiko, "DSSKey"):
+                    key_classes.append(paramiko.DSSKey)  # type: ignore[attr-defined]
+                for cls in key_classes:
+                    try:
+                        return cls.from_private_key(io.StringIO(key_str))
+                    except Exception:
+                        continue
+                raise ValueError("Unsupported SSH private key type")
+
             if ssh_cred.auth_method == "key":
-                if not ssh_cred.private_key:
+                if not _private_key:
                     return None, "Selected SSH credential has no private key"
-                connect_kwargs["pkey"] = paramiko.RSAKey.from_private_key(
-                    io.StringIO(ssh_cred.private_key)
-                )
-            elif ssh_cred.password:
-                connect_kwargs["password"] = ssh_cred.password
+                connect_kwargs["pkey"] = _load_pkey(_private_key)
+            elif _password:
+                connect_kwargs["password"] = _password
                 connect_kwargs["look_for_keys"] = False
                 connect_kwargs["allow_agent"] = False
             else:
                 return None, "Selected SSH credential has no password"
+
+            # Jump/proxy server — open channel through jump host if configured
+            # Initialized before the proxy block so except handlers can always close it
+            jump_client = None
+            if getattr(ssh_cred, "proxy_host", None):
+                _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
+                _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
+                jump_client = paramiko.SSHClient()
+                jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
+                jump_kwargs: dict = {
+                    "hostname": ssh_cred.proxy_host,
+                    "port":     ssh_cred.proxy_port or 22,
+                    "username": ssh_cred.proxy_username or "root",
+                    "timeout":  10,
+                }
+                if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
+                    jump_kwargs["pkey"] = _load_pkey(_proxy_key)
+                elif _proxy_pass:
+                    jump_kwargs["password"]      = _proxy_pass
+                    jump_kwargs["look_for_keys"] = False
+                    jump_kwargs["allow_agent"]   = False
+                jump_client.connect(**jump_kwargs)
+                connect_kwargs["sock"] = jump_client.get_transport().open_channel(
+                    "direct-tcpip",
+                    (host, ssh_cred.port or 22),
+                    ("127.0.0.1", 0),
+                )
 
             client.connect(**connect_kwargs)
 
@@ -223,13 +271,19 @@ async def ssh_sync_server(
                 "last_ssh_sync": datetime.now(timezone.utc).isoformat(),
             }
             client.close()
+            if jump_client:
+                jump_client.close()
             return ssh_info, None
 
         except paramiko.AuthenticationException:
             client.close()
+            if jump_client:
+                jump_client.close()
             return None, "Authentication failed — check username and credentials"
         except (socket.timeout, paramiko.SSHException, OSError) as e:
             client.close()
+            if jump_client:
+                jump_client.close()
             msg = str(e)
             if "not found in known_hosts" in msg or "not in known_hosts" in msg:
                 return None, "Host key verification failed — server not in trusted hosts"
@@ -242,6 +296,8 @@ async def ssh_sync_server(
             return None, "SSH connection failed — check host address and network"
         except Exception:  # noqa: BLE001 — catch-all for unexpected SSH errors
             client.close()
+            if jump_client:
+                jump_client.close()
             return None, "SSH connection failed — unexpected error"
 
     ssh_info, err = await asyncio.get_running_loop().run_in_executor(None, _do_ssh)
@@ -332,6 +388,167 @@ async def trust_host_key(
         raise HTTPException(status_code=502, detail=err or "Failed to trust host key")
 
     return schemas.HostKeyTrustResponse(**result)
+
+
+@router.post("/ssh-fetch-all-ips")
+def ssh_fetch_all_ips(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+    ssh_credential_id: int | None = Query(None),
+) -> list[dict]:
+    """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
+    if ssh_credential_id:
+        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
+        if not ssh_cred:
+            raise HTTPException(status_code=404, detail="SSH credential not found")
+    else:
+        ssh_cred = (
+            db.query(models.SSHCredential)
+            .filter(models.SSHCredential.is_default.is_(True))
+            .first()
+        )
+    if not ssh_cred:
+        raise HTTPException(status_code=400, detail="No SSH credential selected and no default configured")
+
+    servers = (
+        db.query(models.Server)
+        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
+        .all()
+    )
+
+    def _fetch_one(srv: models.Server) -> tuple[models.Server, list[str]]:
+        host = srv.public_ip or srv.private_ip
+        ips = fetch_ssh_ips(host, ssh_cred) if host else []
+        return srv, ips
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futures = {ex.submit(_fetch_one, srv): srv for srv in servers}
+        for fut in as_completed(futures):
+            try:
+                srv, ips = fut.result()
+                if ips:
+                    srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
+                    results.append({
+                        "server_id":  srv.id,
+                        "server_name": srv.name,
+                        "provider":   srv.provider,
+                        "host":       srv.public_ip or srv.private_ip,
+                        "ips":        ips,
+                    })
+            except Exception:  # noqa: BLE001
+                pass
+
+    if results:
+        db.commit()
+
+    return results
+
+
+@router.post("/ssh-fetch-ips-stream")
+def ssh_fetch_ips_stream(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+    ssh_credential_id: int | None = Query(None),
+) -> StreamingResponse:
+    """Stream SSH IP results as NDJSON — one line per server as it completes."""
+    import json
+
+    if ssh_credential_id:
+        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
+        if not ssh_cred:
+            raise HTTPException(status_code=404, detail="SSH credential not found")
+    else:
+        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.is_default.is_(True)).first()
+    if not ssh_cred:
+        raise HTTPException(status_code=400, detail="No SSH credential selected and no default configured")
+
+    servers = (
+        db.query(models.Server)
+        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
+        .all()
+    )
+
+    def generate():
+        import paramiko
+        from ..crypto import decrypt_str
+
+        jump_client = None
+        jump_transport = None
+        pkey = None
+
+        # ── One-time setup: jump connection + key load ─────────────────────
+        try:
+            if getattr(ssh_cred, "proxy_host", None):
+                _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
+                _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
+                jump_client = paramiko.SSHClient()
+                jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
+                jk: dict = {
+                    "hostname": ssh_cred.proxy_host,
+                    "port":     ssh_cred.proxy_port or 22,
+                    "username": ssh_cred.proxy_username or "root",
+                    "timeout":  15,
+                }
+                if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
+                    jk["pkey"] = _load_pkey(_proxy_key)
+                elif _proxy_pass:
+                    jk["password"]      = _proxy_pass
+                    jk["look_for_keys"] = False
+                    jk["allow_agent"]   = False
+                jump_client.connect(**jk)
+                jump_transport = jump_client.get_transport()
+
+            if ssh_cred.private_key:
+                pkey = _load_pkey(decrypt_str(ssh_cred.private_key))
+        except Exception as exc:  # noqa: BLE001
+            yield json.dumps({"error": f"Jump/key setup failed: {exc}"}) + "\n"
+            return
+
+        # ── Concurrent fetch using shared jump transport ───────────────────
+        def _fetch(srv: models.Server) -> tuple[models.Server, list[str]]:
+            host = srv.public_ip or srv.private_ip
+            if not host:
+                return srv, []
+            if jump_transport and pkey:
+                ips = fetch_ips_via_transport(
+                    host, ssh_cred.port or 22,
+                    ssh_cred.username, pkey, jump_transport,
+                )
+            else:
+                ips = fetch_ssh_ips(host, ssh_cred)
+            return srv, ips
+
+        changed: list[models.Server] = []
+        try:
+            with ThreadPoolExecutor(max_workers=20) as ex:
+                futures = {ex.submit(_fetch, srv): srv for srv in servers}
+                for fut in as_completed(futures):
+                    try:
+                        srv, ips = fut.result()
+                        srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
+                        changed.append(srv)
+                        _result = {
+                            "type":        "ip_fetch_result",
+                            "server_id":   srv.id,
+                            "server_name": srv.name,
+                            "provider":    srv.provider,
+                            "host":        srv.public_ip or srv.private_ip or "",
+                            "ips":         ips,
+                            "success":     bool(ips),
+                        }
+                        ws_manager.broadcast(_result)
+                        yield json.dumps(_result) + "\n"
+                    except Exception:  # noqa: BLE001
+                        pass
+        finally:
+            if changed:
+                db.commit()
+            if jump_client:
+                try: jump_client.close()
+                except Exception: pass  # noqa: BLE001
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 @router.delete("/{server_id}", status_code=204)

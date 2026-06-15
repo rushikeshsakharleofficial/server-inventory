@@ -1,16 +1,22 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Request
+from ..limiter import limiter
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import verify_password, hash_password, create_access_token, get_current_user, require_admin, create_mfa_challenge_token
+from ..auth import (
+    verify_password, hash_password, create_access_token,
+    get_current_user, require_admin, create_mfa_challenge_token, validate_password,
+)
 
 router = APIRouter(tags=["auth & users"])
 
 
 @router.post("/api/auth/login", response_model=schemas.LoginResponse)
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
     remember_me: bool | None = Form(default=False),
     db: Annotated[Session, Depends(get_db)] = None,
@@ -22,7 +28,7 @@ def login(
             detail="Invalid username or password",
         )
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account is disabled")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
     if user.totp_enabled and user.totp_secret:
         mfa_token = create_mfa_challenge_token(user.username)
@@ -59,6 +65,7 @@ def create_user(
     _: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
+    validate_password(payload.password)
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     db_user = models.User(
@@ -112,7 +119,6 @@ def change_password(
 ) -> None:
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(payload.new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    validate_password(payload.new_password)
     current_user.hashed_password = hash_password(payload.new_password)
     db.commit()

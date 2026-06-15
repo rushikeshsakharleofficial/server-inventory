@@ -43,6 +43,12 @@ interface FormState {
   password: string
   private_key: string
   is_default: boolean
+  proxy_host: string
+  proxy_port: string
+  proxy_username: string
+  proxy_auth_method: 'password' | 'key'
+  proxy_password: string
+  proxy_private_key: string
 }
 
 const EMPTY_FORM: FormState = {
@@ -53,6 +59,12 @@ const EMPTY_FORM: FormState = {
   password: '',
   private_key: '',
   is_default: false,
+  proxy_host: '',
+  proxy_port: '22',
+  proxy_username: '',
+  proxy_auth_method: 'password',
+  proxy_password: '',
+  proxy_private_key: '',
 }
 
 function AuthBadge({ method }: { method: AuthMethod }) {
@@ -156,6 +168,14 @@ export default function SSHPage() {
       password: form.auth_method === 'password' ? form.password : undefined,
       private_key: form.auth_method === 'key' ? form.private_key : undefined,
       is_default: form.is_default,
+      ...(form.proxy_host ? {
+        proxy_host:        form.proxy_host,
+        proxy_port:        parseInt(form.proxy_port) || 22,
+        proxy_username:    form.proxy_username || undefined,
+        proxy_auth_method: form.proxy_auth_method,
+        proxy_password:    form.proxy_auth_method === 'password' ? form.proxy_password || undefined : undefined,
+        proxy_private_key: form.proxy_auth_method === 'key'      ? form.proxy_private_key || undefined : undefined,
+      } : {}),
     })
   }
 
@@ -234,7 +254,7 @@ export default function SSHPage() {
                       )}
                     </TD>
                     <TD>
-                      <Text style={{ fontFamily: 'monospace', fontSize: '13px' }}>{cred.username}</Text>
+                      <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{cred.username}</Text>
                     </TD>
                     <TD>
                       <AuthBadge method={cred.auth_method} />
@@ -431,6 +451,82 @@ export default function SSHPage() {
                 />
               </div>
             )}
+
+            {/* Jump / Proxy Server */}
+            <div style={{ marginBottom: '20px', padding: '16px', borderRadius: '4px', border: '1px solid var(--bd)', background: 'var(--bg-s2)' }}>
+              <Text variant="label" style={{ marginBottom: '12px', display: 'block' }}>Jump Server (optional)</Text>
+              <Grid columns={{ '@initial': 1, '@md': 2 }} gap={3} style={{ marginBottom: '12px' }}>
+                <div>
+                  <Text variant="label" style={{ marginBottom: '6px', display: 'block', fontSize: '11px' }}>Host</Text>
+                  <Input
+                    type="text"
+                    value={form.proxy_host}
+                    onChange={e => set('proxy_host', e.target.value)}
+                    placeholder="89.167.44.42"
+                  />
+                </div>
+                <div>
+                  <Text variant="label" style={{ marginBottom: '6px', display: 'block', fontSize: '11px' }}>Port</Text>
+                  <Input
+                    type="number"
+                    value={form.proxy_port}
+                    onChange={e => set('proxy_port', e.target.value)}
+                    min={1}
+                    max={65535}
+                  />
+                </div>
+              </Grid>
+              <div style={{ marginBottom: '12px' }}>
+                <Text variant="label" style={{ marginBottom: '6px', display: 'block', fontSize: '11px' }}>Username</Text>
+                <Input
+                  type="text"
+                  value={form.proxy_username}
+                  onChange={e => set('proxy_username', e.target.value)}
+                  placeholder="root"
+                />
+              </div>
+              <Flex gap={4} style={{ marginBottom: '12px' }}>
+                {(['password', 'key'] as const).map(method => (
+                  <label key={method} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="radio"
+                      name="proxy_auth_method"
+                      value={method}
+                      checked={form.proxy_auth_method === method}
+                      onChange={() => set('proxy_auth_method', method)}
+                      style={{ accentColor: 'var(--ac)', cursor: 'pointer' }}
+                    />
+                    <Text variant="body" style={{ fontSize: '13px' }}>
+                      {method === 'key' ? 'SSH Key' : 'Password'}
+                    </Text>
+                  </label>
+                ))}
+              </Flex>
+              {form.proxy_auth_method === 'password' ? (
+                <div>
+                  <Text variant="label" style={{ marginBottom: '6px', display: 'block', fontSize: '11px' }}>Password</Text>
+                  <Input
+                    type="password"
+                    value={form.proxy_password}
+                    onChange={e => set('proxy_password', e.target.value)}
+                    placeholder="Jump server password"
+                    autoComplete="new-password"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Text variant="label" style={{ marginBottom: '6px', display: 'block', fontSize: '11px' }}>Private Key</Text>
+                  <Textarea
+                    value={form.proxy_private_key}
+                    onChange={e => set('proxy_private_key', e.target.value)}
+                    rows={6}
+                    placeholder={'-----BEGIN OPENSSH PRIVATE KEY-----\n…\n-----END OPENSSH PRIVATE KEY-----'}
+                    style={{ fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.5', resize: 'none' }}
+                    spellCheck={false}
+                  />
+                </div>
+              )}
+            </div>
 
             <Flex gap={3} style={{ borderTop: '1px solid var(--bd)', paddingTop: '16px' }}>
               <Button type="button" intent="ghost" onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }}>

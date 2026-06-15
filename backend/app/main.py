@@ -39,9 +39,27 @@ def _migrate_mfa_columns() -> None:
         conn.commit()
 
 
+def _migrate_ssh_proxy_columns() -> None:
+    """Add proxy/jump-server columns to ssh_credentials if they don't exist yet."""
+    with engine.connect() as conn:
+        for col, definition in [
+            ("proxy_host",        "VARCHAR(255)"),
+            ("proxy_port",        "INTEGER DEFAULT 22"),
+            ("proxy_username",    "VARCHAR(128)"),
+            ("proxy_auth_method", "VARCHAR(16) DEFAULT 'password'"),
+            ("proxy_password",    "VARCHAR(512)"),
+            ("proxy_private_key", "TEXT"),
+        ]:
+            conn.execute(text(
+                f"ALTER TABLE ssh_credentials ADD COLUMN IF NOT EXISTS {col} {definition}"
+            ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
+    _migrate_ssh_proxy_columns()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -54,9 +72,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(title="Server Inventory API", version="1.0.0", docs_url="/docs", lifespan=lifespan)
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from .limiter import limiter
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173")
+_cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -161,11 +202,29 @@ def _seed_default_settings() -> None:
         db.close()
 
 
+_DEFAULT_ADMIN_PASSWORDS = {"Admin@1234", "admin123", "admin", "password", "changeme"}
+
+
 def _seed_admin() -> None:
-    from .auth import hash_password
+    from .auth import hash_password, _is_production
 
     admin_username = os.getenv("ADMIN_USERNAME", "admin")
-    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+
+    if not admin_password:
+        if _is_production():
+            raise RuntimeError(
+                "ADMIN_PASSWORD must be set in production. "
+                "Set it in your .env file or Docker environment."
+            )
+        # Dev fallback — clearly marked, never accepted in production.
+        admin_password = "Admin@1234"
+
+    if admin_password in _DEFAULT_ADMIN_PASSWORDS and _is_production():
+        raise RuntimeError(
+            f"ADMIN_PASSWORD={admin_password!r} is a known default and is not allowed in production. "
+            "Set a strong unique password."
+        )
 
     db = SessionLocal()
     try:
@@ -206,6 +265,15 @@ async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> 
     if not username:
         await ws.close(code=4001)
         return
+
+    db_check = SessionLocal()
+    try:
+        ws_user = db_check.query(models.User).filter(models.User.username == username).first()
+        if not ws_user or not ws_user.is_active:
+            await ws.close(code=4001)
+            return
+    finally:
+        db_check.close()
 
     await manager.connect(ws, username=username)
 

@@ -1,6 +1,19 @@
 from pydantic import BaseModel, Field
-from typing import Any, Literal
+from typing import Any, Generic, Literal, TypeVar
 from datetime import datetime
+
+T = TypeVar("T")
+
+_MAX_PAGE_SIZE = 500
+_DEFAULT_PAGE_SIZE = 50
+
+
+class Page(BaseModel, Generic[T]):
+    """Standard paginated response envelope."""
+    total: int
+    limit: int
+    offset: int
+    items: list[T]
 
 
 class ServerBase(BaseModel):
@@ -86,7 +99,7 @@ class SyncLogResponse(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
-    password: str
+    password: str = Field(min_length=10)
     role: Literal["read", "write"] = "read"
 
 
@@ -158,12 +171,18 @@ class StatsResponse(BaseModel):
 class SSHCredentialCreate(BaseModel):
     name: str
     username: str
-    auth_method: str = "password"
+    auth_method: Literal["password", "key"] = "password"
     password: str | None = None
     private_key: str | None = None
     port: int = 22
     is_default: bool = False
     notes: str | None = None
+    proxy_host:        str | None = None
+    proxy_port:        int = 22
+    proxy_username:    str | None = None
+    proxy_auth_method: Literal["password", "key"] = "password"
+    proxy_password:    str | None = None
+    proxy_private_key: str | None = None
 
 
 class SSHCredentialResponse(BaseModel):
@@ -176,6 +195,12 @@ class SSHCredentialResponse(BaseModel):
     port: int
     is_default: bool
     notes: str | None = None
+    proxy_host:        str | None = None
+    proxy_port:        int = 22
+    proxy_username:    str | None = None
+    proxy_auth_method: str = "password"
+    proxy_password:    str | None = None   # masked in endpoint
+    proxy_private_key: str | None = None   # masked in endpoint
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -185,12 +210,18 @@ class SSHCredentialResponse(BaseModel):
 class SSHCredentialUpdate(BaseModel):
     name: str | None = None
     username: str | None = None
-    auth_method: str | None = None
+    auth_method: Literal["password", "key"] | None = None
     password: str | None = None
     private_key: str | None = None
     port: int | None = None
     is_default: bool | None = None
     notes: str | None = None
+    proxy_host:        str | None = None
+    proxy_port:        int | None = None
+    proxy_username:    str | None = None
+    proxy_auth_method: Literal["password", "key"] | None = None
+    proxy_password:    str | None = None
+    proxy_private_key: str | None = None
 
 
 class ServerSnapshotResponse(BaseModel):

@@ -293,6 +293,18 @@ export default function ServerDetailModal({ server, onClose, onServerUpdated, in
             <Field label="Public IP" value={server.public_ip} mono />
             <Field label="Private IP" value={server.private_ip} mono />
           </Grid>
+          {sshIps.length > 0 && (
+            <div style={{ marginTop: '10px' }}>
+              <Text variant="label" style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '6px', display: 'block' }}>All Interfaces</Text>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {sshIps.map((ip, i) => (
+                  <span key={i} style={{ fontSize: '11px', fontFamily: 'monospace', background: 'var(--bg-s2)', border: '1px solid var(--bd)', borderRadius: '4px', padding: '2px 6px', color: 'var(--tx2)' }}>
+                    {ip}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </DetailSection>
 
         {/* Resources */}

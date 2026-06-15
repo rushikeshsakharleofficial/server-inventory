@@ -7,6 +7,7 @@ from .. import models
 from ..auth import get_current_user
 from ..database import get_db
 from ..providers import get_provider
+from ..crypto import decrypt_config
 
 router = APIRouter(prefix="/api/resource-map", tags=["resource-map"])
 
@@ -20,7 +21,7 @@ def _get_cred_for_provider(db: Session, provider: str) -> models.Credential | No
     """Return the first active credential for *provider*, or None."""
     return db.query(models.Credential).filter(
         models.Credential.provider == provider,
-        models.Credential.is_active == True
+        models.Credential.is_active.is_(True),
     ).first()
 
 
@@ -1450,7 +1451,79 @@ def _ovh_server_map(server: models.Server, config: dict) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+# ── Hivelocity ────────────────────────────────────────────────────────────────
+
+def _hivelocity_server_map(server: models.Server, config: dict) -> dict:
+    """Build a resource map from stored server data (no topology API available)."""
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    root_id = f"hv-server-{server.id}"
+
+    nodes.append(_node(
+        root_id, "server", "compute", server.name,
+        {
+            "provider": "hivelocity",
+            "region": server.region or "",
+            "datacenter": server.datacenter or server.region or "",
+            "instance_type": server.instance_type or "",
+            "status": server.status,
+        },
+    ))
+
+    if server.public_ip:
+        ip_id = f"hv-ip-{server.id}"
+        nodes.append(_node(ip_id, "ip", "network", server.public_ip, {"type": "primary"}))
+        edges.append(_edge(root_id, ip_id, "primary IP"))
+
+    if server.region:
+        dc_id = f"hv-dc-{server.region}"
+        nodes.append(_node(dc_id, "datacenter", "infrastructure", server.datacenter or server.region, {"facility": server.region}))
+        edges.append(_edge(dc_id, root_id, "hosts"))
+
+    return {"nodes": nodes, "edges": edges}
+
+
 # ── dispatch ──────────────────────────────────────────────────────────────────
+
+def _append_ip_nodes(server: models.Server, result: dict) -> dict:
+    """Add IP address nodes from ssh_info.all_ips for any provider's server map."""
+    ssh_info = server.ssh_info or {}
+    all_ips: list[str] = []
+    if isinstance(ssh_info.get("all_ips"), list):
+        all_ips = ssh_info["all_ips"]
+    elif server.public_ip:
+        all_ips = [server.public_ip]
+        if server.private_ip and server.private_ip != server.public_ip:
+            all_ips.append(server.private_ip)
+
+    # Collect IPs already in nodes to avoid duplicates
+    existing_labels = {n.get("label", "") for n in result.get("nodes", [])}
+
+    # Find the compute/server root node id
+    root_id = next(
+        (n["id"] for n in result.get("nodes", []) if n.get("category") == "compute"),
+        None,
+    )
+    if root_id is None or not all_ips:
+        return result
+
+    nodes = list(result.get("nodes", []))
+    edges = list(result.get("edges", []))
+
+    for idx, ip in enumerate(all_ips):
+        if ip in existing_labels:
+            continue
+        ip_node_id = f"ip-{server.id}-{idx}"
+        label = ip
+        is_primary = ip == server.public_ip
+        nodes.append(_node(ip_node_id, "ip", "network", label, {
+            "type": "primary" if is_primary else "additional",
+        }))
+        edges.append(_edge(root_id, ip_node_id, "primary IP" if is_primary else "IP"))
+        existing_labels.add(ip)
+
+    return {**result, "nodes": nodes, "edges": edges}
+
 
 def _build_map(resource_type: str, resource, provider: str, config: dict) -> dict:
     dispatch = {
@@ -1469,12 +1542,16 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
         ("linode", "server"):     _linode_server_map,
         ("linode", "database"):   _linode_database_map,
         ("linode", "kubernetes"): _linode_kubernetes_map,
-        ("ovh", "server"):        _ovh_server_map,
+        ("ovh",        "server"):        _ovh_server_map,
+        ("hivelocity", "server"):        _hivelocity_server_map,
     }
     fn = dispatch.get((provider, resource_type))
     if fn is None:
         return {"nodes": [], "edges": []}
-    return fn(resource, config)
+    result = fn(resource, config)
+    if resource_type == "server":
+        result = _append_ip_nodes(resource, result)
+    return result
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
@@ -1485,7 +1562,7 @@ def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)],
     if not server:
         raise HTTPException(404, "Server not found")
     cred = _get_cred_for_provider(db, server.provider)
-    config = cred.config if cred else {}
+    config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("server", server, server.provider, config)
     return {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
 
@@ -1496,7 +1573,7 @@ def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _
     if not db_inst:
         raise HTTPException(404, "Database not found")
     cred = _get_cred_for_provider(db, db_inst.provider)
-    config = cred.config if cred else {}
+    config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("database", db_inst, db_inst.provider, config)
     return {"resource": {"id": db_inst.id, "name": db_inst.name, "type": "database", "provider": db_inst.provider, "region": db_inst.region}, **result}
 
@@ -1507,6 +1584,6 @@ def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_
     if not cluster:
         raise HTTPException(404, "Cluster not found")
     cred = _get_cred_for_provider(db, cluster.provider)
-    config = cred.config if cred else {}
+    config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("kubernetes", cluster, cluster.provider, config)
     return {"resource": {"id": cluster.id, "name": cluster.name, "type": "kubernetes", "provider": cluster.provider, "region": cluster.region}, **result}

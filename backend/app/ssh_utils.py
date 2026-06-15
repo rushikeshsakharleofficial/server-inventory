@@ -1,0 +1,156 @@
+"""Shared SSH utilities used by both the sync pipeline and on-demand endpoints."""
+import io
+import os
+import re
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from . import models
+
+
+def _load_pkey(key_str: str):
+    """Auto-detect and load an SSH private key (Ed25519, RSA, ECDSA)."""
+    import paramiko
+    key_classes = [paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey]
+    # DSSKey removed in paramiko 5.x
+    if hasattr(paramiko, "DSSKey"):
+        key_classes.append(paramiko.DSSKey)  # type: ignore[attr-defined]
+    for cls in key_classes:
+        try:
+            return cls.from_private_key(io.StringIO(key_str))
+        except Exception:
+            continue
+    raise ValueError("Unsupported SSH private key type")
+
+
+def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
+    """SSH into *host* using *ssh_cred* (including proxy if configured).
+
+    Runs `ip -br a` (compact) or `ip a` as fallback.
+    Returns empty list on any connection or auth failure.
+    """
+    import paramiko
+    from .crypto import decrypt_str
+
+    _private_key = decrypt_str(ssh_cred.private_key) if ssh_cred.private_key else None
+    _password    = decrypt_str(ssh_cred.password)    if ssh_cred.password    else None
+
+    if not _private_key and not _password:
+        return []
+
+    jump_client = None
+    client = paramiko.SSHClient()
+    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+    if os.path.exists(known_hosts_path):
+        client.load_host_keys(known_hosts_path)
+    else:
+        client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+
+    try:
+        connect_kwargs: dict[str, Any] = {
+            "hostname":       host,
+            "port":           ssh_cred.port or 22,
+            "username":       ssh_cred.username,
+            "timeout":        8,
+            "banner_timeout": 8,
+        }
+
+        if ssh_cred.auth_method == "key" and _private_key:
+            connect_kwargs["pkey"] = _load_pkey(_private_key)
+        elif _password:
+            connect_kwargs["password"]      = _password
+            connect_kwargs["look_for_keys"] = False
+            connect_kwargs["allow_agent"]   = False
+
+        if getattr(ssh_cred, "proxy_host", None):
+            _proxy_pass = decrypt_str(ssh_cred.proxy_password)    if ssh_cred.proxy_password    else None
+            _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
+            jump_client = paramiko.SSHClient()
+            known_hosts_path_j = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+            if os.path.exists(known_hosts_path_j):
+                jump_client.load_host_keys(known_hosts_path_j)
+            else:
+                jump_client.load_system_host_keys()
+            jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
+            jump_kwargs: dict[str, Any] = {
+                "hostname": ssh_cred.proxy_host,
+                "port":     ssh_cred.proxy_port or 22,
+                "username": ssh_cred.proxy_username or "root",
+                "timeout":  10,
+            }
+            if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
+                jump_kwargs["pkey"] = _load_pkey(_proxy_key)
+            elif _proxy_pass:
+                jump_kwargs["password"]      = _proxy_pass
+                jump_kwargs["look_for_keys"] = False
+                jump_kwargs["allow_agent"]   = False
+            jump_client.connect(**jump_kwargs)
+            connect_kwargs["sock"] = jump_client.get_transport().open_channel(
+                "direct-tcpip",
+                (host, ssh_cred.port or 22),
+                ("127.0.0.1", 0),
+            )
+
+        client.connect(**connect_kwargs)
+        return _run_ip_cmd(client)
+
+    except Exception:  # noqa: BLE001
+        return []
+    finally:
+        try: client.close()
+        except Exception: pass  # noqa: BLE001
+        if jump_client:
+            try: jump_client.close()
+            except Exception: pass  # noqa: BLE001
+
+
+def fetch_ips_via_transport(
+    host: str,
+    port: int,
+    username: str,
+    pkey: Any,
+    jump_transport: Any,
+) -> list[str]:
+    """Fetch IPs using a shared pre-established jump transport.
+
+    No per-call jump handshake — opens only a new channel.
+    """
+    import paramiko
+
+    client = paramiko.SSHClient()
+    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+    if os.path.exists(known_hosts_path):
+        client.load_host_keys(known_hosts_path)
+    else:
+        client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    try:
+        sock = jump_transport.open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
+        client.connect(
+            host,
+            username=username,
+            pkey=pkey,
+            sock=sock,
+            timeout=8,
+            banner_timeout=8,
+        )
+        return _run_ip_cmd(client)
+    except Exception:  # noqa: BLE001
+        return []
+    finally:
+        try: client.close()
+        except Exception: pass  # noqa: BLE001
+
+
+def _run_ip_cmd(client: Any) -> list[str]:
+    """Run `ip -br a` (compact) with fallback to `ip a`; parse all non-loopback IPs."""
+    _, stdout, _ = client.exec_command(
+        "ip -br a 2>/dev/null || ip a 2>/dev/null", timeout=8
+    )
+    output = stdout.read().decode("utf-8", errors="replace")
+    all_ips = re.findall(r"([\da-f:.]+)/\d+", output)
+    return [
+        ip for ip in all_ips
+        if not ip.startswith("127.") and ip != "::1" and ip not in ("0.0.0.0", "::")
+    ]

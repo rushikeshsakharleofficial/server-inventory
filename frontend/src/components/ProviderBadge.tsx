@@ -7,6 +7,7 @@ const BADGE_CFG: Record<string, { label: string; color: string }> = {
   linode:       { label: 'Linode',       color: '#02B159' },
   digitalocean: { label: 'DigitalOcean', color: '#0080FF' },
   ovh:          { label: 'OVH',          color: '#123F6D' },
+  hivelocity:   { label: 'Hivelocity',   color: '#E84545' },
   custom_dc:    { label: 'Custom DC',    color: '#8B5CF6' },
 }
 

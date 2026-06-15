@@ -1,5 +1,6 @@
 import threading
 import concurrent.futures
+import time
 from typing import Annotated
 from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from sqlalchemy.orm import Session
@@ -8,11 +9,40 @@ from .. import models, schemas
 from ..database import get_db, DATABASE_URL
 from ..providers import get_provider
 from ..auth import get_current_user, require_write
+from ..crypto import decrypt_config
+from ..ssh_utils import fetch_ssh_ips
 from ..ws_manager import manager
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
 _SYNC_STOPPED_MSG = "Sync stopped by user"
+
+SYNC_BATCH_SIZE: int = 25
+SYNC_BATCH_DELAY_S: float = 0.15
+
+
+def _ssh_fetch_ips(db, servers: list) -> None:
+    """Best-effort: SSH each server with the default credential and store all_ips."""
+    if not servers:
+        return
+    ssh_cred = (
+        db.query(models.SSHCredential)
+        .filter(models.SSHCredential.is_default.is_(True))
+        .first()
+    )
+    if not ssh_cred:
+        return
+    changed = False
+    for svr in servers:
+        host = svr.public_ip or svr.private_ip
+        if not host:
+            continue
+        ips = fetch_ssh_ips(host, ssh_cred)
+        if ips:
+            svr.ssh_info = {**(svr.ssh_info or {}), "all_ips": ips}
+            changed = True
+    if changed:
+        db.commit()
 
 # Per-log cancellation events (process-local — single worker only)
 _stop_events: dict[int, threading.Event] = {}
@@ -27,7 +57,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
     db = sessionmaker(bind=engine)()
 
     try:
-        q = db.query(models.Credential).filter(models.Credential.is_active == True)
+        q = db.query(models.Credential).filter(models.Credential.is_active.is_(True))
         if provider_name:
             q = q.filter(models.Credential.provider == provider_name)
 
@@ -54,7 +84,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                 if stop_event.is_set():
                     raise RuntimeError(_SYNC_STOPPED_MSG)
 
-                provider = get_provider(cred.provider, cred.config)
+                provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
 
                 # 300s timeout on the provider fetch
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
@@ -67,36 +97,70 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
                 if stop_event.is_set():
                     raise RuntimeError(_SYNC_STOPPED_MSG)
 
-                for srv in srv_list:
+                # Pre-fetch all existing servers for this provider in one query
+                cloud_ids = [s.get("cloud_id") for s in srv_list if s.get("cloud_id")]
+                existing_map: dict[str, models.Server] = {}
+                if cloud_ids:
+                    for obj in (
+                        db.query(models.Server)
+                        .filter(
+                            models.Server.cloud_id.in_(cloud_ids),
+                            models.Server.provider == cred.provider,
+                        )
+                        .all()
+                    ):
+                        if obj.cloud_id:
+                            existing_map[obj.cloud_id] = obj
+
+                allowed_cols = {c.key for c in models.Server.__table__.columns}
+                new_servers: list[models.Server] = []
+                total = len(srv_list)
+                for batch_start in range(0, total, SYNC_BATCH_SIZE):
                     if stop_event.is_set():
                         raise RuntimeError(_SYNC_STOPPED_MSG)
 
-                    cloud_id = srv.get("cloud_id")
-                    existing = None
-                    if cloud_id:
-                        existing = (
-                            db.query(models.Server)
-                            .filter(
-                                models.Server.cloud_id == cloud_id,
-                                models.Server.provider == cred.provider,
-                            )
-                            .first()
-                        )
+                    for srv in srv_list[batch_start : batch_start + SYNC_BATCH_SIZE]:
+                        cloud_id = srv.get("cloud_id")
+                        existing = existing_map.get(cloud_id) if cloud_id else None
 
-                    if existing:
-                        for k, v in srv.items():
-                            if hasattr(existing, k):
-                                setattr(existing, k, v)
-                        existing.last_synced = datetime.now(timezone.utc)
-                        updated += 1
-                    else:
-                        allowed = {c.key for c in models.Server.__table__.columns}
-                        new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed})
-                        new_srv.last_synced = datetime.now(timezone.utc)
-                        db.add(new_srv)
-                        added += 1
+                        if existing:
+                            old_status = existing.status
+                            for k, v in srv.items():
+                                if hasattr(existing, k):
+                                    setattr(existing, k, v)
+                            existing.last_synced = datetime.now(timezone.utc)
+                            updated += 1
+                            if old_status != existing.status:
+                                manager.broadcast({
+                                    "type":        "server_status_changed",
+                                    "server_id":   existing.id,
+                                    "server_name": existing.name,
+                                    "provider":    existing.provider,
+                                    "old_status":  old_status,
+                                    "new_status":  existing.status,
+                                })
+                        else:
+                            new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
+                            new_srv.last_synced = datetime.now(timezone.utc)
+                            db.add(new_srv)
+                            new_servers.append(new_srv)
+                            added += 1
 
-                db.commit()
+                    db.commit()
+                    manager.broadcast({
+                        "type":      "sync_progress",
+                        "log_id":    log.id,
+                        "provider":  cred.provider,
+                        "processed": min(batch_start + SYNC_BATCH_SIZE, total),
+                        "total":     total,
+                        "added":     added,
+                        "updated":   updated,
+                    })
+                    if batch_start + SYNC_BATCH_SIZE < total:
+                        time.sleep(SYNC_BATCH_DELAY_S)
+
+                # SSH IP fetch — best-effort, runs after provider sync
+                _ssh_fetch_ips(db, list(existing_map.values()) + new_servers)
 
                 # Take a snapshot after successful sync
                 try:
@@ -182,7 +246,7 @@ def stop_sync(
 def get_sync_logs(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=500),
 ) -> list[models.SyncLog]:
     return (
         db.query(models.SyncLog)

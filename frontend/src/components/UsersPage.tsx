@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast'
 import {
   Card,
   Flex,
+  Grid,
   Heading,
   Text,
   Input,
@@ -65,7 +66,7 @@ export default function UsersPage() {
   const [errors, setErrors]           = useState<string[]>([])
   const [confirmId, setConfirmId]     = useState<number | null>(null)
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: usersApi.list,
   })
@@ -154,7 +155,7 @@ export default function UsersPage() {
                 style={{
                   fontSize: '13px',
                   padding: '10px 14px',
-                  borderRadius: '8px',
+                  borderRadius: '4px',
                   background: 'var(--sr-bg)',
                   color: 'var(--sr)',
                   border: '1px solid var(--sr-bd)',
@@ -203,7 +204,7 @@ export default function UsersPage() {
                     style={{
                       flex: 1,
                       padding: '12px 16px',
-                      borderRadius: '12px',
+                      borderRadius: '6px',
                       border: newRole === role ? '1px solid var(--ac)' : '1px solid var(--bd)',
                       backgroundColor: newRole === role ? 'var(--ac-bg)' : 'transparent',
                       color: newRole === role ? 'var(--ac)' : 'var(--tx2)',
@@ -247,7 +248,16 @@ export default function UsersPage() {
               </tr>
             </THead>
             <TBody>
-              {isLoading ? (
+              {isError ? (
+                <tr>
+                  <TD colSpan={4} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--sr)' }}>
+                    Failed to load users.{' '}
+                    <button onClick={() => refetch()} style={{ color: 'var(--ac)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                      Retry
+                    </button>
+                  </TD>
+                </tr>
+              ) : isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i}>
                     <TD>
@@ -264,8 +274,7 @@ export default function UsersPage() {
                     <TD><div className="skeleton h-5 rounded-sm w-24 ml-auto" /></TD>
                   </tr>
                 ))
-              ) : (
-                users.map(user => {
+              ) : users.map(user => {
                   const roleCfg = getRoleCfg(user.role)
                   return (
                     <tr key={user.id} style={{ opacity: user.is_active ? 1 : 0.6 }}>
@@ -276,7 +285,7 @@ export default function UsersPage() {
                             style={{
                               width: '36px',
                               height: '36px',
-                              borderRadius: '12px',
+                              borderRadius: '6px',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -321,7 +330,7 @@ export default function UsersPage() {
                                 fontSize: '10px',
                                 fontFamily: 'monospace',
                                 color: 'var(--tx3)',
-                                backgroundColor: 'rgba(255,255,255,0.05)',
+                                backgroundColor: 'var(--nav-active-bg)',
                                 padding: '2px 6px',
                                 borderRadius: '4px',
                               }}
@@ -359,7 +368,7 @@ export default function UsersPage() {
                                 size="sm"
                                 intent="ghost"
                                 onClick={() => setConfirmId(user.id)}
-                                style={{ padding: '6px' }}
+                                style={{ padding: '6px', borderRadius: '4px' }}
                                 title={`Delete ${user.username}`}
                                 aria-label={`Delete ${user.username}`}
                               >
@@ -372,7 +381,7 @@ export default function UsersPage() {
                     </tr>
                   )
                 })
-              )}
+              }
             </TBody>
           </Table>
         </TableContainer>

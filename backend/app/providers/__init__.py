@@ -6,6 +6,7 @@ from .base import CloudProvider
 from .digitalocean import DigitalOceanProvider
 from .gcp import GCPProvider
 from .linode import LinodeProvider
+from .hivelocity import HivelocityProvider
 from .ovh import OVHProvider
 
 PROVIDER_MAP: dict[str, type[CloudProvider]] = {
@@ -15,6 +16,7 @@ PROVIDER_MAP: dict[str, type[CloudProvider]] = {
     "linode":       LinodeProvider,
     "digitalocean": DigitalOceanProvider,
     "ovh":          OVHProvider,
+    "hivelocity":   HivelocityProvider,
 }
 
 

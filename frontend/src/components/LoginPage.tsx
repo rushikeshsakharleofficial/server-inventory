@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Wifi, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { Server, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { Card, Input, Button, Flex, Text } from './StitchUI'
 
@@ -70,7 +70,7 @@ export default function LoginPage() {
               boxShadow: '0 0 24px var(--ac-glow)',
             }}
           >
-            <Wifi size={22} className="text-accent" style={{ filter: 'drop-shadow(0 0 6px rgba(0,212,255,0.6))' }} />
+            <Server size={20} className="text-accent" style={{ filter: 'drop-shadow(0 0 6px var(--ac-glow))' }} />
           </div>
           <h1 className="text-2xl font-display font-bold text-ink-primary tracking-tight" style={{ margin: 0 }}>ServerInventory</h1>
           <p className="text-[10px] text-accent mt-1 font-mono tracking-widest uppercase" style={{ margin: '4px 0 0 0' }}>Infrastructure Manager</p>

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
+from ..crypto import encrypt_str
 
 router = APIRouter(prefix="/api/ssh-credentials", tags=["ssh-credentials"])
 
@@ -21,6 +22,12 @@ def _mask(cred: models.SSHCredential) -> schemas.SSHCredentialResponse:
         port=cred.port,
         is_default=cred.is_default,
         notes=cred.notes,
+        proxy_host=cred.proxy_host,
+        proxy_port=cred.proxy_port or 22,
+        proxy_username=cred.proxy_username,
+        proxy_auth_method=cred.proxy_auth_method or "password",
+        proxy_password="***" if cred.proxy_password else None,
+        proxy_private_key="***" if cred.proxy_private_key else None,
         created_at=cred.created_at,
         updated_at=cred.updated_at,
     )
@@ -49,7 +56,16 @@ def create_ssh_credential(
     if payload.is_default:
         db.query(models.SSHCredential).update({"is_default": False})
 
-    cred = models.SSHCredential(**payload.model_dump())
+    data = payload.model_dump()
+    if data.get("password"):
+        data["password"] = encrypt_str(data["password"])
+    if data.get("private_key"):
+        data["private_key"] = encrypt_str(data["private_key"])
+    if data.get("proxy_password"):
+        data["proxy_password"] = encrypt_str(data["proxy_password"])
+    if data.get("proxy_private_key"):
+        data["proxy_private_key"] = encrypt_str(data["proxy_private_key"])
+    cred = models.SSHCredential(**data)
     db.add(cred)
     db.commit()
     db.refresh(cred)
@@ -74,6 +90,15 @@ def update_ssh_credential(
         db.query(models.SSHCredential).filter(
             models.SSHCredential.id != cred_id
         ).update({"is_default": False})
+
+    if "password" in updates and updates["password"]:
+        updates["password"] = encrypt_str(updates["password"])
+    if "private_key" in updates and updates["private_key"]:
+        updates["private_key"] = encrypt_str(updates["private_key"])
+    if "proxy_password" in updates and updates["proxy_password"]:
+        updates["proxy_password"] = encrypt_str(updates["proxy_password"])
+    if "proxy_private_key" in updates and updates["proxy_private_key"]:
+        updates["proxy_private_key"] = encrypt_str(updates["proxy_private_key"])
 
     for field, value in updates.items():
         setattr(cred, field, value)

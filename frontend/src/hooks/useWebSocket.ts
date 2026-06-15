@@ -1,7 +1,8 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 
 export interface SyncEvent {
   type: 'sync_started' | 'sync_complete' | 'active_syncs' | 'sync_stopped'
+       | 'sync_progress' | 'ip_fetch_result' | 'server_status_changed'
   log_id?: number
   provider?: string
   status?: string
@@ -9,6 +10,18 @@ export interface SyncEvent {
   servers_updated?: number
   error_message?: string
   syncs?: Array<{ log_id: number; provider: string; status: string }>
+  // sync_progress fields
+  processed?: number
+  total?: number
+  // ip_fetch_result fields
+  server_id?: number
+  server_name?: string
+  host?: string
+  ips?: string[]
+  success?: boolean
+  // server_status_changed fields
+  old_status?: string
+  new_status?: string
 }
 
 // ── Reconnection tunables ────────────────────────────────────────────────────
@@ -35,8 +48,8 @@ function backoffDelay(attempt: number): number {
 }
 
 export interface UseWebSocketReturn {
-  /** Send a raw text message; queued automatically if the socket is not open. */
   send: (msg: string) => void
+  isConnected: boolean
 }
 
 export function useWebSocket(
@@ -49,6 +62,8 @@ export function useWebSocket(
   const onMsgRef    = useRef(onMessage)
   const msgQueue    = useRef<string[]>([])   // outbound queue during disconnect
   onMsgRef.current  = onMessage              // always current without causing reconnect
+
+  const [connected, setConnected] = useState(false)
 
   /**
    * Queue a message with a ring-buffer cap to avoid unbounded memory growth.
@@ -99,6 +114,7 @@ export function useWebSocket(
       ws.send(JSON.stringify({ type: 'auth', token }))
 
       attemptRef.current = 0
+      setConnected(true)
       flushQueue(ws)
       pingTimer = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send('ping')
@@ -125,6 +141,7 @@ export function useWebSocket(
     ws.onclose = (ev) => {
       if (pingTimer) clearInterval(pingTimer)
       pingTimer = null
+      setConnected(false)
 
       if (!mountedRef.current) return
 
@@ -161,5 +178,5 @@ export function useWebSocket(
     }
   }, [connect])
 
-  return { send }
+  return { send, isConnected: connected }
 }

@@ -46,7 +46,7 @@ export default function SyncLogsPage() {
   const qc = useQueryClient()
   const { toast } = useToast()
 
-  const { data: logs = [], isLoading, refetch, isFetching } = useQuery({
+  const { data: logs = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['sync-logs'],
     queryFn: () => syncApi.logs(50),
     refetchInterval: 10_000,
@@ -89,7 +89,14 @@ export default function SyncLogsPage() {
         </Button>
       </Flex>
 
-      {isLoading ? (
+      {isError ? (
+        <div style={{ padding: '64px 20px', textAlign: 'center' }}>
+          <Text variant="muted" style={{ color: 'var(--sr)' }}>Failed to load sync history.</Text>
+          <button onClick={() => refetch()} style={{ marginTop: '8px', color: 'var(--ac)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', display: 'block', margin: '8px auto 0' }}>
+            Retry
+          </button>
+        </div>
+      ) : isLoading ? (
         <div style={{ padding: '64px 20px', textAlign: 'center' }}>
           <Text variant="muted">Loading sync runs…</Text>
         </div>

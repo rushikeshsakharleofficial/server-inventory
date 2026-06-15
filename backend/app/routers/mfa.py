@@ -5,10 +5,18 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, create_access_token, verify_mfa_challenge_token
+from ..crypto import encrypt_str, decrypt_str
 
 router = APIRouter(prefix="/api/auth/mfa", tags=["mfa"])
 
 ISSUER = "ServerInventory"
+
+
+def _get_totp_secret(user: models.User) -> str | None:
+    """Decrypt the stored TOTP secret. Returns None if unset."""
+    if not user.totp_secret:
+        return None
+    return decrypt_str(user.totp_secret)
 
 
 @router.get("/status", response_model=schemas.MfaStatusResponse)
@@ -28,8 +36,8 @@ def mfa_setup(
     secret = pyotp.random_base32()
     totp = pyotp.TOTP(secret)
     uri = totp.provisioning_uri(name=current_user.username, issuer_name=ISSUER)
-    # Store pending secret server-side; totp_enabled stays False until /enable verifies.
-    current_user.totp_secret = secret
+    # Encrypt before storing; totp_enabled stays False until /enable verifies.
+    current_user.totp_secret = encrypt_str(secret)
     db.commit()
     return schemas.MfaSetupResponse(secret=secret, uri=uri)
 
@@ -42,10 +50,10 @@ def mfa_enable(
 ) -> None:
     if current_user.totp_enabled:
         raise HTTPException(status_code=400, detail="MFA is already enabled")
-    if not current_user.totp_secret:
+    secret = _get_totp_secret(current_user)
+    if not secret:
         raise HTTPException(status_code=400, detail="Call /setup first to generate a secret")
-    # Use the server-stored pending secret — never trust the client to supply it.
-    totp = pyotp.TOTP(current_user.totp_secret)
+    totp = pyotp.TOTP(secret)
     if not totp.verify(payload.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
     current_user.totp_enabled = True
@@ -60,7 +68,10 @@ def mfa_disable(
 ) -> None:
     if not current_user.totp_enabled or not current_user.totp_secret:
         raise HTTPException(status_code=400, detail="MFA is not enabled")
-    totp = pyotp.TOTP(current_user.totp_secret)
+    secret = _get_totp_secret(current_user)
+    if not secret:
+        raise HTTPException(status_code=400, detail="MFA is not enabled")
+    totp = pyotp.TOTP(secret)
     if not totp.verify(payload.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
     current_user.totp_secret = None
@@ -79,7 +90,10 @@ def mfa_verify(
         raise HTTPException(status_code=401, detail="User not found or inactive")
     if not user.totp_enabled or not user.totp_secret:
         raise HTTPException(status_code=400, detail="MFA is not configured for this user")
-    totp = pyotp.TOTP(user.totp_secret)
+    secret = _get_totp_secret(user)
+    if not secret:
+        raise HTTPException(status_code=400, detail="MFA is not configured for this user")
+    totp = pyotp.TOTP(secret)
     if not totp.verify(payload.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
     token = create_access_token({"sub": user.username, "role": user.role})

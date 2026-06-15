@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { Server, Activity, WifiOff, Cloud } from 'lucide-react'
 import { serversApi } from '../api'
 import { SkeletonCard } from './Skeleton'
-import { Grid, Card, Flex, Text, StatusDot } from './StitchUI'
+import { Grid } from './StitchUI'
 
 const PROVIDER_COLORS: Record<string, string> = {
   aws:          '#FF9900',
@@ -10,6 +11,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   linode:       '#02B159',
   digitalocean: '#0080FF',
   ovh:          '#123F6D',
+  hivelocity:   '#E84545',
   custom_dc:    '#8B5CF6',
 }
 
@@ -20,36 +22,110 @@ const PROVIDER_LABELS: Record<string, string> = {
   linode:       'Linode',
   digitalocean: 'DO',
   ovh:          'OVH',
+  hivelocity:   'Hivelocity',
   custom_dc:    'Custom',
 }
 
-function DonutSVG({ data }: { data: Array<{ value: number; color: string }> }) {
-  const total = data.reduce((s, d) => s + d.value, 0)
-  if (total === 0) return <circle cx="18" cy="18" r="16" fill="none" stroke="var(--bd)" strokeWidth="4" />
+interface StatCardProps {
+  label: string
+  value: string | number
+  sub?: React.ReactNode
+  icon: React.ElementType
+  accentColor: string
+  children?: React.ReactNode
+}
 
-  let offset = 0
-  const circumference = 2 * Math.PI * 16
+function StatCard({ label, value, sub, icon: Icon, accentColor, children }: StatCardProps) {
   return (
-    <>
-      <circle cx="18" cy="18" r="16" fill="none" stroke="var(--bd)" strokeWidth="4" />
-      {data.filter(d => d.value > 0).map((d, i) => {
-        const pct = d.value / total
-        const dash = pct * circumference
-        const el = (
-          <circle
-            key={i}
-            cx="18" cy="18" r="16"
-            fill="none"
-            stroke={d.color}
-            strokeWidth="4"
-            strokeDasharray={`${dash} ${circumference - dash}`}
-            strokeDashoffset={-offset}
-          />
-        )
-        offset += dash
-        return el
-      })}
-    </>
+    <div
+      style={{
+        position: 'relative',
+        backgroundColor: 'var(--bg-s1)',
+        border: '1px solid var(--bd)',
+        borderRadius: '8px',
+        padding: '20px',
+        boxShadow: 'var(--shadow-card)',
+        overflow: 'hidden',
+        transition: 'border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease',
+        willChange: 'transform',
+        transformStyle: 'preserve-3d',
+      }}
+      onMouseMove={e => {
+        const el = e.currentTarget as HTMLDivElement
+        const r = el.getBoundingClientRect()
+        const x = (e.clientX - r.left) / r.width
+        const y = (e.clientY - r.top) / r.height
+        const rx = (y - 0.5) * -7
+        const ry = (x - 0.5) * 9
+        el.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(3px)`
+      }}
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = 'var(--card-hover-bd)'
+        el.style.boxShadow = '0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px var(--ac-bd)'
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = 'var(--bd)'
+        el.style.boxShadow = 'var(--shadow-card)'
+        el.style.transform = 'perspective(700px) rotateX(0deg) rotateY(0deg) translateZ(0)'
+      }}
+    >
+      {/* Top accent line */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: '2px',
+        background: `linear-gradient(90deg, ${accentColor}, transparent)`,
+      }} />
+
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <p style={{
+          fontSize: '10px',
+          fontFamily: "'JetBrains Mono', monospace",
+          color: 'var(--tx3)',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          margin: 0,
+          fontWeight: 500,
+        }}>
+          {label}
+        </p>
+        <div style={{
+          width: '28px', height: '28px',
+          borderRadius: '6px',
+          backgroundColor: `${accentColor}14`,
+          border: `1px solid ${accentColor}28`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Icon size={14} style={{ color: accentColor }} />
+        </div>
+      </div>
+
+      {/* Value */}
+      <p style={{
+        fontSize: '32px',
+        fontFamily: "'JetBrains Mono', monospace",
+        fontWeight: 400,
+        color: 'var(--tx1)',
+        lineHeight: 1,
+        margin: '0 0 12px 0',
+        letterSpacing: '-0.02em',
+      }}>
+        {value}
+      </p>
+
+      {/* Sub content */}
+      {sub && (
+        <div style={{ fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.06em' }}>
+          {sub}
+        </div>
+      )}
+
+      {children}
+    </div>
   )
 }
 
@@ -79,74 +155,79 @@ export default function StatsCards() {
 
   return (
     <Grid columns={{ '@initial': 2, '@xl': 4 }} gap={4}>
-      {/* Total */}
-      <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
-          <Text variant="label">Total Servers</Text>
-          <svg style={{ width: '16px', height: '16px', color: 'var(--tx3)', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 6h14M5 18h14" />
-          </svg>
-        </Flex>
-        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--tx1)', fontFamily: 'DM Sans', lineHeight: 1 }}>{total}</Text>
-        <Text variant="smallMuted" style={{ marginTop: '8px', fontFamily: 'monospace' }}>
-          {Object.keys(stats?.by_provider ?? {}).length} provider{Object.keys(stats?.by_provider ?? {}).length !== 1 ? 's' : ''}
-        </Text>
-      </Card>
+      {/* Total Assets */}
+      <StatCard
+        label="Total Assets"
+        value={total}
+        icon={Server}
+        accentColor="var(--ac)"
+        sub={`${Object.keys(stats?.by_provider ?? {}).length} active provider${Object.keys(stats?.by_provider ?? {}).length !== 1 ? 's' : ''}`}
+      />
 
-      {/* Running */}
-      <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
-          <Text variant="label">Running</Text>
-          <StatusDot running />
-        </Flex>
-        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--sg)', fontFamily: 'DM Sans', lineHeight: 1 }}>{running}</Text>
-        <Text style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--sg)' }}>
-          {runPct}% of fleet healthy
-        </Text>
-      </Card>
-
-      {/* Stopped */}
-      <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '16px' }}>
-          <Text variant="label">Stopped</Text>
-          <StatusDot running={false} style={{ backgroundColor: 'var(--sr)' }} />
-        </Flex>
-        <Text style={{ fontSize: '36px', fontWeight: 800, color: 'var(--sr)', fontFamily: 'DM Sans', lineHeight: 1 }}>{stopped}</Text>
-        <Text style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--sr)' }}>
-          {total > 0 ? `${100 - runPct}% idle` : 'No servers'}
-        </Text>
-      </Card>
-
-      {/* Provider Distribution */}
-      <Card hoverable>
-        <Flex justify="between" align="start" style={{ marginBottom: '12px' }}>
-          <Text variant="label">Providers</Text>
-          <Text variant="small" style={{ fontFamily: 'monospace' }}>Live</Text>
-        </Flex>
-        {providerData.length === 0 ? (
-          <Text variant="muted" style={{ marginTop: '16px' }}>No providers yet</Text>
-        ) : (
-          <Flex align="center" gap={4}>
-            <div style={{ position: 'relative', width: '64px', height: '64px', flexShrink: 0 }}>
-              <svg style={{ width: '64px', height: '64px', transform: 'rotate(-90deg)' }} viewBox="0 0 36 36">
-                <DonutSVG data={providerData} />
-              </svg>
+      {/* Operational */}
+      <StatCard
+        label="Operational"
+        value={running}
+        icon={Activity}
+        accentColor="var(--sg)"
+        sub={
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ color: 'var(--sg)' }}>{runPct}% uptime</span>
             </div>
-            <Flex direction="column" gap={1} style={{ flex: 1, minWidth: 0 }}>
-              {providerData.slice(0, 4).map(d => (
-                <Flex key={d.key} justify="between" align="center" gap={2} style={{ width: '100%' }}>
-                  <Flex align="center" gap={1} style={{ minWidth: 0 }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, backgroundColor: d.color }} />
-                    <span style={{ fontSize: '10px', color: 'var(--tx1)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
-                  </Flex>
-                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--tx2)' }}>{d.value}</span>
-                </Flex>
-              ))}
-            </Flex>
-          </Flex>
-        )}
-      </Card>
+            <div style={{ height: '3px', background: 'var(--bd)', borderRadius: '9999px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, var(--sg), var(--sg))',
+                width: `${runPct}%`,
+                borderRadius: '9999px',
+                transition: 'width 600ms cubic-bezier(0.16,1,0.3,1)',
+                boxShadow: '0 0 6px var(--sg-glow)',
+              }} />
+            </div>
+          </div>
+        }
+      />
+
+      {/* Offline */}
+      <StatCard
+        label="Offline"
+        value={stopped}
+        icon={WifiOff}
+        accentColor={stopped > 0 ? 'var(--sr)' : 'var(--sgr)'}
+        sub={
+          stopped > 0
+            ? <span style={{ color: 'var(--sr)' }}>⚠ Attention required</span>
+            : <span style={{ color: 'var(--sg)' }}>All nodes nominal</span>
+        }
+      />
+
+      {/* Active Providers */}
+      <StatCard
+        label="Active Providers"
+        value={providerData.length}
+        icon={Cloud}
+        accentColor="var(--sy)"
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+          {providerData.slice(0, 4).map(d => (
+            <span key={d.key} style={{
+              fontSize: '9px',
+              fontFamily: "'JetBrains Mono', monospace",
+              padding: '2px 7px',
+              borderRadius: '3px',
+              border: `1px solid ${d.color}35`,
+              color: d.color,
+              background: `${d.color}0d`,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              fontWeight: 500,
+            }}>
+              {d.label} <span style={{ opacity: 0.65 }}>{d.value}</span>
+            </span>
+          ))}
+        </div>
+      </StatCard>
     </Grid>
   )
 }
-

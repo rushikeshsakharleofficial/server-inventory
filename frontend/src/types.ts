@@ -1,4 +1,4 @@
-export type Provider = 'aws' | 'gcp' | 'azure' | 'linode' | 'digitalocean' | 'ovh' | 'custom_dc'
+export type Provider = 'aws' | 'gcp' | 'azure' | 'linode' | 'digitalocean' | 'ovh' | 'hivelocity' | 'custom_dc'
 export type ServerStatus = 'running' | 'stopped' | 'terminated' | 'pending' | 'unknown'
 
 export interface Server {
@@ -66,6 +66,12 @@ export interface SSHCredential {
   port: number
   is_default: boolean
   notes?: string
+  proxy_host?: string
+  proxy_port?: number
+  proxy_username?: string
+  proxy_auth_method?: string
+  proxy_password?: string
+  proxy_private_key?: string
   created_at?: string
   updated_at?: string
 }
@@ -93,7 +99,7 @@ export interface CronJob {
   updated_at?: string
 }
 
-export type View = 'dashboard' | 'servers' | 'databases' | 'kubernetes' | 'block_storage' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings' | 'users' | 'setup'
+export type View = 'dashboard' | 'servers' | 'databases' | 'kubernetes' | 'block_storage' | 'ips' | 'providers' | 'sync-logs' | 'ssh' | 'crons' | 'settings' | 'users' | 'setup'
 
 export interface DatabaseInstance {
   id: number

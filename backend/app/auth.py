@@ -12,6 +12,7 @@ from .database import get_db
 _INSECURE_SECRET_VALUES = {
     "dev-secret-key-" + "CHANGE-in-production",
     "generate-a-long-random-string-here",
+    "change-this-secret-key-in-production",
 }
 _PRODUCTION_ENVS = {"prod", "production"}
 
@@ -26,6 +27,9 @@ def _is_production() -> bool:
     return env_name in _PRODUCTION_ENVS
 
 
+_DEV_KEY_FILE = os.path.join(os.path.dirname(__file__), "..", ".dev_secret_key")
+
+
 def _load_secret_key() -> str:
     secret_key = os.getenv("SECRET_KEY")
     if secret_key and secret_key not in _INSECURE_SECRET_VALUES:
@@ -34,11 +38,50 @@ def _load_secret_key() -> str:
         raise RuntimeError(
             "SECRET_KEY must be set to a strong unique value in production"
         )
-    return secrets.token_urlsafe(32)
+    key_path = os.path.abspath(_DEV_KEY_FILE)
+    if os.path.exists(key_path):
+        with open(key_path) as f:
+            stored = f.read().strip()
+        if stored:
+            return stored
+    new_key = secrets.token_urlsafe(32)
+    try:
+        with open(key_path, "w") as f:
+            f.write(new_key)
+    except OSError:
+        pass
+    return new_key
 
 
 SECRET_KEY = _load_secret_key()
 ALGORITHM = "HS256"
+
+# ---------------------------------------------------------------------------
+# Password policy
+# ---------------------------------------------------------------------------
+
+_COMMON_PASSWORDS = frozenset({
+    "password", "password1", "password123",
+    "admin", "admin123", "admin@1234",
+    "letmein", "welcome", "qwerty", "123456", "12345678",
+    "changeme", "secret", "master", "dragon", "monkey",
+})
+
+_MIN_PASSWORD_LEN = 10
+
+
+def validate_password(password: str, *, min_length: int = _MIN_PASSWORD_LEN) -> None:
+    """Raise HTTPException 422 if password does not meet policy."""
+    if len(password) < min_length:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Password must be at least {min_length} characters",
+        )
+    if password.lower() in _COMMON_PASSWORDS:
+        raise HTTPException(
+            status_code=422,
+            detail="Password is too common — choose a unique password",
+        )
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8          # 8 hours (default)
 ACCESS_TOKEN_EXPIRE_REMEMBER = 60 * 24 * 90  # 90 days (remember me)
 

@@ -32,7 +32,11 @@ export default function ProviderLogo({ provider, size = 20, className = '' }: Pr
   }
 
   // Fallback for custom_dc and unknown providers — inline SVG server icon
-  const color = provider === 'custom_dc' ? '#8B5CF6' : '#8B8AAE'
+  const FALLBACK_COLORS: Record<string, string> = {
+    custom_dc:  '#8B5CF6',
+    hivelocity: '#E84545',
+  }
+  const color = FALLBACK_COLORS[provider] ?? '#8B8AAE'
   return (
     <svg
       width={size}

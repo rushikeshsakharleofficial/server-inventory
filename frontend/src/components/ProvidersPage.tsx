@@ -41,6 +41,7 @@ const PROVIDER_DESC: Record<string, string> = {
   linode:       'Akamai Cloud (Linode) — Nanode to Dedicated instances',
   digitalocean: 'DigitalOcean Droplets — all sizes and regions',
   ovh:          'OVH Cloud — bare metal, VPS and Public Cloud instances',
+  hivelocity:   'Hivelocity — bare metal and VPS servers',
   custom_dc:    'Manually managed on-premise servers',
 }
 
@@ -78,10 +79,11 @@ const PROVIDER_FIELDS: Record<string, FieldDef[]> = {
     { key: 'application_secret', label: 'Application Secret', type: 'password' },
     { key: 'consumer_key',       label: 'Consumer Key',       type: 'password' },
   ],
+  hivelocity: [{ key: 'api_key', label: 'API Key', type: 'password', hint: '64-char hex key' }],
 }
 
-const PROVIDERS: Provider[] = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh']
-const SECRET_KEYS = new Set(['secret_access_key', 'client_secret', 'api_token', 'service_account_json', 'application_secret', 'consumer_key', 'private_key'])
+const PROVIDERS: Provider[] = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh', 'hivelocity']
+const SECRET_KEYS = new Set(['secret_access_key', 'client_secret', 'api_token', 'api_key', 'service_account_json', 'application_secret', 'consumer_key', 'private_key'])
 
 export default function ProvidersPage() {
   const qc = useQueryClient()
@@ -180,8 +182,8 @@ export default function ProvidersPage() {
       {/* Header */}
       <Flex justify="between" align="center">
         <div>
-          <Heading as="h1">Cloud Credentials</Heading>
-          <Text variant="muted" style={{ marginTop: '4px' }}>
+          <Heading as="h1" style={{ fontStyle: 'normal', fontSize: '20px', letterSpacing: '-0.02em' }}>Cloud Credentials</Heading>
+          <Text variant="muted" style={{ marginTop: '4px', fontSize: '12px' }}>
             {creds.length === 0 ? 'No credentials configured' : `${creds.length} credential${creds.length !== 1 ? 's' : ''}`} (
             {creds.filter(c => c.is_active).length} active · {creds.filter(c => !c.is_active).length} disabled)
           </Text>
@@ -213,7 +215,7 @@ export default function ProvidersPage() {
                 style={{
                   fontSize: '13px',
                   padding: '10px 14px',
-                  borderRadius: '8px',
+                  borderRadius: '2px',
                   background: 'var(--sr-bg)',
                   color: 'var(--sr)',
                   border: '1px solid var(--sr-bd)',
@@ -400,7 +402,7 @@ export default function ProvidersPage() {
                                     style={{
                                       width: '28px',
                                       height: '28px',
-                                      borderRadius: '8px',
+                                      borderRadius: '4px',
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
@@ -499,7 +501,7 @@ export default function ProvidersPage() {
                                     style={{
                                       backgroundColor: 'var(--bg-s2)',
                                       border: '1px solid var(--bd)',
-                                      borderRadius: '8px',
+                                      borderRadius: '4px',
                                       padding: '12px 16px',
                                       display: 'flex',
                                       flexWrap: 'wrap',

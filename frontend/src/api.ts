@@ -37,6 +37,9 @@ export const serversApi = {
 
   delete: (id: number) => http.delete(`/api/servers/${id}`),
 
+  sshFetchAllIps: (ssh_credential_id?: number): Promise<Array<{ server_id: number; server_name: string; provider: string; host: string; ips: string[] }>> =>
+    http.post('/api/servers/ssh-fetch-all-ips', null, { params: ssh_credential_id ? { ssh_credential_id } : {} }).then(r => r.data),
+
   sshSync: (id: number, sshCredentialId: number) =>
     http
       .post<Server>(`/api/servers/${id}/ssh-sync`, null, { params: { ssh_credential_id: sshCredentialId } })
@@ -65,14 +68,14 @@ export const credentialsApi = {
 }
 
 export const syncApi = {
-  trigger: (provider?: string): Promise<SyncLog> =>
+  trigger: (provider?: string): Promise<{ message: string; provider: string }> =>
     http
-      .post<SyncLog>('/api/sync', null, { params: provider ? { provider } : {} })
+      .post<{ message: string; provider: string }>('/api/sync', null, { params: provider ? { provider } : {} })
       .then(r => r.data),
 
-  stop: (logId?: number): Promise<SyncLog> =>
+  stop: (logId?: number): Promise<{ stopped: number[] }> =>
     http
-      .post<SyncLog>('/api/sync/stop', null, { params: logId ? { log_id: logId } : {} })
+      .post<{ stopped: number[] }>('/api/sync/stop', null, { params: logId ? { log_id: logId } : {} })
       .then(r => r.data),
 
   logs: (limit = 50): Promise<SyncLog[]> =>
@@ -130,24 +133,24 @@ export const databasesApi = {
   list: (params?: { provider?: string; status?: string; search?: string }): Promise<DatabaseInstance[]> =>
     http.get<DatabaseInstance[]>('/api/databases', { params }).then(r => r.data),
 
-  sync: (provider?: string): Promise<SyncLog> =>
-    http.post<SyncLog>('/api/databases/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+  sync: (provider?: string): Promise<{ status: string }> =>
+    http.post<{ status: string }>('/api/databases/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const kubernetesApi = {
   list: (params?: { provider?: string; status?: string; search?: string }): Promise<KubernetesCluster[]> =>
     http.get<KubernetesCluster[]>('/api/kubernetes', { params }).then(r => r.data),
 
-  sync: (provider?: string): Promise<SyncLog> =>
-    http.post<SyncLog>('/api/kubernetes/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+  sync: (provider?: string): Promise<{ status: string }> =>
+    http.post<{ status: string }>('/api/kubernetes/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const blockStoragesApi = {
   list: (params?: { provider?: string; status?: string; search?: string }): Promise<BlockStorage[]> =>
     http.get<BlockStorage[]>('/api/block-storages', { params }).then(r => r.data),
 
-  sync: (provider?: string): Promise<SyncLog> =>
-    http.post<SyncLog>('/api/block-storages/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
+  sync: (provider?: string): Promise<{ status: string }> =>
+    http.post<{ status: string }>('/api/block-storages/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const settingsApi = {
@@ -183,8 +186,8 @@ export const authApi = {
 }
 
 export const mfaApi = {
-  status: () => http.get<{ enabled: boolean }>('/api/auth/mfa/status'),
-  setup: () => http.post<{ secret: string; uri: string }>('/api/auth/mfa/setup'),
+  status: () => http.get<{ enabled: boolean }>('/api/auth/mfa/status').then(r => r.data),
+  setup: () => http.post<{ secret: string; uri: string }>('/api/auth/mfa/setup').then(r => r.data),
   enable: (code: string) =>
     http.post('/api/auth/mfa/enable', { code }),
   disable: (code: string) =>

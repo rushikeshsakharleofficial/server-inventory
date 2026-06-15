@@ -1,0 +1,127 @@
+- generic [ref=e2]:
+  - generic [ref=e31]:
+    - complementary "Sidebar navigation" [ref=e32]:
+      - generic [ref=e34]:
+        - paragraph [ref=e35]: ServerInventory
+        - paragraph [ref=e36]: INFRASTRUCTURE CONSOLE
+      - navigation [ref=e37]:
+        - button "Dashboard" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e44]: Dashboard
+        - generic [ref=e45]:
+          - button "Inventory" [ref=e46] [cursor=pointer]:
+            - img [ref=e47]
+            - generic [ref=e51]: Inventory
+            - img [ref=e52]
+          - generic [ref=e54]:
+            - button "Servers" [ref=e55] [cursor=pointer]:
+              - img [ref=e56]
+              - generic [ref=e59]: Servers
+            - button "Databases" [ref=e60] [cursor=pointer]:
+              - img [ref=e61]
+              - generic [ref=e65]: Databases
+            - button "Kubernetes" [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+              - generic [ref=e70]: Kubernetes
+            - button "Block Storage" [ref=e71] [cursor=pointer]:
+              - img [ref=e72]
+              - generic [ref=e74]: Block Storage
+            - button "IP Addresses" [ref=e75] [cursor=pointer]:
+              - img [ref=e76]
+              - generic [ref=e81]: IP Addresses
+        - button "Cloud Providers" [ref=e82] [cursor=pointer]:
+          - img [ref=e83]
+          - generic [ref=e85]: Cloud Providers
+        - button "Sync Logs" [ref=e86] [cursor=pointer]:
+          - img [ref=e87]
+          - generic [ref=e89]: Sync Logs
+        - button "Cron Jobs" [ref=e90] [cursor=pointer]:
+          - img [ref=e91]
+          - generic [ref=e94]: Cron Jobs
+        - button "SSH" [ref=e95] [cursor=pointer]:
+          - img [ref=e96]
+          - generic [ref=e98]: SSH
+        - button "Settings" [ref=e99] [cursor=pointer]:
+          - img [ref=e100]
+          - generic [ref=e101]: Settings
+      - generic [ref=e102]:
+        - generic [ref=e106]: ADMIN · admin
+        - button "Manage Credentials" [ref=e107] [cursor=pointer]:
+          - img [ref=e108]
+          - generic [ref=e111]: Manage Credentials
+        - button "Manage Users" [active] [ref=e112] [cursor=pointer]:
+          - img [ref=e113]
+          - generic [ref=e118]: Manage Users
+        - button "Admin Setup" [ref=e119] [cursor=pointer]:
+          - img [ref=e120]
+          - generic [ref=e121]: Admin Setup
+    - generic [ref=e122]:
+      - banner [ref=e123]:
+        - generic [ref=e124]:
+          - button "Close sidebar" [ref=e125] [cursor=pointer]:
+            - img [ref=e126]
+          - heading "User Management" [level=1] [ref=e254]
+        - generic [ref=e130]:
+          - generic "Live — WebSocket connected" [ref=e131]
+          - generic [ref=e132]:
+            - img [ref=e133]
+            - generic [ref=e135]: admin
+          - button "Switch to dark mode" [ref=e136]:
+            - img [ref=e137]
+            - img [ref=e143]
+          - button "Sync all cloud providers" [ref=e149] [cursor=pointer]:
+            - img [ref=e150]
+            - generic [ref=e155]: Sync All
+          - button "Sign out" [ref=e156] [cursor=pointer]:
+            - img [ref=e157]
+      - main [ref=e160]:
+        - generic [ref=e257]:
+          - generic [ref=e258]:
+            - generic [ref=e259]:
+              - heading "User Management" [level=1] [ref=e260]
+              - paragraph [ref=e261]: Configure infrastructure access policies and team member roles.
+            - button "Add User" [ref=e262] [cursor=pointer]:
+              - img [ref=e263]
+              - text: Add User
+          - table "Users" [ref=e266]:
+            - rowgroup [ref=e267]:
+              - row "User Role Status Actions" [ref=e268]:
+                - columnheader "User" [ref=e269]
+                - columnheader "Role" [ref=e270]
+                - columnheader "Status" [ref=e271]
+                - columnheader "Actions" [ref=e272]
+            - rowgroup [ref=e273]:
+              - row "A admin System Administrator Admin Enabled SYSTEM" [ref=e274]:
+                - cell "A admin System Administrator" [ref=e275]:
+                  - generic [ref=e276]:
+                    - generic [ref=e277]: A
+                    - generic [ref=e278]:
+                      - paragraph [ref=e279]: admin
+                      - paragraph [ref=e280]: System Administrator
+                - cell "Admin" [ref=e281]:
+                  - generic [ref=e282]:
+                    - img [ref=e283]
+                    - text: Admin
+                - cell "Enabled" [ref=e285]:
+                  - paragraph [ref=e286]: Enabled
+                - cell "SYSTEM" [ref=e287]:
+                  - generic [ref=e289]: SYSTEM
+              - row "T testdisabled READ Policy Read Disabled Delete testdisabled" [ref=e290]:
+                - cell "T testdisabled READ Policy" [ref=e291]:
+                  - generic [ref=e292]:
+                    - generic [ref=e293]: T
+                    - generic [ref=e294]:
+                      - paragraph [ref=e295]: testdisabled
+                      - paragraph [ref=e296]: READ Policy
+                - cell "Read" [ref=e297]:
+                  - generic [ref=e298]: Read
+                - cell "Disabled" [ref=e299]:
+                  - paragraph [ref=e300]: Disabled
+                - cell "Delete testdisabled" [ref=e301]:
+                  - generic [ref=e302]:
+                    - generic [ref=e303] [cursor=pointer]:
+                      - switch [ref=e304]
+                      - img
+                    - button "Delete testdisabled" [ref=e305] [cursor=pointer]:
+                      - img [ref=e306]
+  - generic "Notifications"
