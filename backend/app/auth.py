@@ -62,7 +62,7 @@ ALGORITHM = "HS256"
 
 _COMMON_PASSWORDS = frozenset({
     "password", "password1", "password123",
-    "admin", "admin123", "Admin@1234",
+    "admin", "admin123", "admin@1234",
     "letmein", "welcome", "qwerty", "123456", "12345678",
     "changeme", "secret", "master", "dragon", "monkey",
 })
