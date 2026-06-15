@@ -202,11 +202,29 @@ def _seed_default_settings() -> None:
         db.close()
 
 
+_DEFAULT_ADMIN_PASSWORDS = {"Admin@1234", "admin123", "admin", "password", "changeme"}
+
+
 def _seed_admin() -> None:
-    from .auth import hash_password
+    from .auth import hash_password, _is_production
 
     admin_username = os.getenv("ADMIN_USERNAME", "admin")
-    admin_password = os.getenv("ADMIN_PASSWORD", "Admin@1234")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+
+    if not admin_password:
+        if _is_production():
+            raise RuntimeError(
+                "ADMIN_PASSWORD must be set in production. "
+                "Set it in your .env file or Docker environment."
+            )
+        # Dev fallback — clearly marked, never accepted in production.
+        admin_password = "Admin@1234"
+
+    if admin_password in _DEFAULT_ADMIN_PASSWORDS and _is_production():
+        raise RuntimeError(
+            f"ADMIN_PASSWORD={admin_password!r} is a known default and is not allowed in production. "
+            "Set a strong unique password."
+        )
 
     db = SessionLocal()
     try:

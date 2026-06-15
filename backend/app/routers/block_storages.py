@@ -76,25 +76,27 @@ def _sync_block_storages(provider_name: str | None, db_url: str) -> None:
         db.close()
 
 
-@router.get("", response_model=list[schemas.BlockStorageResponse])
+@router.get("", response_model=schemas.Page[schemas.BlockStorageResponse])
 def list_block_storages(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-) -> list[models.BlockStorage]:
+    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
+    offset: int = Query(default=0, ge=0),
+) -> schemas.Page[schemas.BlockStorageResponse]:
     q = db.query(models.BlockStorage)
     if provider:
         q = q.filter(models.BlockStorage.provider == provider)
     if status:
         q = q.filter(models.BlockStorage.status == status)
     if search:
-        # Escape LIKE metacharacters before building the pattern so that user
-        # input containing '%' or '_' is treated as literal characters.
         escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         q = q.filter(models.BlockStorage.name.ilike(f"%{escaped}%", escape="\\"))
-    return q.order_by(models.BlockStorage.name).all()
+    total = q.count()
+    items = q.order_by(models.BlockStorage.name).offset(offset).limit(limit).all()
+    return schemas.Page(total=total, limit=limit, offset=offset, items=items)
 
 
 @router.post("/sync")

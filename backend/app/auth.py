@@ -55,6 +55,33 @@ def _load_secret_key() -> str:
 
 SECRET_KEY = _load_secret_key()
 ALGORITHM = "HS256"
+
+# ---------------------------------------------------------------------------
+# Password policy
+# ---------------------------------------------------------------------------
+
+_COMMON_PASSWORDS = frozenset({
+    "password", "password1", "password123",
+    "admin", "admin123", "Admin@1234",
+    "letmein", "welcome", "qwerty", "123456", "12345678",
+    "changeme", "secret", "master", "dragon", "monkey",
+})
+
+_MIN_PASSWORD_LEN = 10
+
+
+def validate_password(password: str, *, min_length: int = _MIN_PASSWORD_LEN) -> None:
+    """Raise HTTPException 422 if password does not meet policy."""
+    if len(password) < min_length:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Password must be at least {min_length} characters",
+        )
+    if password.lower() in _COMMON_PASSWORDS:
+        raise HTTPException(
+            status_code=422,
+            detail="Password is too common — choose a unique password",
+        )
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8          # 8 hours (default)
 ACCESS_TOKEN_EXPIRE_REMEMBER = 60 * 24 * 90  # 90 days (remember me)
 

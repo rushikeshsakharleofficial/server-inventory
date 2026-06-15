@@ -5,7 +5,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import verify_password, hash_password, create_access_token, get_current_user, require_admin, create_mfa_challenge_token
+from ..auth import (
+    verify_password, hash_password, create_access_token,
+    get_current_user, require_admin, create_mfa_challenge_token, validate_password,
+)
 
 router = APIRouter(tags=["auth & users"])
 
@@ -62,6 +65,7 @@ def create_user(
     _: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
+    validate_password(payload.password)
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     db_user = models.User(
@@ -115,7 +119,6 @@ def change_password(
 ) -> None:
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(payload.new_password) < 10:
-        raise HTTPException(status_code=400, detail="New password must be at least 10 characters")
+    validate_password(payload.new_password)
     current_user.hashed_password = hash_password(payload.new_password)
     db.commit()

@@ -1,6 +1,19 @@
 from pydantic import BaseModel, Field
-from typing import Any, Literal
+from typing import Any, Generic, Literal, TypeVar
 from datetime import datetime
+
+T = TypeVar("T")
+
+_MAX_PAGE_SIZE = 500
+_DEFAULT_PAGE_SIZE = 50
+
+
+class Page(BaseModel, Generic[T]):
+    """Standard paginated response envelope."""
+    total: int
+    limit: int
+    offset: int
+    items: list[T]
 
 
 class ServerBase(BaseModel):

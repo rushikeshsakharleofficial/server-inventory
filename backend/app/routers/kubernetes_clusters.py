@@ -76,25 +76,27 @@ def _sync_kubernetes(provider_name: str | None, db_url: str) -> None:
         db.close()
 
 
-@router.get("", response_model=list[schemas.KubernetesClusterResponse])
+@router.get("", response_model=schemas.Page[schemas.KubernetesClusterResponse])
 def list_clusters(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-) -> list[models.KubernetesCluster]:
+    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
+    offset: int = Query(default=0, ge=0),
+) -> schemas.Page[schemas.KubernetesClusterResponse]:
     q = db.query(models.KubernetesCluster)
     if provider:
         q = q.filter(models.KubernetesCluster.provider == provider)
     if status:
         q = q.filter(models.KubernetesCluster.status == status)
     if search:
-        # Escape LIKE metacharacters before building the pattern so that user
-        # input containing '%' or '_' is treated as literal characters.
         escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         q = q.filter(models.KubernetesCluster.name.ilike(f"%{escaped}%", escape="\\"))
-    return q.order_by(models.KubernetesCluster.name).all()
+    total = q.count()
+    items = q.order_by(models.KubernetesCluster.name).offset(offset).limit(limit).all()
+    return schemas.Page(total=total, limit=limit, offset=offset, items=items)
 
 
 @router.post("/sync")

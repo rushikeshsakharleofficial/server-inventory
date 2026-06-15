@@ -29,14 +29,16 @@ def _escape_like(value: str) -> str:
     )
 
 
-@router.get("", response_model=list[schemas.ServerResponse])
+@router.get("", response_model=schemas.Page[schemas.ServerResponse])
 def list_servers(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
-) -> list[models.Server]:
+    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
+    offset: int = Query(default=0, ge=0),
+) -> schemas.Page[schemas.ServerResponse]:
     q = db.query(models.Server)
     if provider:
         q = q.filter(models.Server.provider == provider)
@@ -50,7 +52,9 @@ def list_servers(
             | models.Server.private_ip.ilike(like, escape="\\")
             | models.Server.hostname.ilike(like, escape="\\")
         )
-    return q.order_by(models.Server.name).all()
+    total = q.count()
+    items = q.order_by(models.Server.name).offset(offset).limit(limit).all()
+    return schemas.Page(total=total, limit=limit, offset=offset, items=items)
 
 
 @router.get("/stats")
