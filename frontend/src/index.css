@@ -264,14 +264,8 @@
     color: var(--tx1);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-image:
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 31px,
-        var(--topo-color) 31px,
-        var(--topo-color) 32px
-      );
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49'%3E%3Cpath d='M27.99 17.25l-14-8-14 8v15.5l14 8 14-8zm-14 21l-12-6.93V19.18l12-6.93 12 6.93v11.89z' fill='%23F6821F' fill-opacity='0.04' stroke='%23F6821F' stroke-opacity='0.12' stroke-width='0.5'/%3E%3C/svg%3E");
+    background-size: 28px 49px;
   }
 
   * { box-sizing: border-box; }
