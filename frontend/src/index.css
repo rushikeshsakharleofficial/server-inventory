@@ -250,12 +250,94 @@
       0 0 0 1px rgba(246, 130, 31, 0.12),
       inset 0 1px 0 rgba(246, 130, 31, 0.06);
   }
+
+  /* ── Light Theme ─────────────────────────────────────────────────────────── */
+  [data-theme="light"] {
+    --bg-base: #F8F8FB;
+    --bg-s1:   #FFFFFF;
+    --bg-s2:   #F0F1F5;
+    --bg-s3:   #E8E9EF;
+
+    --bd:        #DDE0EA;
+    --bd-strong: #C8CCDA;
+
+    --tx1: #111827;
+    --tx2: #4B5563;
+    --tx3: #9CA3AF;
+    --txd: #D1D5DB;
+
+    --ac:      #F6821F;
+    --ach:     #E27318;
+    --acs:     #FEF3E8;
+    --ac-bg:   rgba(246, 130, 31, 0.10);
+    --ac-bd:   rgba(246, 130, 31, 0.30);
+    --ac-glow: rgba(246, 130, 31, 0.20);
+
+    --sg:      #16A34A;
+    --sg-bg:   rgba(22, 163, 74, 0.08);
+    --sg-bd:   rgba(22, 163, 74, 0.22);
+    --sg-glow: rgba(22, 163, 74, 0.30);
+    --sr:      #DC2626;
+    --sr-bg:   rgba(220, 38, 38, 0.08);
+    --sr-bd:   rgba(220, 38, 38, 0.22);
+    --sy:      #D97706;
+    --sy-bg:   rgba(217, 119, 6, 0.08);
+    --sy-bd:   rgba(217, 119, 6, 0.22);
+    --sgr:     #6B7280;
+    --sgr-bg:  rgba(107, 114, 128, 0.08);
+    --sgr-bd:  rgba(107, 114, 128, 0.20);
+
+    --glass-bg: rgba(248, 248, 251, 0.96);
+    --glass-bd: rgba(246, 130, 31, 0.20);
+
+    --btn-primary-fg: #FFFFFF;
+
+    --sidebar-from: #FFFFFF;
+    --sidebar-to:   #FFFFFF;
+    --header-bg:    rgba(255, 255, 255, 0.92);
+    --nav-active-bg: rgba(246, 130, 31, 0.10);
+    --nav-active-bd: rgba(246, 130, 31, 0.25);
+    --card-hover-bd: rgba(246, 130, 31, 0.25);
+
+    --skel-from: #F0F1F5;
+    --skel-to:   #E8E9EF;
+
+    --scroll-track: #F0F1F5;
+    --scroll-thumb: #DDE0EA;
+    --scroll-hover: #F6821F;
+
+    --select-bg: #FFFFFF;
+
+    --topo-color: rgba(246, 130, 31, 0.03);
+
+    --shadow-card:
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(0, 0, 0, 0.06);
+    --shadow-glass:
+      0 8px 40px rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 rgba(246, 130, 31, 0.08);
+    --shadow-modal:
+      0 24px 80px rgba(0, 0, 0, 0.20),
+      0 0 0 1px rgba(246, 130, 31, 0.15),
+      inset 0 1px 0 rgba(246, 130, 31, 0.08);
+  }
 }
 
 @layer base {
   html {
     background-color: var(--bg-base);
     color-scheme: dark;
+  }
+
+  [data-theme="light"] { color-scheme: light; }
+
+  .theme-transitioning,
+  .theme-transitioning * {
+    transition:
+      background-color 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease,
+      box-shadow 220ms ease !important;
   }
 
   body {
