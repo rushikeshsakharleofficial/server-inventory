@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search, HardDrive, X, Server } from 'lucide-react'
 import { blockStoragesApi, getErrorMessage } from '../api'
+import { Pagination } from './Pagination'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import { SkeletonTableRows } from './Skeleton'
@@ -151,12 +152,18 @@ export default function BlockStoragePage() {
   const [search, setSearch] = useState('')
   const [provider, setProvider] = useState('')
   const [selectedVol, setSelectedVol] = useState<BlockStorage | null>(null)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 50
 
-  const { data: volumes = [], isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['block-storages', provider],
-    queryFn: () => blockStoragesApi.list({ provider: provider || undefined }),
+  const { data: bsPage, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['block-storages', provider, page],
+    queryFn: () => blockStoragesApi.list({ provider: provider || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     refetchInterval: 60_000,
   })
+  const volumes = bsPage?.items ?? []
+  const bsTotal = bsPage?.total ?? 0
+
+  useEffect(() => { setPage(1) }, [provider, search])
 
   const syncMutation = useMutation({
     mutationFn: () => blockStoragesApi.sync(provider || undefined),
@@ -176,7 +183,7 @@ export default function BlockStoragePage() {
   )
 
   // Compute stats
-  const totalCount = volumes.length
+  const totalCount = bsTotal
   const totalCapacity = volumes.reduce((sum, v) => sum + (v.size_gb || 0), 0)
   const attachedCount = volumes.filter(v => v.attachment || v.status === 'in-use' || v.status === 'running').length
   const unattachedCount = totalCount - attachedCount
@@ -229,7 +236,7 @@ export default function BlockStoragePage() {
               <td colSpan={compact ? 4 : 7} style={{ padding: '80px 24px', textAlign: 'center' }}>
                 <HardDrive size={32} style={{ color: 'var(--tx3)', margin: '0 auto 12px auto', opacity: 0.4 }} />
                 <Text variant="muted">
-                  {volumes.length === 0
+                  {bsTotal === 0
                     ? 'No block storage volumes found. Click "Sync All" to fetch from providers.'
                     : 'No volumes match your filters.'}
                 </Text>
@@ -434,6 +441,7 @@ export default function BlockStoragePage() {
 
             {/* Table */}
             {renderTable(!!selectedVol)}
+            <Pagination page={page} total={bsTotal} pageSize={PAGE_SIZE} onPage={setPage} />
           </Card>
         </TablePane>
 
