@@ -345,8 +345,6 @@
     color: var(--tx1);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='98'%3E%3Cpath d='M55.98 34.5l-28-16-28 16v31l28 16 28-16zm-28 42l-24-13.86V38.36l24-13.86 24 13.86v24.28z' fill='%23F6821F' fill-opacity='0.05' stroke='%23F6821F' stroke-opacity='0.2' stroke-width='1'/%3E%3C/svg%3E");
-    background-size: 56px 98px;
   }
 
   * { box-sizing: border-box; }

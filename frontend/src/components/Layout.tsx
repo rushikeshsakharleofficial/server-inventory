@@ -11,6 +11,8 @@ import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuth'
 import { useWebSocket, type SyncEvent } from '../hooks/useWebSocket'
 import ThemeToggle from './ThemeToggle'
+import { DotPattern } from './DotPattern'
+import { useTheme } from '../hooks/useTheme'
 import type { View } from '../types'
 import { Flex, Button, Heading } from './StitchUI'
 
@@ -237,9 +239,12 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
 
   const RoleIcon = user ? (ROLE_ICON[user.role] ?? Eye) : Eye
   const roleColor = user ? (ROLE_COLOR[user.role] ?? '#6B7280') : '#6B7280'
+  const { theme } = useTheme()
+  const dotBase  = theme === 'light' ? '#C0C0C0' : '#383838'
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-base)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-base)', overflow: 'hidden', position: 'relative' }}>
+      <DotPattern baseColor={dotBase} glowColor="#F6821F" dotSize={2} gap={26} proximity={130} waveSpeed={0.4} />
       {/* ── Sidebar ── */}
       <aside
         aria-label="Sidebar navigation"
@@ -476,7 +481,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
           </Flex>
         </header>
 
-        <main style={{ flex: 1, overflow: 'auto', padding: '24px', backgroundColor: 'var(--bg-base)', backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='98'%3E%3Cpath d='M55.98 34.5l-28-16-28 16v31l28 16 28-16zm-28 42l-24-13.86V38.36l24-13.86 24 13.86v24.28z' fill='%23F6821F' fill-opacity='0.05' stroke='%23F6821F' stroke-opacity='0.2' stroke-width='1'/%3E%3C/svg%3E\")", backgroundSize: '56px 98px' }} role="main">
+        <main style={{ flex: 1, overflow: 'auto', padding: '24px', backgroundColor: 'transparent' }} role="main">
           {children}
         </main>
       </div>
