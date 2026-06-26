@@ -5,11 +5,11 @@ const LOGO_FILES: Record<string, string> = {
   linode:       '/logos/linode.svg',
   digitalocean: '/logos/digitalocean.svg',
   ovh:          '/logos/ovh.svg',
+  hivelocity:   '/logos/hivelocity.svg',
 }
 
 const FALLBACK_COLORS: Record<string, string> = {
-  custom_dc:  '#8B5CF6',
-  hivelocity: '#E84545',
+  custom_dc: '#8B5CF6',
 }
 
 export function ProviderLogo({ provider, size = 20, className = '' }: {
