@@ -15,7 +15,7 @@ import {
 import { serversApi, http } from '../api'
 import StatsCards from './StatsCards'
 import type { ServerSnapshot } from '../types'
-import { Card, Flex, Heading, Text } from './StitchUI'
+import { Card, Flex, Text } from './StitchUI'
 
 const statsApi = {
   history: (days = 30) =>

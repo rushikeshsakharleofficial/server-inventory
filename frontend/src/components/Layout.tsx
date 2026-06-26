@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Server, Cloud, Activity, RefreshCw, Plus,
-  Menu, X, Settings, Users, LogOut, Shield, PencilLine, Eye,
+  Menu, X, Users, LogOut, Shield, PencilLine, Eye,
   CheckCircle2, XCircle, LayoutDashboard, Terminal, Square, SlidersHorizontal, Timer,
   Layers, Database, Box, ChevronDown, HardDrive, Network,
 } from 'lucide-react'
