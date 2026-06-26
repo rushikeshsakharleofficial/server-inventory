@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, Globe, Lock, Wifi, RefreshCw } from 'lucide-react'
-import { http, sshCredentialsApi } from '../api'
+import { serversApi, sshCredentialsApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import type { Server } from '../types'
 import ProviderBadge from './ProviderBadge'
@@ -59,8 +59,8 @@ export default function IpsPage({ onServerClick }: { onServerClick?: (server: Se
   })
 
   const { data: servers = [], isLoading, isError } = useQuery<Server[]>({
-    queryKey: ['servers'],
-    queryFn: () => http.get<Server[]>('/api/servers').then(r => r.data),
+    queryKey: ['servers-all'],
+    queryFn: () => serversApi.listAll(),
     staleTime: 30_000,
   })
 

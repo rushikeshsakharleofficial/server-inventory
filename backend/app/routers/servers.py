@@ -2,7 +2,7 @@ import io
 import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Annotated
+from typing import Annotated, Literal
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -29,6 +29,18 @@ def _escape_like(value: str) -> str:
     )
 
 
+_SORT_COLS: dict[str, object] = {
+    "name":       models.Server.name,
+    "provider":   models.Server.provider,
+    "status":     models.Server.status,
+    "public_ip":  models.Server.public_ip,
+    "private_ip": models.Server.private_ip,
+    "region":     models.Server.region,
+    "created_at": models.Server.created_at,
+    "updated_at": models.Server.updated_at,
+}
+
+
 @router.get("", response_model=schemas.Page[schemas.ServerResponse])
 def list_servers(
     db: Annotated[Session, Depends(get_db)],
@@ -38,6 +50,8 @@ def list_servers(
     search: str | None = Query(None),
     limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
     offset: int = Query(default=0, ge=0),
+    sort: str = Query(default="name"),
+    order: Literal["asc", "desc"] = Query(default="asc"),
 ) -> schemas.Page[schemas.ServerResponse]:
     q = db.query(models.Server)
     if provider:
@@ -53,7 +67,9 @@ def list_servers(
             | models.Server.hostname.ilike(like, escape="\\")
         )
     total = q.count()
-    items = q.order_by(models.Server.name).offset(offset).limit(limit).all()
+    col = _SORT_COLS.get(sort, models.Server.name)
+    order_expr = col.desc() if order == "desc" else col.asc()  # type: ignore[union-attr]
+    items = q.order_by(order_expr).offset(offset).limit(limit).all()
     return schemas.Page(total=total, limit=limit, offset=offset, items=items)
 
 

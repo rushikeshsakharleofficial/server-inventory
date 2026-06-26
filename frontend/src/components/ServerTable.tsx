@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   Search,
   Plus,
@@ -13,6 +13,7 @@ import { serversApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import { SkeletonTableRows } from './Skeleton'
+import { Pagination } from './Pagination'
 import type { Server, ServerStatus } from '../types'
 import {
   Card,
@@ -82,17 +83,25 @@ export default function ServerTable({
     return () => clearTimeout(t)
   }, [search])
 
-  useEffect(() => { setPage(1) }, [debounced, provider, status])
+  useEffect(() => { setPage(1) }, [debounced, provider, status, sortField, sortDir])
 
-  const { data: servers = [], isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['servers', debounced, provider, status],
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['servers', debounced, provider, status, page, sortField, sortDir],
     queryFn: () =>
       serversApi.list({
         search:   debounced  || undefined,
         provider: provider   || undefined,
         status:   status     || undefined,
+        sort:     sortField,
+        order:    sortDir,
+        limit:    PAGE_SIZE,
+        offset:   (page - 1) * PAGE_SIZE,
       }),
+    placeholderData: keepPreviousData,
   })
+
+  const rows  = data?.items ?? []
+  const total = data?.total ?? 0
 
   const deleteMutation = useMutation({
     mutationFn: serversApi.delete,
@@ -104,23 +113,6 @@ export default function ServerTable({
     },
     onError: () => toast.error('Failed to delete server'),
   })
-
-  const sorted = useMemo(
-    () =>
-      [...servers].sort((a, b) => {
-        const av = (a[sortField] as string | number | undefined) ?? ''
-        const bv = (b[sortField] as string | number | undefined) ?? ''
-        const cmp = av < bv ? -1 : av > bv ? 1 : 0
-        return sortDir === 'asc' ? cmp : -cmp
-      }),
-    [servers, sortField, sortDir],
-  )
-
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE)
-  const rows = useMemo(
-    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [sorted, page],
-  )
 
   function toggleSort(f: SortField) {
     if (sortField === f) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
@@ -218,7 +210,7 @@ export default function ServerTable({
 
         <div style={{ marginLeft: 'auto' }}>
           <Text variant="small" style={{ fontFamily: 'monospace' }}>
-            <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{servers.length}</span> server{servers.length !== 1 ? 's' : ''} found
+            <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{total}</span> server{total !== 1 ? 's' : ''} found
           </Text>
         </div>
 
@@ -231,7 +223,7 @@ export default function ServerTable({
       {/* Manifest header */}
       <div style={{ padding: '8px 24px', borderBottom: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-s2)' }}>
         <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Infrastructure Manifest</span>
-        <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>{sorted.length} NODES</span>
+        <span style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: 'var(--tx3)', letterSpacing: '0.1em' }}>{total} NODES</span>
       </div>
 
       {/* Table */}
@@ -535,77 +527,7 @@ export default function ServerTable({
         </Table>
       </TableContainer>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Flex
-          align="center"
-          justify="between"
-          style={{
-            padding: '12px 24px',
-            borderTop: '1px solid var(--bd)',
-            backgroundColor: 'var(--bg-s1)',
-          }}
-        >
-          <Text variant="small" style={{ fontFamily: 'monospace' }}>
-            Page {page} of {totalPages} · {servers.length} total
-          </Text>
-          <Flex align="center" gap={1}>
-            <Button
-              intent="ghost"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              size="sm"
-              style={{ padding: '6px 12px' }}
-            >
-              Prev
-            </Button>
-            {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
-              const p = i + 1
-              return (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    transition: 'all 150ms ease',
-                    backgroundColor: page === p ? 'var(--ac)' : 'transparent',
-                    color: page === p ? 'var(--btn-primary-fg)' : 'var(--tx2)',
-                  }}
-                  onMouseEnter={e => {
-                    if (page !== p) {
-                      e.currentTarget.style.backgroundColor = 'var(--bg-s3)';
-                      e.currentTarget.style.color = 'var(--tx1)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (page !== p) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'var(--tx2)';
-                    }
-                  }}
-                >
-                  {p}
-                </button>
-              )
-            })}
-            <Button
-              intent="ghost"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              size="sm"
-              style={{ padding: '6px 12px' }}
-            >
-              Next
-            </Button>
-          </Flex>
-        </Flex>
-      )}
+      <Pagination page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
     </Card>
   )
 }

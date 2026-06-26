@@ -1,3 +1,5 @@
+export interface Page<T> { total: number; limit: number; offset: number; items: T[] }
+
 export type Provider = 'aws' | 'gcp' | 'azure' | 'linode' | 'digitalocean' | 'ovh' | 'hivelocity' | 'custom_dc'
 export type ServerStatus = 'running' | 'stopped' | 'terminated' | 'pending' | 'unknown'
 

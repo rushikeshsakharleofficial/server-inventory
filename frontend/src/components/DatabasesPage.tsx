@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search, Database, Map } from 'lucide-react'
 import { databasesApi, getErrorMessage } from '../api'
+import { Pagination } from './Pagination'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import ResourceMapModal from './ResourceMapModal'
@@ -77,12 +78,18 @@ export default function DatabasesPage() {
   const [search, setSearch] = useState('')
   const [provider, setProvider] = useState('')
   const [mapTarget, setMapTarget] = useState<DatabaseInstance | null>(null)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 50
 
-  const { data: databases = [], isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['databases', provider],
-    queryFn: () => databasesApi.list({ provider: provider || undefined }),
+  const { data: dbPage, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['databases', provider, page],
+    queryFn: () => databasesApi.list({ provider: provider || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     refetchInterval: 60_000,
   })
+  const databases = dbPage?.items ?? []
+  const dbTotal   = dbPage?.total ?? 0
+
+  useEffect(() => { setPage(1) }, [provider, search])
 
   const syncMutation = useMutation({
     mutationFn: () => databasesApi.sync(provider || undefined),
@@ -221,7 +228,7 @@ export default function DatabasesPage() {
                   <td colSpan={11} style={{ padding: '80px 24px', textAlign: 'center' }}>
                     <Database size={32} style={{ color: 'var(--tx3)', margin: '0 auto 12px auto', opacity: 0.4 }} />
                     <Text variant="muted">
-                      {databases.length === 0
+                      {dbTotal === 0
                         ? 'No databases found. Click "Sync All" to fetch from cloud providers.'
                         : 'No databases match your filters.'}
                     </Text>
@@ -294,6 +301,7 @@ export default function DatabasesPage() {
             </TBody>
           </Table>
         </TableContainer>
+        <Pagination page={page} total={dbTotal} pageSize={PAGE_SIZE} onPage={setPage} />
       </Card>
 
       {mapTarget && (

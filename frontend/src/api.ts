@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob, DatabaseInstance, KubernetesCluster, BlockStorage } from './types'
+import type { Page, Server, Credential, SyncLog, Stats, SSHCredential, ServerSnapshot, CronJob, DatabaseInstance, KubernetesCluster, BlockStorage } from './types'
 import type { ResourceMap } from './components/ResourceMapModal'
 
 export const http = axios.create({ baseURL: '' })
@@ -22,8 +22,20 @@ http.interceptors.response.use(
 )
 
 export const serversApi = {
-  list: (params?: { provider?: string; status?: string; search?: string }) =>
-    http.get<Server[]>('/api/servers', { params }).then(r => r.data),
+  list: (params?: { provider?: string; status?: string; search?: string; sort?: string; order?: string; limit?: number; offset?: number }) =>
+    http.get<Page<Server>>('/api/servers', { params }).then(r => r.data),
+
+  listAll: async (params?: { provider?: string; status?: string; search?: string }): Promise<Server[]> => {
+    // ponytail: loop only runs >500 rows; one round-trip in the common case
+    const first = await serversApi.list({ ...params, limit: 500, offset: 0 })
+    const all = [...first.items]
+    while (all.length < first.total) {
+      const next = await serversApi.list({ ...params, limit: 500, offset: all.length })
+      if (!next.items.length) break
+      all.push(...next.items)
+    }
+    return all
+  },
 
   stats: () => http.get<Stats>('/api/servers/stats').then(r => r.data),
 
@@ -56,7 +68,8 @@ export const serversApi = {
 }
 
 export const credentialsApi = {
-  list: () => http.get<Credential[]>('/api/credentials').then(r => r.data),
+  list: (params?: { limit?: number; offset?: number }) =>
+    http.get<Page<Credential>>('/api/credentials', { params }).then(r => r.data),
 
   create: (data: { name: string; provider: string; config: Record<string, unknown> }) =>
     http.post<Credential>('/api/credentials', data).then(r => r.data),
@@ -130,24 +143,24 @@ export const resourceMapApi = {
 }
 
 export const databasesApi = {
-  list: (params?: { provider?: string; status?: string; search?: string }): Promise<DatabaseInstance[]> =>
-    http.get<DatabaseInstance[]>('/api/databases', { params }).then(r => r.data),
+  list: (params?: { provider?: string; status?: string; search?: string; limit?: number; offset?: number }): Promise<Page<DatabaseInstance>> =>
+    http.get<Page<DatabaseInstance>>('/api/databases', { params }).then(r => r.data),
 
   sync: (provider?: string): Promise<{ status: string }> =>
     http.post<{ status: string }>('/api/databases/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const kubernetesApi = {
-  list: (params?: { provider?: string; status?: string; search?: string }): Promise<KubernetesCluster[]> =>
-    http.get<KubernetesCluster[]>('/api/kubernetes', { params }).then(r => r.data),
+  list: (params?: { provider?: string; status?: string; search?: string; limit?: number; offset?: number }): Promise<Page<KubernetesCluster>> =>
+    http.get<Page<KubernetesCluster>>('/api/kubernetes', { params }).then(r => r.data),
 
   sync: (provider?: string): Promise<{ status: string }> =>
     http.post<{ status: string }>('/api/kubernetes/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),
 }
 
 export const blockStoragesApi = {
-  list: (params?: { provider?: string; status?: string; search?: string }): Promise<BlockStorage[]> =>
-    http.get<BlockStorage[]>('/api/block-storages', { params }).then(r => r.data),
+  list: (params?: { provider?: string; status?: string; search?: string; limit?: number; offset?: number }): Promise<Page<BlockStorage>> =>
+    http.get<Page<BlockStorage>>('/api/block-storages', { params }).then(r => r.data),
 
   sync: (provider?: string): Promise<{ status: string }> =>
     http.post<{ status: string }>('/api/block-storages/sync', null, { params: provider ? { provider } : {} }).then(r => r.data),

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Trash2, Plus, Cloud, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import Toggle from './Toggle'
 import { credentialsApi, syncApi, getErrorMessage } from '../api'
+import { Pagination } from './Pagination'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import { ProviderLogo } from './ProviderBadge'
@@ -98,11 +99,15 @@ export default function ProvidersPage() {
   const [fields, setFields]           = useState<Record<string, string>>({})
   const [errors, setErrors]           = useState<string[]>([])
   const [visible, setVisible]         = useState<Set<string>>(new Set())
+  const [page, setPage]               = useState(1)
+  const PAGE_SIZE = 50
 
-  const { data: creds = [], isLoading } = useQuery({
-    queryKey: ['credentials'],
-    queryFn: credentialsApi.list,
+  const { data: credsPage, isLoading } = useQuery({
+    queryKey: ['credentials', page],
+    queryFn: () => credentialsApi.list({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
   })
+  const creds = credsPage?.items ?? []
+  const credsTotal = credsPage?.total ?? 0
 
   const createMutation = useMutation({
     mutationFn: credentialsApi.create,
@@ -184,7 +189,7 @@ export default function ProvidersPage() {
         <div>
           <Heading as="h1" style={{ fontStyle: 'normal', fontSize: '20px', letterSpacing: '-0.02em' }}>Cloud Credentials</Heading>
           <Text variant="muted" style={{ marginTop: '4px', fontSize: '12px' }}>
-            {creds.length === 0 ? 'No credentials configured' : `${creds.length} credential${creds.length !== 1 ? 's' : ''}`} (
+            {credsTotal === 0 ? 'No credentials configured' : `${credsTotal} credential${credsTotal !== 1 ? 's' : ''}`} (
             {creds.filter(c => c.is_active).length} active · {creds.filter(c => !c.is_active).length} disabled)
           </Text>
         </div>
@@ -334,7 +339,7 @@ export default function ProvidersPage() {
       )}
 
       {/* Empty state */}
-      {!isLoading && creds.length === 0 && !adding && (
+      {!isLoading && credsTotal === 0 && !adding && (
         <Card style={{ borderStyle: 'dashed', padding: '64px 24px', textAlign: 'center' }}>
           <Cloud size={36} style={{ color: 'var(--tx3)', margin: '0 auto 16px auto', opacity: 0.5 }} />
           <Heading level="h3" style={{ marginBottom: '8px' }}>No cloud providers configured</Heading>
@@ -349,7 +354,7 @@ export default function ProvidersPage() {
       )}
 
       {/* Credentials list table */}
-      {(isLoading || creds.length > 0) && (
+      {(isLoading || credsTotal > 0) && (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           <TableContainer style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
             <Table aria-label="Cloud provider credentials">
@@ -540,6 +545,7 @@ export default function ProvidersPage() {
               </TBody>
             </Table>
           </TableContainer>
+          <Pagination page={page} total={credsTotal} pageSize={PAGE_SIZE} onPage={setPage} />
         </Card>
       )}
     </Flex>

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search, Box, Cpu, Map } from 'lucide-react'
 import { kubernetesApi, getErrorMessage } from '../api'
+import { Pagination } from './Pagination'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
 import ResourceMapModal from './ResourceMapModal'
@@ -44,12 +45,18 @@ export default function KubernetesPage() {
   const [search, setSearch] = useState('')
   const [provider, setProvider] = useState('')
   const [mapTarget, setMapTarget] = useState<KubernetesCluster | null>(null)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 50
 
-  const { data: clusters = [], isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['kubernetes', provider],
-    queryFn: () => kubernetesApi.list({ provider: provider || undefined }),
+  const { data: k8sPage, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['kubernetes', provider, page],
+    queryFn: () => kubernetesApi.list({ provider: provider || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     refetchInterval: 60_000,
   })
+  const clusters = k8sPage?.items ?? []
+  const k8sTotal = k8sPage?.total ?? 0
+
+  useEffect(() => { setPage(1) }, [provider, search])
 
   const syncMutation = useMutation({
     mutationFn: () => kubernetesApi.sync(provider || undefined),
@@ -88,10 +95,10 @@ export default function KubernetesPage() {
       </Flex>
 
       {/* Stats mini row */}
-      {!isLoading && clusters.length > 0 && (
+      {!isLoading && k8sTotal > 0 && (
         <Grid columns={{ '@initial': 2, '@md': 4 }} gap={4}>
           {[
-            { label: 'Total Clusters', value: clusters.length },
+            { label: 'Total Clusters', value: k8sTotal },
             { label: 'Running',  value: clusters.filter(c => c.status === 'running').length,  color: 'var(--sg)' },
             { label: 'Pending',  value: clusters.filter(c => c.status === 'pending').length,  color: 'var(--sy)' },
             { label: 'Total Nodes', value: clusters.reduce((s, c) => s + (c.node_count ?? 0), 0) },
@@ -214,7 +221,7 @@ export default function KubernetesPage() {
                   <td colSpan={9} style={{ padding: '80px 24px', textAlign: 'center' }}>
                     <Box size={32} style={{ color: 'var(--tx3)', margin: '0 auto 12px auto', opacity: 0.4 }} />
                     <Text variant="muted">
-                      {clusters.length === 0
+                      {k8sTotal === 0
                         ? 'No clusters found. Click "Sync All" to fetch from cloud providers.'
                         : 'No clusters match your filters.'}
                     </Text>
@@ -299,6 +306,7 @@ export default function KubernetesPage() {
             </TBody>
           </Table>
         </TableContainer>
+        <Pagination page={page} total={k8sTotal} pageSize={PAGE_SIZE} onPage={setPage} />
       </Card>
 
       {mapTarget && (
