@@ -69,44 +69,46 @@ const ROLE_COLOR: Record<string, string> = {
 
 function navBtnStyle(active: boolean): React.CSSProperties {
   return {
-    width: '100%',
+    width: 'calc(100% - 16px)',
+    margin: '0 8px',
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '0.6rem 16px',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '10px',
-    letterSpacing: '0.10em',
-    textTransform: 'uppercase',
+    gap: '10px',
+    padding: '7px 12px',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    fontSize: '13px',
+    letterSpacing: 0,
+    textTransform: 'none',
     color: active ? 'var(--ac)' : 'var(--tx2)',
-    backgroundColor: active ? 'var(--nav-active-bg)' : 'transparent',
+    backgroundColor: active ? 'rgba(246,130,31,0.12)' : 'transparent',
     border: 'none',
-    borderLeft: active ? '2px solid var(--ac)' : '2px solid transparent',
+    borderRadius: '8px',
     cursor: 'pointer',
     textAlign: 'left',
     outline: 'none',
-    fontWeight: active ? 700 : 400,
-    transition: 'all 150ms ease',
+    fontWeight: active ? 600 : 400,
+    transition: 'all 120ms ease',
   }
 }
 
 function subNavBtnStyle(active: boolean): React.CSSProperties {
   return {
-    width: '100%',
+    width: 'calc(100% - 8px)',
+    margin: '0 4px',
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '0.45rem 12px',
-    fontSize: '13px',
-    borderRadius: '4px',
+    gap: '8px',
+    padding: '6px 10px',
+    fontSize: '12px',
+    borderRadius: '6px',
     color: active ? 'var(--ac)' : 'var(--tx2)',
-    backgroundColor: active ? 'var(--nav-active-bg)' : 'transparent',
+    backgroundColor: active ? 'rgba(246,130,31,0.10)' : 'transparent',
     border: 'none',
     cursor: 'pointer',
     textAlign: 'left',
     outline: 'none',
     fontWeight: active ? 600 : 400,
-    transition: 'all 150ms ease',
+    transition: 'all 120ms ease',
     fontFamily: "'Inter', system-ui, sans-serif",
   }
 }
@@ -121,7 +123,7 @@ function NavBtn({ id, label, Icon, currentView, onViewChange }: {
       style={navBtnStyle(active)}
       onClick={() => onViewChange(id)}
       aria-current={active ? 'page' : undefined}
-      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--bg-s2)' } }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)' } }}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
     >
       <Icon size={15} style={{ flexShrink: 0 }} />
@@ -131,16 +133,15 @@ function NavBtn({ id, label, Icon, currentView, onViewChange }: {
 }
 
 const NAV_SECTION: React.CSSProperties = {
-  padding: '0 16px',
-  marginTop: '16px',
-  marginBottom: '4px',
-  fontSize: '9px',
-  fontFamily: "'JetBrains Mono', monospace",
+  padding: '0 20px',
+  marginTop: '20px',
+  marginBottom: '2px',
+  fontSize: '10px',
+  fontFamily: "'Inter', system-ui, sans-serif",
   fontWeight: 600,
-  letterSpacing: '0.16em',
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: 'var(--tx3)',
-  opacity: 0.7,
 }
 
 export default function Layout({ currentView, onViewChange, onAddServer, children }: LayoutProps) {
@@ -254,10 +255,18 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
         }}
       >
         {/* Logo */}
-        <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ padding: '20px 16px 16px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--bd)' }}>
+          <div style={{
+            width: '34px', height: '34px', borderRadius: '9px', flexShrink: 0,
+            background: 'linear-gradient(135deg, var(--ac) 0%, #c45f0a 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '13px', fontWeight: 800, color: '#fff',
+            fontFamily: "'Inter', system-ui, sans-serif",
+            boxShadow: '0 2px 8px rgba(246,130,31,0.35)',
+          }}>SI</div>
           <div style={{ overflow: 'hidden' }}>
-            <p style={{ fontSize: '15px', fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 800, color: 'var(--ac)', margin: 0, letterSpacing: '-0.015em', lineHeight: 1 }}>ServerInventory</p>
-            <p style={{ fontSize: '8px', color: 'var(--tx3)', fontFamily: "'JetBrains Mono', monospace", margin: '4px 0 0 0', letterSpacing: '0.2em', textTransform: 'uppercase' }}>INFRASTRUCTURE CONSOLE</p>
+            <p style={{ fontSize: '14px', fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 700, color: 'var(--tx1)', margin: 0, letterSpacing: '-0.01em', lineHeight: 1.2 }}>ServerInventory</p>
+            <p style={{ fontSize: '9px', color: 'var(--tx3)', fontFamily: "'JetBrains Mono', monospace", margin: '3px 0 0 0', letterSpacing: '0.12em', textTransform: 'uppercase' }}>INFRA CONSOLE</p>
           </div>
         </div>
 
@@ -270,7 +279,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
           <button
             style={navBtnStyle(isInventoryView)}
             onClick={() => setInventoryOpen(o => !o)}
-            onMouseEnter={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--bg-s2)' } }}
+            onMouseEnter={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)' } }}
             onMouseLeave={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
           >
             <Layers size={15} style={{ flexShrink: 0 }} />
@@ -279,7 +288,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
           </button>
 
           {inventoryOpen && (
-            <div style={{ marginLeft: '16px', borderLeft: '1px solid var(--bd)', paddingLeft: '4px', display: 'flex', flexDirection: 'column', gap: '2px', padding: '2px 0 2px 4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingLeft: '8px' }}>
               {INVENTORY_SUB.map(({ id, label, Icon }) => {
                 const active = currentView === id
                 return (
@@ -288,7 +297,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
                     style={subNavBtnStyle(active)}
                     onClick={() => onViewChange(id)}
                     aria-current={active ? 'page' : undefined}
-                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--bg-s2)' } }}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)' } }}
                     onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
                   >
                     <Icon size={13} style={{ flexShrink: 0 }} />
