@@ -15,11 +15,11 @@ import ProviderBadge from './ProviderBadge'
 import { SkeletonTableRows } from './Skeleton'
 import { Pagination } from './Pagination'
 import type { Server, ServerStatus } from '../types'
+import { Combobox, ComboboxTrigger, ComboboxContent, ComboboxInput, ComboboxList, ComboboxEmpty, ComboboxGroup, ComboboxItem } from './ui/combobox'
 import {
   Card,
   Flex,
   Input,
-  Select,
   Button,
   TableContainer,
   Table,
@@ -43,6 +43,8 @@ const STATUS_CFG: Record<
 
 const PROVIDERS = ['aws','gcp','azure','linode','digitalocean','ovh','hivelocity','custom_dc']
 const STATUSES: ServerStatus[] = ['running','stopped','pending','terminated','unknown']
+const PROVIDER_DATA = [{ label: 'All Providers', value: '' }, ...PROVIDERS.map(p => ({ label: p.replace('_',' ').toUpperCase(), value: p }))]
+const STATUS_DATA   = [{ label: 'All Statuses',  value: '' }, ...STATUSES.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))]
 const PAGE_SIZE = 20
 
 type SortField = keyof Server
@@ -170,33 +172,31 @@ export default function ServerTable({
           />
         </div>
 
-        <Select
-          value={provider}
-          onChange={e => setProvider(e.target.value)}
-          aria-label="Filter by provider"
-          style={{ width: 'auto', minWidth: '150px' }}
-        >
-          <option value="">All Providers</option>
-          {PROVIDERS.map(p => (
-            <option key={p} value={p}>
-              {p.replace('_', ' ').toUpperCase()}
-            </option>
-          ))}
-        </Select>
+        <Combobox data={PROVIDER_DATA} type="provider" value={provider} onValueChange={v => { setProvider(v); setPage(1) }}>
+          <ComboboxTrigger className="min-w-[150px] h-8 text-xs" />
+          <ComboboxContent>
+            <ComboboxInput />
+            <ComboboxList>
+              <ComboboxEmpty />
+              <ComboboxGroup>
+                {PROVIDER_DATA.map(p => <ComboboxItem key={p.value} value={p.value}>{p.label}</ComboboxItem>)}
+              </ComboboxGroup>
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
 
-        <Select
-          value={status}
-          onChange={e => setStatus(e.target.value)}
-          aria-label="Filter by status"
-          style={{ width: 'auto', minWidth: '150px' }}
-        >
-          <option value="">All Statuses</option>
-          {STATUSES.map(s => (
-            <option key={s} value={s}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </option>
-          ))}
-        </Select>
+        <Combobox data={STATUS_DATA} type="status" value={status} onValueChange={v => { setStatus(v); setPage(1) }}>
+          <ComboboxTrigger className="min-w-[150px] h-8 text-xs" />
+          <ComboboxContent>
+            <ComboboxInput />
+            <ComboboxList>
+              <ComboboxEmpty />
+              <ComboboxGroup>
+                {STATUS_DATA.map(s => <ComboboxItem key={s.value} value={s.value}>{s.label}</ComboboxItem>)}
+              </ComboboxGroup>
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
 
         {(search || provider || status) && (
           <Button
