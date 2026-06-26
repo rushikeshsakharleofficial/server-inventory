@@ -71,12 +71,12 @@ export const {
       '3xl': '1.875rem',
     },
     fonts: {
-      sans: "'DM Sans', system-ui, sans-serif",
-      display: "'Cormorant Garamond', Georgia, serif",
+      sans: "'Inter', system-ui, sans-serif",
+      display: "'Inter', system-ui, sans-serif",
     },
     radii: {
       sm: '2px',
-      md: '3px',
+      md: '4px',
       lg: '4px',
       xl: '6px',
       full: '9999px',
@@ -96,13 +96,7 @@ export const {
 });
 
 export const pulseRing = keyframes({
-  '0%': {
-    boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.4)',
-  },
-  '70%': {
-    boxShadow: '0 0 0 6px rgba(34, 197, 94, 0)',
-  },
-  '100%': {
-    boxShadow: '0 0 0 0 rgba(34, 197, 94, 0)',
-  },
+  '0%': { boxShadow: '0 0 0 0 var(--sg-glow)' },
+  '70%': { boxShadow: '0 0 0 6px transparent' },
+  '100%': { boxShadow: '0 0 0 0 transparent' },
 });
