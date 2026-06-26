@@ -467,7 +467,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
           </Flex>
         </header>
 
-        <main style={{ flex: 1, overflow: 'auto', padding: '24px', backgroundColor: 'var(--bg-base)' }} role="main">
+        <main style={{ flex: 1, overflow: 'auto', padding: '24px', backgroundColor: 'var(--bg-base)', backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='98'%3E%3Cpath d='M55.98 34.5l-28-16-28 16v31l28 16 28-16zm-28 42l-24-13.86V38.36l24-13.86 24 13.86v24.28z' fill='%23F6821F' fill-opacity='0.05' stroke='%23F6821F' stroke-opacity='0.2' stroke-width='1'/%3E%3C/svg%3E\")", backgroundSize: '56px 98px' }} role="main">
           {children}
         </main>
       </div>
