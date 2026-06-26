@@ -1,400 +1,342 @@
-import { styled, pulseRing } from '../stitches.config';
+import React from 'react'
 
-// ── Layout & Structure ───────────────────────────────────────────────────────
+const GAP: Record<number, string> = {
+  1: '4px', 2: '8px', 3: '12px', 4: '16px', 5: '20px', 6: '24px', 8: '32px',
+}
 
-export const Flex = styled('div', {
-  display: 'flex',
-  variants: {
-    direction: {
-      row:    { flexDirection: 'row' },
-      column: { flexDirection: 'column' },
-    },
-    align: {
-      start:   { alignItems: 'flex-start' },
-      center:  { alignItems: 'center' },
-      end:     { alignItems: 'flex-end' },
-      stretch: { alignItems: 'stretch' },
-    },
-    justify: {
-      start:   { justifyContent: 'flex-start' },
-      center:  { justifyContent: 'center' },
-      end:     { justifyContent: 'flex-end' },
-      between: { justifyContent: 'space-between' },
-    },
-    gap: {
-      1: { gap: '$1' },
-      2: { gap: '$2' },
-      3: { gap: '$3' },
-      4: { gap: '$4' },
-      5: { gap: '$5' },
-      6: { gap: '$6' },
-      8: { gap: '$8' },
-    },
-    wrap: {
-      true:  { flexWrap: 'wrap' },
-      false: { flexWrap: 'nowrap' },
-    },
-  },
-  defaultVariants: {
-    direction: 'row',
-    align:     'stretch',
-    justify:   'start',
-    wrap:      'false',
-  },
-});
+// ── Layout ───────────────────────────────────────────────────────────────────
 
-export const Grid = styled('div', {
-  display: 'grid',
-  variants: {
-    columns: {
-      1:    { gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' },
-      2:    { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' },
-      3:    { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' },
-      4:    { gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' },
-      auto: { gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' },
-    },
-    gap: {
-      1: { gap: '$1' },
-      2: { gap: '$2' },
-      3: { gap: '$3' },
-      4: { gap: '$4' },
-      5: { gap: '$5' },
-      6: { gap: '$6' },
-      8: { gap: '$8' },
-    },
-  },
-  defaultVariants: {
-    columns: 1,
-    gap: 4,
-  },
-});
+interface FlexProps extends React.HTMLAttributes<HTMLDivElement> {
+  direction?: 'row' | 'column'
+  align?: 'start' | 'center' | 'end' | 'stretch'
+  justify?: 'start' | 'center' | 'end' | 'between'
+  gap?: 1 | 2 | 3 | 4 | 5 | 6 | 8
+  wrap?: boolean | string
+}
+export function Flex({ direction = 'row', align = 'stretch', justify = 'start', gap, wrap, style, ...props }: FlexProps) {
+  const alignMap = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
+  const justifyMap = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between' }
+  const doWrap = wrap === true || wrap === 'true'
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: direction,
+        alignItems: alignMap[align],
+        justifyContent: justifyMap[justify],
+        gap: gap ? GAP[gap] : undefined,
+        flexWrap: doWrap ? 'wrap' : 'nowrap',
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
 
-export const Card = styled('div', {
-  backgroundColor: '$bgS1',
-  border: '1px solid $border',
-  borderRadius: '$lg',
-  boxShadow: '$card',
-  padding: '$5',
-  transition: 'border-color 180ms ease, box-shadow 180ms ease',
-  variants: {
-    hoverable: {
-      true: {
-        '&:hover': {
-          borderColor: '$cardHoverBorder',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.3), 0 0 0 1px var(--ac-bd)',
-        },
-      },
-    },
-    glass: {
-      true: {
-        backgroundColor: '$glassBg',
-        backdropFilter: 'blur(24px) saturate(160%)',
-        webkitBackdropFilter: 'blur(24px) saturate(160%)',
-        border: '1px solid $glassBorder',
-        boxShadow: '$glass',
-      },
-    },
-    modal: {
-      true: {
-        backgroundColor: '$glassBg',
-        backdropFilter: 'blur(24px) saturate(160%)',
-        webkitBackdropFilter: 'blur(24px) saturate(160%)',
-        border: '1px solid $glassBorder',
-        boxShadow: '$modal',
-      },
-    },
-  },
-});
+type ResponsiveColumns = 1 | 2 | 3 | 4 | 'auto' | Record<string, number>
+interface GridProps extends React.HTMLAttributes<HTMLDivElement> {
+  columns?: ResponsiveColumns
+  gap?: 1 | 2 | 3 | 4 | 5 | 6 | 8
+}
+export function Grid({ columns = 1, gap = 4, style, ...props }: GridProps) {
+  const colMap: Record<string | number, string> = {
+    1: 'repeat(1, minmax(0, 1fr))',
+    2: 'repeat(2, minmax(0, 1fr))',
+    3: 'repeat(3, minmax(0, 1fr))',
+    4: 'repeat(4, minmax(0, 1fr))',
+    auto: 'repeat(auto-fit, minmax(280px, 1fr))',
+  }
+  const resolvedCols: string | number = typeof columns === 'object'
+    ? (columns['@initial'] ?? Object.values(columns)[0] ?? 1)
+    : columns
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: colMap[resolvedCols] ?? colMap[1],
+        gap: GAP[gap],
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
+
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  hoverable?: boolean
+  glass?: boolean
+  modal?: boolean
+}
+export function Card({ hoverable, glass, modal, style, ...props }: CardProps) {
+  const isGlass = glass || modal
+  return (
+    <div
+      style={{
+        backgroundColor: isGlass ? 'var(--glass-bg)' : 'var(--bg-s1)',
+        border: `1px solid ${isGlass ? 'var(--glass-bd)' : 'var(--bd)'}`,
+        borderRadius: '4px',
+        boxShadow: modal ? 'var(--shadow-modal)' : isGlass ? 'var(--shadow-glass)' : 'var(--shadow-card)',
+        padding: '20px',
+        transition: 'border-color 180ms ease, box-shadow 180ms ease',
+        backdropFilter: isGlass ? 'blur(24px) saturate(160%)' : undefined,
+        ...(hoverable ? { cursor: 'pointer' } : {}),
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
 
 // ── Typography ───────────────────────────────────────────────────────────────
 
-export const Heading = styled('h2', {
-  fontFamily: '$display',
-  color: '$tx1',
-  margin: 0,
-  fontStyle: 'italic',
-  variants: {
-    level: {
-      h1: { fontSize: '2rem',   fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.1 },
-      h2: { fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.2 },
-      h3: { fontSize: '1.15rem', fontWeight: 600, lineHeight: 1.3 },
-      h4: { fontSize: '1rem',   fontWeight: 600, lineHeight: 1.4 },
-    },
-  },
-  defaultVariants: {
-    level: 'h2',
-  },
-});
-
-export const Text = styled('p', {
-  fontFamily: '$sans',
-  margin: 0,
-  variants: {
-    variant: {
-      body:       { fontSize: '$sm',  color: '$tx1', fontWeight: 400 },
-      muted:      { fontSize: '$sm',  color: '$tx2', fontWeight: 400 },
-      small:      { fontSize: '$xs',  color: '$tx2', fontWeight: 400 },
-      smallMuted: { fontSize: '$xs',  color: '$tx3', fontWeight: 400 },
-      label: {
-        fontSize: '10px',
-        color: '$tx3',
+interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  level?: 'h1' | 'h2' | 'h3' | 'h4'
+  as?: 'h1' | 'h2' | 'h3' | 'h4'
+}
+const HEADING_SIZE = { h1: '2rem', h2: '1.4rem', h3: '1.15rem', h4: '1rem' }
+export function Heading({ level = 'h2', as, style, ...props }: HeadingProps) {
+  const Tag = (as ?? level) as React.ElementType
+  return (
+    <Tag
+      style={{
+        fontFamily: "'Inter', system-ui, sans-serif",
+        color: 'var(--tx1)',
+        margin: 0,
         fontWeight: 600,
-        textTransform: 'uppercase',
-        letterSpacing: '0.10em',
-        fontFamily: "'JetBrains Mono', monospace",
-        fontStyle: 'normal',
-      },
-    },
-  },
-  defaultVariants: {
-    variant: 'body',
-  },
-});
+        fontSize: HEADING_SIZE[level],
+        letterSpacing: '-0.01em',
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
+
+interface TextProps extends React.HTMLAttributes<HTMLParagraphElement> {
+  variant?: 'body' | 'muted' | 'small' | 'smallMuted' | 'label'
+}
+export function Text({ variant = 'body', style, ...props }: TextProps) {
+  const variantStyle: React.CSSProperties =
+    variant === 'body'       ? { fontSize: '14px', color: 'var(--tx1)' } :
+    variant === 'muted'      ? { fontSize: '14px', color: 'var(--tx2)' } :
+    variant === 'small'      ? { fontSize: '12px', color: 'var(--tx2)' } :
+    variant === 'smallMuted' ? { fontSize: '12px', color: 'var(--tx3)' } :
+    /* label */                {
+      fontSize: '10px', color: 'var(--tx3)', fontWeight: 600,
+      textTransform: 'uppercase', letterSpacing: '0.10em',
+      fontFamily: "'JetBrains Mono', monospace",
+    }
+  return <p style={{ margin: 0, fontFamily: "'Inter', system-ui, sans-serif", ...variantStyle, ...style }} {...props} />
+}
 
 // ── Form Elements ────────────────────────────────────────────────────────────
 
-export const Input = styled('input', {
+const INPUT_BASE: React.CSSProperties = {
   width: '100%',
-  backgroundColor: '$bgS2',
-  border: '1px solid $border',
-  borderRadius: '$sm',
+  backgroundColor: 'var(--bg-s2)',
+  border: '1px solid var(--bd)',
+  borderRadius: '4px',
   padding: '0.5rem 0.75rem',
-  fontSize: '$sm',
-  color: '$tx1',
+  fontSize: '14px',
+  color: 'var(--tx1)',
   transition: 'all 150ms ease',
   outline: 'none',
-  fontFamily: '$sans',
-  '&::placeholder': { color: '$tx3' },
-  '&:focus': {
-    borderColor: '$accent',
-    boxShadow: '0 0 0 2px var(--ac-bg)',
-  },
-});
+  fontFamily: "'Inter', system-ui, sans-serif",
+}
 
-export const Select = styled('select', {
-  width: '100%',
-  backgroundColor: '$bgS2',
-  border: '1px solid $border',
-  borderRadius: '$sm',
-  padding: '0.5rem 0.75rem',
-  fontSize: '$sm',
-  color: '$tx1',
-  transition: 'all 150ms ease',
-  outline: 'none',
-  cursor: 'pointer',
-  '&:focus': {
-    borderColor: '$accent',
-    boxShadow: '0 0 0 2px var(--ac-bg)',
-  },
-  '& option': {
-    backgroundColor: 'var(--select-bg)',
-    color: '$tx1',
-  },
-});
+export function Input({ style, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      style={{ ...INPUT_BASE, ...style }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--ac)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--ac-bg)' }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.boxShadow = 'none' }}
+      {...props}
+    />
+  )
+}
 
-export const Textarea = styled('textarea', {
-  width: '100%',
-  backgroundColor: '$bgS2',
-  border: '1px solid $border',
-  borderRadius: '$sm',
-  padding: '0.5rem 0.75rem',
-  fontSize: '$sm',
-  color: '$tx1',
-  transition: 'all 150ms ease',
-  outline: 'none',
-  fontFamily: '$sans',
-  '&::placeholder': { color: '$tx3' },
-  '&:focus': {
-    borderColor: '$accent',
-    boxShadow: '0 0 0 2px var(--ac-bg)',
-  },
-});
+export function Select({ style, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      style={{ ...INPUT_BASE, cursor: 'pointer', ...style }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--ac)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--ac-bg)' }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.boxShadow = 'none' }}
+      {...props}
+    />
+  )
+}
+
+export function Textarea({ style, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      style={{ ...INPUT_BASE, ...style }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--ac)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--ac-bg)' }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.boxShadow = 'none' }}
+      {...props}
+    />
+  )
+}
 
 // ── Buttons ──────────────────────────────────────────────────────────────────
 
-export const Button = styled('button', {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '$2',
-  borderRadius: '$sm',
-  fontSize: '$sm',
-  fontWeight: 600,
-  letterSpacing: '0.02em',
-  transition: 'all 140ms ease',
-  cursor: 'pointer',
-  border: 'none',
-  outline: 'none',
-  fontFamily: '$sans',
-  '&:disabled': {
-    opacity: 0.38,
-    cursor: 'not-allowed',
-  },
-  variants: {
-    intent: {
-      primary: {
-        backgroundColor: '$accent',
-        color: '$btnFg',
-        '&:hover:not(:disabled)': {
-          backgroundColor: '$accentHover',
-          boxShadow: '0 2px 8px var(--ac-glow)',
-        },
-      },
-      secondary: {
-        backgroundColor: '$bgS2',
-        color: '$tx1',
-        border: '1px solid $border',
-        '&:hover:not(:disabled)': {
-          backgroundColor: '$bgS3',
-          borderColor: '$borderStrong',
-        },
-      },
-      danger: {
-        backgroundColor: '$statusRed',
-        color: '#ffffff',
-        '&:hover:not(:disabled)': { opacity: 0.88 },
-      },
-      ghost: {
-        backgroundColor: 'transparent',
-        color: '$tx2',
-        border: '1px solid $border',
-        '&:hover:not(:disabled)': {
-          backgroundColor: '$bgS3',
-          color: '$tx1',
-          borderColor: '$borderStrong',
-        },
-      },
-      glass: {
-        backgroundColor: 'rgba(200, 136, 58, 0.04)',
-        border: '1px solid var(--ac-bd)',
-        color: '$accent',
-        '&:hover:not(:disabled)': {
-          backgroundColor: 'var(--ac-bg)',
-          boxShadow: '0 0 12px var(--ac-glow)',
-        },
-      },
-    },
-    size: {
-      sm: { padding: '0.3rem 0.65rem', fontSize: '$xs' },
-      md: { padding: '0.45rem 0.9rem', fontSize: '$sm' },
-      lg: { padding: '0.65rem 1.4rem', fontSize: '$base' },
-    },
-  },
-  defaultVariants: {
-    intent: 'secondary',
-    size:   'md',
-  },
-});
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  intent?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'glass'
+  size?: 'sm' | 'md' | 'lg'
+}
+export function Button({ intent = 'secondary', size = 'md', style, disabled, ...props }: ButtonProps) {
+  const sizeStyle: React.CSSProperties =
+    size === 'sm' ? { padding: '0.3rem 0.65rem', fontSize: '12px' } :
+    size === 'lg' ? { padding: '0.65rem 1.4rem', fontSize: '16px' } :
+    /* md */        { padding: '0.45rem 0.9rem',  fontSize: '14px' }
+
+  const intentStyle: React.CSSProperties =
+    intent === 'primary'   ? { backgroundColor: 'var(--ac)', color: 'var(--btn-primary-fg)' } :
+    intent === 'danger'    ? { backgroundColor: 'var(--sr)', color: '#fff' } :
+    intent === 'ghost'     ? { backgroundColor: 'transparent', color: 'var(--tx2)', border: '1px solid var(--bd)' } :
+    intent === 'glass'     ? { backgroundColor: 'var(--ac-bg)', border: '1px solid var(--ac-bd)', color: 'var(--ac)' } :
+    /* secondary */          { backgroundColor: 'var(--bg-s2)', color: 'var(--tx1)', border: '1px solid var(--bd)' }
+
+  return (
+    <button
+      disabled={disabled}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        borderRadius: '4px',
+        fontWeight: 600,
+        letterSpacing: '0.02em',
+        transition: 'all 140ms ease',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        border: 'none',
+        outline: 'none',
+        fontFamily: "'Inter', system-ui, sans-serif",
+        opacity: disabled ? 0.38 : 1,
+        ...sizeStyle,
+        ...intentStyle,
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
 
 // ── Badges & Status ──────────────────────────────────────────────────────────
 
-export const Badge = styled('span', {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '0.1rem 0.45rem',
-  borderRadius: '2px',
-  fontSize: '10px',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  fontFamily: "'JetBrains Mono', monospace",
-  variants: {
-    status: {
-      green: {
-        backgroundColor: '$statusGreenBg',
-        color: '$statusGreen',
-        border: '1px solid $statusGreenBorder',
-      },
-      red: {
-        backgroundColor: '$statusRedBg',
-        color: '$statusRed',
-        border: '1px solid $statusRedBorder',
-      },
-      yellow: {
-        backgroundColor: '$statusYellowBg',
-        color: '$statusYellow',
-        border: '1px solid $statusYellowBorder',
-      },
-      gray: {
-        backgroundColor: '$statusGrayBg',
-        color: '$statusGray',
-        border: '1px solid $statusGrayBorder',
-      },
-      primary: {
-        backgroundColor: '$accentBg',
-        color: '$accent',
-        border: '1px solid $accentBorder',
-      },
-    },
-  },
-  defaultVariants: {
-    status: 'gray',
-  },
-});
+interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  status?: 'green' | 'red' | 'yellow' | 'gray' | 'primary'
+}
+export function Badge({ status = 'gray', style, ...props }: BadgeProps) {
+  const statusStyle: React.CSSProperties =
+    status === 'green'   ? { backgroundColor: 'var(--sg-bg)', color: 'var(--sg)', border: '1px solid var(--sg-bd)' } :
+    status === 'red'     ? { backgroundColor: 'var(--sr-bg)', color: 'var(--sr)', border: '1px solid var(--sr-bd)' } :
+    status === 'yellow'  ? { backgroundColor: 'var(--sy-bg)', color: 'var(--sy)', border: '1px solid var(--sy-bd)' } :
+    status === 'primary' ? { backgroundColor: 'var(--ac-bg)', color: 'var(--ac)', border: '1px solid var(--ac-bd)' } :
+    /* gray */             { backgroundColor: 'var(--sgr-bg)', color: 'var(--sgr)', border: '1px solid var(--sgr-bd)' }
 
-export const StatusDot = styled('div', {
-  width: '7px',
-  height: '7px',
-  borderRadius: '$full',
-  flexShrink: 0,
-  variants: {
-    running: {
-      true: {
-        backgroundColor: '$statusGreen',
-        animation: `${pulseRing} 2.5s ease-in-out infinite`,
-      },
-      false: {
-        backgroundColor: '$statusGray',
-      },
-    },
-  },
-});
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0.1rem 0.45rem',
+        borderRadius: '2px',
+        fontSize: '10px',
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        fontFamily: "'JetBrains Mono', monospace",
+        ...statusStyle,
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
+
+interface StatusDotProps extends React.HTMLAttributes<HTMLDivElement> {
+  running?: boolean
+}
+export function StatusDot({ running, style, ...props }: StatusDotProps) {
+  return (
+    <div
+      style={{
+        width: '7px',
+        height: '7px',
+        borderRadius: '50%',
+        flexShrink: 0,
+        backgroundColor: running ? 'var(--sg)' : 'var(--sgr)',
+        animation: running ? 'pulse-ring 2.5s ease-in-out infinite' : undefined,
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
 
 // ── Tables ───────────────────────────────────────────────────────────────────
 
-export const TableContainer = styled('div', {
-  width: '100%',
-  overflowX: 'auto',
-  borderRadius: '$lg',
-  border: '1px solid $border',
-  boxShadow: '$card',
-  backgroundColor: '$bgS1',
-});
+export function TableContainer({ style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      style={{
+        width: '100%',
+        overflowX: 'auto',
+        borderRadius: '4px',
+        border: '1px solid var(--bd)',
+        boxShadow: 'var(--shadow-card)',
+        backgroundColor: 'var(--bg-s1)',
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
 
-export const Table = styled('table', {
-  width: '100%',
-  borderCollapse: 'collapse',
-  textAlign: 'left',
-});
+export function Table({ style, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
+  return <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', ...style }} {...props} />
+}
 
-export const THead = styled('thead', {
-  backgroundColor: '$bgS2',
-  borderBottom: '1px solid $border',
-});
+export function THead({ style, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return <thead style={{ backgroundColor: 'var(--bg-s2)', borderBottom: '1px solid var(--bd)', ...style }} {...props} />
+}
 
-export const TH = styled('th', {
-  padding: '0.625rem 1.25rem',
-  fontSize: '10px',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.12em',
-  color: '$tx3',
-  whiteSpace: 'nowrap',
-  fontFamily: "'JetBrains Mono', monospace",
-});
+export function TH({ style, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
+  return (
+    <th
+      style={{
+        padding: '0.625rem 1.25rem',
+        fontSize: '10px',
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.10em',
+        color: 'var(--tx3)',
+        whiteSpace: 'nowrap',
+        fontFamily: "'JetBrains Mono', monospace",
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
 
-export const TBody = styled('tbody', {
-  '& tr': {
-    borderBottom: '1px solid $border',
-    transition: 'background-color 120ms ease',
-    '&:hover': { backgroundColor: '$bgS2' },
-    '&:last-child': { borderBottom: 'none' },
-  },
-});
+export function TBody({ style, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return <tbody style={style} {...props} />
+}
 
-export const TD = styled('td', {
-  padding: '0.75rem 1.25rem',
-  fontSize: '$sm',
-  color: '$tx1',
-});
+export function TD({ style, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
+  return (
+    <td
+      style={{
+        padding: '0.75rem 1.25rem',
+        fontSize: '14px',
+        color: 'var(--tx1)',
+        borderBottom: '1px solid var(--bd)',
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}

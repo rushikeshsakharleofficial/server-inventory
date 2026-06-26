@@ -12,7 +12,6 @@ import { useAuth } from '../hooks/useAuth'
 import { useWebSocket, type SyncEvent } from '../hooks/useWebSocket'
 import ThemeToggle from './ThemeToggle'
 import type { View } from '../types'
-import { styled } from '../stitches.config'
 import { Flex, Button, Heading } from './StitchUI'
 
 interface LayoutProps {
@@ -25,11 +24,11 @@ interface LayoutProps {
 const INVENTORY_VIEWS: View[] = ['servers', 'databases', 'kubernetes', 'block_storage', 'ips']
 
 const INVENTORY_SUB: { id: View; label: string; Icon: React.ElementType }[] = [
-  { id: 'servers',       label: 'Servers',       Icon: Server      },
-  { id: 'databases',     label: 'Databases',     Icon: Database    },
-  { id: 'kubernetes',    label: 'Kubernetes',    Icon: Box         },
-  { id: 'block_storage', label: 'Block Storage', Icon: HardDrive   },
-  { id: 'ips',           label: 'IP Addresses',  Icon: Network     },
+  { id: 'servers',       label: 'Servers',       Icon: Server    },
+  { id: 'databases',     label: 'Databases',     Icon: Database  },
+  { id: 'kubernetes',    label: 'Kubernetes',    Icon: Box       },
+  { id: 'block_storage', label: 'Block Storage', Icon: HardDrive },
+  { id: 'ips',           label: 'IP Addresses',  Icon: Network   },
 ]
 
 const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
@@ -63,54 +62,76 @@ const ROLE_ICON: Record<string, React.ElementType> = {
 }
 
 const ROLE_COLOR: Record<string, string> = {
-  admin: '#6366F1',
+  admin: '#F6821F',
   write: '#4285F4',
-  read:  '#8B8AAE',
+  read:  '#6B7280',
 }
 
-// ── Stitches Styled Shell ──────────────────────────────────────────────────
+function navBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '0.6rem 16px',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '10px',
+    letterSpacing: '0.10em',
+    textTransform: 'uppercase',
+    color: active ? 'var(--ac)' : 'var(--tx2)',
+    backgroundColor: active ? 'var(--nav-active-bg)' : 'transparent',
+    border: 'none',
+    borderLeft: active ? '2px solid var(--ac)' : '2px solid transparent',
+    cursor: 'pointer',
+    textAlign: 'left',
+    outline: 'none',
+    fontWeight: active ? 700 : 400,
+    transition: 'all 150ms ease',
+  }
+}
 
-const Container = styled('div', {
-  display: 'flex',
-  height: '100vh',
-  backgroundColor: '$bgBase',
-  overflow: 'hidden',
-});
+function subNavBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '0.45rem 12px',
+    fontSize: '13px',
+    borderRadius: '4px',
+    color: active ? 'var(--ac)' : 'var(--tx2)',
+    backgroundColor: active ? 'var(--nav-active-bg)' : 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    textAlign: 'left',
+    outline: 'none',
+    fontWeight: active ? 600 : 400,
+    transition: 'all 150ms ease',
+    fontFamily: "'Inter', system-ui, sans-serif",
+  }
+}
 
-const Sidebar = styled('aside', {
-  display: 'flex',
-  flexDirection: 'column',
-  flexShrink: 0,
-  borderRight: '1px solid $border',
-  transition: 'width 200ms ease',
-  background: 'linear-gradient(180deg, var(--sidebar-from) 0%, var(--sidebar-to) 100%)',
-  variants: {
-    open: {
-      true: { width: '240px' },
-      false: { width: '0px', overflow: 'hidden', borderRight: 'none' },
-    },
-  },
-});
+function NavBtn({ id, label, Icon, currentView, onViewChange }: {
+  id: View; label: string; Icon: React.ElementType
+  currentView: View; onViewChange: (v: View) => void
+}) {
+  const active = currentView === id
+  return (
+    <button
+      style={navBtnStyle(active)}
+      onClick={() => onViewChange(id)}
+      aria-current={active ? 'page' : undefined}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--bg-s2)' } }}
+      onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
+    >
+      <Icon size={15} style={{ flexShrink: 0 }} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+    </button>
+  )
+}
 
-const LogoContainer = styled('div', {
-  padding: '$6',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$3',
-});
-
-
-const NavContainer = styled('nav', {
-  flex: 1,
-  padding: '0.75rem 0',
-  overflowY: 'auto',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '1px',
-});
-
-const NavSection = styled('div', {
-  padding: '0 $4',
+const NAV_SECTION: React.CSSProperties = {
+  padding: '0 16px',
   marginTop: '16px',
   marginBottom: '4px',
   fontSize: '9px',
@@ -120,128 +141,20 @@ const NavSection = styled('div', {
   textTransform: 'uppercase',
   color: 'var(--tx3)',
   opacity: 0.7,
-  '&:first-child': { marginTop: '4px' },
-});
+}
 
-const NavButton = styled('button', {
-  width: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$3',
-  padding: '0.625rem $4',
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: '10px',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  color: '$tx2',
-  backgroundColor: 'transparent',
-  border: 'none',
-  borderLeft: '2px solid transparent',
-  transition: 'all 150ms ease',
-  cursor: 'pointer',
-  textAlign: 'left',
-  outline: 'none',
-  '&:hover': {
-    color: '$accent',
-    backgroundColor: '$navActiveBg',
-  },
-  variants: {
-    active: {
-      true: {
-        color: '$accent',
-        fontWeight: 700,
-        borderLeftColor: '$accent',
-        backgroundColor: '$navActiveBg',
-      },
-    },
-  },
-});
-
-const SubNavContainer = styled('div', {
-  marginLeft: '$4',
-  borderLeft: '1px solid $border',
-  paddingLeft: '0.25rem',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px',
-  paddingTop: '2px',
-  paddingBottom: '2px',
-});
-
-const SubNavButton = styled('button', {
-  width: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$3',
-  padding: '0.5rem $3',
-  fontSize: '13px',
-  borderRadius: '$md',
-  color: '$tx2',
-  backgroundColor: 'transparent',
-  border: 'none',
-  transition: 'all 150ms ease',
-  cursor: 'pointer',
-  textAlign: 'left',
-  outline: 'none',
-  '&:hover': {
-    color: '$accent',
-    backgroundColor: '$navActiveBg',
-  },
-  variants: {
-    active: {
-      true: {
-        color: '$accent',
-        fontWeight: 700,
-        backgroundColor: '$navActiveBg',
-      },
-    },
-  },
-});
-
-const SidebarFooter = styled('div', {
-  paddingBottom: '$4',
-  borderTop: '1px solid $border',
-  paddingTop: '$2',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px',
-});
-
-const MainArea = styled('div', {
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  minWidth: 0,
-  overflow: 'hidden',
-});
-
-const Header = styled('header', {
-  height: '54px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '0 $5',
-  borderBottom: '1px solid $border',
-  backgroundColor: '$headerBg',
-  backdropFilter: 'blur(20px)',
-  webkitBackdropFilter: 'blur(20px)',
-  flexShrink: 0,
-});
-
-export default function Layout({
-  currentView, onViewChange, onAddServer, children,
-}: LayoutProps) {
+export default function Layout({ currentView, onViewChange, onAddServer, children }: LayoutProps) {
   const [open, setOpen] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= 768 : true
   )
   useEffect(() => {
     function handleResize() {
-      if (window.innerWidth < 768) setOpen(false)
-      else setOpen(true)
+      setOpen(window.innerWidth >= 768)
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
   const isInventoryView = INVENTORY_VIEWS.includes(currentView)
   const [inventoryOpen, setInventoryOpen] = useState(() => INVENTORY_VIEWS.includes(currentView))
   const qc = useQueryClient()
@@ -254,7 +167,6 @@ export default function Layout({
   const [activeSyncs, setActiveSyncs] = useState<Map<number, string>>(new Map())
   const [syncStatus, setSyncStatus]   = useState<'idle' | 'done' | 'error'>('idle')
   const [syncSummary, setSyncSummary] = useState('')
-
   const isSyncing = activeSyncs.size > 0
 
   const handleWsEvent = useCallback((event: SyncEvent) => {
@@ -264,31 +176,18 @@ export default function Layout({
         if (s.status === 'running') m.set(s.log_id, s.provider ?? 'unknown')
       }
       setActiveSyncs(m)
-
     } else if (event.type === 'sync_started') {
       setActiveSyncs(prev => new Map(prev).set(event.log_id!, event.provider ?? 'unknown'))
       setSyncStatus('idle')
       setSyncSummary('')
-
     } else if (event.type === 'sync_stopped') {
-      setActiveSyncs(prev => {
-        const next = new Map(prev)
-        next.delete(event.log_id!)
-        return next
-      })
+      setActiveSyncs(prev => { const next = new Map(prev); next.delete(event.log_id!); return next })
       setSyncStatus('idle')
       qc.invalidateQueries({ queryKey: ['sync-logs'] })
-
     } else if (event.type === 'sync_progress') {
       setSyncSummary(`${event.provider?.toUpperCase()} ${event.processed}/${event.total}`)
-
     } else if (event.type === 'sync_complete') {
-      setActiveSyncs(prev => {
-        const next = new Map(prev)
-        next.delete(event.log_id!)
-        return next
-      })
-
+      setActiveSyncs(prev => { const next = new Map(prev); next.delete(event.log_id!); return next })
       if (event.status === 'success') {
         const added   = event.servers_added   ?? 0
         const updated = event.servers_updated ?? 0
@@ -304,21 +203,15 @@ export default function Layout({
         toast.error(`Sync failed: ${event.error_message ?? 'unknown error'}`)
       }
       setTimeout(() => setSyncStatus('idle'), 5000)
-
     } else if (event.type === 'server_status_changed') {
       const prev = event.old_status ?? ''
       const next = event.new_status ?? ''
       const name = event.server_name ?? 'Server'
-      if (next === 'running' && prev !== 'running') {
-        toast.success(`${name} → online`)
-      } else if ((next === 'stopped' || next === 'terminated') && prev === 'running') {
-        toast.error(`${name} → offline`)
-      }
+      if (next === 'running' && prev !== 'running') toast.success(`${name} → online`)
+      else if ((next === 'stopped' || next === 'terminated') && prev === 'running') toast.error(`${name} → offline`)
       qc.invalidateQueries({ queryKey: ['servers'] })
       qc.invalidateQueries({ queryKey: ['stats']   })
     }
-
-    // Broadcast all WS events to window so any component can subscribe
     window.dispatchEvent(new CustomEvent('ws:server-event', { detail: event }))
   }, [qc, toast])
 
@@ -328,9 +221,9 @@ export default function Layout({
     mutationFn: () => syncApi.trigger(),
     onError: (error: unknown) => {
       setSyncStatus('error')
-      const errorMsg = getErrorMessage(error)
-      setSyncSummary(`Failed to start sync: ${errorMsg}`)
-      toast.error(`Sync failed: ${errorMsg}`)
+      const msg = getErrorMessage(error)
+      setSyncSummary(`Failed to start sync: ${msg}`)
+      toast.error(`Sync failed: ${msg}`)
       setTimeout(() => setSyncStatus('idle'), 3000)
     },
   })
@@ -342,117 +235,91 @@ export default function Layout({
   })
 
   const RoleIcon = user ? (ROLE_ICON[user.role] ?? Eye) : Eye
-  const roleColor = user ? (ROLE_COLOR[user.role] ?? '#8B8AAE') : '#8B8AAE'
+  const roleColor = user ? (ROLE_COLOR[user.role] ?? '#6B7280') : '#6B7280'
 
   return (
-    <Container>
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-base)', overflow: 'hidden' }}>
       {/* ── Sidebar ── */}
-      <Sidebar open={open} aria-label="Sidebar navigation">
+      <aside
+        aria-label="Sidebar navigation"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+          width: open ? '220px' : '0px',
+          overflow: open ? undefined : 'hidden',
+          borderRight: open ? '1px solid var(--bd)' : 'none',
+          transition: 'width 200ms ease',
+          backgroundColor: 'var(--bg-base)',
+        }}
+      >
         {/* Logo */}
-        <LogoContainer>
-          <div className="overflow-hidden">
-            <p style={{ fontSize: '15px', fontFamily: "'DM Sans', system-ui, sans-serif", fontStyle: 'normal', fontWeight: 800, color: 'var(--ac)', margin: 0, letterSpacing: '-0.015em', lineHeight: 1 }}>ServerInventory</p>
+        <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ overflow: 'hidden' }}>
+            <p style={{ fontSize: '15px', fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 800, color: 'var(--ac)', margin: 0, letterSpacing: '-0.015em', lineHeight: 1 }}>ServerInventory</p>
             <p style={{ fontSize: '8px', color: 'var(--tx3)', fontFamily: "'JetBrains Mono', monospace", margin: '4px 0 0 0', letterSpacing: '0.2em', textTransform: 'uppercase' }}>INFRASTRUCTURE CONSOLE</p>
           </div>
-        </LogoContainer>
+        </div>
 
         {/* Nav */}
-        <NavContainer role="navigation">
-          {/* ── Main ── */}
-          <NavSection>Main</NavSection>
-          <NavButton
-            onClick={() => onViewChange('dashboard')}
-            active={currentView === 'dashboard'}
-            aria-current={currentView === 'dashboard' ? 'page' : undefined}
+        <nav role="navigation" style={{ flex: 1, padding: '0.75rem 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          <div style={{ ...NAV_SECTION, marginTop: '4px' }}>Main</div>
+          <NavBtn id="dashboard" label="Dashboard" Icon={LayoutDashboard} currentView={currentView} onViewChange={onViewChange} />
+
+          <div style={NAV_SECTION}>Inventory</div>
+          <button
+            style={navBtnStyle(isInventoryView)}
+            onClick={() => setInventoryOpen(o => !o)}
+            onMouseEnter={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--bg-s2)' } }}
+            onMouseLeave={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
           >
-            <LayoutDashboard size={15} className="shrink-0" />
-            <span className="truncate">Dashboard</span>
-          </NavButton>
+            <Layers size={15} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All Resources</span>
+            <ChevronDown size={12} style={{ flexShrink: 0, transition: 'transform 150ms', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+          </button>
 
-          {/* ── Inventory group ── */}
-          <NavSection>Inventory</NavSection>
-          <div>
-            <NavButton
-              onClick={() => setInventoryOpen(o => !o)}
-              active={isInventoryView}
-            >
-              <Layers size={15} className="shrink-0" />
-              <span className="flex-1 text-left truncate">All Resources</span>
-              <ChevronDown
-                size={12}
-                className={`shrink-0 transition-transform duration-150 ${inventoryOpen ? 'rotate-180' : ''}`}
-              />
-            </NavButton>
-
-            {inventoryOpen && (
-              <SubNavContainer>
-                {INVENTORY_SUB.map(({ id, label, Icon }) => (
-                  <SubNavButton
+          {inventoryOpen && (
+            <div style={{ marginLeft: '16px', borderLeft: '1px solid var(--bd)', paddingLeft: '4px', display: 'flex', flexDirection: 'column', gap: '2px', padding: '2px 0 2px 4px' }}>
+              {INVENTORY_SUB.map(({ id, label, Icon }) => {
+                const active = currentView === id
+                return (
+                  <button
                     key={id}
+                    style={subNavBtnStyle(active)}
                     onClick={() => onViewChange(id)}
-                    active={currentView === id}
-                    aria-current={currentView === id ? 'page' : undefined}
+                    aria-current={active ? 'page' : undefined}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--bg-s2)' } }}
+                    onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
                   >
-                    <Icon size={13} className="shrink-0" />
-                    <span className="truncate">{label}</span>
-                  </SubNavButton>
-                ))}
-              </SubNavContainer>
-            )}
-          </div>
+                    <Icon size={13} style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
-          {/* ── Operations ── */}
-          <NavSection>Operations</NavSection>
+          <div style={NAV_SECTION}>Operations</div>
           {NAV.slice(0, 4).map(({ id, label, Icon }) => (
-            <NavButton
-              key={id}
-              onClick={() => onViewChange(id)}
-              active={currentView === id}
-              aria-current={currentView === id ? 'page' : undefined}
-            >
-              <Icon size={15} className="shrink-0" />
-              <span className="truncate">{label}</span>
-            </NavButton>
+            <NavBtn key={id} id={id} label={label} Icon={Icon} currentView={currentView} onViewChange={onViewChange} />
           ))}
 
-          {/* ── Config ── */}
-          <NavSection>Config</NavSection>
+          <div style={NAV_SECTION}>Config</div>
           {NAV.slice(4).map(({ id, label, Icon }) => (
-            <NavButton
-              key={id}
-              onClick={() => onViewChange(id)}
-              active={currentView === id}
-              aria-current={currentView === id ? 'page' : undefined}
-            >
-              <Icon size={15} className="shrink-0" />
-              <span className="truncate">{label}</span>
-            </NavButton>
+            <NavBtn key={id} id={id} label={label} Icon={Icon} currentView={currentView} onViewChange={onViewChange} />
           ))}
-        </NavContainer>
+        </nav>
 
         {/* Footer */}
-        <SidebarFooter>
+        <div style={{ paddingBottom: '16px', borderTop: '1px solid var(--bd)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {isAdmin && (
             <>
-              <NavSection style={{ marginTop: '8px' }}>Account</NavSection>
-              <NavButton
-                onClick={() => onViewChange('users')}
-                active={currentView === 'users'}
-              >
-                <Users size={15} className="shrink-0" />
-                <span className="truncate">Manage Users</span>
-              </NavButton>
-              <NavButton
-                onClick={() => onViewChange('setup')}
-                active={currentView === 'setup'}
-              >
-                <SlidersHorizontal size={15} className="shrink-0" />
-                <span className="truncate">Admin Setup</span>
-              </NavButton>
+              <div style={{ ...NAV_SECTION, marginTop: '8px' }}>Account</div>
+              <NavBtn id="users" label="Manage Users" Icon={Users} currentView={currentView} onViewChange={onViewChange} />
+              <NavBtn id="setup" label="Admin Setup" Icon={SlidersHorizontal} currentView={currentView} onViewChange={onViewChange} />
             </>
           )}
 
-          {/* User card */}
           {user && (
             <div style={{
               margin: '8px 12px 4px',
@@ -464,7 +331,6 @@ export default function Layout({
               alignItems: 'center',
               gap: '10px',
             }}>
-              {/* Avatar initials */}
               <div style={{
                 width: '28px', height: '28px',
                 borderRadius: '6px',
@@ -476,7 +342,7 @@ export default function Layout({
                 <RoleIcon size={13} style={{ color: roleColor }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--tx1)', fontFamily: "'DM Sans', system-ui, sans-serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--tx1)', fontFamily: "'Inter', system-ui, sans-serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user.username}
                 </p>
                 <p style={{ margin: 0, fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", color: roleColor, letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.85 }}>
@@ -487,12 +353,7 @@ export default function Layout({
                 onClick={logout}
                 aria-label="Sign out"
                 title="Sign out"
-                style={{
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  padding: '4px', borderRadius: '4px', display: 'flex',
-                  alignItems: 'center', color: 'var(--tx3)', flexShrink: 0,
-                  transition: 'color 150ms ease',
-                }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', color: 'var(--tx3)', flexShrink: 0, transition: 'color 150ms ease' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--sr)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--tx3)' }}
               >
@@ -500,56 +361,43 @@ export default function Layout({
               </button>
             </div>
           )}
-        </SidebarFooter>
-      </Sidebar>
+        </div>
+      </aside>
 
       {/* ── Main ── */}
-      <MainArea>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         {/* Header */}
-        <Header>
+        <header style={{
+          height: '54px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px',
+          borderBottom: '1px solid var(--bd)',
+          backgroundColor: 'var(--header-bg)',
+          backdropFilter: 'blur(20px)',
+          flexShrink: 0,
+        }}>
           <Flex align="center" gap={3}>
             <button
               onClick={() => setOpen(o => !o)}
               aria-label={open ? 'Close sidebar' : 'Open sidebar'}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                color: 'var(--tx2)',
-                transition: 'all 150ms ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                e.currentTarget.style.color = 'var(--tx1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = 'var(--tx2)';
-              }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', color: 'var(--tx2)', transition: 'all 150ms ease' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-s2)'; e.currentTarget.style.color = 'var(--tx1)' }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--tx2)' }}
             >
               {open ? <X size={17} /> : <Menu size={17} />}
             </button>
-            <Heading as="h1" style={{ fontSize: '15px', color: 'var(--tx1)' }}>
+            <Heading as="h1" style={{ fontSize: '15px', color: 'var(--tx1)', fontStyle: 'normal' }}>
               {VIEW_TITLE[currentView]}
             </Heading>
           </Flex>
 
           <Flex align="center" gap={2}>
-            {/* WS connection indicator */}
             <div
               title={isConnected ? 'Live — WebSocket connected' : 'Reconnecting…'}
-              style={{
-                width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
-                backgroundColor: isConnected ? 'var(--sg)' : 'var(--sy)',
-                boxShadow: isConnected ? '0 0 6px var(--sg-glow)' : 'none',
-                transition: 'all 300ms ease',
-              }}
+              style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, backgroundColor: isConnected ? 'var(--sg)' : 'var(--sy)', boxShadow: isConnected ? '0 0 6px var(--sg-glow)' : 'none', transition: 'all 300ms ease' }}
             />
-            {/* Role badge */}
             {user && (
               <div
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium"
@@ -562,7 +410,6 @@ export default function Layout({
 
             <ThemeToggle />
 
-            {/* Action buttons */}
             {currentView === 'servers' && canWrite && (
               <Button intent="primary" onClick={onAddServer}>
                 <Plus size={14} />
@@ -572,7 +419,6 @@ export default function Layout({
 
             {canWrite && (
               <Flex align="center" gap={2}>
-                {/* Live sync status pill */}
                 {(syncStatus !== 'idle' || (isSyncing && syncSummary !== '')) && (
                   <div
                     className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono max-w-[220px] truncate"
@@ -590,7 +436,6 @@ export default function Layout({
                   </div>
                 )}
 
-                {/* Stop sync button */}
                 {isSyncing && (
                   <Button
                     intent="ghost"
@@ -619,16 +464,13 @@ export default function Layout({
                 </Button>
               </Flex>
             )}
-
           </Flex>
-        </Header>
+        </header>
 
-        {/* Content */}
         <main style={{ flex: 1, overflow: 'auto', padding: '24px', backgroundColor: 'var(--bg-base)' }} role="main">
           {children}
         </main>
-      </MainArea>
-    </Container>
+      </div>
+    </div>
   )
 }
-
