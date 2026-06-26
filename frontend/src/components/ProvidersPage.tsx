@@ -5,7 +5,7 @@ import Toggle from './Toggle'
 import { credentialsApi, syncApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
 import ProviderBadge from './ProviderBadge'
-import ProviderLogo from './ProviderLogo'
+import { ProviderLogo } from './ProviderBadge'
 import type { Provider } from '../types'
 import {
   Card,
