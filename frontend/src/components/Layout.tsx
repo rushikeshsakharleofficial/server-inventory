@@ -10,9 +10,7 @@ import { syncApi, getErrorMessage } from '../api'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuth'
 import { useWebSocket, type SyncEvent } from '../hooks/useWebSocket'
-import ThemeToggle from './ThemeToggle'
 import { DotPattern } from './DotPattern'
-import { useTheme } from '../hooks/useTheme'
 import type { View } from '../types'
 import { Flex, Button, Heading } from './StitchUI'
 
@@ -239,8 +237,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
 
   const RoleIcon = user ? (ROLE_ICON[user.role] ?? Eye) : Eye
   const roleColor = user ? (ROLE_COLOR[user.role] ?? '#6B7280') : '#6B7280'
-  const { theme } = useTheme()
-  const dotBase  = theme === 'light' ? '#C0C0C0' : '#383838'
+  const dotBase = '#C8C8C8'
 
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-base)', overflow: 'hidden', position: 'relative' }}>
@@ -421,8 +418,6 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
                 <span className="font-mono">{user.username}</span>
               </div>
             )}
-
-            <ThemeToggle />
 
             {currentView === 'servers' && canWrite && (
               <Button intent="primary" onClick={onAddServer}>

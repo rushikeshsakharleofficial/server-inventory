@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from './hooks/useToast'
-import { ThemeProvider } from './hooks/useTheme'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import ToastContainer from './components/Toast'
 import LoginPage from './components/LoginPage'
@@ -249,18 +248,16 @@ function AppContent() {
 export default function App() {
   return (
     <>
-      <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <QueryClientProvider client={queryClient}>
-              <ErrorBoundary>
-                <AppContent />
-              </ErrorBoundary>
-            </QueryClientProvider>
-          </AuthProvider>
-          <ToastContainer />
-        </ToastProvider>
-      </ThemeProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <ErrorBoundary>
+              <AppContent />
+            </ErrorBoundary>
+          </QueryClientProvider>
+        </AuthProvider>
+        <ToastContainer />
+      </ToastProvider>
       <GooeyFilter />
     </>
   )
