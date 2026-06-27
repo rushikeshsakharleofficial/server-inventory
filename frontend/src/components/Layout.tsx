@@ -125,7 +125,7 @@ function NavBtn({ id, label, Icon, currentView, onViewChange }: {
       style={navBtnStyle(active)}
       onClick={() => onViewChange(id)}
       aria-current={active ? 'page' : undefined}
-      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)' } }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--nav-hover-bg)' } }}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
     >
       <Icon size={15} style={{ flexShrink: 0 }} />
@@ -284,7 +284,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
           <button
             style={navBtnStyle(isInventoryView)}
             onClick={() => setInventoryOpen(o => !o)}
-            onMouseEnter={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)' } }}
+            onMouseEnter={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--nav-hover-bg)' } }}
             onMouseLeave={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
           >
             <Layers size={15} style={{ flexShrink: 0 }} />
@@ -302,7 +302,7 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
                     style={subNavBtnStyle(active)}
                     onClick={() => onViewChange(id)}
                     aria-current={active ? 'page' : undefined}
-                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)' } }}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--nav-hover-bg)' } }}
                     onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
                   >
                     <Icon size={13} style={{ flexShrink: 0 }} />
