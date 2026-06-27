@@ -311,8 +311,8 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
           {/* ── CONNECTIONS ── */}
           <div style={{ margin: '8px 0 2px', borderTop: '1px solid var(--bd)' }} />
           <div style={NAV_SECTION}>Connections</div>
-          <NavBtn id="providers" label="Cloud Providers" Icon={Cloud}     currentView={currentView} onViewChange={onViewChange} />
-          <NavBtn id="ssh"       label="SSH Keys"        Icon={Terminal}  currentView={currentView} onViewChange={onViewChange} />
+          <NavBtn id="providers" label="Providers"  Icon={Cloud}    currentView={currentView} onViewChange={onViewChange} />
+          <NavBtn id="ssh"       label="SSH Keys"  Icon={Terminal} currentView={currentView} onViewChange={onViewChange} />
 
           {/* Monitoring dropdown */}
           <button
@@ -346,9 +346,9 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
           {/* ── SYSTEM ── */}
           <div style={{ margin: '8px 0 2px', borderTop: '1px solid var(--bd)' }} />
           <div style={NAV_SECTION}>System</div>
-          {isAdmin && <NavBtn id="users" label="Manage Users" Icon={Users}            currentView={currentView} onViewChange={onViewChange} />}
-          <NavBtn              id="settings" label="Settings"  Icon={SlidersHorizontal} currentView={currentView} onViewChange={onViewChange} />
-          {isAdmin && <NavBtn id="setup"  label="Admin Setup" Icon={Square}            currentView={currentView} onViewChange={onViewChange} />}
+          {isAdmin && <NavBtn id="users"    label="Users"    Icon={Users}             currentView={currentView} onViewChange={onViewChange} />}
+          <NavBtn              id="settings" label="Settings" Icon={SlidersHorizontal} currentView={currentView} onViewChange={onViewChange} />
+          {isAdmin && <NavBtn id="setup"    label="Setup"    Icon={Square}            currentView={currentView} onViewChange={onViewChange} />}
         </nav>
 
         {/* Footer */}
