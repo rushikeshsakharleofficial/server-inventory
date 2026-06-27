@@ -5,10 +5,6 @@ import { serversApi, sshCredentialsApi } from '../api'
 import { useToast } from '../hooks/useToast'
 import type { Server } from '../types'
 import ProviderBadge from './ProviderBadge'
-import {
-  Card, Flex, Text, Input, Select, Button,
-  TableContainer, Table, THead, TH, TBody, TD,
-} from './StitchUI'
 
 interface IpRow {
   ip: string
@@ -40,16 +36,44 @@ function isPrivateIp(ip: string): boolean {
   )
 }
 
+const cardSt: React.CSSProperties = {
+  background: 'var(--bg-base)',
+  border: '1px solid var(--bd)',
+  borderRadius: 12,
+  boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+}
+
+const thSt: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  color: 'var(--tx3)',
+  padding: '10px 16px',
+  background: 'var(--bg-s1)',
+  borderBottom: '1px solid var(--bd)',
+  textAlign: 'left',
+  fontFamily: 'Inter, sans-serif',
+  whiteSpace: 'nowrap',
+}
+
+const tdSt: React.CSSProperties = {
+  padding: '10px 16px',
+  borderBottom: '1px solid var(--bd)',
+  verticalAlign: 'middle',
+}
+
 export default function IpsPage({ onServerClick }: { onServerClick?: (server: Server) => void }) {
   const qc = useQueryClient()
   const { toast } = useToast()
-  const [search, setSearch]         = useState('')
-  const [typeFilter, setTypeFilter] = useState<'' | 'public' | 'private' | 'interface'>('')
+  const [search, setSearch]               = useState('')
+  const [typeFilter, setTypeFilter]       = useState<'' | 'public' | 'private' | 'interface'>('')
   const [versionFilter, setVersionFilter] = useState<'' | '4' | '6'>('')
   const [selectedCredId, setSelectedCredId] = useState<string>('')
-  const [page, setPage] = useState(1)
-  const [fetching, setFetching]     = useState(false)
+  const [page, setPage]       = useState(1)
+  const [fetching, setFetching]           = useState(false)
   const [streamResults, setStreamResults] = useState<StreamResult[]>([])
+  const [hoveredRow, setHoveredRow]       = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const { data: sshCreds = [] } = useQuery({
@@ -121,12 +145,10 @@ export default function IpsPage({ onServerClick }: { onServerClick?: (server: Se
     }
   }
 
-  // Listen to WS ip_fetch_result events from other clients / shared state
   useEffect(() => {
     const handler = (e: Event) => {
       const event = (e as CustomEvent<{ type: string; server_name?: string; ips?: string[]; success?: boolean }>).detail
       if (event.type === 'ip_fetch_result' && event.success && !fetching) {
-        // Another session or background fetch completed — refresh server list
         qc.invalidateQueries({ queryKey: ['servers'] })
       }
     }
@@ -145,7 +167,6 @@ export default function IpsPage({ onServerClick }: { onServerClick?: (server: Se
         out.push({ ip, type, server: srv, version: ipVersion(ip) })
       }
 
-      // SSH-gathered IPs take priority — most complete
       const sshInfo = srv.ssh_info as Record<string, unknown> | undefined
       const allIps = Array.isArray(sshInfo?.all_ips) ? sshInfo.all_ips as string[] : null
 
@@ -181,13 +202,16 @@ export default function IpsPage({ onServerClick }: { onServerClick?: (server: Se
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageRows   = useMemo(
     () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page, PAGE_SIZE],
+    [filtered, page],
   )
 
+  const ipv4Count = useMemo(() => rows.filter(r => r.version === 4).length, [rows])
+  const ipv6Count = useMemo(() => rows.filter(r => r.version === 6).length, [rows])
+
   const TypeIcon = ({ type }: { type: IpRow['type'] }) => {
-    if (type === 'public')    return <Globe    size={12} style={{ color: 'var(--ac)',  flexShrink: 0 }} />
-    if (type === 'private')   return <Lock     size={12} style={{ color: 'var(--tx3)', flexShrink: 0 }} />
-    return                           <Wifi     size={12} style={{ color: 'var(--sg)',  flexShrink: 0 }} />
+    if (type === 'public')  return <Globe size={12} style={{ color: 'var(--ac)',  flexShrink: 0 }} />
+    if (type === 'private') return <Lock  size={12} style={{ color: 'var(--tx3)', flexShrink: 0 }} />
+    return                         <Wifi  size={12} style={{ color: 'var(--sg)',  flexShrink: 0 }} />
   }
 
   const typeColor = (type: IpRow['type']) => {
@@ -196,28 +220,43 @@ export default function IpsPage({ onServerClick }: { onServerClick?: (server: Se
     return 'var(--sg)'
   }
 
+  const typePillBg = (type: IpRow['type']) => {
+    if (type === 'public')  return 'rgba(246,130,31,0.1)'
+    if (type === 'private') return 'var(--bg-s2)'
+    return 'rgba(0,181,32,0.1)'
+  }
+
+  const statCards = [
+    { label: 'TOTAL IPs', value: rows.length,  accent: 'var(--ac)'  },
+    { label: 'IPv4',      value: ipv4Count,     accent: '#4F8EF7'    },
+    { label: 'IPv6',      value: ipv6Count,     accent: 'var(--sg)'  },
+  ]
+
+  const selectSt: React.CSSProperties = {
+    padding: '7px 12px', background: 'var(--bg-s1)', border: '1px solid var(--bd)',
+    borderRadius: 8, color: 'var(--tx1)', fontSize: 13,
+    fontFamily: 'Inter,sans-serif', cursor: 'pointer', outline: 'none',
+  }
+
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <style>{`@keyframes ips-spin { to { transform: rotate(360deg); } }`}</style>
+
       {/* Header */}
-      <Flex justify="between" align="center">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h2 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontStyle: 'italic', fontSize: '1.5rem', fontWeight: 600, margin: 0, color: 'var(--tx1)' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--tx1)', letterSpacing: '-0.02em', margin: 0, fontFamily: 'Inter,sans-serif' }}>
             IP Addresses
-          </h2>
-          <Text variant="muted" style={{ marginTop: '2px' }}>
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--tx3)', margin: '4px 0 0', fontFamily: 'Inter,sans-serif' }}>
             {isLoading ? 'Loading…' : `${filtered.length} addresses across ${servers.length} servers`}
-          </Text>
+          </p>
         </div>
-        <Flex align="center" gap={2}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <select
             value={selectedCredId}
             onChange={e => setSelectedCredId(e.target.value)}
-            style={{
-              background: 'var(--bg-s2)', border: '1px solid var(--bd)',
-              borderRadius: '2px', color: 'var(--tx1)', padding: '0.4rem 0.65rem',
-              fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer',
-              minWidth: '160px',
-            }}
+            style={{ ...selectSt, fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 160 }}
           >
             <option value="">Default credential</option>
             {sshCreds.map(c => (
@@ -226,190 +265,227 @@ export default function IpsPage({ onServerClick }: { onServerClick?: (server: Se
               </option>
             ))}
           </select>
-        <button
-          onClick={startFetch}
-          disabled={false}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            padding: '0.45rem 0.9rem',
-            background: 'var(--ac)', color: 'var(--btn-primary-fg)',
-            border: 'none', borderRadius: '2px', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em',
-            opacity: fetching ? 0.85 : 1,
-            transition: 'all 140ms ease',
-          }}
-        >
-          <RefreshCw size={13} style={{ animation: fetching ? 'spin 1s linear infinite' : 'none' }} />
-          {fetching ? `Fetching… (${streamResults.length})` : 'Fetch via SSH'}
-        </button>
-        </Flex>
-      </Flex>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <button
+            onClick={startFetch}
+            style={{
+              background: 'var(--ac)', color: 'white', border: 'none', borderRadius: 8,
+              padding: '8px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              opacity: fetching ? 0.85 : 1, transition: 'all 140ms ease',
+            }}
+          >
+            <RefreshCw size={13} style={{ animation: fetching ? 'ips-spin 1s linear infinite' : 'none' }} />
+            {fetching ? `Fetching… (${streamResults.length})` : 'Fetch via SSH'}
+          </button>
+        </div>
+      </div>
 
-      {/* Filters */}
-      <Card style={{ padding: '14px 16px' }}>
-        <Flex gap={3} wrap>
-          <div style={{ flex: '1 1 220px' }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--tx3)', pointerEvents: 'none' }} />
-              <Input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search IP or server name…"
-                style={{ paddingLeft: '32px' }}
-              />
+      {/* Stats cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+        {statCards.map(s => (
+          <div key={s.label} style={{ ...cardSt, padding: 0, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: s.accent, borderRadius: '12px 12px 0 0' }} />
+            <div style={{ padding: '18px 20px 16px' }}>
+              <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--tx3)', fontFamily: 'Inter,sans-serif', marginBottom: 10 }}>
+                {s.label}
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--tx1)', letterSpacing: '-0.02em', fontFamily: 'Inter,sans-serif', lineHeight: 1 }}>
+                {isLoading ? '—' : s.value.toLocaleString()}
+              </div>
             </div>
           </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{ ...cardSt, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 220px', position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--tx3)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search IP or server name…"
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '7px 12px 7px 32px',
+                background: 'var(--bg-s1)', border: '1px solid var(--bd)', borderRadius: 8,
+                color: 'var(--tx1)', fontSize: 13, fontFamily: 'Inter,sans-serif', outline: 'none',
+              }}
+            />
+          </div>
           <div style={{ flex: '0 0 160px' }}>
-            <Select value={typeFilter} onChange={e => setTypeFilter(e.target.value as typeof typeFilter)}>
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as typeof typeFilter)} style={{ ...selectSt, width: '100%' }}>
               <option value="">All types</option>
               <option value="public">Public</option>
               <option value="private">Private</option>
               <option value="interface">Interface</option>
-            </Select>
+            </select>
           </div>
           <div style={{ flex: '0 0 130px' }}>
-            <Select value={versionFilter} onChange={e => setVersionFilter(e.target.value as typeof versionFilter)}>
+            <select value={versionFilter} onChange={e => setVersionFilter(e.target.value as typeof versionFilter)} style={{ ...selectSt, width: '100%' }}>
               <option value="">IPv4 + IPv6</option>
               <option value="4">IPv4 only</option>
               <option value="6">IPv6 only</option>
-            </Select>
+            </select>
           </div>
-        </Flex>
-      </Card>
+        </div>
+      </div>
 
-      {/* Table */}
-      <TableContainer>
-        <Table>
-          <THead>
+      {/* Table card */}
+      <div style={{ ...cardSt, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
             <tr>
-              <TH>IP Address</TH>
-              <TH>Type</TH>
-              <TH>Version</TH>
-              <TH>Server</TH>
-              <TH>Provider</TH>
-              <TH>Status</TH>
+              <th style={thSt}>IP Address</th>
+              <th style={thSt}>Type</th>
+              <th style={thSt}>Ver</th>
+              <th style={thSt}>Server</th>
+              <th style={thSt}>Provider</th>
+              <th style={thSt}>Status</th>
             </tr>
-          </THead>
-          <TBody>
+          </thead>
+          <tbody>
             {isLoading && (
               <tr>
-                <TD colSpan={6} style={{ textAlign: 'center', color: 'var(--tx3)', padding: '2.5rem' }}>
+                <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--tx3)', fontFamily: 'Inter,sans-serif', fontSize: 13 }}>
                   Loading…
-                </TD>
+                </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <TD colSpan={6} style={{ textAlign: 'center', color: 'var(--sr)', padding: '2.5rem' }}>
+                <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--sr)', fontFamily: 'Inter,sans-serif', fontSize: 13 }}>
                   Failed to load servers
-                </TD>
+                </td>
               </tr>
             )}
             {!isLoading && !isError && filtered.length === 0 && (
               <tr>
-                <TD colSpan={6} style={{ textAlign: 'center', color: 'var(--tx3)', padding: '2.5rem' }}>
+                <td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: 'var(--tx3)', fontFamily: 'Inter,sans-serif', fontSize: 13 }}>
                   No IPs found. Run a sync or SSH sync to populate.
-                </TD>
+                </td>
               </tr>
             )}
-            {/* Live stream results shown while fetching */}
             {fetching && streamResults.map(result =>
               result.ips.map((ip, j) => (
-                <tr key={`stream-${result.server_id}-${ip}-${j}`} style={{ opacity: 0.75, background: 'var(--ac-bg)' }}>
-                  <TD>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'var(--ac)' }}>{ip.split('/')[0] ?? ip}</span>
-                  </TD>
-                  <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>live</span></TD>
-                  <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>IPv{ip.includes(':') ? 6 : 4}</span></TD>
-                  <TD><span style={{ fontSize: '13px', color: 'var(--tx1)' }}>{result.server_name}</span></TD>
-                  <TD><span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>{result.provider}</span></TD>
-                  <TD />
+                <tr key={`stream-${result.server_id}-${ip}-${j}`} style={{ opacity: 0.75, background: 'var(--ac-bg)', borderBottom: '1px solid var(--bd)' }}>
+                  <td style={tdSt}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ac)' }}>{ip.split('/')[0] ?? ip}</span>
+                  </td>
+                  <td style={tdSt}>
+                    <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--tx3)', background: 'var(--bg-s2)', borderRadius: 4, padding: '2px 6px', border: '1px solid var(--bd)' }}>live</span>
+                  </td>
+                  <td style={tdSt}>
+                    <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--tx3)', background: 'var(--bg-s2)', borderRadius: 4, padding: '2px 6px', border: '1px solid var(--bd)' }}>
+                      IPv{ip.includes(':') ? 6 : 4}
+                    </span>
+                  </td>
+                  <td style={tdSt}><span style={{ fontSize: 13, color: 'var(--tx1)', fontFamily: 'Inter,sans-serif' }}>{result.server_name}</span></td>
+                  <td style={tdSt}><span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--tx3)' }}>{result.provider}</span></td>
+                  <td style={tdSt} />
                 </tr>
               ))
             )}
-            {pageRows.map((row, i) => (
-              <tr key={`${row.server.id}-${row.ip}-${i}`}>
-                <TD>
-                  <span
-                    onClick={() => onServerClick?.(row.server)}
-                    style={{
-                      fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: typeColor(row.type),
-                      cursor: onServerClick ? 'pointer' : 'default',
-                      textDecoration: onServerClick ? 'underline' : 'none',
-                      textDecorationStyle: 'dotted',
-                      textUnderlineOffset: '3px',
-                    }}
-                    title={onServerClick ? `Open server: ${row.server.name}` : undefined}
-                  >
-                    {row.ip}
-                  </span>
-                </TD>
-                <TD>
-                  <Flex align="center" gap={1}>
-                    <TypeIcon type={row.type} />
-                    <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'JetBrains Mono, monospace', color: typeColor(row.type) }}>
+            {pageRows.map((row, i) => {
+              const rowKey = `${row.server.id}-${row.ip}-${i}`
+              const isHovered = hoveredRow === rowKey
+              return (
+                <tr
+                  key={rowKey}
+                  style={{ borderBottom: '1px solid var(--bd)', background: isHovered ? 'var(--bg-s1)' : 'transparent', transition: 'background 100ms' }}
+                  onMouseEnter={() => setHoveredRow(rowKey)}
+                  onMouseLeave={() => setHoveredRow(null)}
+                >
+                  <td style={tdSt}>
+                    <span
+                      onClick={() => onServerClick?.(row.server)}
+                      style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 12, color: typeColor(row.type),
+                        cursor: onServerClick ? 'pointer' : 'default',
+                        textDecoration: onServerClick ? 'underline' : 'none',
+                        textDecorationStyle: 'dotted',
+                        textUnderlineOffset: 3,
+                      }}
+                      title={onServerClick ? `Open server: ${row.server.name}` : undefined}
+                    >
+                      {row.ip}
+                    </span>
+                  </td>
+                  <td style={tdSt}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em',
+                      fontFamily: 'var(--font-mono)', color: typeColor(row.type),
+                      background: typePillBg(row.type), borderRadius: 4, padding: '2px 7px',
+                      border: `1px solid ${typeColor(row.type)}33`,
+                    }}>
+                      <TypeIcon type={row.type} />
                       {row.type}
                     </span>
-                  </Flex>
-                </TD>
-                <TD>
-                  <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)' }}>
-                    IPv{row.version}
-                  </span>
-                </TD>
-                <TD>
-                  <span style={{ fontSize: '13px', color: 'var(--tx1)' }}>{row.server.name}</span>
-                </TD>
-                <TD>
-                  <ProviderBadge provider={row.server.provider} showLogo />
-                </TD>
-                <TD>
-                  <Flex align="center" gap={2}>
+                  </td>
+                  <td style={tdSt}>
                     <span style={{
-                      display: 'inline-block',
-                      width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
-                      backgroundColor: row.server.status === 'running' ? 'var(--sg)' : row.server.status === 'stopped' ? 'var(--sgr)' : 'var(--sy)',
-                    }} />
-                    <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {row.server.status}
+                      fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--tx3)',
+                      background: 'var(--bg-s2)', borderRadius: 4, padding: '2px 6px',
+                      border: '1px solid var(--bd)',
+                    }}>
+                      IPv{row.version}
                     </span>
-                  </Flex>
-                </TD>
-              </tr>
-            ))}
-          </TBody>
-        </Table>
-      </TableContainer>
+                  </td>
+                  <td style={tdSt}>
+                    <span
+                      onClick={() => onServerClick?.(row.server)}
+                      style={{
+                        fontSize: 13, color: onServerClick ? 'var(--ac)' : 'var(--tx1)',
+                        fontFamily: 'Inter,sans-serif', cursor: onServerClick ? 'pointer' : 'default',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {row.server.name}
+                    </span>
+                  </td>
+                  <td style={tdSt}>
+                    <ProviderBadge provider={row.server.provider} showLogo />
+                  </td>
+                  <td style={tdSt}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
+                        backgroundColor: row.server.status === 'running' ? 'var(--sg)' : row.server.status === 'stopped' ? 'var(--sr)' : 'var(--sy)',
+                      }} />
+                      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {row.server.status}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
 
-      {/* Pagination */}
-      {(
-        <Flex
-          align="center"
-          justify="between"
-          style={{
-            padding: '12px 24px',
-            borderTop: '1px solid var(--bd)',
-            backgroundColor: 'var(--bg-s1)',
-            borderRadius: '0 0 4px 4px',
-            border: '1px solid var(--bd)',
-            borderTopColor: 'transparent',
-          }}
-        >
-          <Text variant="small" style={{ fontFamily: 'monospace' }}>
+        {/* Pagination */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', borderTop: '1px solid var(--bd)', background: 'var(--bg-s1)',
+        }}>
+          <span style={{ fontSize: 12, color: 'var(--tx3)', fontFamily: 'var(--font-mono)' }}>
             Page {page} of {Math.max(1, totalPages)} · {filtered.length} total
-          </Text>
-          <Flex align="center" gap={1}>
-            <Button
-              intent="ghost"
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              size="sm"
-              style={{ padding: '6px 12px' }}
+              style={{
+                padding: '5px 12px', borderRadius: 8, border: '1px solid var(--bd)',
+                background: 'var(--bg-s1)', color: page === 1 ? 'var(--tx3)' : 'var(--tx2)',
+                fontSize: 12, cursor: page === 1 ? 'default' : 'pointer',
+                fontFamily: 'Inter,sans-serif', opacity: page === 1 ? 0.5 : 1,
+              }}
             >
               Prev
-            </Button>
+            </button>
             {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
               const p = i + 1
               return (
@@ -417,36 +493,32 @@ export default function IpsPage({ onServerClick }: { onServerClick?: (server: Se
                   key={p}
                   onClick={() => setPage(p)}
                   style={{
-                    width: '32px', height: '32px',
-                    borderRadius: '2px', border: 'none',
-                    cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-                    transition: 'all 150ms ease',
-                    backgroundColor: page === p ? 'var(--ac)' : 'transparent',
-                    color: page === p ? 'var(--btn-primary-fg)' : 'var(--tx2)',
-                  }}
-                  onMouseEnter={e => {
-                    if (page !== p) e.currentTarget.style.backgroundColor = 'var(--bg-s3)'
-                  }}
-                  onMouseLeave={e => {
-                    if (page !== p) e.currentTarget.style.backgroundColor = 'transparent'
+                    width: 32, height: 32, borderRadius: 8, border: 'none',
+                    cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 150ms ease',
+                    background: page === p ? 'var(--ac)' : 'transparent',
+                    color: page === p ? 'white' : 'var(--tx2)',
+                    fontFamily: 'Inter,sans-serif',
                   }}
                 >
                   {p}
                 </button>
               )
             })}
-            <Button
-              intent="ghost"
+            <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page >= Math.max(1, totalPages)}
-              size="sm"
-              style={{ padding: '6px 12px' }}
+              style={{
+                padding: '5px 12px', borderRadius: 8, border: '1px solid var(--bd)',
+                background: 'var(--bg-s1)', color: page >= Math.max(1, totalPages) ? 'var(--tx3)' : 'var(--tx2)',
+                fontSize: 12, cursor: page >= Math.max(1, totalPages) ? 'default' : 'pointer',
+                fontFamily: 'Inter,sans-serif', opacity: page >= Math.max(1, totalPages) ? 0.5 : 1,
+              }}
             >
               Next
-            </Button>
-          </Flex>
-        </Flex>
-      )}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

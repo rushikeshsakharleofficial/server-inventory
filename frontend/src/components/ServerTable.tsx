@@ -20,7 +20,6 @@ import {
   Card,
   Flex,
   Input,
-  Button,
   TableContainer,
   Table,
   THead,
@@ -137,7 +136,15 @@ export default function ServerTable({
         cursor: field ? 'pointer' : 'default',
         textAlign: center ? 'center' : 'left',
         width: compact ? width : undefined,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 11,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color: 'var(--tx3)',
+        padding: '10px 16px',
+        background: 'var(--bg-s1)',
+        borderBottom: '1px solid var(--bd)',
+        whiteSpace: 'nowrap',
       }}
     >
       <Flex align="center" gap={1} style={{ justifyContent: center ? 'center' : 'flex-start' }}>
@@ -155,9 +162,11 @@ export default function ServerTable({
         wrap="true"
         gap={3}
         style={{
-          padding: '16px 24px',
-          borderBottom: '1px solid var(--bd)',
-          backgroundColor: 'var(--bg-s1)',
+          background: 'var(--bg-base)',
+          border: '1px solid var(--bd)',
+          borderRadius: 12,
+          padding: '16px 20px',
+          marginBottom: 16,
         }}
       >
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
@@ -199,13 +208,12 @@ export default function ServerTable({
         </Combobox>
 
         {(search || provider || status) && (
-          <Button
-            intent="ghost"
+          <button
             onClick={() => { setSearch(''); setProvider(''); setStatus('') }}
-            size="sm"
+            style={{background:'transparent',border:'1px solid var(--bd)',borderRadius:8,color:'var(--tx2)',padding:'8px 16px',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}
           >
             Clear
-          </Button>
+          </button>
         )}
 
         <div style={{ marginLeft: 'auto' }}>
@@ -214,10 +222,13 @@ export default function ServerTable({
           </Text>
         </div>
 
-        <Button intent="primary" onClick={onAddServer}>
+        <button
+          onClick={onAddServer}
+          style={{background:'var(--ac)',color:'white',border:'none',borderRadius:8,padding:'8px 16px',fontSize:14,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}
+        >
           <Plus size={14} />
           Custom DC
-        </Button>
+        </button>
       </Flex>
 
       {/* Manifest header */}
@@ -445,23 +456,19 @@ export default function ServerTable({
                   <TD onClick={e => e.stopPropagation()} style={{ overflow: 'hidden' }}>
                     {deletingId === server.id ? (
                       <Flex align="center" gap={1} style={{ whiteSpace: 'nowrap' }}>
-                        <Button
+                        <button
                           onClick={() => deleteMutation.mutate(server.id)}
                           disabled={deleteMutation.isPending}
-                          intent="danger"
-                          size="sm"
-                          style={{ padding: '4px 8px', fontSize: '11px' }}
+                          style={{background:'rgba(255,64,64,0.07)',border:'1px solid rgba(255,64,64,0.25)',borderRadius:8,color:'var(--sr)',padding:'4px 8px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}
                         >
                           Confirm
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                           onClick={() => setDeletingId(null)}
-                          intent="ghost"
-                          size="sm"
-                          style={{ padding: '4px 8px', fontSize: '11px' }}
+                          style={{background:'transparent',border:'1px solid var(--bd)',borderRadius:8,color:'var(--tx2)',padding:'4px 8px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}
                         >
                           Cancel
-                        </Button>
+                        </button>
                       </Flex>
                     ) : (
                       <Flex align="center" justify="end" gap={1}>
@@ -469,25 +476,7 @@ export default function ServerTable({
                           <button
                             onClick={() => onEditServer(server)}
                             aria-label={`Edit ${server.name}`}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              padding: '6px',
-                              borderRadius: '8px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              color: 'var(--tx3)',
-                              transition: 'all 150ms ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'var(--bg-s3)';
-                              e.currentTarget.style.color = 'var(--ac)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = 'var(--tx3)';
-                            }}
+                            style={{width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg-s1)',border:'1px solid var(--bd)',borderRadius:8,cursor:'pointer',flexShrink:0,color:'var(--tx3)'}}
                           >
                             <Pencil size={14} />
                           </button>
@@ -495,25 +484,7 @@ export default function ServerTable({
                         <button
                           onClick={() => setDeletingId(server.id)}
                           aria-label={`Delete ${server.name}`}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: '6px',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: 'var(--tx3)',
-                            transition: 'all 150ms ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--sr-bg)';
-                            e.currentTarget.style.color = 'var(--sr)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = 'var(--tx3)';
-                          }}
+                          style={{width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,64,64,0.07)',border:'1px solid rgba(255,64,64,0.25)',borderRadius:8,cursor:'pointer',flexShrink:0,color:'var(--sr)'}}
                         >
                           <Trash2 size={14} />
                         </button>
