@@ -237,8 +237,8 @@ export default function DashboardPage() {
             <p style={{ fontSize: '11px', color: 'var(--tx3)', margin: '3px 0 0', fontFamily: 'Inter,sans-serif' }}>Top regions by server count</p>
           </div>
           {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 100px', gap: '0', padding: '8px 20px', background: 'var(--bg-s1)', borderTop: '1px solid var(--bd)', borderBottom: '1px solid var(--bd)' }}>
-            {['REGION', 'PROVIDER', 'SERVERS', 'SHARE'].map(h => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px', gap: '0', padding: '8px 20px', background: 'var(--bg-s1)', borderTop: '1px solid var(--bd)', borderBottom: '1px solid var(--bd)' }}>
+            {['REGION', 'SERVERS', 'SHARE'].map(h => (
               <span key={h} style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--tx3)', textTransform: 'uppercase', fontFamily: 'Inter,sans-serif' }}>{h}</span>
             ))}
           </div>
@@ -252,31 +252,25 @@ export default function DashboardPage() {
           ) : regionData.length === 0 ? (
             <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--tx3)', fontSize: '13px' }}>No region data yet</div>
           ) : regionData.map((r, i) => {
-            // derive provider from region name heuristic
-            const p = r.region.includes('us-east') || r.region.includes('us-west') || r.region.includes('ap-') || r.region.includes('eu-west') ? 'aws'
-              : r.region.includes('us-central') || r.region.includes('europe-') || r.region.includes('asia-') ? 'gcp'
-              : r.region.includes('eastus') || r.region.includes('westus') || r.region.includes('northeurope') ? 'azure'
-              : 'custom_dc'
             const maxCount = regionData[0]?.count ?? 1
-            const pct = (r.count / maxCount)
-            const color = PROVIDER_COLORS[p] ?? '#6B7280'
+            const pct = r.count / maxCount
+            const totalRegionServers = regionData.reduce((s, x) => s + x.count, 0)
+            const sharePct = totalRegionServers > 0 ? Math.round((r.count / totalRegionServers) * 100) : 0
+            // color: cycle through provider colors by index
+            const colors = ['#F6821F','#4285F4','#00B520','#0078D4','#FF9900','#02B159','#8B5CF6']
+            const color = colors[i % colors.length]
             return (
-              <div key={r.region} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 100px', alignItems: 'center', padding: '0 20px', height: '44px', borderBottom: '1px solid var(--bd)', background: i % 2 === 1 ? 'var(--bg-s1)' : 'transparent' }}>
+              <div key={r.region} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px', alignItems: 'center', padding: '0 20px', height: '44px', borderBottom: '1px solid var(--bd)', background: i % 2 === 1 ? 'var(--bg-s1)' : 'transparent' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, flexShrink: 0 }} />
                   <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--tx1)', fontFamily: 'monospace' }}>{r.region}</span>
                 </div>
-                <div>
-                  <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', color, background: `${color}18`, border: `1px solid ${color}30`, fontFamily: 'Inter,sans-serif' }}>
-                    {PROVIDER_LABELS[p] ?? p.toUpperCase()}
-                  </span>
-                </div>
                 <span style={{ fontSize: '12px', color: 'var(--tx1)', fontFamily: 'Inter,sans-serif' }}>{r.count.toLocaleString()}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ flex: 1, height: '5px', background: 'var(--bg-s2)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: color, opacity: 0.7, borderRadius: '3px', transition: 'width 600ms' }} />
+                    <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: color, opacity: 0.8, borderRadius: '3px', transition: 'width 600ms' }} />
                   </div>
-                  <span style={{ fontSize: '10px', color: 'var(--tx3)', fontFamily: 'Inter,sans-serif', width: '28px', textAlign: 'right' }}>{Math.round(pct*100)}%</span>
+                  <span style={{ fontSize: '10px', color: 'var(--tx3)', fontFamily: 'Inter,sans-serif', width: '28px', textAlign: 'right' }}>{sharePct}%</span>
                 </div>
               </div>
             )
