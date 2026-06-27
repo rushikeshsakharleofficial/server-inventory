@@ -183,31 +183,35 @@ export default function ServerTable({
           />
         </div>
 
-        <Combobox data={PROVIDER_DATA} type="provider" value={provider} onValueChange={v => { setProvider(v); setPage(1) }}>
-          <ComboboxTrigger className="min-w-[150px] h-8 text-xs" />
-          <ComboboxContent>
-            <ComboboxInput />
-            <ComboboxList>
-              <ComboboxEmpty />
-              <ComboboxGroup>
-                {PROVIDER_DATA.map(p => <ComboboxItem key={p.value} value={p.value}>{p.label}</ComboboxItem>)}
-              </ComboboxGroup>
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+        <div style={{ flexShrink: 0, width: 180 }}>
+          <Combobox data={PROVIDER_DATA} type="provider" value={provider} onValueChange={v => { setProvider(v); setPage(1) }}>
+            <ComboboxTrigger className="min-w-[150px] h-8 text-xs" />
+            <ComboboxContent>
+              <ComboboxInput />
+              <ComboboxList>
+                <ComboboxEmpty />
+                <ComboboxGroup>
+                  {PROVIDER_DATA.map(p => <ComboboxItem key={p.value} value={p.value}>{p.label}</ComboboxItem>)}
+                </ComboboxGroup>
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
 
-        <Combobox data={STATUS_DATA} type="status" value={status} onValueChange={v => { setStatus(v); setPage(1) }}>
-          <ComboboxTrigger className="min-w-[150px] h-8 text-xs" />
-          <ComboboxContent>
-            <ComboboxInput />
-            <ComboboxList>
-              <ComboboxEmpty />
-              <ComboboxGroup>
-                {STATUS_DATA.map(s => <ComboboxItem key={s.value} value={s.value}>{s.label}</ComboboxItem>)}
-              </ComboboxGroup>
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+        <div style={{ flexShrink: 0, width: 180 }}>
+          <Combobox data={STATUS_DATA} type="status" value={status} onValueChange={v => { setStatus(v); setPage(1) }}>
+            <ComboboxTrigger className="min-w-[150px] h-8 text-xs" />
+            <ComboboxContent>
+              <ComboboxInput />
+              <ComboboxList>
+                <ComboboxEmpty />
+                <ComboboxGroup>
+                  {STATUS_DATA.map(s => <ComboboxItem key={s.value} value={s.value}>{s.label}</ComboboxItem>)}
+                </ComboboxGroup>
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
 
         {(search || provider || status) && (
           <button
