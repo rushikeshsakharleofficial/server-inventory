@@ -178,9 +178,8 @@
   & tbody td { @apply px-5 py-3; }
 }
 
-@layer utilities {
-  /* ── Cloudflare Dark Theme ────────────────────────────────────────────────── */
-  :root {
+/* ── Cloudflare Dark Theme ────────────────────────────────────────────────── */
+:root {
     --bg-base: #0C0D11;
     --bg-s1:   #13141A;
     --bg-s2:   #1A1B23;
@@ -224,6 +223,7 @@
     --sidebar-from: #0C0D11;
     --sidebar-to:   #0C0D11;
     --header-bg:    rgba(12, 13, 17, 0.92);
+    --nav-hover-bg:  rgba(255, 255, 255, 0.05);
     --nav-active-bg: rgba(246, 130, 31, 0.08);
     --nav-active-bd: rgba(246, 130, 31, 0.25);
     --card-hover-bd: rgba(246, 130, 31, 0.20);
@@ -295,6 +295,7 @@
     --sidebar-from: #F8F8F8;
     --sidebar-to:   #F8F8F8;
     --header-bg:    rgba(255, 255, 255, 0.92);
+    --nav-hover-bg:  rgba(0, 0, 0, 0.05);
     --nav-active-bg: rgba(246, 130, 31, 0.10);
     --nav-active-bd: rgba(246, 130, 31, 0.25);
     --card-hover-bd: rgba(246, 130, 31, 0.25);
@@ -320,7 +321,6 @@
       0 0 0 1px rgba(246, 130, 31, 0.15),
       inset 0 1px 0 rgba(246, 130, 31, 0.08);
   }
-}
 
 @layer base {
   html {
