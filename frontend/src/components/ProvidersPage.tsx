@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Trash2, Plus, Cloud, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import Toggle from './Toggle'
@@ -84,6 +84,107 @@ const PROVIDER_FIELDS: Record<string, FieldDef[]> = {
 }
 
 const PROVIDERS: Provider[] = ['aws', 'gcp', 'azure', 'linode', 'digitalocean', 'ovh', 'hivelocity']
+
+const PROVIDER_LABEL: Record<string, string> = {
+  aws: 'AWS', gcp: 'GCP', azure: 'Azure', linode: 'Linode',
+  digitalocean: 'DigitalOcean', ovh: 'OVH', hivelocity: 'Hivelocity',
+}
+
+function ProviderSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = PROVIDERS.filter(p =>
+    (PROVIDER_LABEL[p] ?? p).toLowerCase().includes(search.toLowerCase()) ||
+    PROVIDER_DESC[p]?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setSearch('') }}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '9px 12px', background: 'var(--bg-base)', border: '1px solid var(--bd)',
+          borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+          outline: open ? '2px solid var(--ac)' : 'none',
+          outlineOffset: '-1px',
+          transition: 'box-shadow 150ms',
+        }}
+      >
+        <ProviderLogo provider={value} size={22} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx1)', fontFamily: 'Inter,sans-serif' }}>{PROVIDER_LABEL[value] ?? value.toUpperCase()}</div>
+          <div style={{ fontSize: '11px', color: 'var(--tx3)', fontFamily: 'Inter,sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{PROVIDER_DESC[value]}</div>
+        </div>
+        <ChevronDown size={14} style={{ flexShrink: 0, color: 'var(--tx3)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />
+      </button>
+
+      {/* Panel */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
+          background: 'var(--bg-base)', border: '1px solid var(--bd)', borderRadius: '10px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.04)',
+          overflow: 'hidden',
+        }}>
+          {/* Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'var(--bg-s1)', borderBottom: '1px solid var(--bd)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search provider…"
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: '12px', color: 'var(--tx1)', fontFamily: 'Inter,sans-serif' }}
+            />
+          </div>
+          {/* Options */}
+          <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+            {filtered.map(p => {
+              const active = p === value
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => { onChange(p); setOpen(false) }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 12px', background: active ? 'rgba(246,130,31,0.08)' : 'transparent',
+                    border: 'none', cursor: 'pointer', textAlign: 'left',
+                    borderBottom: '1px solid var(--bd)',
+                    transition: 'background 100ms',
+                  }}
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-s1)' }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                >
+                  <ProviderLogo provider={p} size={22} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: active ? 600 : 400, color: active ? 'var(--ac)' : 'var(--tx1)', fontFamily: 'Inter,sans-serif' }}>{PROVIDER_LABEL[p] ?? p.toUpperCase()}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--tx3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Inter,sans-serif' }}>{PROVIDER_DESC[p]}</div>
+                  </div>
+                  {active && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 const SECRET_KEYS = new Set(['secret_access_key', 'client_secret', 'api_token', 'api_key', 'service_account_json', 'application_secret', 'consumer_key', 'private_key'])
 
 export default function ProvidersPage() {
@@ -234,10 +335,9 @@ export default function ProvidersPage() {
             <Grid columns={{ '@initial': 1, '@md': 2 }} gap={4} style={{ marginBottom: '16px' }}>
               <div>
                 <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>Provider</Text>
-                <Select
+                <ProviderSelect
                   value={selProvider}
-                  onChange={e => {
-                    const p = e.target.value
+                  onChange={p => {
                     setSelProvider(p)
                     const defaults: Record<string, string> = {}
                     for (const f of PROVIDER_FIELDS[p] ?? []) {
@@ -247,11 +347,7 @@ export default function ProvidersPage() {
                     }
                     setFields(defaults)
                   }}
-                >
-                  {PROVIDERS.map(p => (
-                    <option key={p} value={p}>{p.toUpperCase().replace('_', ' ')}</option>
-                  ))}
-                </Select>
+                />
               </div>
               <div>
                 <Text variant="label" style={{ marginBottom: '6px', display: 'block' }}>
