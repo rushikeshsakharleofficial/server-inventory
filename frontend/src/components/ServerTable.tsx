@@ -157,11 +157,13 @@ export default function ServerTable({
   return (
     <Card style={{ padding: 0, overflow: 'hidden' }}>
       {/* Toolbar */}
-      <Flex
-        align="center"
-        wrap="true"
-        gap={3}
+      <div
         style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
           background: 'var(--bg-base)',
           border: '1px solid var(--bd)',
           borderRadius: 12,
@@ -229,7 +231,7 @@ export default function ServerTable({
           <Plus size={14} />
           Custom DC
         </button>
-      </Flex>
+      </div>
 
       {/* Manifest header */}
       <div style={{ padding: '8px 24px', borderBottom: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-s2)' }}>
