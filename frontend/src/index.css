@@ -178,81 +178,8 @@
   & tbody td { @apply px-5 py-3; }
 }
 
-/* ── Cloudflare Dark Theme ────────────────────────────────────────────────── */
+/* ── Light Theme ─────────────────────────────────────────────────────────── */
 :root {
-    --bg-base: #0C0D11;
-    --bg-s1:   #13141A;
-    --bg-s2:   #1A1B23;
-    --bg-s3:   #22232E;
-
-    --bd:        #2A2B36;
-    --bd-strong: #383A4A;
-
-    --tx1: #F0F0F0;
-    --tx2: #9CA3AF;
-    --tx3: #6B7280;
-    --txd: #4B5563;
-
-    /* Cloudflare orange */
-    --ac:      #F6821F;
-    --ach:     #E27318;
-    --acs:     #1F1510;
-    --ac-bg:   rgba(246, 130, 31, 0.08);
-    --ac-bd:   rgba(246, 130, 31, 0.25);
-    --ac-glow: rgba(246, 130, 31, 0.30);
-
-    --sg:      #22C55E;
-    --sg-bg:   rgba(34, 197, 94, 0.08);
-    --sg-bd:   rgba(34, 197, 94, 0.22);
-    --sg-glow: rgba(34, 197, 94, 0.40);
-    --sr:      #EF4444;
-    --sr-bg:   rgba(239, 68, 68, 0.08);
-    --sr-bd:   rgba(239, 68, 68, 0.22);
-    --sy:      #F59E0B;
-    --sy-bg:   rgba(245, 158, 11, 0.08);
-    --sy-bd:   rgba(245, 158, 11, 0.22);
-    --sgr:     #6B7280;
-    --sgr-bg:  rgba(107, 114, 128, 0.08);
-    --sgr-bd:  rgba(107, 114, 128, 0.20);
-
-    --glass-bg: rgba(12, 13, 17, 0.96);
-    --glass-bd: rgba(246, 130, 31, 0.15);
-
-    --btn-primary-fg: #FFFFFF;
-
-    --sidebar-from: #0C0D11;
-    --sidebar-to:   #0C0D11;
-    --header-bg:    rgba(12, 13, 17, 0.92);
-    --nav-hover-bg:  rgba(255, 255, 255, 0.05);
-    --nav-active-bg: rgba(246, 130, 31, 0.08);
-    --nav-active-bd: rgba(246, 130, 31, 0.25);
-    --card-hover-bd: rgba(246, 130, 31, 0.20);
-
-    --skel-from: #1A1B23;
-    --skel-to:   #22232E;
-
-    --scroll-track: #0C0D11;
-    --scroll-thumb: #2A2B36;
-    --scroll-hover: #F6821F;
-
-    --select-bg: #1A1B23;
-
-    --topo-color: rgba(246, 130, 31, 0.015);
-
-    --shadow-card:
-      0 1px 3px rgba(0, 0, 0, 0.50),
-      0 0 0 1px rgba(255, 255, 255, 0.04);
-    --shadow-glass:
-      0 8px 40px rgba(0, 0, 0, 0.75),
-      inset 0 1px 0 rgba(246, 130, 31, 0.06);
-    --shadow-modal:
-      0 24px 80px rgba(0, 0, 0, 0.90),
-      0 0 0 1px rgba(246, 130, 31, 0.12),
-      inset 0 1px 0 rgba(246, 130, 31, 0.06);
-  }
-
-  /* ── Light Theme (Stitch Cloudflare design system exact tokens) ──────────── */
-  [data-theme="light"] {
     --bg-base: #FFFFFF;
     --bg-s1:   #F8F8F8;
     --bg-s2:   #F0F0F0;
@@ -269,74 +196,57 @@
     --ac:      #F6821F;
     --ach:     #E5731A;
     --acs:     #FFF1EA;
-    --ac-bg:   rgba(246, 130, 31, 0.10);
-    --ac-bd:   rgba(246, 130, 31, 0.30);
-    --ac-glow: rgba(246, 130, 31, 0.18);
+    --ac-bg:   rgba(246, 130, 31, 0.08);
+    --ac-bd:   rgba(246, 130, 31, 0.25);
+    --ac-glow: rgba(246, 130, 31, 0.12);
 
     --sg:      #00B520;
-    --sg-bg:   rgba(0, 181, 32, 0.08);
-    --sg-bd:   rgba(0, 181, 32, 0.22);
-    --sg-glow: rgba(0, 181, 32, 0.28);
+    --sg-bg:   rgba(0, 181, 32, 0.07);
+    --sg-bd:   rgba(0, 181, 32, 0.20);
+    --sg-glow: rgba(0, 181, 32, 0.15);
     --sr:      #FF4040;
-    --sr-bg:   rgba(255, 64, 64, 0.08);
-    --sr-bd:   rgba(255, 64, 64, 0.22);
+    --sr-bg:   rgba(255, 64, 64, 0.07);
+    --sr-bd:   rgba(255, 64, 64, 0.20);
     --sy:      #F6821F;
-    --sy-bg:   rgba(246, 130, 31, 0.08);
-    --sy-bd:   rgba(246, 130, 31, 0.22);
+    --sy-bg:   rgba(246, 130, 31, 0.07);
+    --sy-bd:   rgba(246, 130, 31, 0.20);
     --sgr:     #6B7280;
-    --sgr-bg:  rgba(107, 114, 128, 0.08);
-    --sgr-bd:  rgba(107, 114, 128, 0.20);
+    --sgr-bg:  rgba(107, 114, 128, 0.06);
+    --sgr-bd:  rgba(107, 114, 128, 0.18);
 
-    --glass-bg: rgba(255, 255, 255, 0.96);
-    --glass-bd: rgba(246, 130, 31, 0.20);
+    --glass-bg: #FFFFFF;
+    --glass-bd: #E2E2E2;
 
     --btn-primary-fg: #FFFFFF;
 
     --sidebar-from: #F8F8F8;
     --sidebar-to:   #F8F8F8;
-    --header-bg:    rgba(255, 255, 255, 0.92);
-    --nav-hover-bg:  rgba(0, 0, 0, 0.05);
-    --nav-active-bg: rgba(246, 130, 31, 0.10);
-    --nav-active-bd: rgba(246, 130, 31, 0.25);
-    --card-hover-bd: rgba(246, 130, 31, 0.25);
+    --header-bg:    #FFFFFF;
+    --nav-hover-bg:  rgba(0, 0, 0, 0.04);
+    --nav-active-bg: rgba(246, 130, 31, 0.08);
+    --nav-active-bd: rgba(246, 130, 31, 0.20);
+    --card-hover-bd: rgba(246, 130, 31, 0.20);
 
     --skel-from: #F0F0F0;
     --skel-to:   #E8E8E8;
 
     --scroll-track: #F0F0F0;
-    --scroll-thumb: #E2E2E2;
+    --scroll-thumb: #D1D1D1;
     --scroll-hover: #F6821F;
 
     --select-bg: #FFFFFF;
 
-    --topo-color: rgba(246, 130, 31, 0.03);
+    --topo-color: rgba(246, 130, 31, 0.025);
 
-    --shadow-card:
-      0 1px 4px rgba(0, 0, 0, 0.08);
-    --shadow-glass:
-      0 8px 40px rgba(0, 0, 0, 0.12),
-      inset 0 1px 0 rgba(246, 130, 31, 0.08);
-    --shadow-modal:
-      0 24px 80px rgba(0, 0, 0, 0.20),
-      0 0 0 1px rgba(246, 130, 31, 0.15),
-      inset 0 1px 0 rgba(246, 130, 31, 0.08);
-  }
+    --shadow-card:  0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0,0,0,0.04);
+    --shadow-glass: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0,0,0,0.06);
+}
 
 @layer base {
   html {
     background-color: var(--bg-base);
-    color-scheme: dark;
-  }
-
-  [data-theme="light"] { color-scheme: light; }
-
-  .theme-transitioning,
-  .theme-transitioning * {
-    transition:
-      background-color 220ms ease,
-      border-color 220ms ease,
-      color 220ms ease,
-      box-shadow 220ms ease !important;
+    color-scheme: light;
   }
 
   body {
