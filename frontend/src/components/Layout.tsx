@@ -31,12 +31,11 @@ const INVENTORY_SUB: { id: View; label: string; Icon: React.ElementType }[] = [
   { id: 'ips',           label: 'IP Addresses',  Icon: Network   },
 ]
 
-const NAV: { id: View; label: string; Icon: React.ElementType }[] = [
-  { id: 'providers',  label: 'Cloud Providers', Icon: Cloud             },
-  { id: 'sync-logs',  label: 'Sync Logs',       Icon: Activity          },
-  { id: 'crons',      label: 'Cron Jobs',       Icon: Timer             },
-  { id: 'ssh',        label: 'SSH',             Icon: Terminal          },
-  { id: 'settings',   label: 'Settings',        Icon: SlidersHorizontal },
+const MONITORING_VIEWS: View[] = ['sync-logs', 'crons']
+
+const MONITORING_SUB: { id: View; label: string; Icon: React.ElementType }[] = [
+  { id: 'sync-logs', label: 'Sync Logs', Icon: Activity },
+  { id: 'crons',     label: 'Cron Jobs', Icon: Timer    },
 ]
 
 const VIEW_TITLE: Record<View, string> = {
@@ -156,8 +155,10 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const isInventoryView = INVENTORY_VIEWS.includes(currentView)
-  const [inventoryOpen, setInventoryOpen] = useState(() => INVENTORY_VIEWS.includes(currentView))
+  const isInventoryView  = INVENTORY_VIEWS.includes(currentView)
+  const isMonitoringView = MONITORING_VIEWS.includes(currentView)
+  const [inventoryOpen,  setInventoryOpen]  = useState(() => INVENTORY_VIEWS.includes(currentView))
+  const [monitoringOpen, setMonitoringOpen] = useState(() => MONITORING_VIEWS.includes(currentView))
   const qc = useQueryClient()
   const { toast } = useToast()
   const { user, logout } = useAuth()
@@ -274,10 +275,11 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
 
         {/* Nav */}
         <nav role="navigation" style={{ flex: 1, padding: '0.75rem 0', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          {/* ── MAIN ── */}
           <div style={{ ...NAV_SECTION, marginTop: '4px' }}>Main</div>
           <NavBtn id="dashboard" label="Dashboard" Icon={LayoutDashboard} currentView={currentView} onViewChange={onViewChange} />
 
-          <div style={NAV_SECTION}>Inventory</div>
+          {/* Inventory dropdown */}
           <button
             style={navBtnStyle(isInventoryView)}
             onClick={() => setInventoryOpen(o => !o)}
@@ -285,19 +287,15 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
             onMouseLeave={e => { if (!isInventoryView) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
           >
             <Layers size={15} style={{ flexShrink: 0 }} />
-            <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All Resources</span>
+            <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Inventory</span>
             <ChevronDown size={12} style={{ flexShrink: 0, transition: 'transform 150ms', transform: inventoryOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
           </button>
-
           {inventoryOpen && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingLeft: '8px' }}>
+            <div style={{ display: 'flex', marginLeft: '20px', borderLeft: '1px solid var(--bd)', paddingLeft: '4px', flexDirection: 'column', gap: '1px' }}>
               {INVENTORY_SUB.map(({ id, label, Icon }) => {
                 const active = currentView === id
                 return (
-                  <button
-                    key={id}
-                    style={subNavBtnStyle(active)}
-                    onClick={() => onViewChange(id)}
+                  <button key={id} style={subNavBtnStyle(active)} onClick={() => onViewChange(id)}
                     aria-current={active ? 'page' : undefined}
                     onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--nav-hover-bg)' } }}
                     onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
@@ -310,27 +308,51 @@ export default function Layout({ currentView, onViewChange, onAddServer, childre
             </div>
           )}
 
-          <div style={NAV_SECTION}>Operations</div>
-          {NAV.slice(0, 4).map(({ id, label, Icon }) => (
-            <NavBtn key={id} id={id} label={label} Icon={Icon} currentView={currentView} onViewChange={onViewChange} />
-          ))}
+          {/* ── CONNECTIONS ── */}
+          <div style={{ margin: '8px 0 2px', borderTop: '1px solid var(--bd)' }} />
+          <div style={NAV_SECTION}>Connections</div>
+          <NavBtn id="providers" label="Cloud Providers" Icon={Cloud}     currentView={currentView} onViewChange={onViewChange} />
+          <NavBtn id="ssh"       label="SSH Keys"        Icon={Terminal}  currentView={currentView} onViewChange={onViewChange} />
 
-          <div style={NAV_SECTION}>Config</div>
-          {NAV.slice(4).map(({ id, label, Icon }) => (
-            <NavBtn key={id} id={id} label={label} Icon={Icon} currentView={currentView} onViewChange={onViewChange} />
-          ))}
+          {/* Monitoring dropdown */}
+          <button
+            style={navBtnStyle(isMonitoringView)}
+            onClick={() => setMonitoringOpen(o => !o)}
+            onMouseEnter={e => { if (!isMonitoringView) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--nav-hover-bg)' } }}
+            onMouseLeave={e => { if (!isMonitoringView) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
+          >
+            <Activity size={15} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Monitoring</span>
+            <ChevronDown size={12} style={{ flexShrink: 0, transition: 'transform 150ms', transform: monitoringOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+          </button>
+          {monitoringOpen && (
+            <div style={{ display: 'flex', marginLeft: '20px', borderLeft: '1px solid var(--bd)', paddingLeft: '4px', flexDirection: 'column', gap: '1px' }}>
+              {MONITORING_SUB.map(({ id, label, Icon }) => {
+                const active = currentView === id
+                return (
+                  <button key={id} style={subNavBtnStyle(active)} onClick={() => onViewChange(id)}
+                    aria-current={active ? 'page' : undefined}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--tx1)'; e.currentTarget.style.backgroundColor = 'var(--nav-hover-bg)' } }}
+                    onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--tx2)'; e.currentTarget.style.backgroundColor = 'transparent' } }}
+                  >
+                    <Icon size={13} style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ── SYSTEM ── */}
+          <div style={{ margin: '8px 0 2px', borderTop: '1px solid var(--bd)' }} />
+          <div style={NAV_SECTION}>System</div>
+          {isAdmin && <NavBtn id="users" label="Manage Users" Icon={Users}            currentView={currentView} onViewChange={onViewChange} />}
+          <NavBtn              id="settings" label="Settings"  Icon={SlidersHorizontal} currentView={currentView} onViewChange={onViewChange} />
+          {isAdmin && <NavBtn id="setup"  label="Admin Setup" Icon={Square}            currentView={currentView} onViewChange={onViewChange} />}
         </nav>
 
         {/* Footer */}
         <div style={{ paddingBottom: '16px', borderTop: '1px solid var(--bd)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {isAdmin && (
-            <>
-              <div style={{ ...NAV_SECTION, marginTop: '8px' }}>Account</div>
-              <NavBtn id="users" label="Manage Users" Icon={Users} currentView={currentView} onViewChange={onViewChange} />
-              <NavBtn id="setup" label="Admin Setup" Icon={SlidersHorizontal} currentView={currentView} onViewChange={onViewChange} />
-            </>
-          )}
-
           {user && (
             <div style={{
               margin: '8px 12px 4px',
