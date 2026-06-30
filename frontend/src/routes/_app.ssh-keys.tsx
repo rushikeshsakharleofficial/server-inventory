@@ -146,11 +146,11 @@ function SshDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
-        <div className="p-4 border-b border-border">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="p-4 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold">New SSH credential</h3>
         </div>
-        <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
+        <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
           <Input label="Name" value={name} onChange={setName} required />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Username" value={username} onChange={setUsername} required />
