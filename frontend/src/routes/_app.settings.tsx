@@ -76,29 +76,141 @@ function SettingsPage() {
         </div>
       </Card>
 
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-surface-muted">
-          <h3 className="text-sm font-semibold">Two-factor authentication</h3>
-        </div>
-        <div className="p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">
-              {mfaStatus.data?.enabled ? "Enabled" : "Disabled"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Use an authenticator app (e.g. 1Password, Authy) to add a second factor.
-            </p>
-          </div>
-          <a
-            href="https://github.com/google/google-authenticator/wiki"
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-muted-foreground hover:text-foreground underline"
-          >
-            Setup guide
-          </a>
-        </div>
-      </Card>
+      <MfaCard />
+      <ChangePasswordCard />
     </div>
+  );
+}
+
+function MfaCard() {
+  const qc = useQueryClient();
+  const [step, setStep] = useState<"idle" | "setup" | "disable">("idle");
+  const [setupData, setSetupData] = useState<{ secret: string; uri: string } | null>(null);
+  const [code, setCode] = useState("");
+
+  const status = useQuery({ queryKey: ["mfaStatus"], queryFn: () => api<{ enabled: boolean }>("/api/auth/mfa/status") });
+  const enabled = status.data?.enabled ?? false;
+
+  const setup = useMutation({
+    mutationFn: () => api<{ secret: string; uri: string }>("/api/auth/mfa/setup", { method: "POST" }),
+    onSuccess: (d) => { setSetupData(d); setStep("setup"); setCode(""); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const enable = useMutation({
+    mutationFn: () => api("/api/auth/mfa/enable", { method: "POST", json: { code } }),
+    onSuccess: () => { toast.success("MFA enabled"); setStep("idle"); setCode(""); qc.invalidateQueries({ queryKey: ["mfaStatus"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const disable = useMutation({
+    mutationFn: () => api("/api/auth/mfa/disable", { method: "POST", json: { code } }),
+    onSuccess: () => { toast.success("MFA disabled"); setStep("idle"); setCode(""); qc.invalidateQueries({ queryKey: ["mfaStatus"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-ring";
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="px-4 py-3 border-b border-border bg-surface-muted">
+        <h3 className="text-sm font-semibold">Two-factor authentication</h3>
+      </div>
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">{enabled ? "Enabled" : "Disabled"}</p>
+            <p className="text-xs text-muted-foreground">Authenticator app (1Password, Authy, Google Authenticator).</p>
+          </div>
+          {!enabled && step === "idle" && (
+            <button onClick={() => setup.mutate()} disabled={setup.isPending}
+              className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50">
+              {setup.isPending ? "…" : "Enable MFA"}
+            </button>
+          )}
+          {enabled && step === "idle" && (
+            <button onClick={() => { setStep("disable"); setCode(""); }}
+              className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-md hover:bg-red-50">
+              Disable MFA
+            </button>
+          )}
+        </div>
+
+        {step === "setup" && setupData && (
+          <div className="space-y-3 border border-border rounded-md p-4 bg-muted/30">
+            <p className="text-xs text-muted-foreground">Scan the QR code or enter the secret manually in your authenticator app, then enter the 6-digit code to confirm.</p>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(setupData.uri)}`}
+              alt="MFA QR code" className="rounded-md border border-border"
+              width={160} height={160}
+            />
+            <div className="font-mono text-xs bg-background border border-border rounded px-3 py-2 break-all select-all">{setupData.secret}</div>
+            <input className={inp} placeholder="6-digit code" maxLength={6} value={code} onChange={e => setCode(e.target.value)} />
+            <div className="flex gap-2">
+              <button onClick={() => enable.mutate()} disabled={code.length < 6 || enable.isPending}
+                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md disabled:opacity-50">
+                {enable.isPending ? "Verifying…" : "Confirm & enable"}
+              </button>
+              <button onClick={() => setStep("idle")} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {step === "disable" && (
+          <div className="space-y-3 border border-red-200 rounded-md p-4 bg-red-50/30">
+            <p className="text-xs text-muted-foreground">Enter your current 6-digit code to disable MFA.</p>
+            <input className={inp} placeholder="6-digit code" maxLength={6} value={code} onChange={e => setCode(e.target.value)} />
+            <div className="flex gap-2">
+              <button onClick={() => disable.mutate()} disabled={code.length < 6 || disable.isPending}
+                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md disabled:opacity-50">
+                {disable.isPending ? "Disabling…" : "Disable MFA"}
+              </button>
+              <button onClick={() => setStep("idle")} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function ChangePasswordCard() {
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  const change = useMutation({
+    mutationFn: () => api("/api/auth/change-password", { method: "PUT", json: { current_password: cur, new_password: next } }),
+    onSuccess: () => { toast.success("Password changed"); setCur(""); setNext(""); setConfirm(""); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
+  const valid = cur && next && next === confirm && next.length >= 8;
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="px-4 py-3 border-b border-border bg-surface-muted">
+        <h3 className="text-sm font-semibold">Change password</h3>
+      </div>
+      <div className="p-4 space-y-3 max-w-sm">
+        <div>
+          <label className="text-xs text-muted-foreground font-medium block mb-1">Current password</label>
+          <input type="password" className={inp} value={cur} onChange={e => setCur(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground font-medium block mb-1">New password</label>
+          <input type="password" className={inp} value={next} onChange={e => setNext(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground font-medium block mb-1">Confirm new password</label>
+          <input type="password" className={inp} value={confirm} onChange={e => setConfirm(e.target.value)} />
+          {confirm && next !== confirm && <p className="text-xs text-red-500 mt-1">Passwords don't match</p>}
+          {next && next.length < 8 && <p className="text-xs text-red-500 mt-1">Min 8 characters</p>}
+        </div>
+        <button onClick={() => change.mutate()} disabled={!valid || change.isPending}
+          className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md disabled:opacity-50">
+          {change.isPending ? "Saving…" : "Change password"}
+        </button>
+      </div>
+    </Card>
   );
 }
