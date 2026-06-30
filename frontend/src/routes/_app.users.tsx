@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type UserRow } from "@/lib/api";
-import { Card, PageHeader, StatusPill } from "@/components/ui-bits";
+import { Card, PageHeader, StatusPill, CustomSelect } from "@/components/ui-bits";
 import { Plus, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -116,10 +116,11 @@ function NewUserDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Role</label>
-            <select value={role} onChange={(e) => setRole(e.target.value as "read" | "write")} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md">
-              <option value="read">read</option>
-              <option value="write">write</option>
-            </select>
+            <CustomSelect
+              value={role}
+              onChange={(v) => setRole(v as "read" | "write")}
+              options={[{ value: "read" }, { value: "write" }]}
+            />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
