@@ -62,7 +62,7 @@ function BlockStoragePage() {
                     <span className="text-xs text-muted-foreground">{v.region ?? "—"}</span>
                   </div>
                 </td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{v.attached_to ?? "—"}</td>
+                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{v.attachment ?? "—"}</td>
                 <td className="px-4 py-2.5 text-right"><StatusPill status={v.status} /></td>
               </tr>
             ))}

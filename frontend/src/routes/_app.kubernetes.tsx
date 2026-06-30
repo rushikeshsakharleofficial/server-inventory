@@ -54,7 +54,10 @@ function KubernetesPage() {
           <tbody className="divide-y divide-border">
             {(data?.items ?? []).map((c) => (
               <tr key={c.id} className="text-sm">
-                <td className="px-4 py-2.5 font-medium">{c.name}</td>
+                <td className="px-4 py-2.5">
+                  <div className="font-medium">{c.name}</div>
+                  {c.endpoint && <div className="font-mono text-[11px] text-muted-foreground truncate max-w-[200px]">{c.endpoint}</div>}
+                </td>
                 <td className="px-4 py-2.5 font-mono text-xs">{c.version ?? "—"}</td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2">

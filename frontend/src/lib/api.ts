@@ -167,37 +167,52 @@ export interface SshCredential {
   is_default: boolean;
   notes?: string | null;
   proxy_host?: string | null;
+  proxy_port?: number | null;
+  proxy_username?: string | null;
+  proxy_auth_method?: string | null;
+  created_at?: string | null;
 }
 
 export interface DatabaseInstance {
   id: number;
+  cloud_id?: string | null;
   name: string;
   provider: string;
   engine?: string | null;
+  engine_version?: string | null;
   region?: string | null;
   status: string;
   endpoint?: string | null;
   port?: number | null;
+  storage_gb?: number | null;
+  instance_type?: string | null;
+  last_synced?: string | null;
 }
 
 export interface KubernetesCluster {
   id: number;
+  cloud_id?: string | null;
   name: string;
   provider: string;
   region?: string | null;
   status: string;
   version?: string | null;
   node_count?: number | null;
+  endpoint?: string | null;
+  last_synced?: string | null;
 }
 
 export interface BlockStorage {
   id: number;
+  cloud_id?: string | null;
   name: string;
   provider: string;
   region?: string | null;
   status: string;
   size_gb?: number | null;
-  attached_to?: string | null;
+  attachment?: string | null;
+  volume_type?: string | null;
+  last_synced?: string | null;
 }
 
 export interface CronJob {

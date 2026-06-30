@@ -66,7 +66,9 @@ function SshPage() {
                   <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{c.auth_method}</span>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-xs">{c.port}</td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{c.proxy_host ?? "—"}</td>
+                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                  {c.proxy_host ? `${c.proxy_host}:${c.proxy_port ?? 22}` : "—"}
+                </td>
                 <td className="px-4 py-2.5 text-right">
                   <div className="inline-flex gap-1">
                     {!c.is_default && (
@@ -104,6 +106,13 @@ function SshDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [privateKey, setPrivateKey] = useState("");
   const [port, setPort] = useState(22);
+  const [showProxy, setShowProxy] = useState(false);
+  const [proxyHost, setProxyHost] = useState("");
+  const [proxyPort, setProxyPort] = useState(22);
+  const [proxyUsername, setProxyUsername] = useState("root");
+  const [proxyAuthMethod, setProxyAuthMethod] = useState<"password" | "key">("password");
+  const [proxyPassword, setProxyPassword] = useState("");
+  const [proxyKey, setProxyKey] = useState("");
 
   const create = useMutation({
     mutationFn: () =>
@@ -117,6 +126,14 @@ function SshDialog({ onClose }: { onClose: () => void }) {
           private_key: authMethod === "key" ? privateKey : null,
           port,
           is_default: false,
+          ...(showProxy && proxyHost ? {
+            proxy_host: proxyHost,
+            proxy_port: proxyPort,
+            proxy_username: proxyUsername,
+            proxy_auth_method: proxyAuthMethod,
+            proxy_password: proxyAuthMethod === "password" ? proxyPassword : null,
+            proxy_private_key: proxyAuthMethod === "key" ? proxyKey : null,
+          } : {}),
         },
       }),
     onSuccess: () => {
@@ -163,6 +180,36 @@ function SshDialog({ onClose }: { onClose: () => void }) {
                 placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
                 className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
               />
+            </div>
+          )}
+          <button type="button" onClick={() => setShowProxy(v => !v)} className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 underline">
+            {showProxy ? "− Hide proxy" : "+ Add jump host / proxy"}
+          </button>
+          {showProxy && (
+            <div className="border border-border rounded-md p-3 space-y-3 bg-muted/30">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Jump host / proxy</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Proxy host" value={proxyHost} onChange={setProxyHost} />
+                <Input label="Proxy port" value={String(proxyPort)} onChange={(v) => setProxyPort(Number(v) || 22)} />
+              </div>
+              <Input label="Proxy username" value={proxyUsername} onChange={setProxyUsername} />
+              <div>
+                <Label>Proxy auth</Label>
+                <select value={proxyAuthMethod} onChange={e => setProxyAuthMethod(e.target.value as "password" | "key")}
+                  className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md">
+                  <option value="password">Password</option>
+                  <option value="key">Private key</option>
+                </select>
+              </div>
+              {proxyAuthMethod === "password"
+                ? <Input label="Proxy password" value={proxyPassword} onChange={setProxyPassword} type="password" />
+                : <div>
+                    <Label>Proxy private key</Label>
+                    <textarea rows={3} value={proxyKey} onChange={e => setProxyKey(e.target.value)}
+                      placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                      className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
+                  </div>
+              }
             </div>
           )}
           <div className="flex justify-end gap-2 pt-2">
