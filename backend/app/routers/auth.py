@@ -14,7 +14,7 @@ router = APIRouter(tags=["auth & users"])
 
 
 @router.post("/api/auth/login", response_model=schemas.LoginResponse)
-@limiter.limit("5/minute")
+@limiter.limit("100/minute")
 def login(
     request: Request,
     form: Annotated[OAuth2PasswordRequestForm, Depends()],

@@ -1,0 +1,22 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - heading "ServerInventory" [level=1] [ref=e10]
+      - paragraph [ref=e11]: Infrastructure Manager
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: Username
+        - textbox "Enter username" [active] [ref=e16]
+      - generic [ref=e17]:
+        - paragraph [ref=e18]: Password
+        - generic [ref=e19]:
+          - textbox "Enter password" [ref=e20]
+          - button "Show password" [ref=e21] [cursor=pointer]:
+            - img [ref=e22]
+      - generic [ref=e25] [cursor=pointer]:
+        - checkbox [ref=e26]
+        - checkbox "Remember me for 90 days" [ref=e27]
+        - paragraph [ref=e28]: Remember me (stay signed in for 90 days)
+      - button "Sign In" [disabled] [ref=e29]
+  - generic "Notifications"

@@ -1,0 +1,129 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary "Sidebar navigation" [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]: SI
+        - generic [ref=e7]:
+          - paragraph [ref=e8]: ServerInventory
+          - paragraph [ref=e9]: INFRA CONSOLE
+      - navigation [ref=e10]:
+        - generic [ref=e11]: Main
+        - button "Dashboard" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+          - generic [ref=e18]: Dashboard
+        - button "Inventory" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+          - generic [ref=e24]: Inventory
+          - img [ref=e25]
+        - generic [ref=e27]:
+          - button "Servers" [ref=e28] [cursor=pointer]:
+            - img [ref=e29]
+            - generic [ref=e32]: Servers
+          - button "Databases" [ref=e33] [cursor=pointer]:
+            - img [ref=e34]
+            - generic [ref=e38]: Databases
+          - button "Kubernetes" [ref=e39] [cursor=pointer]:
+            - img [ref=e40]
+            - generic [ref=e43]: Kubernetes
+          - button "Block Storage" [ref=e44] [cursor=pointer]:
+            - img [ref=e45]
+            - generic [ref=e47]: Block Storage
+          - button "IP Addresses" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+            - generic [ref=e54]: IP Addresses
+        - generic [ref=e56]: Connections
+        - button "Providers" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+          - generic [ref=e60]: Providers
+        - button "SSH Keys" [ref=e61] [cursor=pointer]:
+          - img [ref=e62]
+          - generic [ref=e64]: SSH Keys
+        - button "Monitoring" [ref=e65] [cursor=pointer]:
+          - img [ref=e66]
+          - generic [ref=e68]: Monitoring
+          - img [ref=e69]
+        - generic [ref=e72]: System
+        - button "Users" [ref=e73] [cursor=pointer]:
+          - img [ref=e74]
+          - generic [ref=e79]: Users
+        - button "Settings" [ref=e80] [cursor=pointer]:
+          - img [ref=e81]
+          - generic [ref=e82]: Settings
+        - button "Setup" [ref=e83] [cursor=pointer]:
+          - img [ref=e84]
+          - generic [ref=e86]: Setup
+      - generic [ref=e88]:
+        - img [ref=e90]
+        - generic [ref=e92]:
+          - paragraph [ref=e93]: admin
+          - paragraph [ref=e94]: admin
+        - button "Sign out" [ref=e95] [cursor=pointer]:
+          - img [ref=e96]
+    - generic [ref=e99]:
+      - banner [ref=e100]:
+        - generic [ref=e101]:
+          - button "Close sidebar" [ref=e102] [cursor=pointer]:
+            - img [ref=e103]
+          - heading "IP Addresses" [level=1] [ref=e106]
+        - generic [ref=e107]:
+          - generic "Reconnecting…" [ref=e108]
+          - generic [ref=e109]:
+            - img [ref=e110]
+            - generic [ref=e112]: admin
+          - button "Sync all cloud providers" [ref=e114] [cursor=pointer]:
+            - img [ref=e115]
+            - generic [ref=e120]: Sync All
+      - main [ref=e121]:
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - generic [ref=e125]:
+              - heading "IP Addresses" [level=1] [ref=e126]
+              - paragraph [ref=e127]: Loading…
+            - generic [ref=e128]:
+              - combobox [ref=e129] [cursor=pointer]:
+                - option "Default credential" [selected]
+              - button "Fetch via SSH" [ref=e130] [cursor=pointer]:
+                - img [ref=e131]
+                - text: Fetch via SSH
+          - generic [ref=e136]:
+            - generic [ref=e139]:
+              - generic [ref=e140]: TOTAL IPs
+              - generic [ref=e141]: —
+            - generic [ref=e144]:
+              - generic [ref=e145]: IPv4
+              - generic [ref=e146]: —
+            - generic [ref=e149]:
+              - generic [ref=e150]: IPv6
+              - generic [ref=e151]: —
+          - generic [ref=e153]:
+            - generic [ref=e154]:
+              - img
+              - textbox "Search IP or server name…" [ref=e155]
+            - combobox [ref=e157] [cursor=pointer]:
+              - option "All types" [selected]
+              - option "Public"
+              - option "Private"
+              - option "Interface"
+            - combobox [ref=e159] [cursor=pointer]:
+              - option "IPv4 + IPv6" [selected]
+              - option "IPv4 only"
+              - option "IPv6 only"
+          - generic [ref=e160]:
+            - table [ref=e161]:
+              - rowgroup [ref=e162]:
+                - row "IP Address Type Ver Server Provider Status" [ref=e163]:
+                  - columnheader "IP Address" [ref=e164]
+                  - columnheader "Type" [ref=e165]
+                  - columnheader "Ver" [ref=e166]
+                  - columnheader "Server" [ref=e167]
+                  - columnheader "Provider" [ref=e168]
+                  - columnheader "Status" [ref=e169]
+              - rowgroup [ref=e170]:
+                - row "Loading…" [ref=e171]:
+                  - cell "Loading…" [ref=e172]
+            - generic [ref=e173]:
+              - generic [ref=e174]: Page 1 of 1 · 0 total
+              - generic [ref=e175]:
+                - button "Prev" [disabled] [ref=e176]
+                - button "Next" [disabled] [ref=e177]
+  - generic "Notifications"

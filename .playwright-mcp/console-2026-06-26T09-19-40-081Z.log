@@ -1,0 +1,25 @@
+[    2131ms] [ERROR] TypeError: C is not iterable
+    at http://142.44.210.103:5173/assets/index-Cvw63FgS.js:22:30599
+    at Object.hs [as useMemo] (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:56358)
+    at e.useMemo (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:1:8434)
+    at as (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:22:30590)
+    at xo (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:47575)
+    at uc (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:70092)
+    at Dc (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:80365)
+    at ju (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:115933)
+    at Ou (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:114980)
+    at Du (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:114813) @ http://142.44.210.103:5173/assets/index-Cvw63FgS.js:7
+[    2134ms] [ERROR] ErrorBoundary caught an unhandled rendering crash: TypeError: C is not iterable
+    at http://142.44.210.103:5173/assets/index-Cvw63FgS.js:22:30599
+    at Object.hs [as useMemo] (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:56358)
+    at e.useMemo (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:1:8434)
+    at as (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:22:30590)
+    at xo (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:47575)
+    at uc (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:70092)
+    at Dc (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:80365)
+    at ju (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:115933)
+    at Ou (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:114980)
+    at Du (http://142.44.210.103:5173/assets/index-Cvw63FgS.js:8:114813) {componentStack: 
+    at as (http://142.44.210.103:5173/assets/inde…ndex-Cvw63FgS.js:9:73333)
+    at yV (<anonymous>)} @ http://142.44.210.103:5173/assets/index-Cvw63FgS.js:111
+[    2135ms] [WARNING] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: WebSocket is closed before the connection is established. @ http://142.44.210.103:5173/assets/index-Cvw63FgS.js:21

@@ -1,0 +1,118 @@
+{
+  "projectId": "6761324934109175068",
+  "projectUrl": "https://stitch.withgoogle.com/projects/6761324934109175068",
+  "designSystem": "assets/c9ddf5d4fae94bd385e89f5afe3cc20a",
+  "designSystemName": "Cloudflare",
+  "screens": [
+    {
+      "id": "18aaf906bf124a4fa813eba47b029383",
+      "title": "Login Experience",
+      "localScreenshot": ".stitch/designs/login-v2.png",
+      "status": "complete"
+    },
+    {
+      "id": "ef30d738eca44f79b613d5b7978f968c",
+      "title": "Server Inventory Dashboard (v1)",
+      "localScreenshot": ".stitch/designs/dashboard-01.png",
+      "status": "complete"
+    },
+    {
+      "id": "487a876a55da41538f935c213e587ac8",
+      "title": "Dashboard (v2)",
+      "localScreenshot": ".stitch/designs/dashboard-02.png",
+      "status": "complete"
+    },
+    {
+      "id": "8aeb76c7cd2648cfac0923382176a8cf",
+      "title": "Dashboard (v3)",
+      "localScreenshot": ".stitch/designs/dashboard-03.png",
+      "status": "complete"
+    },
+    {
+      "id": "9efbd48e669548f4bba9b51e3c232424",
+      "title": "Servers Table",
+      "localScreenshot": ".stitch/designs/servers-table.png",
+      "status": "complete"
+    },
+    {
+      "id": "3ed25e8645db47f691bb9de3547ddc7b",
+      "title": "Providers (Cloud Credential Management)",
+      "localScreenshot": ".stitch/designs/providers.png",
+      "status": "complete"
+    },
+    {
+      "id": "10709914f4c44c1bafdef451a628c480",
+      "title": "SSH Credentials Management",
+      "localScreenshot": ".stitch/designs/ssh-credentials.png",
+      "status": "complete"
+    },
+    {
+      "id": "169468dd40be4c339c118ff050776f1b",
+      "title": "Block Storage Management",
+      "localScreenshot": ".stitch/designs/block-storage.png",
+      "status": "complete"
+    },
+    {
+      "id": "3445a6bd52ef47499fd3f7deeb451677",
+      "title": "Kubernetes Clusters Management",
+      "localScreenshot": ".stitch/designs/kubernetes.png",
+      "status": "complete"
+    },
+    {
+      "id": "6f339a8575ab4d4587633756d2b94b95",
+      "title": "Database Instances Management",
+      "localScreenshot": ".stitch/designs/databases.png",
+      "status": "complete"
+    },
+    {
+      "id": "f383b43b366c4d8baece20fbab46b4a2",
+      "title": "Cron Jobs Management",
+      "localScreenshot": ".stitch/designs/cron-jobs.png",
+      "status": "complete"
+    },
+    {
+      "id": "d4d4adc91cfc414d93f6b084bd1cf71f",
+      "title": "Sync Logs & Activity History",
+      "localScreenshot": ".stitch/designs/sync-logs.png",
+      "status": "complete"
+    },
+    {
+      "id": "be6234d665e04a1aacfa799a78f4c0cd",
+      "title": "IP Addresses Management",
+      "localScreenshot": ".stitch/designs/ip-addresses.png",
+      "status": "complete"
+    },
+    {
+      "id": "2f8316f5d22a442698093a1141e5d4c5",
+      "title": "Settings & Configuration",
+      "localScreenshot": ".stitch/designs/settings.png",
+      "status": "complete"
+    },
+    {
+      "id": "b53271a586d94c5aacc13caadcff90c0",
+      "title": "User Management & Team Administration",
+      "localScreenshot": ".stitch/designs/users.png",
+      "screenshotNote": "thumbnail placeholder — view HTML or project URL for full design",
+      "status": "complete"
+    },
+    {
+      "id": "5d4c843c71564093bff6df967a2624f9",
+      "title": "ServerSync Logo (48px SVG)",
+      "status": "complete"
+    },
+    {
+      "id": "fc2e6c7c1a08435ca1bf61f4f3a18975",
+      "title": "ServerSync Logo (24px SVG)",
+      "status": "complete"
+    },
+    {
+      "id": "2b82691e246846abaeb4858b3da157f1",
+      "title": "Network Graph Animation",
+      "status": "complete"
+    }
+  ],
+  "pending": [
+    "Server Detail modal/drawer",
+    "Resource Map modal"
+  ]
+}

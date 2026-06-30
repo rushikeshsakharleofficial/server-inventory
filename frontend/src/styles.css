@@ -1,0 +1,108 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.5rem;
+  /* Operator high-density — light slate */
+  --background: oklch(0.985 0.002 240);            /* zinc-50 */
+  --foreground: oklch(0.21 0.006 285);             /* zinc-900 */
+  --surface: oklch(1 0 0);                          /* white */
+  --surface-muted: oklch(0.97 0.003 240 / 0.5);    /* zinc-50/50 */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.006 285);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.006 285);
+
+  --primary: oklch(0.21 0.006 285);                /* zinc-900 */
+  --primary-foreground: oklch(0.985 0.002 240);
+
+  --secondary: oklch(0.96 0.003 240);              /* zinc-100 */
+  --secondary-foreground: oklch(0.21 0.006 285);
+
+  --muted: oklch(0.96 0.003 240);
+  --muted-foreground: oklch(0.55 0.013 270);       /* zinc-500 */
+
+  --accent: oklch(0.72 0.16 162);                  /* emerald-500 */
+  --accent-foreground: oklch(0.21 0.006 285);
+
+  --destructive: oklch(0.6 0.21 27);
+  --destructive-foreground: oklch(0.985 0.002 240);
+
+  --success: oklch(0.72 0.16 162);
+  --success-foreground: oklch(0.985 0.002 240);
+  --warning: oklch(0.75 0.16 75);
+  --warning-foreground: oklch(0.21 0.006 285);
+  --info: oklch(0.6 0.16 250);
+  --info-foreground: oklch(0.985 0.002 240);
+
+  --border: oklch(0.92 0.005 270);                 /* zinc-200 */
+  --input: oklch(0.92 0.005 270);
+  --ring: oklch(0.55 0.013 270);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection { background: oklch(0.21 0.006 285 / 0.15); }
+}
+
+/* Status pill semantics */
+@utility pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1rem;
+}

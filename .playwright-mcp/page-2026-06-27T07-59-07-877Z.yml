@@ -1,0 +1,582 @@
+- generic [ref=e2]:
+  - generic [ref=e30]:
+    - complementary "Sidebar navigation" [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]: SI
+        - generic [ref=e34]:
+          - paragraph [ref=e35]: ServerInventory
+          - paragraph [ref=e36]: INFRA CONSOLE
+      - navigation [ref=e37]:
+        - generic [ref=e38]: Main
+        - button "Dashboard" [ref=e39] [cursor=pointer]:
+          - img [ref=e40]
+          - generic [ref=e45]: Dashboard
+        - button "Inventory" [ref=e46] [cursor=pointer]:
+          - img [ref=e47]
+          - generic [ref=e51]: Inventory
+          - img [ref=e52]
+        - generic [ref=e54]:
+          - button "Servers" [ref=e55] [cursor=pointer]:
+            - img [ref=e56]
+            - generic [ref=e59]: Servers
+          - button "Databases" [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+            - generic [ref=e65]: Databases
+          - button "Kubernetes" [ref=e66] [cursor=pointer]:
+            - img [ref=e67]
+            - generic [ref=e70]: Kubernetes
+          - button "Block Storage" [ref=e71] [cursor=pointer]:
+            - img [ref=e72]
+            - generic [ref=e74]: Block Storage
+          - button "IP Addresses" [ref=e75] [cursor=pointer]:
+            - img [ref=e76]
+            - generic [ref=e81]: IP Addresses
+        - generic [ref=e83]: Connections
+        - button "Cloud Providers" [ref=e84] [cursor=pointer]:
+          - img [ref=e85]
+          - generic [ref=e87]: Cloud Providers
+        - button "SSH Keys" [ref=e88] [cursor=pointer]:
+          - img [ref=e89]
+          - generic [ref=e91]: SSH Keys
+        - button "Monitoring" [ref=e92] [cursor=pointer]:
+          - img [ref=e93]
+          - generic [ref=e95]: Monitoring
+          - img [ref=e96]
+        - generic [ref=e99]: System
+        - button "Manage Users" [ref=e100] [cursor=pointer]:
+          - img [ref=e101]
+          - generic [ref=e106]: Manage Users
+        - button "Settings" [ref=e107] [cursor=pointer]:
+          - img [ref=e108]
+          - generic [ref=e109]: Settings
+        - button "Admin Setup" [ref=e110] [cursor=pointer]:
+          - img [ref=e111]
+          - generic [ref=e113]: Admin Setup
+      - generic [ref=e115]:
+        - img [ref=e117]
+        - generic [ref=e119]:
+          - paragraph [ref=e120]: admin
+          - paragraph [ref=e121]: admin
+        - button "Sign out" [ref=e122] [cursor=pointer]:
+          - img [ref=e123]
+    - generic [ref=e126]:
+      - banner [ref=e127]:
+        - generic [ref=e128]:
+          - button "Close sidebar" [ref=e129] [cursor=pointer]:
+            - img [ref=e130]
+          - heading "Server Inventory" [level=1] [ref=e133]
+        - generic [ref=e134]:
+          - generic "Live — WebSocket connected" [ref=e135]
+          - generic [ref=e136]:
+            - img [ref=e137]
+            - generic [ref=e139]: admin
+          - button "Add Server" [ref=e140] [cursor=pointer]:
+            - img [ref=e141]
+            - generic [ref=e142]: Add Server
+          - button "Sync all cloud providers" [ref=e144] [cursor=pointer]:
+            - img [ref=e145]
+            - generic [ref=e150]: Sync All
+      - main [ref=e151]:
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - generic [ref=e156]:
+              - img [ref=e157]
+              - textbox "Search servers" [ref=e160]:
+                - /placeholder: Search name, IP, hostname…
+            - button "Select provider…" [ref=e161]:
+              - generic [ref=e162]:
+                - generic [ref=e163]: Select provider…
+                - img [ref=e164]
+            - button "Select status…" [ref=e167]:
+              - generic [ref=e168]:
+                - generic [ref=e169]: Select status…
+                - img [ref=e170]
+            - paragraph [ref=e174]: 124 servers found
+            - button "Custom DC" [ref=e175] [cursor=pointer]:
+              - img [ref=e176]
+              - text: Custom DC
+          - generic [ref=e177]:
+            - generic [ref=e178]: Infrastructure Manifest
+            - generic [ref=e179]: 124 NODES
+          - table "Server inventory" [ref=e181]:
+            - rowgroup [ref=e182]:
+              - row "Name Provider Region Type Status Public IP Private IP vCPU RAM (GB) OS Last Synced" [ref=e183]:
+                - columnheader "Name" [ref=e184] [cursor=pointer]:
+                  - generic [ref=e185]:
+                    - generic [ref=e186]: Name
+                    - img [ref=e187]
+                - columnheader "Provider" [ref=e189] [cursor=pointer]:
+                  - generic [ref=e190]:
+                    - generic [ref=e191]: Provider
+                    - img [ref=e192]
+                - columnheader "Region" [ref=e195] [cursor=pointer]:
+                  - generic [ref=e196]:
+                    - generic [ref=e197]: Region
+                    - img [ref=e198]
+                - columnheader "Type" [ref=e201] [cursor=pointer]:
+                  - generic [ref=e202]:
+                    - generic [ref=e203]: Type
+                    - img [ref=e204]
+                - columnheader "Status" [ref=e207] [cursor=pointer]:
+                  - generic [ref=e208]:
+                    - generic [ref=e209]: Status
+                    - img [ref=e210]
+                - columnheader "Public IP" [ref=e213] [cursor=pointer]:
+                  - generic [ref=e214]:
+                    - generic [ref=e215]: Public IP
+                    - img [ref=e216]
+                - columnheader "Private IP" [ref=e219] [cursor=pointer]:
+                  - generic [ref=e220]:
+                    - generic [ref=e221]: Private IP
+                    - img [ref=e222]
+                - columnheader "vCPU" [ref=e225] [cursor=pointer]:
+                  - generic [ref=e226]:
+                    - generic [ref=e227]: vCPU
+                    - img [ref=e228]
+                - columnheader "RAM (GB)" [ref=e231] [cursor=pointer]:
+                  - generic [ref=e232]:
+                    - generic [ref=e233]: RAM (GB)
+                    - img [ref=e234]
+                - columnheader "OS" [ref=e237] [cursor=pointer]:
+                  - generic [ref=e238]:
+                    - generic [ref=e239]: OS
+                    - img [ref=e240]
+                - columnheader "Last Synced" [ref=e243] [cursor=pointer]:
+                  - generic [ref=e244]:
+                    - generic [ref=e245]: Last Synced
+                    - img [ref=e246]
+                - columnheader [ref=e249]
+            - rowgroup [ref=e250]:
+              - row "15.204.242.187 - Verification, Oauth, DKIM ovh OVH us-east-va-2 VPS-6 2026 running 15.204.242.187 — 24 96 — 6/27/26, 12:51 PM Delete 15.204.242.187 - Verification, Oauth, DKIM" [ref=e251] [cursor=pointer]:
+                - cell "15.204.242.187 - Verification, Oauth, DKIM" [ref=e252]:
+                  - paragraph [ref=e253]: 15.204.242.187 - Verification, Oauth, DKIM
+                - cell "ovh OVH" [ref=e254]:
+                  - generic [ref=e255]:
+                    - img "ovh" [ref=e256]
+                    - text: OVH
+                - cell "us-east-va-2" [ref=e257]
+                - cell "VPS-6 2026" [ref=e258]
+                - cell "running" [ref=e259]:
+                  - generic [ref=e260]: running
+                - cell "15.204.242.187" [ref=e262]:
+                  - generic [ref=e264]: 15.204.242.187
+                - cell "—" [ref=e265]
+                - cell "24" [ref=e266]
+                - cell "96" [ref=e267]
+                - cell "—" [ref=e268]
+                - cell "6/27/26, 12:51 PM" [ref=e269]
+                - cell "Delete 15.204.242.187 - Verification, Oauth, DKIM" [ref=e270]:
+                  - button "Delete 15.204.242.187 - Verification, Oauth, DKIM" [ref=e272]:
+                    - img [ref=e273]
+              - row "15.204.242.81 - verification, Oauth, DKIM ovh OVH us-east-va-2 VPS-6 2026 running 15.204.242.81 — 24 96 — 6/27/26, 12:51 PM Delete 15.204.242.81 - verification, Oauth, DKIM" [ref=e276] [cursor=pointer]:
+                - cell "15.204.242.81 - verification, Oauth, DKIM" [ref=e277]:
+                  - paragraph [ref=e278]: 15.204.242.81 - verification, Oauth, DKIM
+                - cell "ovh OVH" [ref=e279]:
+                  - generic [ref=e280]:
+                    - img "ovh" [ref=e281]
+                    - text: OVH
+                - cell "us-east-va-2" [ref=e282]
+                - cell "VPS-6 2026" [ref=e283]
+                - cell "running" [ref=e284]:
+                  - generic [ref=e285]: running
+                - cell "15.204.242.81" [ref=e287]:
+                  - generic [ref=e289]: 15.204.242.81
+                - cell "—" [ref=e290]
+                - cell "24" [ref=e291]
+                - cell "96" [ref=e292]
+                - cell "—" [ref=e293]
+                - cell "6/27/26, 12:51 PM" [ref=e294]
+                - cell "Delete 15.204.242.81 - verification, Oauth, DKIM" [ref=e295]:
+                  - button "Delete 15.204.242.81 - verification, Oauth, DKIM" [ref=e297]:
+                    - img [ref=e298]
+              - row "192.99.145.178 - Verification , DKIM, Scopes ovh OVH bhs6 VPS-6 2026 running 192.99.145.178 — 24 96 — 6/27/26, 12:51 PM Delete 192.99.145.178 - Verification , DKIM, Scopes" [ref=e301] [cursor=pointer]:
+                - cell "192.99.145.178 - Verification , DKIM, Scopes" [ref=e302]:
+                  - paragraph [ref=e303]: 192.99.145.178 - Verification , DKIM, Scopes
+                - cell "ovh OVH" [ref=e304]:
+                  - generic [ref=e305]:
+                    - img "ovh" [ref=e306]
+                    - text: OVH
+                - cell "bhs6" [ref=e307]
+                - cell "VPS-6 2026" [ref=e308]
+                - cell "running" [ref=e309]:
+                  - generic [ref=e310]: running
+                - cell "192.99.145.178" [ref=e312]:
+                  - generic [ref=e314]: 192.99.145.178
+                - cell "—" [ref=e315]
+                - cell "24" [ref=e316]
+                - cell "96" [ref=e317]
+                - cell "—" [ref=e318]
+                - cell "6/27/26, 12:51 PM" [ref=e319]
+                - cell "Delete 192.99.145.178 - Verification , DKIM, Scopes" [ref=e320]:
+                  - button "Delete 192.99.145.178 - Verification , DKIM, Scopes" [ref=e322]:
+                    - img [ref=e323]
+              - row "51.210.244.56 instantly api for new backup ovh OVH sbg6 VPS-6 2026 running 51.210.244.56 — 24 96 — 6/27/26, 12:51 PM Delete 51.210.244.56 instantly api for new backup" [ref=e326] [cursor=pointer]:
+                - cell "51.210.244.56 instantly api for new backup" [ref=e327]:
+                  - paragraph [ref=e328]: 51.210.244.56 instantly api for new backup
+                - cell "ovh OVH" [ref=e329]:
+                  - generic [ref=e330]:
+                    - img "ovh" [ref=e331]
+                    - text: OVH
+                - cell "sbg6" [ref=e332]
+                - cell "VPS-6 2026" [ref=e333]
+                - cell "running" [ref=e334]:
+                  - generic [ref=e335]: running
+                - cell "51.210.244.56" [ref=e337]:
+                  - generic [ref=e339]: 51.210.244.56
+                - cell "—" [ref=e340]
+                - cell "24" [ref=e341]
+                - cell "96" [ref=e342]
+                - cell "—" [ref=e343]
+                - cell "6/27/26, 12:51 PM" [ref=e344]
+                - cell "Delete 51.210.244.56 instantly api for new backup" [ref=e345]:
+                  - button "Delete 51.210.244.56 instantly api for new backup" [ref=e347]:
+                    - img [ref=e348]
+              - row "51.210.244.58 instantly uploads api new backup ovh OVH sbg6 VPS-6 2026 running 51.210.244.58 — 24 96 — 6/27/26, 12:51 PM Delete 51.210.244.58 instantly uploads api new backup" [ref=e351] [cursor=pointer]:
+                - cell "51.210.244.58 instantly uploads api new backup" [ref=e352]:
+                  - paragraph [ref=e353]: 51.210.244.58 instantly uploads api new backup
+                - cell "ovh OVH" [ref=e354]:
+                  - generic [ref=e355]:
+                    - img "ovh" [ref=e356]
+                    - text: OVH
+                - cell "sbg6" [ref=e357]
+                - cell "VPS-6 2026" [ref=e358]
+                - cell "running" [ref=e359]:
+                  - generic [ref=e360]: running
+                - cell "51.210.244.58" [ref=e362]:
+                  - generic [ref=e364]: 51.210.244.58
+                - cell "—" [ref=e365]
+                - cell "24" [ref=e366]
+                - cell "96" [ref=e367]
+                - cell "—" [ref=e368]
+                - cell "6/27/26, 12:51 PM" [ref=e369]
+                - cell "Delete 51.210.244.58 instantly uploads api new backup" [ref=e370]:
+                  - button "Delete 51.210.244.58 instantly uploads api new backup" [ref=e372]:
+                    - img [ref=e373]
+              - row "51.222.141.197-instantly-uploads ovh OVH bhs6 VPS-6 2026 running 51.222.141.197 — 24 96 — 6/27/26, 12:51 PM Delete 51.222.141.197-instantly-uploads" [ref=e376] [cursor=pointer]:
+                - cell "51.222.141.197-instantly-uploads" [ref=e377]:
+                  - paragraph [ref=e378]: 51.222.141.197-instantly-uploads
+                - cell "ovh OVH" [ref=e379]:
+                  - generic [ref=e380]:
+                    - img "ovh" [ref=e381]
+                    - text: OVH
+                - cell "bhs6" [ref=e382]
+                - cell "VPS-6 2026" [ref=e383]
+                - cell "running" [ref=e384]:
+                  - generic [ref=e385]: running
+                - cell "51.222.141.197" [ref=e387]:
+                  - generic [ref=e389]: 51.222.141.197
+                - cell "—" [ref=e390]
+                - cell "24" [ref=e391]
+                - cell "96" [ref=e392]
+                - cell "—" [ref=e393]
+                - cell "6/27/26, 12:51 PM" [ref=e394]
+                - cell "Delete 51.222.141.197-instantly-uploads" [ref=e395]:
+                  - button "Delete 51.222.141.197-instantly-uploads" [ref=e397]:
+                    - img [ref=e398]
+              - row "API google admin automation (backup) server ovh OVH bhs6 VPS-6 2026 running 148.113.197.28 — 24 96 — 6/27/26, 12:51 PM Delete API google admin automation (backup) server" [ref=e401] [cursor=pointer]:
+                - cell "API google admin automation (backup) server" [ref=e402]:
+                  - paragraph [ref=e403]: API google admin automation (backup) server
+                - cell "ovh OVH" [ref=e404]:
+                  - generic [ref=e405]:
+                    - img "ovh" [ref=e406]
+                    - text: OVH
+                - cell "bhs6" [ref=e407]
+                - cell "VPS-6 2026" [ref=e408]
+                - cell "running" [ref=e409]:
+                  - generic [ref=e410]: running
+                - cell "148.113.197.28" [ref=e412]:
+                  - generic [ref=e414]: 148.113.197.28
+                - cell "—" [ref=e415]
+                - cell "24" [ref=e416]
+                - cell "96" [ref=e417]
+                - cell "—" [ref=e418]
+                - cell "6/27/26, 12:51 PM" [ref=e419]
+                - cell "Delete API google admin automation (backup) server" [ref=e420]:
+                  - button "Delete API google admin automation (backup) server" [ref=e422]:
+                    - img [ref=e423]
+              - row "API instantly google uploads (backup) server ovh OVH bhs6 VPS-6 2026 running 148.113.209.117 — 24 96 — 6/27/26, 12:51 PM Delete API instantly google uploads (backup) server" [ref=e426] [cursor=pointer]:
+                - cell "API instantly google uploads (backup) server" [ref=e427]:
+                  - paragraph [ref=e428]: API instantly google uploads (backup) server
+                - cell "ovh OVH" [ref=e429]:
+                  - generic [ref=e430]:
+                    - img "ovh" [ref=e431]
+                    - text: OVH
+                - cell "bhs6" [ref=e432]
+                - cell "VPS-6 2026" [ref=e433]
+                - cell "running" [ref=e434]:
+                  - generic [ref=e435]: running
+                - cell "148.113.209.117" [ref=e437]:
+                  - generic [ref=e439]: 148.113.209.117
+                - cell "—" [ref=e440]
+                - cell "24" [ref=e441]
+                - cell "96" [ref=e442]
+                - cell "—" [ref=e443]
+                - cell "6/27/26, 12:51 PM" [ref=e444]
+                - cell "Delete API instantly google uploads (backup) server" [ref=e445]:
+                  - button "Delete API instantly google uploads (backup) server" [ref=e447]:
+                    - img [ref=e448]
+              - row "Air Verifier catchall checker ovh OVH us-west-or-2 VPS-2 2026 running 15.204.11.15 — 6 12 — 6/27/26, 12:51 PM Delete Air Verifier catchall checker" [ref=e451] [cursor=pointer]:
+                - cell "Air Verifier catchall checker" [ref=e452]:
+                  - paragraph [ref=e453]: Air Verifier catchall checker
+                - cell "ovh OVH" [ref=e454]:
+                  - generic [ref=e455]:
+                    - img "ovh" [ref=e456]
+                    - text: OVH
+                - cell "us-west-or-2" [ref=e457]
+                - cell "VPS-2 2026" [ref=e458]
+                - cell "running" [ref=e459]:
+                  - generic [ref=e460]: running
+                - cell "15.204.11.15" [ref=e462]:
+                  - generic [ref=e464]: 15.204.11.15
+                - cell "—" [ref=e465]
+                - cell "6" [ref=e466]
+                - cell "12" [ref=e467]
+                - cell "—" [ref=e468]
+                - cell "6/27/26, 12:51 PM" [ref=e469]
+                - cell "Delete Air Verifier catchall checker" [ref=e470]:
+                  - button "Delete Air Verifier catchall checker" [ref=e472]:
+                    - img [ref=e473]
+              - row "AirMTA - Additional IPS ovh OVH gra6 VPS-3 2026 running 51.38.239.54 — 8 24 — 6/27/26, 12:51 PM Delete AirMTA - Additional IPS" [ref=e476] [cursor=pointer]:
+                - cell "AirMTA - Additional IPS" [ref=e477]:
+                  - paragraph [ref=e478]: AirMTA - Additional IPS
+                - cell "ovh OVH" [ref=e479]:
+                  - generic [ref=e480]:
+                    - img "ovh" [ref=e481]
+                    - text: OVH
+                - cell "gra6" [ref=e482]
+                - cell "VPS-3 2026" [ref=e483]
+                - cell "running" [ref=e484]:
+                  - generic [ref=e485]: running
+                - cell "51.38.239.54" [ref=e487]:
+                  - generic [ref=e489]: 51.38.239.54
+                - cell "—" [ref=e490]
+                - cell "8" [ref=e491]
+                - cell "24" [ref=e492]
+                - cell "—" [ref=e493]
+                - cell "6/27/26, 12:51 PM" [ref=e494]
+                - cell "Delete AirMTA - Additional IPS" [ref=e495]:
+                  - button "Delete AirMTA - Additional IPS" [ref=e497]:
+                    - img [ref=e498]
+              - row "AirMTA - Testing - IMAP ovh OVH bhs6 VPS-6 2026 running 158.69.222.84 — 24 96 — 6/27/26, 12:51 PM Delete AirMTA - Testing - IMAP" [ref=e501] [cursor=pointer]:
+                - cell "AirMTA - Testing - IMAP" [ref=e502]:
+                  - paragraph [ref=e503]: AirMTA - Testing - IMAP
+                - cell "ovh OVH" [ref=e504]:
+                  - generic [ref=e505]:
+                    - img "ovh" [ref=e506]
+                    - text: OVH
+                - cell "bhs6" [ref=e507]
+                - cell "VPS-6 2026" [ref=e508]
+                - cell "running" [ref=e509]:
+                  - generic [ref=e510]: running
+                - cell "158.69.222.84" [ref=e512]:
+                  - generic [ref=e514]: 158.69.222.84
+                - cell "—" [ref=e515]
+                - cell "24" [ref=e516]
+                - cell "96" [ref=e517]
+                - cell "—" [ref=e518]
+                - cell "6/27/26, 12:51 PM" [ref=e519]
+                - cell "Delete AirMTA - Testing - IMAP" [ref=e520]:
+                  - button "Delete AirMTA - Testing - IMAP" [ref=e522]:
+                    - img [ref=e523]
+              - row "AirMTA - Testing - SN ovh OVH gra6 VPS-3 2026 running 51.38.231.98 — 8 24 — 6/27/26, 12:51 PM Delete AirMTA - Testing - SN" [ref=e526] [cursor=pointer]:
+                - cell "AirMTA - Testing - SN" [ref=e527]:
+                  - paragraph [ref=e528]: AirMTA - Testing - SN
+                - cell "ovh OVH" [ref=e529]:
+                  - generic [ref=e530]:
+                    - img "ovh" [ref=e531]
+                    - text: OVH
+                - cell "gra6" [ref=e532]
+                - cell "VPS-3 2026" [ref=e533]
+                - cell "running" [ref=e534]:
+                  - generic [ref=e535]: running
+                - cell "51.38.231.98" [ref=e537]:
+                  - generic [ref=e539]: 51.38.231.98
+                - cell "—" [ref=e540]
+                - cell "8" [ref=e541]
+                - cell "24" [ref=e542]
+                - cell "—" [ref=e543]
+                - cell "6/27/26, 12:51 PM" [ref=e544]
+                - cell "Delete AirMTA - Testing - SN" [ref=e545]:
+                  - button "Delete AirMTA - Testing - SN" [ref=e547]:
+                    - img [ref=e548]
+              - row "AirMTA 50 domains 500mailboxes ovh OVH bhs6 VPS-1 2026 running 51.222.204.250 — 4 8 — 6/27/26, 12:51 PM Delete AirMTA 50 domains 500mailboxes" [ref=e551] [cursor=pointer]:
+                - cell "AirMTA 50 domains 500mailboxes" [ref=e552]:
+                  - paragraph [ref=e553]: AirMTA 50 domains 500mailboxes
+                - cell "ovh OVH" [ref=e554]:
+                  - generic [ref=e555]:
+                    - img "ovh" [ref=e556]
+                    - text: OVH
+                - cell "bhs6" [ref=e557]
+                - cell "VPS-1 2026" [ref=e558]
+                - cell "running" [ref=e559]:
+                  - generic [ref=e560]: running
+                - cell "51.222.204.250" [ref=e562]:
+                  - generic [ref=e564]: 51.222.204.250
+                - cell "—" [ref=e565]
+                - cell "4" [ref=e566]
+                - cell "8" [ref=e567]
+                - cell "—" [ref=e568]
+                - cell "6/27/26, 12:51 PM" [ref=e569]
+                - cell "Delete AirMTA 50 domains 500mailboxes" [ref=e570]:
+                  - button "Delete AirMTA 50 domains 500mailboxes" [ref=e572]:
+                    - img [ref=e573]
+              - row "AirMTA 50 domains 500mailboxes 2-batch ovh OVH bhs6 VPS-1 2026 running 51.222.107.207 — 4 8 — 6/27/26, 12:51 PM Delete AirMTA 50 domains 500mailboxes 2-batch" [ref=e576] [cursor=pointer]:
+                - cell "AirMTA 50 domains 500mailboxes 2-batch" [ref=e577]:
+                  - paragraph [ref=e578]: AirMTA 50 domains 500mailboxes 2-batch
+                - cell "ovh OVH" [ref=e579]:
+                  - generic [ref=e580]:
+                    - img "ovh" [ref=e581]
+                    - text: OVH
+                - cell "bhs6" [ref=e582]
+                - cell "VPS-1 2026" [ref=e583]
+                - cell "running" [ref=e584]:
+                  - generic [ref=e585]: running
+                - cell "51.222.107.207" [ref=e587]:
+                  - generic [ref=e589]: 51.222.107.207
+                - cell "—" [ref=e590]
+                - cell "4" [ref=e591]
+                - cell "8" [ref=e592]
+                - cell "—" [ref=e593]
+                - cell "6/27/26, 12:51 PM" [ref=e594]
+                - cell "Delete AirMTA 50 domains 500mailboxes 2-batch" [ref=e595]:
+                  - button "Delete AirMTA 50 domains 500mailboxes 2-batch" [ref=e597]:
+                    - img [ref=e598]
+              - row "AirMTA MongoDB Monitoring Server (Please Do Not Touch) ovh OVH gra6 VPS-3 2026 running 51.38.178.218 — 8 24 — 6/27/26, 12:51 PM Delete AirMTA MongoDB Monitoring Server (Please Do Not Touch)" [ref=e601] [cursor=pointer]:
+                - cell "AirMTA MongoDB Monitoring Server (Please Do Not Touch)" [ref=e602]:
+                  - paragraph [ref=e603]: AirMTA MongoDB Monitoring Server (Please Do Not Touch)
+                - cell "ovh OVH" [ref=e604]:
+                  - generic [ref=e605]:
+                    - img "ovh" [ref=e606]
+                    - text: OVH
+                - cell "gra6" [ref=e607]
+                - cell "VPS-3 2026" [ref=e608]
+                - cell "running" [ref=e609]:
+                  - generic [ref=e610]: running
+                - cell "51.38.178.218" [ref=e612]:
+                  - generic [ref=e614]: 51.38.178.218
+                - cell "—" [ref=e615]
+                - cell "8" [ref=e616]
+                - cell "24" [ref=e617]
+                - cell "—" [ref=e618]
+                - cell "6/27/26, 12:51 PM" [ref=e619]
+                - cell "Delete AirMTA MongoDB Monitoring Server (Please Do Not Touch)" [ref=e620]:
+                  - button "Delete AirMTA MongoDB Monitoring Server (Please Do Not Touch)" [ref=e622]:
+                    - img [ref=e623]
+              - row "AirMTA V4 MongoDB Monitoring Server (Please Do Not Touch) ovh OVH bhs6 VPS-6 2026 running 149.56.134.172 — 24 96 — 6/27/26, 12:51 PM Delete AirMTA V4 MongoDB Monitoring Server (Please Do Not Touch)" [ref=e626] [cursor=pointer]:
+                - cell "AirMTA V4 MongoDB Monitoring Server (Please Do Not Touch)" [ref=e627]:
+                  - paragraph [ref=e628]: AirMTA V4 MongoDB Monitoring Server (Please Do Not Touch)
+                - cell "ovh OVH" [ref=e629]:
+                  - generic [ref=e630]:
+                    - img "ovh" [ref=e631]
+                    - text: OVH
+                - cell "bhs6" [ref=e632]
+                - cell "VPS-6 2026" [ref=e633]
+                - cell "running" [ref=e634]:
+                  - generic [ref=e635]: running
+                - cell "149.56.134.172" [ref=e637]:
+                  - generic [ref=e639]: 149.56.134.172
+                - cell "—" [ref=e640]
+                - cell "24" [ref=e641]
+                - cell "96" [ref=e642]
+                - cell "—" [ref=e643]
+                - cell "6/27/26, 12:51 PM" [ref=e644]
+                - cell "Delete AirMTA V4 MongoDB Monitoring Server (Please Do Not Touch)" [ref=e645]:
+                  - button "Delete AirMTA V4 MongoDB Monitoring Server (Please Do Not Touch)" [ref=e647]:
+                    - img [ref=e648]
+              - row "Airmail 8th batch setup ovh OVH us-west-or-2 VPS-3 2026 running 15.204.94.120 — 8 24 — 6/27/26, 12:51 PM Delete Airmail 8th batch setup" [ref=e651] [cursor=pointer]:
+                - cell "Airmail 8th batch setup" [ref=e652]:
+                  - paragraph [ref=e653]: Airmail 8th batch setup
+                - cell "ovh OVH" [ref=e654]:
+                  - generic [ref=e655]:
+                    - img "ovh" [ref=e656]
+                    - text: OVH
+                - cell "us-west-or-2" [ref=e657]
+                - cell "VPS-3 2026" [ref=e658]
+                - cell "running" [ref=e659]:
+                  - generic [ref=e660]: running
+                - cell "15.204.94.120" [ref=e662]:
+                  - generic [ref=e664]: 15.204.94.120
+                - cell "—" [ref=e665]
+                - cell "8" [ref=e666]
+                - cell "24" [ref=e667]
+                - cell "—" [ref=e668]
+                - cell "6/27/26, 12:51 PM" [ref=e669]
+                - cell "Delete Airmail 8th batch setup" [ref=e670]:
+                  - button "Delete Airmail 8th batch setup" [ref=e672]:
+                    - img [ref=e673]
+              - row "Airmta IPV6 2604:2dc0:400:8401::/64 ovh OVH bhs6 VPS-1 2026 running 51.79.67.167 — 4 8 — 6/27/26, 12:51 PM Delete Airmta IPV6 2604:2dc0:400:8401::/64" [ref=e676] [cursor=pointer]:
+                - cell "Airmta IPV6 2604:2dc0:400:8401::/64" [ref=e677]:
+                  - paragraph [ref=e678]: Airmta IPV6 2604:2dc0:400:8401::/64
+                - cell "ovh OVH" [ref=e679]:
+                  - generic [ref=e680]:
+                    - img "ovh" [ref=e681]
+                    - text: OVH
+                - cell "bhs6" [ref=e682]
+                - cell "VPS-1 2026" [ref=e683]
+                - cell "running" [ref=e684]:
+                  - generic [ref=e685]: running
+                - cell "51.79.67.167" [ref=e687]:
+                  - generic [ref=e689]: 51.79.67.167
+                - cell "—" [ref=e690]
+                - cell "4" [ref=e691]
+                - cell "8" [ref=e692]
+                - cell "—" [ref=e693]
+                - cell "6/27/26, 12:51 PM" [ref=e694]
+                - cell "Delete Airmta IPV6 2604:2dc0:400:8401::/64" [ref=e695]:
+                  - button "Delete Airmta IPV6 2604:2dc0:400:8401::/64" [ref=e697]:
+                    - img [ref=e698]
+              - row "AirmtaDev Submission Server ovh OVH us-west-or-2 VPS-2 2026 running 15.204.94.86 — 6 12 — 6/27/26, 12:51 PM Delete AirmtaDev Submission Server" [ref=e701] [cursor=pointer]:
+                - cell "AirmtaDev Submission Server" [ref=e702]:
+                  - paragraph [ref=e703]: AirmtaDev Submission Server
+                - cell "ovh OVH" [ref=e704]:
+                  - generic [ref=e705]:
+                    - img "ovh" [ref=e706]
+                    - text: OVH
+                - cell "us-west-or-2" [ref=e707]
+                - cell "VPS-2 2026" [ref=e708]
+                - cell "running" [ref=e709]:
+                  - generic [ref=e710]: running
+                - cell "15.204.94.86" [ref=e712]:
+                  - generic [ref=e714]: 15.204.94.86
+                - cell "—" [ref=e715]
+                - cell "6" [ref=e716]
+                - cell "12" [ref=e717]
+                - cell "—" [ref=e718]
+                - cell "6/27/26, 12:51 PM" [ref=e719]
+                - cell "Delete AirmtaDev Submission Server" [ref=e720]:
+                  - button "Delete AirmtaDev Submission Server" [ref=e722]:
+                    - img [ref=e723]
+              - row "AirmtaV4-Dev-Delivery server 1 ovh OVH bhs6 VPS-1 2026 running 51.222.107.79 — 4 8 — 6/27/26, 12:51 PM Delete AirmtaV4-Dev-Delivery server 1" [ref=e726] [cursor=pointer]:
+                - cell "AirmtaV4-Dev-Delivery server 1" [ref=e727]:
+                  - paragraph [ref=e728]: AirmtaV4-Dev-Delivery server 1
+                - cell "ovh OVH" [ref=e729]:
+                  - generic [ref=e730]:
+                    - img "ovh" [ref=e731]
+                    - text: OVH
+                - cell "bhs6" [ref=e732]
+                - cell "VPS-1 2026" [ref=e733]
+                - cell "running" [ref=e734]:
+                  - generic [ref=e735]: running
+                - cell "51.222.107.79" [ref=e737]:
+                  - generic [ref=e739]: 51.222.107.79
+                - cell "—" [ref=e740]
+                - cell "4" [ref=e741]
+                - cell "8" [ref=e742]
+                - cell "—" [ref=e743]
+                - cell "6/27/26, 12:51 PM" [ref=e744]
+                - cell "Delete AirmtaV4-Dev-Delivery server 1" [ref=e745]:
+                  - button "Delete AirmtaV4-Dev-Delivery server 1" [ref=e747]:
+                    - img [ref=e748]
+          - generic [ref=e751]:
+            - paragraph [ref=e752]: Page 1 of 7 · 124 total
+            - generic [ref=e753]:
+              - button "Prev" [disabled] [ref=e754]
+              - button "1" [ref=e755] [cursor=pointer]
+              - button "2" [ref=e756] [cursor=pointer]
+              - button "3" [ref=e757] [cursor=pointer]
+              - button "4" [ref=e758] [cursor=pointer]
+              - button "5" [ref=e759] [cursor=pointer]
+              - button "6" [ref=e760] [cursor=pointer]
+              - button "7" [ref=e761] [cursor=pointer]
+              - button "Next" [ref=e762] [cursor=pointer]
+  - generic "Notifications"

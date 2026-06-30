@@ -1,0 +1,229 @@
+/**
+ * Thin fetch client around the FastAPI backend.
+ * Backend base URL is read from VITE_API_URL (defaults to http://localhost:8000).
+ */
+
+const RAW_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+export const API_BASE = RAW_BASE.replace(/\/+$/, "");
+
+const TOKEN_KEY = "sic.token";
+const USER_KEY = "sic.user";
+
+export interface StoredUser {
+  username: string;
+  role: string;
+}
+
+export const tokenStore = {
+  get: () => (typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY)),
+  set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  },
+};
+
+export const userStore = {
+  get: (): StoredUser | null => {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  },
+  set: (u: StoredUser) => localStorage.setItem(USER_KEY, JSON.stringify(u)),
+};
+
+export class ApiError extends Error {
+  status: number;
+  body: unknown;
+  constructor(status: number, message: string, body: unknown) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export async function api<T = unknown>(
+  path: string,
+  init: RequestInit & { json?: unknown; query?: Record<string, unknown> } = {},
+): Promise<T> {
+  const { json, query, headers, ...rest } = init;
+  let url = `${API_BASE}${path}`;
+  if (query) {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) {
+      if (v === undefined || v === null || v === "") continue;
+      qs.append(k, String(v));
+    }
+    const s = qs.toString();
+    if (s) url += `?${s}`;
+  }
+  const token = tokenStore.get();
+  const h: Record<string, string> = {
+    Accept: "application/json",
+    ...(headers as Record<string, string> | undefined),
+  };
+  if (json !== undefined) h["Content-Type"] = "application/json";
+  if (token) h["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(url, {
+    ...rest,
+    headers: h,
+    body: json !== undefined ? JSON.stringify(json) : (rest.body as BodyInit | undefined),
+  });
+
+  if (res.status === 204) return undefined as T;
+
+  const contentType = res.headers.get("content-type") ?? "";
+  const data = contentType.includes("application/json") ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      tokenStore.clear();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.assign("/login");
+      }
+    }
+    const msg =
+      (typeof data === "object" && data && "detail" in data
+        ? String((data as { detail: unknown }).detail)
+        : typeof data === "string"
+          ? data
+          : res.statusText) || "Request failed";
+    throw new ApiError(res.status, msg, data);
+  }
+  return data as T;
+}
+
+/* ---------- typed surface ---------- */
+
+export interface Page<T> {
+  total: number;
+  limit: number;
+  offset: number;
+  items: T[];
+}
+
+export interface Server {
+  id: number;
+  name: string;
+  provider: string;
+  region?: string | null;
+  zone?: string | null;
+  instance_type?: string | null;
+  status: string;
+  public_ip?: string | null;
+  private_ip?: string | null;
+  vcpu?: number | null;
+  memory_gb?: number | null;
+  storage_gb?: number | null;
+  os?: string | null;
+  tags?: Record<string, unknown>;
+  extra?: Record<string, unknown>;
+  datacenter?: string | null;
+  hostname?: string | null;
+  notes?: string | null;
+  cloud_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_synced?: string | null;
+  ssh_info?: Record<string, unknown> | null;
+}
+
+export interface Stats {
+  total: number;
+  running: number;
+  stopped: number;
+  by_provider: Record<string, number>;
+  by_region: Record<string, number>;
+  by_status: Record<string, number>;
+}
+
+export interface Credential {
+  id: number;
+  name: string;
+  provider: string;
+  is_active: boolean;
+  config: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface SyncLog {
+  id: number;
+  provider?: string | null;
+  status: string;
+  servers_added: number;
+  servers_updated: number;
+  error_message?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface SshCredential {
+  id: number;
+  name: string;
+  username: string;
+  auth_method: string;
+  port: number;
+  is_default: boolean;
+  notes?: string | null;
+  proxy_host?: string | null;
+}
+
+export interface DatabaseInstance {
+  id: number;
+  name: string;
+  provider: string;
+  engine?: string | null;
+  region?: string | null;
+  status: string;
+  endpoint?: string | null;
+  port?: number | null;
+}
+
+export interface KubernetesCluster {
+  id: number;
+  name: string;
+  provider: string;
+  region?: string | null;
+  status: string;
+  version?: string | null;
+  node_count?: number | null;
+}
+
+export interface BlockStorage {
+  id: number;
+  name: string;
+  provider: string;
+  region?: string | null;
+  status: string;
+  size_gb?: number | null;
+  attached_to?: string | null;
+}
+
+export interface CronJob {
+  id: number;
+  name: string;
+  schedule: string;
+  job_type: string;
+  enabled: boolean;
+  last_run?: string | null;
+  next_run?: string | null;
+  provider?: string | null;
+}
+
+export interface UserRow {
+  id: number;
+  username: string;
+  role: string;
+  is_active: boolean;
+  created_at?: string | null;
+}
+
+export interface LoginResponse {
+  access_token: string | null;
+  token_type: string;
+  role: string | null;
+  username: string | null;
+  mfa_required: boolean;
+  mfa_token: string | null;
+}
