@@ -203,12 +203,19 @@ export interface BlockStorage {
 export interface CronJob {
   id: number;
   name: string;
-  schedule: string;
-  job_type: string;
-  enabled: boolean;
-  last_run?: string | null;
-  next_run?: string | null;
+  cron_expr: string;
   provider?: string | null;
+  is_active: boolean;
+  last_run_at?: string | null;
+  last_run_status?: string | null;
+  next_run_at?: string | null;
+}
+
+export interface CronJobCreate {
+  name: string;
+  cron_expr: string;
+  provider?: string | null;
+  is_active?: boolean;
 }
 
 export interface UserRow {
