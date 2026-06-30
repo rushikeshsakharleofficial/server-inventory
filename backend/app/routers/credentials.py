@@ -92,6 +92,27 @@ def delete_credential(
     db.commit()
 
 
+@router.put("/{cred_id}", response_model=schemas.CredentialResponse)
+def update_credential(
+    cred_id: int,
+    payload: schemas.CredentialUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+) -> dict:
+    cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
+    if not cred:
+        raise HTTPException(status_code=404, detail="Credential not found")
+    if payload.name is not None:
+        cred.name = payload.name
+    if payload.config is not None:
+        existing = decrypt_config(cred.config or {})
+        merged = {**existing, **payload.config}
+        cred.config = encrypt_config(merged)
+    db.commit()
+    db.refresh(cred)
+    return _build_response(cred)
+
+
 @router.patch("/{cred_id}/toggle", response_model=schemas.CredentialResponse)
 def toggle_credential(
     cred_id: int,

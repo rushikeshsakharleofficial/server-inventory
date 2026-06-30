@@ -21,6 +21,15 @@ const PROVIDERS = [
   { id: "hivelocity", name: "Hivelocity", fields: ["api_key"] },
 ];
 
+const FIELD_OPTIONS: Record<string, string[]> = {
+  endpoint: ["ovh-eu", "ovh-us", "ovh-ca"],
+  region: ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"],
+};
+
+function isSecret(f: string) {
+  return /secret|token|key|password|private|auth/.test(f) && f !== "endpoint";
+}
+
 function CredentialsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -159,12 +168,18 @@ function EditCredentialDialog({ cred, onClose }: { cred: Credential; onClose: ()
               {f.includes("json") ? (
                 <textarea rows={4} value={values[f] ?? ""} onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
                   className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
+              ) : FIELD_OPTIONS[f] ? (
+                <select value={values[f] ?? ""} onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md">
+                  {!values[f] && <option value="">— select —</option>}
+                  {FIELD_OPTIONS[f].map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
               ) : (
                 <input
-                  type={f.includes("secret") || f.includes("token") || f.includes("key") || f.includes("password") ? "password" : "text"}
+                  type={isSecret(f) ? "password" : "text"}
                   value={values[f] ?? ""}
                   onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
-                  placeholder={values[f] ? "••••••••" : ""}
+                  placeholder={isSecret(f) && values[f] ? "leave blank to keep current" : ""}
                   className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
                 />
               )}
@@ -249,21 +264,20 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
                 {f.replace(/_/g, " ")}
               </label>
               {f.includes("json") ? (
-                <textarea
-                  required
-                  rows={4}
-                  value={values[f] ?? ""}
+                <textarea required rows={4} value={values[f] ?? ""}
                   onChange={(e) => setValues((v) => ({ ...v, [f]: e.target.value }))}
-                  className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
-                />
+                  className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
+              ) : FIELD_OPTIONS[f] ? (
+                <select required value={values[f] ?? ""} onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md">
+                  <option value="">— select —</option>
+                  {FIELD_OPTIONS[f].map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
               ) : (
-                <input
-                  required
-                  type={f.includes("secret") || f.includes("token") || f.includes("key") ? "password" : "text"}
+                <input required type={isSecret(f) ? "password" : "text"}
                   value={values[f] ?? ""}
                   onChange={(e) => setValues((v) => ({ ...v, [f]: e.target.value }))}
-                  className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-                />
+                  className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md" />
               )}
             </div>
           ))}
