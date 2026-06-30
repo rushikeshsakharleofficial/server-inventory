@@ -101,8 +101,19 @@ const PROVIDER_COLORS: Record<string, string> = {
   hivelocity: "text-amber-600",
 };
 
+const PROVIDER_LOGOS: Record<string, string> = {
+  aws: "https://icon2.cleanpng.com/20180817/vog/8968d0640f2c4053333ce7334314ef83.webp",
+  gcp: "https://img.icons8.com/color/1200/google-cloud.jpg",
+  azure: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSV9FfzRn21oOpsSzkTDfaHRhN3cA9l9X5G4A&s",
+  digitalocean: "https://cdn.iconscout.com/icon/free/png-256/free-digitalocean-logo-icon-svg-download-png-2285028.png",
+  linode: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtYo4s6E390tgjBC6_t_XRxIaZfqTk3UQR1Q&s",
+  ovh: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Logo_OVH.svg/3840px-Logo_OVH.svg.png",
+  hivelocity: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuiYkHbmFqryOz5eLgC0_han_YkA_zWOKBlw&s",
+};
+
 export function ProviderBadge({ provider }: { provider: string }) {
   const p = (provider || "").toLowerCase();
+  const logo = PROVIDER_LOGOS[p];
   const short =
     p === "digitalocean" ? "DO" :
     p === "kubernetes" ? "K8S" :
@@ -110,9 +121,13 @@ export function ProviderBadge({ provider }: { provider: string }) {
   const color = PROVIDER_COLORS[p] ?? "text-zinc-600";
   return (
     <div className="flex items-center gap-2">
-      <div className={`size-5 bg-secondary rounded-sm flex items-center justify-center text-[9px] font-bold ${color}`}>
-        {short}
-      </div>
+      {logo ? (
+        <img src={logo} alt={provider} className="size-5 object-contain rounded-sm" />
+      ) : (
+        <div className={`size-5 bg-secondary rounded-sm flex items-center justify-center text-[9px] font-bold ${color}`}>
+          {short}
+        </div>
+      )}
       <span className="text-sm text-muted-foreground">{provider || "—"}</span>
     </div>
   );
