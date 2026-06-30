@@ -71,8 +71,13 @@ function CredentialsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {(data?.items ?? []).map((c) => (
           <Card key={c.id} className="p-4 flex items-start gap-3">
-            <div className="size-10 bg-background ring-1 ring-border rounded grid place-items-center font-bold text-[10px]">
-              {(c.provider === "digitalocean" ? "DO" : c.provider.slice(0, 3)).toUpperCase()}
+            <div className="size-10 bg-background ring-1 ring-border rounded grid place-items-center overflow-hidden p-1">
+              <img
+                src={`/providers/${c.provider === "digitalocean" ? "digitalocean" : c.provider}.png`}
+                onError={e => { (e.currentTarget as HTMLImageElement).src = `/providers/${c.provider}.webp`; (e.currentTarget as HTMLImageElement).onerror = null; }}
+                alt={c.provider}
+                className="size-full object-contain"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
@@ -236,15 +241,28 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               Provider
             </label>
-            <select
-              value={provider}
-              onChange={(e) => { setProvider(e.target.value); setValues({}); }}
-              className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-            >
+            <div className="mt-1 grid grid-cols-4 gap-2">
               {PROVIDERS.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { setProvider(p.id); setValues({}); }}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] transition-colors ${
+                    provider === p.id
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border hover:border-muted-foreground/40 text-muted-foreground"
+                  }`}
+                >
+                  <img
+                    src={`/providers/${p.id}.png`}
+                    onError={e => { (e.currentTarget as HTMLImageElement).src = `/providers/${p.id}.webp`; (e.currentTarget as HTMLImageElement).onerror = null; }}
+                    alt={p.name}
+                    className="size-6 object-contain"
+                  />
+                  <span className="truncate w-full text-center leading-tight">{p.id === "digitalocean" ? "DO" : p.id === "hivelocity" ? "HV" : p.id.toUpperCase()}</span>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
           <div>
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
