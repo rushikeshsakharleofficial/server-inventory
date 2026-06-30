@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Page, type Credential } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, EmptyState } from "@/components/ui-bits";
 import { useState } from "react";
-import { Plus, Trash2, Power } from "lucide-react";
+import { Plus, Trash2, Power, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/credentials")({
@@ -17,13 +17,14 @@ const PROVIDERS = [
   { id: "azure", name: "Microsoft Azure", fields: ["tenant_id", "client_id", "client_secret", "subscription_id"] },
   { id: "digitalocean", name: "DigitalOcean", fields: ["api_token"] },
   { id: "linode", name: "Linode", fields: ["api_token"] },
-  { id: "ovh", name: "OVH", fields: ["application_key", "application_secret", "consumer_key"] },
+  { id: "ovh", name: "OVH", fields: ["endpoint", "application_key", "application_secret", "consumer_key"] },
   { id: "hivelocity", name: "Hivelocity", fields: ["api_key"] },
 ];
 
 function CredentialsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Credential | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["creds"],
     queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100 } }),
@@ -81,6 +82,13 @@ function CredentialsPage() {
                   <Power className="size-3.5" />
                 </button>
                 <button
+                  onClick={() => setEditing(c)}
+                  className="p-1.5 hover:bg-muted rounded-md text-muted-foreground"
+                  title="Edit"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                <button
                   onClick={() => confirm(`Delete ${c.name}?`) && del.mutate(c.id)}
                   className="p-1.5 hover:bg-muted rounded-md text-red-600"
                 >
@@ -110,6 +118,67 @@ function CredentialsPage() {
       )}
 
       {open && <NewCredentialDialog onClose={() => setOpen(false)} />}
+      {editing && <EditCredentialDialog cred={editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+function EditCredentialDialog({ cred, onClose }: { cred: Credential; onClose: () => void }) {
+  const qc = useQueryClient();
+  const def = PROVIDERS.find(p => p.id === cred.provider);
+  const [name, setName] = useState(cred.name);
+  const [values, setValues] = useState<Record<string, string>>(
+    Object.fromEntries(Object.entries(cred.config ?? {}).map(([k, v]) => [k, String(v ?? "")]))
+  );
+
+  const update = useMutation({
+    mutationFn: () => api(`/api/credentials/${cred.id}`, { method: "PUT", json: { name, provider: cred.provider, config: values } }),
+    onSuccess: () => { toast.success("Credential updated"); qc.invalidateQueries({ queryKey: ["creds"] }); onClose(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const fields = def?.fields ?? Object.keys(cred.config ?? {});
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="p-4 border-b border-border shrink-0">
+          <h3 className="text-sm font-semibold">Edit credential — {cred.provider}</h3>
+        </div>
+        <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={e => { e.preventDefault(); update.mutate(); }}>
+          <div>
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Name</label>
+            <input required value={name} onChange={e => setName(e.target.value)}
+              className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
+          </div>
+          {fields.map(f => (
+            <div key={f}>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                {f.replace(/_/g, " ")}
+              </label>
+              {f.includes("json") ? (
+                <textarea rows={4} value={values[f] ?? ""} onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
+              ) : (
+                <input
+                  type={f.includes("secret") || f.includes("token") || f.includes("key") || f.includes("password") ? "password" : "text"}
+                  value={values[f] ?? ""}
+                  onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
+                  placeholder={values[f] ? "••••••••" : ""}
+                  className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+                />
+              )}
+            </div>
+          ))}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={update.isPending}
+              className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+              {update.isPending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
