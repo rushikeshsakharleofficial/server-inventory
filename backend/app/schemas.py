@@ -73,6 +73,11 @@ class CredentialCreate(BaseModel):
     config: dict[str, Any]
 
 
+class CredentialUpdate(BaseModel):
+    name: str | None = None
+    config: dict[str, Any] | None = None
+
+
 class CredentialResponse(BaseModel):
     id: int
     name: str
