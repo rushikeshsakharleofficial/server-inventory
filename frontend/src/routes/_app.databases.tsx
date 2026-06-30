@@ -58,7 +58,7 @@ function DatabasesPage() {
                 <td className="px-4 py-2.5 font-medium">{d.name}</td>
                 <td className="px-4 py-2.5">
                   <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">
-                    {d.engine ?? "—"}
+                    {d.engine ?? "—"}{d.engine_version ? ` ${d.engine_version}` : ""}
                   </span>
                 </td>
                 <td className="px-4 py-2.5">
