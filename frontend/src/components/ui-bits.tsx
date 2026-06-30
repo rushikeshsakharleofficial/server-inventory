@@ -106,9 +106,9 @@ const PROVIDER_LOGOS: Record<string, string> = {
   gcp: "https://img.icons8.com/color/1200/google-cloud.jpg",
   azure: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSV9FfzRn21oOpsSzkTDfaHRhN3cA9l9X5G4A&s",
   digitalocean: "https://cdn.iconscout.com/icon/free/png-256/free-digitalocean-logo-icon-svg-download-png-2285028.png",
-  linode: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtYo4s6E390tgjBC6_t_XRxIaZfqTk3UQR1Q&s",
+  linode: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuiYkHbmFqryOz5eLgC0_han_YkA_zWOKBlw&s",
   ovh: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Logo_OVH.svg/3840px-Logo_OVH.svg.png",
-  hivelocity: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuiYkHbmFqryOz5eLgC0_han_YkA_zWOKBlw&s",
+  hivelocity: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtYo4s6E390tgjBC6_t_XRxIaZfqTk3UQR1Q&s",
 };
 
 export function ProviderBadge({ provider }: { provider: string }) {
