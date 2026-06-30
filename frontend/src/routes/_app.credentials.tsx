@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Page, type Credential } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, EmptyState } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, EmptyState, CustomSelect } from "@/components/ui-bits";
 import { useState } from "react";
 import { Plus, Trash2, Power, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -174,11 +174,12 @@ function EditCredentialDialog({ cred, onClose }: { cred: Credential; onClose: ()
                 <textarea rows={4} value={values[f] ?? ""} onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
                   className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
               ) : FIELD_OPTIONS[f] ? (
-                <select value={values[f] ?? ""} onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
-                  className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md">
-                  {!values[f] && <option value="">— select —</option>}
-                  {FIELD_OPTIONS[f].map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
+                <CustomSelect
+                  value={values[f] ?? ""}
+                  onChange={(v) => setValues(prev => ({ ...prev, [f]: v }))}
+                  options={FIELD_OPTIONS[f].map(o => ({ value: o }))}
+                  placeholder="— select —"
+                />
               ) : (
                 <input
                   type={isSecret(f) ? "password" : "text"}
@@ -286,11 +287,12 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
                   onChange={(e) => setValues((v) => ({ ...v, [f]: e.target.value }))}
                   className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
               ) : FIELD_OPTIONS[f] ? (
-                <select required value={values[f] ?? ""} onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
-                  className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md">
-                  <option value="">— select —</option>
-                  {FIELD_OPTIONS[f].map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
+                <CustomSelect
+                  value={values[f] ?? ""}
+                  onChange={(v) => setValues(prev => ({ ...prev, [f]: v }))}
+                  options={FIELD_OPTIONS[f].map(o => ({ value: o }))}
+                  placeholder="— select —"
+                />
               ) : (
                 <input required type={isSecret(f) ? "password" : "text"}
                   value={values[f] ?? ""}

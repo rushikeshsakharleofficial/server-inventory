@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, CustomSelect } from "@/components/ui-bits";
 import { Search, X, RefreshCw, Terminal, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -40,15 +40,19 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground font-medium block mb-1">Provider</label>
-              <select className={inp} value={form.provider} onChange={set("provider")}>
-                {["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(p => <option key={p}>{p}</option>)}
-              </select>
+              <CustomSelect
+                value={form.provider}
+                onChange={(v) => setForm(f => ({ ...f, provider: v }))}
+                options={["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(p => ({ value: p }))}
+              />
             </div>
             <div>
               <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
-              <select className={inp} value={form.status} onChange={set("status")}>
-                {["unknown","running","stopped","pending"].map(s => <option key={s}>{s}</option>)}
-              </select>
+              <CustomSelect
+                value={form.status}
+                onChange={(v) => setForm(f => ({ ...f, status: v }))}
+                options={["unknown","running","stopped","pending"].map(s => ({ value: s }))}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -156,26 +160,18 @@ function ServersPage() {
             className="w-full pl-9 pr-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        <select
+        <CustomSelect
           value={provider}
-          onChange={(e) => { setProvider(e.target.value); setOffset(0); }}
-          className="px-3 py-1.5 text-sm bg-background border border-border rounded-md"
-        >
-          <option value="">All providers</option>
-          {["aws", "gcp", "azure", "digitalocean", "linode", "ovh", "hivelocity"].map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <select
+          onChange={(v) => { setProvider(v); setOffset(0); }}
+          options={["aws", "gcp", "azure", "digitalocean", "linode", "ovh", "hivelocity"].map((p) => ({ value: p }))}
+          placeholder="All providers"
+        />
+        <CustomSelect
           value={status}
-          onChange={(e) => { setStatus(e.target.value); setOffset(0); }}
-          className="px-3 py-1.5 text-sm bg-background border border-border rounded-md"
-        >
-          <option value="">All statuses</option>
-          {["running", "stopped", "pending", "unknown"].map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
+          onChange={(v) => { setStatus(v); setOffset(0); }}
+          options={["running", "stopped", "pending", "unknown"].map((s) => ({ value: s }))}
+          placeholder="All statuses"
+        />
       </Card>
 
       <Card className="overflow-hidden">

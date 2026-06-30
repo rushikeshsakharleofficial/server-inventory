@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type SshCredential } from "@/lib/api";
-import { Card, PageHeader, EmptyState } from "@/components/ui-bits";
+import { Card, PageHeader, EmptyState, CustomSelect } from "@/components/ui-bits";
 import { Plus, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -158,14 +158,11 @@ function SshDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <Label>Auth method</Label>
-            <select
+            <CustomSelect
               value={authMethod}
-              onChange={(e) => setAuthMethod(e.target.value as "password" | "key")}
-              className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-            >
-              <option value="key">Private key</option>
-              <option value="password">Password</option>
-            </select>
+              onChange={(v) => setAuthMethod(v as "password" | "key")}
+              options={[{ value: "key", label: "Private key" }, { value: "password", label: "Password" }]}
+            />
           </div>
           {authMethod === "password" ? (
             <Input label="Password" value={password} onChange={setPassword} type="password" required />
@@ -195,11 +192,11 @@ function SshDialog({ onClose }: { onClose: () => void }) {
               <Input label="Proxy username" value={proxyUsername} onChange={setProxyUsername} />
               <div>
                 <Label>Proxy auth</Label>
-                <select value={proxyAuthMethod} onChange={e => setProxyAuthMethod(e.target.value as "password" | "key")}
-                  className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md">
-                  <option value="password">Password</option>
-                  <option value="key">Private key</option>
-                </select>
+                <CustomSelect
+                  value={proxyAuthMethod}
+                  onChange={(v) => setProxyAuthMethod(v as "password" | "key")}
+                  options={[{ value: "password", label: "Password" }, { value: "key", label: "Private key" }]}
+                />
               </div>
               {proxyAuthMethod === "password"
                 ? <Input label="Proxy password" value={proxyPassword} onChange={setProxyPassword} type="password" />

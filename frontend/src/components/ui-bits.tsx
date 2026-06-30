@@ -1,4 +1,60 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState, useRef, useEffect } from "react";
+import { ChevronDown, Check } from "lucide-react";
+
+export function CustomSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "— select —",
+  className = "",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label?: string }[];
+  placeholder?: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find(o => o.value === value);
+
+  useEffect(() => {
+    function close(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 text-sm bg-background border border-border rounded-md hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        <span className={selected ? "text-foreground" : "text-muted-foreground"}>
+          {selected?.label ?? selected?.value ?? placeholder}
+        </span>
+        <ChevronDown className={`size-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-background border border-border rounded-md shadow-lg overflow-hidden">
+          {!value && <div className="px-3 py-2 text-sm text-muted-foreground">{placeholder}</div>}
+          {options.map(o => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted transition-colors text-left ${value === o.value ? "text-primary font-medium" : "text-foreground"}`}
+            >
+              {o.label ?? o.value}
+              {value === o.value && <Check className="size-3.5 text-primary" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function PageHeader({
   title,
@@ -102,8 +158,8 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 const PROVIDER_LOGOS: Record<string, string> = {
-  aws: "/providers/aws.webp",
-  gcp: "/providers/gcp.jpg",
+  aws: "/providers/aws.png",
+  gcp: "/providers/gcp.png",
   azure: "/providers/azure.png",
   digitalocean: "/providers/digitalocean.png",
   linode: "/providers/linode.png",
