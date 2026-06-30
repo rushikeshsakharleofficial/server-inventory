@@ -1,0 +1,26 @@
+- generic [ref=f8e2]:
+  - generic [ref=f8e3]:
+    - generic [ref=f8e4]:
+      - img "Data center" [ref=f8e5]
+      - generic [ref=f8e6]:
+        - generic [ref=f8e7]:
+          - img [ref=f8e9]
+          - generic [ref=f8e12]: ServerInventory
+        - paragraph [ref=f8e13]: Unified infrastructure management across cloud providers and bare-metal.
+    - generic [ref=f8e15]:
+      - generic [ref=f8e16]:
+        - heading "Sign in" [level=2] [ref=f8e17]
+        - paragraph [ref=f8e18]: Welcome back! Please sign in to continue
+      - generic [ref=f8e19]:
+        - img [ref=f8e20]
+        - textbox "Username" [active] [ref=f8e23]
+      - generic [ref=f8e24]:
+        - img [ref=f8e25]
+        - textbox "Password" [ref=f8e27]
+        - button "Show password" [ref=f8e28]:
+          - img [ref=f8e29]
+      - generic [ref=f8e33] [cursor=pointer]:
+        - checkbox "Remember me" [ref=f8e34]
+        - generic [ref=f8e35]: Remember me
+      - button "Sign In" [disabled] [ref=f8e36]
+  - generic "Notifications"

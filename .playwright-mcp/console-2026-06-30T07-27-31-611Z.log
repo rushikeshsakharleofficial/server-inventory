@@ -1,0 +1,83 @@
+[  152194ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/api/servers?sort=name&order=asc&limit=20&offset=0:0
+[  153201ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/api/servers?sort=name&order=asc&limit=20&offset=0:0
+[  155124ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/api/servers?sort=name&order=asc&limit=20&offset=0:0
+[  156128ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/api/servers?sort=name&order=asc&limit=20&offset=0:0
+[  157454ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/api/servers?sort=name&order=asc&limit=20&offset=0:0
+[  158459ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/api/servers?sort=name&order=asc&limit=20&offset=0:0
+[  160745ms] [ERROR] Failed to load resource: net::ERR_SOCKET_NOT_CONNECTED @ http://localhost:5173/api/credentials?limit=50&offset=0:0
+[  161749ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/api/credentials?limit=50&offset=0:0
+[  162051ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-CngnBb4I.js:21
+[  163109ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/providers:0
+[  163117ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/logos/aws.svg:0
+[  163608ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-CngnBb4I.js:21
+[  167726ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/providers:0
+[  170831ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/providers:0
+[  176306ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/providers:0
+[  176307ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/providers:0
+[  206825ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5173/providers:0
+[  356438ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-TMMqg4Fx.js:21
+[  358414ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error during WebSocket handshake: net::ERR_CONNECTION_RESET @ http://localhost:5173/assets/index-TMMqg4Fx.js:21
+[  607472ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DTcuKscE.js:21
+[ 3386777ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3647025ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3648935ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3653435ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3734180ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3735874ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3738808ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3824508ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3826414ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3830864ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3918595ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3920634ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3925398ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3933662ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 3953793ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4043727ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4045558ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4048802ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4130728ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4133103ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4136714ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4233557ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4235717ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4240406ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4328249ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4330120ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4334866ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4425878ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4427744ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4432443ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4439394ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4459223ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4517673ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4519897ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4522731ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4528868ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4540502ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4578657ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4581156ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4586176ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4594151ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4614138ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4648600ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4684946ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4708435ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4729926ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4811576ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4813237ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4817328ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4823090ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 4843671ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5052889ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5054483ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5059602ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5069530ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5083330ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5119867ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5145154ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5174422ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5371639ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5374122ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5379295ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21
+[ 5386031ms] [ERROR] WebSocket connection to 'ws://localhost:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/assets/index-DI92k_pE.js:21

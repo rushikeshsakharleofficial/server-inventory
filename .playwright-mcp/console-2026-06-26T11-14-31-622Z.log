@@ -1,0 +1,5 @@
+[ 5840220ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://142.44.210.103:5173/api/credentials?limit=50&offset=0:0
+[ 5841953ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://142.44.210.103:5173/api/credentials?limit=50&offset=0:0
+[ 5843566ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://142.44.210.103:5173/providers:0
+[ 5846104ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://142.44.210.103:5173/providers:0
+[18844566ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://142.44.210.103:5173/api/servers/stats:0

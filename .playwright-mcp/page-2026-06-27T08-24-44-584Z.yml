@@ -1,0 +1,254 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary "Sidebar navigation" [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]: SI
+        - generic [ref=e7]:
+          - paragraph [ref=e8]: ServerInventory
+          - paragraph [ref=e9]: INFRA CONSOLE
+      - navigation [ref=e10]:
+        - generic [ref=e11]: Main
+        - button "Dashboard" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+          - generic [ref=e18]: Dashboard
+        - button "Inventory" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+          - generic [ref=e24]: Inventory
+          - img [ref=e25]
+        - generic [ref=e27]:
+          - button "Servers" [ref=e28] [cursor=pointer]:
+            - img [ref=e29]
+            - generic [ref=e32]: Servers
+          - button "Databases" [ref=e33] [cursor=pointer]:
+            - img [ref=e34]
+            - generic [ref=e38]: Databases
+          - button "Kubernetes" [ref=e39] [cursor=pointer]:
+            - img [ref=e40]
+            - generic [ref=e43]: Kubernetes
+          - button "Block Storage" [ref=e44] [cursor=pointer]:
+            - img [ref=e45]
+            - generic [ref=e47]: Block Storage
+          - button "IP Addresses" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+            - generic [ref=e54]: IP Addresses
+        - generic [ref=e56]: Connections
+        - button "Providers" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+          - generic [ref=e60]: Providers
+        - button "SSH Keys" [ref=e61] [cursor=pointer]:
+          - img [ref=e62]
+          - generic [ref=e64]: SSH Keys
+        - button "Monitoring" [ref=e65] [cursor=pointer]:
+          - img [ref=e66]
+          - generic [ref=e68]: Monitoring
+          - img [ref=e69]
+        - generic [ref=e72]: System
+        - button "Users" [ref=e73] [cursor=pointer]:
+          - img [ref=e74]
+          - generic [ref=e79]: Users
+        - button "Settings" [ref=e80] [cursor=pointer]:
+          - img [ref=e81]
+          - generic [ref=e82]: Settings
+        - button "Setup" [ref=e83] [cursor=pointer]:
+          - img [ref=e84]
+          - generic [ref=e86]: Setup
+      - generic [ref=e88]:
+        - img [ref=e90]
+        - generic [ref=e92]:
+          - paragraph [ref=e93]: admin
+          - paragraph [ref=e94]: admin
+        - button "Sign out" [ref=e95] [cursor=pointer]:
+          - img [ref=e96]
+    - generic [ref=e99]:
+      - banner [ref=e100]:
+        - generic [ref=e101]:
+          - button "Close sidebar" [ref=e102] [cursor=pointer]:
+            - img [ref=e103]
+          - heading "Server Inventory" [level=1] [ref=e106]
+        - generic [ref=e107]:
+          - generic "Reconnecting…" [ref=e108]
+          - generic [ref=e109]:
+            - img [ref=e110]
+            - generic [ref=e112]: admin
+          - button "Add Server" [ref=e113] [cursor=pointer]:
+            - img [ref=e114]
+            - generic [ref=e115]: Add Server
+          - button "Sync all cloud providers" [ref=e117] [cursor=pointer]:
+            - img [ref=e118]
+            - generic [ref=e123]: Sync All
+      - main [ref=e124]:
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - generic [ref=e129]:
+              - img [ref=e130]
+              - textbox "Search servers" [ref=e133]:
+                - /placeholder: Search name, IP, hostname…
+            - button "Select provider…" [ref=e134]:
+              - generic [ref=e135]:
+                - generic [ref=e136]: Select provider…
+                - img [ref=e137]
+            - button "Select status…" [ref=e140]:
+              - generic [ref=e141]:
+                - generic [ref=e142]: Select status…
+                - img [ref=e143]
+            - paragraph [ref=e147]: 0 servers found
+            - button "Custom DC" [ref=e148] [cursor=pointer]:
+              - img [ref=e149]
+              - text: Custom DC
+          - generic [ref=e150]:
+            - generic [ref=e151]: Infrastructure Manifest
+            - generic [ref=e152]: 0 NODES
+          - table "Server inventory" [ref=e154]:
+            - rowgroup [ref=e155]:
+              - row "Name Provider Region Type Status Public IP Private IP vCPU RAM (GB) OS Last Synced" [ref=e156]:
+                - columnheader "Name" [ref=e157] [cursor=pointer]:
+                  - generic [ref=e158]:
+                    - generic [ref=e159]: Name
+                    - img [ref=e160]
+                - columnheader "Provider" [ref=e162] [cursor=pointer]:
+                  - generic [ref=e163]:
+                    - generic [ref=e164]: Provider
+                    - img [ref=e165]
+                - columnheader "Region" [ref=e168] [cursor=pointer]:
+                  - generic [ref=e169]:
+                    - generic [ref=e170]: Region
+                    - img [ref=e171]
+                - columnheader "Type" [ref=e174] [cursor=pointer]:
+                  - generic [ref=e175]:
+                    - generic [ref=e176]: Type
+                    - img [ref=e177]
+                - columnheader "Status" [ref=e180] [cursor=pointer]:
+                  - generic [ref=e181]:
+                    - generic [ref=e182]: Status
+                    - img [ref=e183]
+                - columnheader "Public IP" [ref=e186] [cursor=pointer]:
+                  - generic [ref=e187]:
+                    - generic [ref=e188]: Public IP
+                    - img [ref=e189]
+                - columnheader "Private IP" [ref=e192] [cursor=pointer]:
+                  - generic [ref=e193]:
+                    - generic [ref=e194]: Private IP
+                    - img [ref=e195]
+                - columnheader "vCPU" [ref=e198] [cursor=pointer]:
+                  - generic [ref=e199]:
+                    - generic [ref=e200]: vCPU
+                    - img [ref=e201]
+                - columnheader "RAM (GB)" [ref=e204] [cursor=pointer]:
+                  - generic [ref=e205]:
+                    - generic [ref=e206]: RAM (GB)
+                    - img [ref=e207]
+                - columnheader "OS" [ref=e210] [cursor=pointer]:
+                  - generic [ref=e211]:
+                    - generic [ref=e212]: OS
+                    - img [ref=e213]
+                - columnheader "Last Synced" [ref=e216] [cursor=pointer]:
+                  - generic [ref=e217]:
+                    - generic [ref=e218]: Last Synced
+                    - img [ref=e219]
+                - columnheader [ref=e222]
+            - rowgroup [ref=e223]:
+              - row [ref=e224]:
+                - cell [ref=e225]
+                - cell [ref=e227]
+                - cell [ref=e229]
+                - cell [ref=e231]
+                - cell [ref=e233]
+                - cell [ref=e235]
+                - cell [ref=e237]
+                - cell [ref=e239]
+                - cell [ref=e241]
+                - cell [ref=e243]
+                - cell [ref=e245]
+                - cell [ref=e247]
+              - row [ref=e249]:
+                - cell [ref=e250]
+                - cell [ref=e252]
+                - cell [ref=e254]
+                - cell [ref=e256]
+                - cell [ref=e258]
+                - cell [ref=e260]
+                - cell [ref=e262]
+                - cell [ref=e264]
+                - cell [ref=e266]
+                - cell [ref=e268]
+                - cell [ref=e270]
+                - cell [ref=e272]
+              - row [ref=e274]:
+                - cell [ref=e275]
+                - cell [ref=e277]
+                - cell [ref=e279]
+                - cell [ref=e281]
+                - cell [ref=e283]
+                - cell [ref=e285]
+                - cell [ref=e287]
+                - cell [ref=e289]
+                - cell [ref=e291]
+                - cell [ref=e293]
+                - cell [ref=e295]
+                - cell [ref=e297]
+              - row [ref=e299]:
+                - cell [ref=e300]
+                - cell [ref=e302]
+                - cell [ref=e304]
+                - cell [ref=e306]
+                - cell [ref=e308]
+                - cell [ref=e310]
+                - cell [ref=e312]
+                - cell [ref=e314]
+                - cell [ref=e316]
+                - cell [ref=e318]
+                - cell [ref=e320]
+                - cell [ref=e322]
+              - row [ref=e324]:
+                - cell [ref=e325]
+                - cell [ref=e327]
+                - cell [ref=e329]
+                - cell [ref=e331]
+                - cell [ref=e333]
+                - cell [ref=e335]
+                - cell [ref=e337]
+                - cell [ref=e339]
+                - cell [ref=e341]
+                - cell [ref=e343]
+                - cell [ref=e345]
+                - cell [ref=e347]
+              - row [ref=e349]:
+                - cell [ref=e350]
+                - cell [ref=e352]
+                - cell [ref=e354]
+                - cell [ref=e356]
+                - cell [ref=e358]
+                - cell [ref=e360]
+                - cell [ref=e362]
+                - cell [ref=e364]
+                - cell [ref=e366]
+                - cell [ref=e368]
+                - cell [ref=e370]
+                - cell [ref=e372]
+              - row [ref=e374]:
+                - cell [ref=e375]
+                - cell [ref=e377]
+                - cell [ref=e379]
+                - cell [ref=e381]
+                - cell [ref=e383]
+                - cell [ref=e385]
+                - cell [ref=e387]
+                - cell [ref=e389]
+                - cell [ref=e391]
+                - cell [ref=e393]
+                - cell [ref=e395]
+                - cell [ref=e397]
+              - row [ref=e399]:
+                - cell [ref=e400]
+                - cell [ref=e402]
+                - cell [ref=e404]
+                - cell [ref=e406]
+                - cell [ref=e408]
+                - cell [ref=e410]
+                - cell [ref=e412]
+                - cell [ref=e414]
+                - cell [ref=e416]
+                - cell [ref=e418]
+                - cell [ref=e420]
+                - cell [ref=e422]
+  - generic "Notifications"

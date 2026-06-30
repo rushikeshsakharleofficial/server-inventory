@@ -20,3 +20,6 @@ dist/
 AGENTS.md
 GEMINI.md
 *.local.json
+# Added by code-review-graph
+.code-review-graph/
+
