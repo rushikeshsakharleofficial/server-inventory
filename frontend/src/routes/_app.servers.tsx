@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, CustomSelect } from "@/components/ui-bits";
-import { Search, X, RefreshCw, Terminal, Trash2, Plus } from "lucide-react";
+import { Search, X, RefreshCw, Terminal, Trash2, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -82,6 +82,61 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+function EditServerDialog({ server, onClose }: { server: Server; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ name: server.name, public_ip: server.public_ip ?? "", region: server.region ?? "", status: server.status, notes: server.notes ?? "" });
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+  const update = useMutation({
+    mutationFn: () => api(`/api/servers/${server.id}`, { method: "PUT", body: JSON.stringify({ ...form, public_ip: form.public_ip || null, region: form.region || null, notes: form.notes || null }) }),
+    onSuccess: () => { toast.success("Server updated"); qc.invalidateQueries({ queryKey: ["servers"] }); onClose(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-sm">Edit server</h2>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
+            <input className={inp} value={form.name} onChange={set("name")} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
+              <CustomSelect value={form.status} onChange={(v) => setForm(f => ({ ...f, status: v }))}
+                options={["unknown","running","stopped","pending"].map(s => ({ value: s }))} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
+              <input className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
+            <input className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
+            <textarea className={inp} rows={2} value={form.notes} onChange={set("notes")} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
+          <button onClick={() => update.mutate()} disabled={!form.name || update.isPending}
+            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50">
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ServersPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
@@ -90,6 +145,7 @@ function ServersPage() {
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<Server | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<Server | null>(null);
   const limit = 50;
 
   const { data, isLoading } = useQuery({
@@ -132,6 +188,7 @@ function ServersPage() {
   return (
     <div className="p-6 space-y-4">
       {showAdd && <AddServerDialog onClose={() => setShowAdd(false)} />}
+      {editing && <EditServerDialog server={editing} onClose={() => setEditing(null)} />}
       <div className="flex items-center justify-between">
         <PageHeader
           title="Servers"
@@ -179,11 +236,13 @@ function ServersPage() {
           <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
             <tr>
               <th className="px-4 py-2 font-medium">Instance</th>
-              <th className="px-4 py-2 font-medium">Provider / Region</th>
+              <th className="px-4 py-2 font-medium">Provider</th>
+              <th className="px-4 py-2 font-medium">Region</th>
               <th className="px-4 py-2 font-medium">Public IP</th>
               <th className="px-4 py-2 font-medium">Type</th>
               <th className="px-4 py-2 font-medium">Synced</th>
-              <th className="px-4 py-2 font-medium text-right">Status</th>
+              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -202,11 +261,9 @@ function ServersPage() {
                   </div>
                 </td>
                 <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <ProviderBadge provider={s.provider} />
-                    <span className="text-xs text-muted-foreground">{s.region ?? "—"}</span>
-                  </div>
+                  <ProviderBadge provider={s.provider} />
                 </td>
+                <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono">{s.region ?? "—"}</td>
                 <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{s.public_ip ?? "—"}</td>
                 <td className="px-4 py-2.5">
                   {s.instance_type ? (
@@ -216,12 +273,29 @@ function ServersPage() {
                 <td className="px-4 py-2.5 text-xs text-muted-foreground">
                   {s.last_synced ? formatDistanceToNow(new Date(s.last_synced), { addSuffix: true }) : "never"}
                 </td>
-                <td className="px-4 py-2.5 text-right"><StatusPill status={s.status} /></td>
+                <td className="px-4 py-2.5"><StatusPill status={s.status} /></td>
+                <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
+                  <div className="inline-flex items-center gap-1">
+                    <button
+                      onClick={() => setEditing(s)}
+                      className="p-1.5 hover:bg-muted rounded-md text-muted-foreground" title="Edit"
+                    ><Pencil className="size-3.5" /></button>
+                    <button
+                      onClick={() => sshSync.mutate(s.id)}
+                      disabled={sshSync.isPending}
+                      className="p-1.5 hover:bg-muted rounded-md text-muted-foreground disabled:opacity-40" title="SSH sync"
+                    ><RefreshCw className={`size-3.5 ${sshSync.isPending ? "animate-spin" : ""}`} /></button>
+                    <button
+                      onClick={() => { if (confirm(`Delete ${s.name}?`)) del.mutate(s.id); }}
+                      className="p-1.5 hover:bg-muted rounded-md text-red-500" title="Delete"
+                    ><Trash2 className="size-3.5" /></button>
+                  </div>
+                </td>
               </tr>
             ))}
             {!isLoading && items.length === 0 && (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={8}>
                   <EmptyState
                     title="No servers match"
                     description="Add cloud credentials and run a sync to discover instances."
