@@ -1,13 +1,81 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { api, type Stats, type SyncLog, type Credential, type Page } from "@/lib/api";
 import { Card, KpiTile, ProviderBadge, StatusPill, PageHeader } from "@/components/ui-bits";
 import { formatDistanceToNow } from "date-fns";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, Legend,
+} from "recharts";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — System Control" }] }),
   component: Dashboard,
 });
+
+const PROVIDER_COLORS: Record<string, string> = {
+  aws: "#f97316", gcp: "#3b82f6", azure: "#0ea5e9",
+  digitalocean: "#60a5fa", linode: "#22c55e", ovh: "#6366f1", hivelocity: "#f59e0b",
+};
+const STATUS_COLORS: Record<string, string> = {
+  running: "#22c55e", stopped: "#71717a", pending: "#f59e0b",
+  failed: "#ef4444", unknown: "#a1a1aa",
+};
+
+function useCountUp(target: number, duration = 800) {
+  const [val, setVal] = useState(0);
+  const prev = useRef(0);
+  useEffect(() => {
+    if (target === 0) { setVal(0); return; }
+    const start = prev.current;
+    const diff = target - start;
+    const startTime = performance.now();
+    let raf: number;
+    function tick(now: number) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setVal(Math.round(start + diff * ease));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else prev.current = target;
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return val;
+}
+
+function AnimatedBar({ pct }: { pct: number }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), 60);
+    return () => clearTimeout(t);
+  }, [pct]);
+  return (
+    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+      <div
+        className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+        style={{ width: `${width}%` }}
+      />
+    </div>
+  );
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-surface border border-border rounded-md px-3 py-2 text-xs shadow-lg">
+      <div className="font-medium mb-1">{label}</div>
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.fill ?? p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-mono font-medium">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 function Dashboard() {
   const stats = useQuery({
@@ -30,6 +98,17 @@ function Dashboard() {
   const providers = data ? Object.entries(data.by_provider) : [];
   const regions = data ? Object.entries(data.by_region).slice(0, 8) : [];
 
+  const providerChartData = providers.map(([name, count]) => ({ name: name.toUpperCase(), count }));
+  const statusChartData = data
+    ? Object.entries(data.by_status).map(([name, value]) => ({ name, value }))
+    : [];
+
+  const totalCount = useCountUp(data?.total ?? 0);
+  const runningCount = useCountUp(data?.running ?? 0);
+  const stoppedCount = useCountUp(data?.stopped ?? 0);
+  const activeProviders = creds.data?.items.filter((c) => c.is_active).length ?? 0;
+  const activeCount = useCountUp(activeProviders);
+
   return (
     <div className="p-6 space-y-6">
       <PageHeader
@@ -39,12 +118,12 @@ function Dashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiTile label="Total Instances" value={data?.total ?? "—"} />
-        <KpiTile label="Running" value={data?.running ?? "—"} hint="active" tone="success" />
-        <KpiTile label="Stopped" value={data?.stopped ?? "—"} hint="idle" />
+        <KpiTile label="Total Instances" value={totalCount} />
+        <KpiTile label="Running" value={runningCount} hint="active" tone="success" />
+        <KpiTile label="Stopped" value={stoppedCount} hint="idle" />
         <KpiTile
           label="Connected Providers"
-          value={creds.data?.items.filter((c) => c.is_active).length ?? "—"}
+          value={activeCount}
           hint={`${creds.data?.total ?? 0} total`}
         />
       </div>
@@ -65,8 +144,70 @@ function Dashboard() {
         </Card>
       )}
 
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Provider bar chart */}
+        <Card className="overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-surface-muted">
+            <h3 className="text-sm font-semibold">Servers by provider</h3>
+          </div>
+          <div className="p-4 h-52">
+            {providerChartData.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No data yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={providerChartData} barCategoryGap="30%">
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                  <Bar dataKey="count" name="Servers" radius={[3, 3, 0, 0]}
+                    isAnimationActive animationDuration={900} animationEasing="ease-out">
+                    {providerChartData.map((entry) => (
+                      <Cell key={entry.name} fill={PROVIDER_COLORS[entry.name.toLowerCase()] ?? "#6366f1"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+
+        {/* Status pie chart */}
+        <Card className="overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-surface-muted">
+            <h3 className="text-sm font-semibold">Status breakdown</h3>
+          </div>
+          <div className="p-4 h-52">
+            {statusChartData.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No data yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%" cy="50%"
+                    innerRadius={45} outerRadius={72}
+                    paddingAngle={3}
+                    isAnimationActive animationDuration={900} animationEasing="ease-out"
+                  >
+                    {statusChartData.map((entry) => (
+                      <Cell key={entry.name} fill={STATUS_COLORS[entry.name] ?? "#a1a1aa"} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" iconSize={8}
+                    formatter={(v) => <span className="text-[11px] text-muted-foreground capitalize">{v}</span>} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Provider distribution */}
+        {/* Provider distribution bars */}
         <Card className="lg:col-span-2 overflow-hidden">
           <div className="px-4 py-3 border-b border-border bg-surface-muted">
             <h3 className="text-sm font-semibold">Distribution by provider</h3>
@@ -85,12 +226,7 @@ function Dashboard() {
                       {count} · {pct.toFixed(0)}%
                     </span>
                   </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+                  <AnimatedBar pct={pct} />
                 </div>
               );
             })}
