@@ -112,6 +112,7 @@ class User(Base):
 
     id              = Column(Integer, primary_key=True)
     username        = Column(String(128), unique=True, nullable=False)
+    full_name       = Column(String(256), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     role            = Column(String(16),  default="read", nullable=False)
     is_active       = Column(Boolean,     default=True)
@@ -328,5 +329,29 @@ class BlockStorage(Base):
         Index("ix_block_cloud_id_provider", "cloud_id", "provider"),
         # GIN for tag containment queries
         Index("ix_block_tags_gin", "tags", postgresql_using="gin"),
+    )
+
+
+class EventLog(Base):
+    __tablename__ = "event_logs"
+
+    id          = Column(Integer, primary_key=True)
+    timestamp   = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    severity    = Column(String(16),  nullable=False, default="info")   # info | warning | error | critical
+    source      = Column(String(128), nullable=True)                    # nginx, postgres, kubelet…
+    resource    = Column(String(255), nullable=True)                    # server/db name
+    event       = Column(Text,        nullable=False)
+    status      = Column(String(32),  nullable=False, default="open")   # open | acknowledged | investigating | resolved
+    owner       = Column(String(128), nullable=True)
+    message     = Column(Text,        nullable=True)
+    tags        = Column(JSONB, default=_empty_json_dict)
+    extra       = Column(JSONB, default=_empty_json_dict)
+
+    __table_args__ = (
+        Index("ix_evlog_timestamp", "timestamp"),
+        Index("ix_evlog_severity",  "severity"),
+        Index("ix_evlog_status",    "status"),
+        Index("ix_evlog_source",    "source"),
+        Index("ix_evlog_resource",  "resource"),
     )
 

@@ -20,6 +20,7 @@ from .routers.resource_map import router as resource_map_router
 from .routers.block_storages import router as block_storages_router
 from .routers.mfa import router as mfa_router
 from .routers.iam import router as iam_router
+from .routers.event_logs import router as event_logs_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -49,6 +50,37 @@ def _migrate_user_permissions() -> None:
         conn.commit()
 
 
+def _migrate_event_logs() -> None:
+    with engine.connect() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS event_logs (
+                id          SERIAL PRIMARY KEY,
+                timestamp   TIMESTAMPTZ NOT NULL DEFAULT now(),
+                severity    VARCHAR(16) NOT NULL DEFAULT 'info',
+                source      VARCHAR(128),
+                resource    VARCHAR(255),
+                event       TEXT NOT NULL,
+                status      VARCHAR(32) NOT NULL DEFAULT 'open',
+                owner       VARCHAR(128),
+                message     TEXT,
+                tags        JSONB DEFAULT '{}',
+                extra       JSONB DEFAULT '{}'
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evlog_timestamp ON event_logs (timestamp)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evlog_severity  ON event_logs (severity)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evlog_status    ON event_logs (status)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evlog_source    ON event_logs (source)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evlog_resource  ON event_logs (resource)"))
+        conn.commit()
+
+
+def _migrate_user_full_name() -> None:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(256)"))
+        conn.commit()
+
+
 def _migrate_ssh_proxy_columns() -> None:
     """Add proxy/jump-server columns to ssh_credentials if they don't exist yet."""
     with engine.connect() as conn:
@@ -71,6 +103,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
     _migrate_ssh_proxy_columns()
     _migrate_user_permissions()
+    _migrate_user_full_name()
+    _migrate_event_logs()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -129,6 +163,7 @@ app.include_router(resource_map_router)
 app.include_router(block_storages_router)
 app.include_router(mfa_router)
 app.include_router(iam_router)
+app.include_router(event_logs_router)
 
 
 def _apply_db_optimizations() -> None:
@@ -276,6 +311,10 @@ def _seed_admin() -> None:
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> None:
+    origin = ws.headers.get("origin", "")
+    if origin and origin not in _cors_origins:
+        await ws.close(code=4003)
+        return
     await ws.accept()
 
     # If token not in URL, expect {"type":"auth","token":"<jwt>"} as first message
@@ -289,9 +328,11 @@ async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> 
             return
 
     username: str = ""
+    token_exp: float = float("inf")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         username = payload.get("sub", "")
+        token_exp = float(payload.get("exp", float("inf")))
     except JWTError:
         pass
 
@@ -308,7 +349,7 @@ async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> 
     finally:
         db_check.close()
 
-    await manager.connect(ws, username=username)
+    await manager.connect(ws, username=username, token_exp=token_exp)
 
     # On connect: send any currently running syncs so the client can recover state
     db = SessionLocal()
@@ -321,7 +362,12 @@ async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> 
         await ws.send_json({
             "type": "active_syncs",
             "syncs": [
-                {"log_id": l.id, "provider": l.provider, "status": l.status}
+                {
+                    "log_id": l.id,
+                    "provider": l.provider,
+                    "status": l.status,
+                    "started_at": l.started_at.isoformat() if l.started_at else None,
+                }
                 for l in running
             ],
         })
