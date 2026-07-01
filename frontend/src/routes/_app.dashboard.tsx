@@ -45,17 +45,17 @@ function useCountUp(target: number, duration = 800) {
   return val;
 }
 
-function AnimatedBar({ pct }: { pct: number }) {
+function AnimatedBar({ pct, color = "#6366f1" }: { pct: number; color?: string }) {
   const [width, setWidth] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setWidth(pct), 60);
     return () => clearTimeout(t);
   }, [pct]);
   return (
-    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+    <div className="h-2 bg-muted rounded-full overflow-hidden">
       <div
-        className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
-        style={{ width: `${width}%` }}
+        className="h-full rounded-full transition-all duration-700 ease-out"
+        style={{ width: `${width}%`, background: color }}
       />
     </div>
   );
@@ -226,7 +226,7 @@ function Dashboard() {
                       {count} · {pct.toFixed(0)}%
                     </span>
                   </div>
-                  <AnimatedBar pct={pct} />
+                  <AnimatedBar pct={pct} color={PROVIDER_COLORS[prov] ?? "#6366f1"} />
                 </div>
               );
             })}
