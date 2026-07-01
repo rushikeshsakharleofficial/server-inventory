@@ -16,6 +16,7 @@ function LoginPage() {
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -31,6 +32,7 @@ function LoginPage() {
         const form = new URLSearchParams();
         form.append("username", username);
         form.append("password", password);
+        form.append("remember_me", rememberMe ? "true" : "false");
         const res = await fetch(`${(import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000"}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -83,7 +85,7 @@ function LoginPage() {
           <p className="text-xs text-muted-foreground mt-1">
             {mfaToken
               ? "Enter the 6-digit code from your authenticator app."
-              : "Operator credentials only. Sessions expire on idle."}
+              : "Operator credentials only."}
           </p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-3">
@@ -114,6 +116,15 @@ function LoginPage() {
                     required
                   />
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="size-3.5 rounded border-border accent-primary"
+                  />
+                  <span className="text-xs text-muted-foreground">Remember me for 90 days</span>
+                </label>
               </>
             )}
             {mfaToken && (
