@@ -3,7 +3,7 @@
  * Backend base URL is read from VITE_API_URL (defaults to http://localhost:8000).
  */
 
-const RAW_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+const RAW_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8001";
 export const API_BASE = RAW_BASE.replace(/\/+$/, "");
 
 const TOKEN_KEY = "sic.token";
@@ -215,6 +215,14 @@ export interface BlockStorage {
   last_synced?: string | null;
 }
 
+export interface Snapshot {
+  date: string;
+  total: number;
+  running: number;
+  stopped: number;
+  by_provider: Record<string, number>;
+}
+
 export interface CronJob {
   id: number;
   name: string;
@@ -239,6 +247,30 @@ export interface UserRow {
   role: string;
   is_active: boolean;
   created_at?: string | null;
+  permissions?: Record<string, string[]>;
+  group_ids?: number[];
+}
+
+export interface Group {
+  id: number;
+  name: string;
+  description?: string | null;
+  permissions: Record<string, string[]>;
+  member_count: number;
+  created_at?: string | null;
+}
+
+export interface GroupCreate {
+  name: string;
+  description?: string;
+  permissions?: Record<string, string[]>;
+}
+
+export interface PermissionCatalog {
+  features: string[];
+  actions: string[];
+  feature_actions: Record<string, string[]>;
+  role_baseline: Record<string, Record<string, string[]>>;
 }
 
 export interface LoginResponse {

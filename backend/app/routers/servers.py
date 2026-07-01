@@ -14,19 +14,11 @@ from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
 from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey
 from ..ws_manager import manager as ws_manager
+from .query_utils import escape_like
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
 
 _SERVER_NOT_FOUND = "Server not found"
-
-
-def _escape_like(value: str) -> str:
-    return (
-        value
-        .replace("\\", "\\\\")
-        .replace("%", "\\%")
-        .replace("_", "\\_")
-    )
 
 
 _SORT_COLS: dict[str, object] = {
@@ -59,7 +51,7 @@ def list_servers(
     if status:
         q = q.filter(models.Server.status == status)
     if search:
-        like = f"%{_escape_like(search)}%"
+        like = f"%{escape_like(search)}%"
         q = q.filter(
             models.Server.name.ilike(like, escape="\\")
             | models.Server.public_ip.ilike(like, escape="\\")

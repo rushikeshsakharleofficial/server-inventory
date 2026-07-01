@@ -8,16 +8,20 @@ import {
   Network,
   RefreshCw,
   Clock,
-  KeyRound,
+  Cloud,
   Terminal,
   Users as UsersIcon,
   Settings as SettingsIcon,
   LogOut,
   Search,
+  UsersRound,
+  ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import { useCurrentUser, logout } from "@/lib/auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAppWebSocket } from "@/lib/ws";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
 
@@ -29,6 +33,7 @@ const NAV: Array<{
     group: "Compute",
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/stats", label: "Stats", icon: TrendingUp },
       { to: "/servers", label: "Servers", icon: Server },
       { to: "/kubernetes", label: "Kubernetes", icon: Boxes },
       { to: "/databases", label: "Databases", icon: Database },
@@ -46,9 +51,10 @@ const NAV: Array<{
   {
     group: "Access",
     items: [
-      { to: "/credentials", label: "Credentials", icon: KeyRound },
+      { to: "/cloud-providers", label: "Cloud Providers", icon: Cloud },
       { to: "/ssh-keys", label: "SSH Keys", icon: Terminal },
-      { to: "/users", label: "Users", icon: UsersIcon },
+      { to: "/users-groups", label: "Users & Groups", icon: UsersRound },
+      { to: "/policies",     label: "IAM Policies",   icon: ShieldCheck },
       { to: "/settings", label: "Settings", icon: SettingsIcon },
     ],
   },
@@ -58,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = useCurrentUser();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
+  useAppWebSocket();
 
   const { data: stats } = useQuery({
     queryKey: ["stats"],
@@ -65,11 +72,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     staleTime: 30_000,
   });
 
-  // Running sync indicator
+  // Running sync indicator — refreshed by WS invalidation, no polling needed
   const { data: syncLogs } = useQuery({
     queryKey: ["syncLogs", "head"],
     queryFn: () => api<Array<{ id: number; status: string }>>("/api/sync/logs", { query: { limit: 5 } }),
-    refetchInterval: 5_000,
   });
   const syncing = syncLogs?.some((l) => l.status === "running") ?? false;
 

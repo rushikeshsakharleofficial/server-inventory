@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Any, Generic, Literal, TypeVar
 from datetime import datetime
 
@@ -113,14 +113,57 @@ class UserResponse(BaseModel):
     username: str
     role: str
     is_active: bool
+    permissions: dict = {}
+    group_ids: list[int] = []
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+
+# ─── IAM / RBAC schemas ────────────────────────────────────────────────────────
+
+class GroupCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    description: str | None = None
+    permissions: dict = {}
+
+
+class GroupUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=64)
+    description: str | None = None
+    permissions: dict | None = None
+
+
+class GroupResponse(BaseModel):
+    id: int
+    name: str
+    description: str | None = None
+    permissions: dict = {}
+    member_count: int = 0
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserPermissionsUpdate(BaseModel):
+    permissions: dict
+
+
+class UserGroupsUpdate(BaseModel):
+    group_ids: list[int]
+
+
+class PermissionCatalog(BaseModel):
+    features: list[str]
+    actions: list[str]
+    feature_actions: dict[str, list[str]]
+    role_baseline: dict[str, dict[str, list[str]]]
 
 
 class TokenResponse(BaseModel):

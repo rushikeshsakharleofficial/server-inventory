@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, PageHeader } from "@/components/ui-bits";
+import { Card, PageHeader, CustomSelect } from "@/components/ui-bits";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — System Control" }] }),
@@ -50,7 +51,7 @@ function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
+    <div className="p-6 space-y-6">
       <PageHeader title="Settings" description="Application preferences and defaults." />
 
       <Card className="overflow-hidden">
@@ -61,11 +62,47 @@ function SettingsPage() {
           {Object.entries(draft).map(([k, v]) => (
             <div key={k} className="grid grid-cols-3 gap-4 items-center">
               <label className="text-xs font-mono text-muted-foreground">{k}</label>
-              <input
-                value={v}
-                onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
-                className="col-span-2 px-3 py-1.5 text-sm bg-background border border-border rounded-md font-mono"
-              />
+              <div className="col-span-2">
+                {k === "appearance_compact" ? (
+                  <CustomSelect
+                    value={v}
+                    onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                    options={[
+                      { value: "false", label: "Off (default)" },
+                      { value: "true",  label: "On" },
+                    ]}
+                  />
+                ) : k === "ssh_default_port" ? (
+                  <CustomSelect
+                    value={v}
+                    onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                    options={[
+                      { value: "22",    label: "22 (standard)" },
+                      { value: "2222",  label: "2222" },
+                      { value: "2200",  label: "2200" },
+                      { value: "22222", label: "22222" },
+                    ]}
+                  />
+                ) : k === "sync_timeout" ? (
+                  <CustomSelect
+                    value={v}
+                    onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                    options={[
+                      { value: "60",  label: "1 min" },
+                      { value: "120", label: "2 min" },
+                      { value: "300", label: "5 min (default)" },
+                      { value: "600", label: "10 min" },
+                      { value: "900", label: "15 min" },
+                    ]}
+                  />
+                ) : (
+                  <input
+                    value={v}
+                    onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
+                    className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md font-mono"
+                  />
+                )}
+              </div>
             </div>
           ))}
           <div className="pt-2">
@@ -137,10 +174,12 @@ function MfaCard() {
         {step === "setup" && setupData && (
           <div className="space-y-3 border border-border rounded-md p-4 bg-muted/30">
             <p className="text-xs text-muted-foreground">Scan the QR code or enter the secret manually in your authenticator app, then enter the 6-digit code to confirm.</p>
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(setupData.uri)}`}
-              alt="MFA QR code" className="rounded-md border border-border"
-              width={160} height={160}
+            <QRCodeSVG
+              value={setupData.uri}
+              size={176}
+              level="M"
+              includeMargin
+              className="rounded-md border border-border bg-white p-2"
             />
             <div className="font-mono text-xs bg-background border border-border rounded px-3 py-2 break-all select-all">{setupData.secret}</div>
             <input className={inp} placeholder="6-digit code" maxLength={6} value={code} onChange={e => setCode(e.target.value)} />

@@ -410,7 +410,9 @@ function ServersPage() {
                 <RefreshCw className="size-3.5" /> SSH Sync
               </button>
               <button
-                className="flex-1 py-2 text-xs font-medium bg-surface ring-1 ring-border rounded-md inline-flex items-center justify-center gap-1.5"
+                disabled
+                title="SSH terminal — coming soon"
+                className="flex-1 py-2 text-xs font-medium bg-surface ring-1 ring-border rounded-md inline-flex items-center justify-center gap-1.5 opacity-40 cursor-not-allowed"
               >
                 <Terminal className="size-3.5" /> Connect
               </button>

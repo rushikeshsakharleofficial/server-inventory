@@ -8,23 +8,13 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from . import models
 from .database import get_db
+from .config import _is_production
 
 _INSECURE_SECRET_VALUES = {
     "dev-secret-key-" + "CHANGE-in-production",
     "generate-a-long-random-string-here",
     "change-this-secret-key-in-production",
 }
-_PRODUCTION_ENVS = {"prod", "production"}
-
-
-def _is_production() -> bool:
-    env_name = (
-        os.getenv("ENVIRONMENT")
-        or os.getenv("APP_ENV")
-        or os.getenv("ENV")
-        or ""
-    ).lower()
-    return env_name in _PRODUCTION_ENVS
 
 
 _DEV_KEY_FILE = os.path.join(os.path.dirname(__file__), "..", ".dev_secret_key")
@@ -175,3 +165,23 @@ def require_admin(user: models.User = Depends(get_current_user)) -> models.User:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin permission required")
     return user
+
+
+def require_perm(feature: str, action: str):
+    """
+    Dependency factory for granular per-feature/action guards.
+    Uses the additive-overlay permission system (role baseline + group + user grants).
+    Back-compat: existing role strings satisfy the same access they did before.
+    """
+    from .permissions import has_perm  # local import to avoid circular
+
+    def _dep(user: models.User = Depends(get_current_user)) -> models.User:
+        if not has_perm(user, feature, action):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission required: {feature}:{action}",
+            )
+        return user
+
+    _dep.__name__ = f"require_perm_{feature}_{action}"
+    return _dep

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, type CronJob, type CronJobCreate } from "@/lib/api";
-import { Card, PageHeader, StatusPill, EmptyState } from "@/components/ui-bits";
-import { Play, Power, Trash2, Plus, X } from "lucide-react";
+import { api, type CronJob, type CronJobCreate, type Credential, type Page } from "@/lib/api";
+import { Card, PageHeader, StatusPill, EmptyState, CustomSelect } from "@/components/ui-bits";
+import { Play, Power, Trash2, Plus, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -12,63 +12,85 @@ export const Route = createFileRoute("/_app/crons")({
   component: CronsPage,
 });
 
-function AddCronDialog({ onClose }: { onClose: () => void }) {
+function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState<CronJobCreate>({ name: "", cron_expr: "0 * * * *", provider: "", is_active: true });
-  const create = useMutation({
-    mutationFn: (payload: CronJobCreate) => api("/api/crons", { method: "POST", body: JSON.stringify(payload) }),
+  const [form, setForm] = useState<CronJobCreate>(
+    job
+      ? { name: job.name, cron_expr: job.cron_expr, provider: job.provider ?? null, is_active: job.is_active }
+      : { name: "", cron_expr: "0 * * * *", provider: null, is_active: true }
+  );
+
+  const { data: creds } = useQuery({
+    queryKey: ["creds"],
+    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100 } }),
+  });
+
+  const providerOptions = [
+    { value: "", label: "All providers (sync everything)" },
+    ...Array.from(new Set((creds?.items ?? []).filter(c => c.is_active).map(c => c.provider)))
+      .map(p => ({ value: p, label: p.toUpperCase() })),
+  ];
+
+  const save = useMutation({
+    mutationFn: (payload: CronJobCreate) =>
+      job
+        ? api(`/api/crons/${job.id}`, { method: "PUT", json: payload })
+        : api("/api/crons", { method: "POST", json: payload }),
     onSuccess: () => {
-      toast.success("Cron job created");
+      toast.success(job ? "Cron job updated" : "Cron job created");
       qc.invalidateQueries({ queryKey: ["crons"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm">Add cron job</h2>
+          <h2 className="font-semibold text-sm">{job ? "Edit cron job" : "Add cron job"}</h2>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
         </div>
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground font-medium block mb-1">Name</label>
             <input
-              className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              className={inp}
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Daily sync"
+              placeholder="e.g. Daily AWS sync"
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Cron expression</label>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Schedule</label>
             <input
-              className="w-full px-3 py-1.5 text-sm font-mono border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              className={`${inp} font-mono`}
               value={form.cron_expr}
               onChange={e => setForm(f => ({ ...f, cron_expr: e.target.value }))}
               placeholder="0 * * * *"
             />
+            <p className="text-[10px] text-muted-foreground mt-1">minute hour day month weekday</p>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Provider (optional)</label>
-            <input
-              className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Provider</label>
+            <CustomSelect
               value={form.provider ?? ""}
-              onChange={e => setForm(f => ({ ...f, provider: e.target.value || null }))}
-              placeholder="aws / gcp / azure …"
+              onChange={v => setForm(f => ({ ...f, provider: v || null }))}
+              options={providerOptions}
+              placeholder="All providers"
             />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
           <button
-            onClick={() => create.mutate({ ...form, provider: form.provider || null })}
-            disabled={!form.name || !form.cron_expr || create.isPending}
+            onClick={() => save.mutate(form)}
+            disabled={!form.name || !form.cron_expr || save.isPending}
             className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create"}
+            {save.isPending ? (job ? "Saving…" : "Creating…") : (job ? "Save" : "Create")}
           </button>
         </div>
       </div>
@@ -78,11 +100,10 @@ function AddCronDialog({ onClose }: { onClose: () => void }) {
 
 function CronsPage() {
   const qc = useQueryClient();
-  const [showAdd, setShowAdd] = useState(false);
+  const [editJob, setEditJob] = useState<CronJob | null | "new">(null);
   const { data } = useQuery({
     queryKey: ["crons"],
     queryFn: () => api<CronJob[]>("/api/crons"),
-    refetchInterval: 10_000,
   });
   const toggle = useMutation({
     mutationFn: (id: number) => api(`/api/crons/${id}/toggle`, { method: "PATCH" }),
@@ -103,11 +124,16 @@ function CronsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      {showAdd && <AddCronDialog onClose={() => setShowAdd(false)} />}
+      {editJob !== null && (
+        <CronDialog
+          job={editJob === "new" ? undefined : editJob}
+          onClose={() => setEditJob(null)}
+        />
+      )}
       <div className="flex items-center justify-between">
         <PageHeader title="Scheduled jobs" description="Sync schedules and recurring automation." />
         <button
-          onClick={() => setShowAdd(true)}
+          onClick={() => setEditJob("new")}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90"
         >
           <Plus className="size-3.5" /> Add cron
@@ -149,6 +175,9 @@ function CronsPage() {
                   <div className="inline-flex gap-1">
                     <button onClick={() => run.mutate(j.id)} className="p-1.5 hover:bg-muted rounded-md" title="Run now">
                       <Play className="size-3.5" />
+                    </button>
+                    <button onClick={() => setEditJob(j)} className="p-1.5 hover:bg-muted rounded-md" title="Edit">
+                      <Pencil className="size-3.5" />
                     </button>
                     <button onClick={() => toggle.mutate(j.id)} className="p-1.5 hover:bg-muted rounded-md" title="Toggle">
                       <Power className="size-3.5" />

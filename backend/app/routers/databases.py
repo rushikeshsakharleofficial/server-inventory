@@ -1,79 +1,19 @@
-import time
 from typing import Annotated
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..auth import get_current_user, require_write
-from ..crypto import decrypt_config
 from ..database import DATABASE_URL, get_db
+from .query_utils import escape_like
+from .sync_utils import _sync_resources
 
 router = APIRouter(prefix="/api/databases", tags=["databases"])
 
-_BATCH_SIZE = 25
-_BATCH_DELAY_S = 0.15
-
 
 def _sync_databases(provider_name: str | None, db_url: str) -> None:
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-
-    from ..providers import get_provider
-
-    engine = create_engine(db_url, pool_pre_ping=True)
-    SessionLocal = sessionmaker(bind=engine)
-    db = SessionLocal()
-    try:
-        cred_query = db.query(models.Credential).filter(models.Credential.is_active.is_(True))
-        if provider_name:
-            cred_query = cred_query.filter(models.Credential.provider == provider_name)
-        creds = cred_query.all()
-
-        for cred in creds:
-            try:
-                provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
-                dbs = provider.fetch_databases()
-            except Exception:  # noqa: BLE001 — skip credential on any provider error
-                continue
-
-            now = datetime.now(timezone.utc)
-            cloud_ids = [d.get("cloud_id") for d in dbs if d.get("cloud_id")]
-            existing_map: dict[str, models.DatabaseInstance] = {}
-            if cloud_ids:
-                for obj in (
-                    db.query(models.DatabaseInstance)
-                    .filter(
-                        models.DatabaseInstance.cloud_id.in_(cloud_ids),
-                        models.DatabaseInstance.provider == cred.provider,
-                    )
-                    .all()
-                ):
-                    if obj.cloud_id:
-                        existing_map[obj.cloud_id] = obj
-
-            total = len(dbs)
-            for batch_start in range(0, total, _BATCH_SIZE):
-                for d in dbs[batch_start : batch_start + _BATCH_SIZE]:
-                    cloud_id = d.get("cloud_id")
-                    existing = existing_map.get(cloud_id) if cloud_id else None
-                    if existing:
-                        for k, v in d.items():
-                            if hasattr(existing, k):
-                                setattr(existing, k, v)
-                        existing.last_synced = now
-                    else:
-                        obj = models.DatabaseInstance(
-                            **{k: v for k, v in d.items() if hasattr(models.DatabaseInstance, k)}
-                        )
-                        obj.last_synced = now
-                        db.add(obj)
-                db.commit()
-                if batch_start + _BATCH_SIZE < total:
-                    time.sleep(_BATCH_DELAY_S)
-    finally:
-        db.close()
+    _sync_resources(provider_name, db_url, models.DatabaseInstance, "fetch_databases")
 
 
 @router.get("", response_model=schemas.Page[schemas.DatabaseInstanceResponse])
@@ -92,8 +32,7 @@ def list_databases(
     if status:
         q = q.filter(models.DatabaseInstance.status == status)
     if search:
-        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        q = q.filter(models.DatabaseInstance.name.ilike(f"%{escaped}%", escape="\\"))
+        q = q.filter(models.DatabaseInstance.name.ilike(f"%{escape_like(search)}%", escape="\\"))
     total = q.count()
     items = q.order_by(models.DatabaseInstance.name).offset(offset).limit(limit).all()
     return schemas.Page(total=total, limit=limit, offset=offset, items=items)

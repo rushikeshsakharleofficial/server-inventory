@@ -19,6 +19,7 @@ from .routers.kubernetes_clusters import router as kubernetes_router
 from .routers.resource_map import router as resource_map_router
 from .routers.block_storages import router as block_storages_router
 from .routers.mfa import router as mfa_router
+from .routers.iam import router as iam_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -35,6 +36,15 @@ def _migrate_mfa_columns() -> None:
         ))
         conn.execute(text(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+        conn.commit()
+
+
+def _migrate_user_permissions() -> None:
+    """Add permissions JSONB column to users if it doesn't exist yet."""
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '{}'"
         ))
         conn.commit()
 
@@ -60,11 +70,13 @@ def _migrate_ssh_proxy_columns() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
     _migrate_ssh_proxy_columns()
+    _migrate_user_permissions()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
     _cleanup_stale_syncs()
     _seed_default_settings()
+    _seed_admin_group()
     sched_module.start(DATABASE_URL)
     yield
     sched_module.shutdown()
@@ -116,6 +128,7 @@ app.include_router(kubernetes_router)
 app.include_router(resource_map_router)
 app.include_router(block_storages_router)
 app.include_router(mfa_router)
+app.include_router(iam_router)
 
 
 def _apply_db_optimizations() -> None:
@@ -198,6 +211,26 @@ def _seed_default_settings() -> None:
             if not db.query(models.AppSetting).filter(models.AppSetting.key == key).first():
                 db.add(models.AppSetting(key=key, value=value))
         db.commit()
+    finally:
+        db.close()
+
+
+def _seed_admin_group() -> None:
+    """Create the default 'Administrators' group with all permissions if it doesn't exist."""
+    from .permissions import FEATURES, FEATURE_ACTIONS
+    from sqlalchemy.exc import IntegrityError
+    db = SessionLocal()
+    try:
+        if not db.query(models.Group).filter(models.Group.name == "Administrators").first():
+            all_perms = {f: list(FEATURE_ACTIONS[f]) for f in FEATURES}
+            db.add(models.Group(
+                name="Administrators",
+                description="Full access to all features and actions.",
+                permissions=all_perms,
+            ))
+            db.commit()
+    except IntegrityError:
+        db.rollback()  # another worker beat us to it — that's fine
     finally:
         db.close()
 

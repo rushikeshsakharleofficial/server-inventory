@@ -81,12 +81,10 @@ function Dashboard() {
   const stats = useQuery({
     queryKey: ["stats"],
     queryFn: () => api<Stats>("/api/servers/stats"),
-    refetchInterval: 15_000,
   });
   const logs = useQuery({
     queryKey: ["syncLogs", "dash"],
     queryFn: () => api<SyncLog[]>("/api/sync/logs", { query: { limit: 6 } }),
-    refetchInterval: 5_000,
   });
   const creds = useQuery({
     queryKey: ["creds"],
@@ -159,7 +157,7 @@ function Dashboard() {
                 <BarChart data={providerChartData} barCategoryGap="30%">
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)" }} />
                   <Bar dataKey="count" name="Servers" radius={[3, 3, 0, 0]}
                     isAnimationActive animationDuration={900} animationEasing="ease-out">
                     {providerChartData.map((entry) => (

@@ -5,17 +5,11 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from .config import _is_production
+
 _log = logging.getLogger(__name__)
 
 _DEV_CRED_KEY_FILE = Path(__file__).parent.parent / ".dev_cred_key"
-_PRODUCTION_ENVS = {"prod", "production"}
-
-
-def _is_production() -> bool:
-    env = (
-        os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or os.getenv("ENV") or ""
-    ).lower()
-    return env in _PRODUCTION_ENVS
 
 
 def _load_fernet() -> Fernet:

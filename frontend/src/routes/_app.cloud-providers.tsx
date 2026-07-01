@@ -6,8 +6,8 @@ import { useState } from "react";
 import { Plus, Trash2, Power, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/credentials")({
-  head: () => ({ meta: [{ title: "Credentials — System Control" }] }),
+export const Route = createFileRoute("/_app/cloud-providers")({
+  head: () => ({ meta: [{ title: "Cloud Providers — System Control" }] }),
   component: CredentialsPage,
 });
 
@@ -56,8 +56,8 @@ function CredentialsPage() {
   return (
     <div className="p-6 space-y-4">
       <PageHeader
-        title="Cloud credentials"
-        description="API keys used to discover and sync resources from your providers."
+        title="Cloud Providers"
+        description="API keys used to discover and sync resources from your cloud providers."
         actions={
           <button
             onClick={() => setOpen(true)}

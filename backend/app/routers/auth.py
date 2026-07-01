@@ -55,8 +55,14 @@ def me(current_user: Annotated[models.User, Depends(get_current_user)]) -> model
 def list_users(
     _: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
-) -> list[models.User]:
-    return db.query(models.User).order_by(models.User.created_at).all()
+) -> list[schemas.UserResponse]:
+    users = db.query(models.User).order_by(models.User.created_at).all()
+    result = []
+    for u in users:
+        r = schemas.UserResponse.model_validate(u)
+        r.group_ids = [g.id for g in u.groups]
+        result.append(r)
+    return result
 
 
 @router.post("/api/users", response_model=schemas.UserResponse, status_code=201)

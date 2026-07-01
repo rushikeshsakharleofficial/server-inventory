@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useRef, useEffect } from "react";
+import { type ReactNode, type CSSProperties, useState, useRef, useEffect } from "react";
 import { ChevronDown, Check } from "lucide-react";
 
 export function CustomSelect({
@@ -16,6 +16,8 @@ export function CustomSelect({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [dropStyle, setDropStyle] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   const selected = options.find(o => o.value === value);
 
   useEffect(() => {
@@ -24,11 +26,20 @@ export function CustomSelect({
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
+  function handleOpen() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setDropStyle({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
+    }
+    setOpen(o => !o);
+  }
+
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={handleOpen}
         className="w-full flex items-center justify-between px-3 py-2 text-sm bg-background border border-border rounded-md hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <span className={selected ? "text-foreground" : "text-muted-foreground"}>
@@ -37,7 +48,10 @@ export function CustomSelect({
         <ChevronDown className={`size-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-background border border-border rounded-md shadow-lg overflow-hidden">
+        <div
+          style={{ position: "fixed", top: dropStyle.top, left: dropStyle.left, width: dropStyle.width, zIndex: 9999 }}
+          className="bg-background border border-border rounded-md shadow-lg"
+        >
           {!value && <div className="px-3 py-2 text-sm text-muted-foreground">{placeholder}</div>}
           {options.map(o => (
             <button
@@ -81,12 +95,14 @@ export function PageHeader({
 export function Card({
   children,
   className = "",
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }) {
   return (
-    <div className={`bg-surface ring-1 ring-black/5 rounded-lg ${className}`}>
+    <div className={`bg-surface ring-1 ring-black/5 rounded-lg ${className}`} style={style}>
       {children}
     </div>
   );

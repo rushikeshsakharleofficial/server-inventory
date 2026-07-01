@@ -1,4 +1,5 @@
 from typing import Annotated, Any
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -8,6 +9,22 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..providers import get_provider
 from ..crypto import decrypt_config
+
+# ── in-process TTL cache (5 min) for expensive cloud API calls ────────────────
+_CACHE_TTL = 300  # seconds
+_cache: dict[str, tuple[float, dict]] = {}  # key → (expires_at, payload)
+
+
+def _cache_get(key: str) -> dict | None:
+    entry = _cache.get(key)
+    if entry and entry[0] > time.monotonic():
+        return entry[1]
+    _cache.pop(key, None)
+    return None
+
+
+def _cache_set(key: str, value: dict) -> None:
+    _cache[key] = (time.monotonic() + _CACHE_TTL, value)
 
 router = APIRouter(prefix="/api/resource-map", tags=["resource-map"])
 
@@ -1558,32 +1575,47 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
 
 @router.get("/server/{server_id}")
 def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+    key = f"server:{server_id}"
+    if cached := _cache_get(key):
+        return cached
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(404, "Server not found")
     cred = _get_cred_for_provider(db, server.provider)
     config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("server", server, server.provider, config)
-    return {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
+    payload = {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
+    _cache_set(key, payload)
+    return payload
 
 
 @router.get("/database/{db_id}")
 def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+    key = f"database:{db_id}"
+    if cached := _cache_get(key):
+        return cached
     db_inst = db.query(models.DatabaseInstance).filter(models.DatabaseInstance.id == db_id).first()
     if not db_inst:
         raise HTTPException(404, "Database not found")
     cred = _get_cred_for_provider(db, db_inst.provider)
     config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("database", db_inst, db_inst.provider, config)
-    return {"resource": {"id": db_inst.id, "name": db_inst.name, "type": "database", "provider": db_inst.provider, "region": db_inst.region}, **result}
+    payload = {"resource": {"id": db_inst.id, "name": db_inst.name, "type": "database", "provider": db_inst.provider, "region": db_inst.region}, **result}
+    _cache_set(key, payload)
+    return payload
 
 
 @router.get("/kubernetes/{cluster_id}")
 def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+    key = f"kubernetes:{cluster_id}"
+    if cached := _cache_get(key):
+        return cached
     cluster = db.query(models.KubernetesCluster).filter(models.KubernetesCluster.id == cluster_id).first()
     if not cluster:
         raise HTTPException(404, "Cluster not found")
     cred = _get_cred_for_provider(db, cluster.provider)
     config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("kubernetes", cluster, cluster.provider, config)
-    return {"resource": {"id": cluster.id, "name": cluster.name, "type": "kubernetes", "provider": cluster.provider, "region": cluster.region}, **result}
+    payload = {"resource": {"id": cluster.id, "name": cluster.name, "type": "kubernetes", "provider": cluster.provider, "region": cluster.region}, **result}
+    _cache_set(key, payload)
+    return payload

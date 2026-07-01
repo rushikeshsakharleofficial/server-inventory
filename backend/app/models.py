@@ -1,11 +1,21 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, Index
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, Index, Table, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .database import Base
 
 
 def _empty_json_dict() -> dict:
     return {}
+
+
+# ─── IAM association table ─────────────────────────────────────────────────────
+user_groups = Table(
+    "user_groups",
+    Base.metadata,
+    Column("user_id",  Integer, ForeignKey("users.id",  ondelete="CASCADE"), primary_key=True),
+    Column("group_id", Integer, ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class Server(Base):
@@ -81,6 +91,22 @@ class Credential(Base):
     )
 
 
+class Group(Base):
+    __tablename__ = "groups"
+
+    id          = Column(Integer, primary_key=True)
+    name        = Column(String(64), unique=True, nullable=False)
+    description = Column(String(255), nullable=True)
+    permissions = Column(JSONB, default=_empty_json_dict, nullable=False, server_default="{}")
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    members     = relationship("User", secondary="user_groups", back_populates="groups")
+
+    __table_args__ = (
+        Index("ix_groups_name", "name", unique=True),
+    )
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -91,7 +117,11 @@ class User(Base):
     is_active       = Column(Boolean,     default=True)
     totp_secret     = Column(String(64),  nullable=True)
     totp_enabled    = Column(Boolean,     default=False)
+    # Direct per-user permission overlay (additive on top of role baseline + groups)
+    permissions     = Column(JSONB, default=_empty_json_dict, nullable=False, server_default="{}")
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    groups          = relationship("Group", secondary="user_groups", back_populates="members")
 
     __table_args__ = (
         Index("ix_users_username", "username", unique=True),

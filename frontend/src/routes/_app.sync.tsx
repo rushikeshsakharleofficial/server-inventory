@@ -13,7 +13,6 @@ function SyncPage() {
   const { data } = useQuery({
     queryKey: ["syncLogs", "all"],
     queryFn: () => api<SyncLog[]>("/api/sync/logs", { query: { limit: 100 } }),
-    refetchInterval: 3_000,
   });
 
   return (
