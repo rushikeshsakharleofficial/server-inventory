@@ -168,13 +168,31 @@ class OVHProvider(CloudProvider):
         except ImportError:
             raise RuntimeError("ovh package not installed. Run: pip install ovh")
 
-        client = ovh_sdk.Client(
-            endpoint=self.config.get("endpoint", "ovh-eu"),
-            application_key=self.config["application_key"],
-            application_secret=self.config["application_secret"],
-            consumer_key=self.config["consumer_key"],
-            timeout=20,
+        _OVH_AUTH_MSG = (
+            "OVH authentication failed. To fix:\n"
+            "1. Create an app at https://eu.api.ovh.com/createApp/ → get application_key + application_secret\n"
+            "2. Generate a consumer_key at https://eu.api.ovh.com/createToken/ with rights:\n"
+            "   GET /me, GET /dedicated/server, GET /dedicated/server/*,\n"
+            "   GET /vps, GET /vps/*, GET /cloud/project, GET /cloud/project/*\n"
+            "3. Update this credential's endpoint to ovh-eu (not ovh-us)\n"
+            "Then update the credential with all three new values."
         )
+
+        try:
+            client = ovh_sdk.Client(
+                endpoint=self.config.get("endpoint", "ovh-eu"),
+                application_key=self.config["application_key"],
+                application_secret=self.config["application_secret"],
+                consumer_key=self.config["consumer_key"],
+                timeout=20,
+            )
+            # Validate credentials immediately — cheap call, catches bad keys early
+            client.get("/me")
+        except Exception as _auth_err:
+            _msg = str(_auth_err).lower()
+            if any(k in _msg for k in ("invalid", "unauthorized", "forbidden", "application key", "consumer key", "credentials")):
+                raise RuntimeError(_OVH_AUTH_MSG) from _auth_err
+            raise
 
         servers: list[dict[str, Any]] = []
         errors: list[str] = []
