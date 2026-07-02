@@ -174,8 +174,8 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 const PROVIDER_LOGOS: Record<string, string> = {
-  aws: "/providers/aws.png",
-  gcp: "/providers/gcp.png",
+  aws: "/providers/aws.svg",
+  gcp: "/providers/gcp.svg",
   azure: "/providers/azure.png",
   digitalocean: "/providers/digitalocean.png",
   linode: "/providers/linode.png",
@@ -206,13 +206,14 @@ export function ProviderBadge({ provider }: { provider: string }) {
 }
 
 const OS_META: Record<string, { logo: string; color: string; bg: string; label: string }> = {
-  ubuntu:  { bg: "bg-orange-50", color: "text-orange-700", logo: "https://cdn.simpleicons.org/ubuntu/E95420", label: "Ubuntu" },
+  ubuntu:  { bg: "bg-orange-50", color: "text-orange-700", logo: "/os/ubuntu.svg", label: "Ubuntu" },
   debian:  { bg: "bg-rose-50",   color: "text-rose-700",   logo: "https://cdn.simpleicons.org/debian/A80030", label: "Debian" },
   centos:  { bg: "bg-purple-50", color: "text-purple-700", logo: "https://cdn.simpleicons.org/centos/262577", label: "CentOS" },
   rocky:   { bg: "bg-green-50",  color: "text-green-700",  logo: "https://cdn.simpleicons.org/rockylinux/10B981", label: "Rocky Linux" },
   alma:    { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/almalinux/1B5299", label: "AlmaLinux" },
   fedora:  { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/fedora/3C6EB4", label: "Fedora" },
   arch:    { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/archlinux/1793D1", label: "Arch Linux" },
+  redhat:  { bg: "bg-rose-50",   color: "text-rose-700",   logo: "/os/redhat.svg", label: "Red Hat" },
   freebsd: { bg: "bg-amber-50",  color: "text-amber-800",  logo: "https://cdn.simpleicons.org/freebsd/AB2B28", label: "FreeBSD" },
   windows: { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/windows/00A4EF", label: "Windows" },
   coreos:  { bg: "bg-stone-50",  color: "text-stone-700",  logo: "https://cdn.simpleicons.org/coreos/595959", label: "CoreOS" },
@@ -227,6 +228,7 @@ function _osKey(os: string): string {
   if (l.includes("alma"))    return "alma";
   if (l.includes("fedora"))  return "fedora";
   if (l.includes("arch"))    return "arch";
+  if (l.includes("redhat") || l.includes("rhel")) return "redhat";
   if (l.includes("freebsd")) return "freebsd";
   if (l.includes("windows") || l.includes("win")) return "windows";
   if (l.includes("coreos"))  return "coreos";
