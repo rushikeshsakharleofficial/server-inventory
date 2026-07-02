@@ -244,6 +244,7 @@ function GroupDialog({
 function UsersGroupsPage() {
   const [tab, setTab] = useState<"users" | "groups">("users");
   const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [editProfile, setEditProfile] = useState<UserRow | null>(null);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [newGroup, setNewGroup] = useState(false);
   const [newUser, setNewUser] = useState(false);
@@ -327,7 +328,11 @@ function UsersGroupsPage() {
                 const userGroups = (groups ?? []).filter((g) => u.group_ids?.includes(g.id));
                 return (
                   <tr key={u.id} className="text-sm">
-                    <td className="px-4 py-2.5 font-medium">{u.username}</td>
+                    <td className="px-4 py-2.5 font-medium">
+                      {u.full_name ? (
+                        <span>{u.full_name} <span className="text-muted-foreground text-xs font-normal">({u.username})</span></span>
+                      ) : u.username}
+                    </td>
                     <td className="px-4 py-2.5">
                       <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border uppercase">{u.role}</span>
                     </td>
@@ -339,8 +344,11 @@ function UsersGroupsPage() {
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="inline-flex gap-1">
+                        <button onClick={() => setEditProfile(u)} className="inline-flex items-center gap-1 px-2 py-1 text-xs hover:bg-muted rounded-md" title="Edit profile">
+                          <Pencil className="size-3.5" /> Edit
+                        </button>
                         <button onClick={() => setEditUser(u)} className="inline-flex items-center gap-1 px-2 py-1 text-xs hover:bg-muted rounded-md" title="Edit IAM">
-                          <Pencil className="size-3.5" /> IAM
+                          IAM
                         </button>
                         <button onClick={() => toggleUser.mutate(u.id)} className="p-1.5 hover:bg-muted rounded-md" title="Toggle active">
                           <Power className="size-3.5" />
@@ -402,6 +410,9 @@ function UsersGroupsPage() {
         </Card>
       )}
 
+      {editProfile && (
+        <EditProfileDialog user={editProfile} onClose={() => setEditProfile(null)} />
+      )}
       {editUser && catalog && (
         <PermissionDialog
           user={editUser}
@@ -422,16 +433,56 @@ function UsersGroupsPage() {
   );
 }
 
+// ─── EditProfileDialog ─────────────────────────────────────────────────────────
+
+function EditProfileDialog({ user, onClose }: { user: UserRow; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [username, setUsername] = useState(user.username);
+  const [fullName, setFullName] = useState(user.full_name ?? "");
+
+  const save = useMutation({
+    mutationFn: () => api(`/api/users/${user.id}`, {
+      method: "PATCH",
+      json: { username: username || undefined, full_name: fullName || null },
+    }),
+    onSuccess: () => {
+      toast.success("User updated");
+      qc.invalidateQueries({ queryKey: ["users"] });
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
+        <div className="p-4 border-b border-border">
+          <h3 className="text-sm font-semibold">Edit profile — {user.username}</h3>
+        </div>
+        <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+          <Input label="Username" value={username} onChange={setUsername} required />
+          <Input label="Full Name (optional)" value={fullName} onChange={setFullName} />
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── NewUserDialog ─────────────────────────────────────────────────────────────
 
 function NewUserDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"read" | "write">("read");
 
   const create = useMutation({
-    mutationFn: () => api("/api/users", { method: "POST", json: { username, password, role } }),
+    mutationFn: () => api("/api/users", { method: "POST", json: { username, full_name: fullName || null, password, role } }),
     onSuccess: () => {
       toast.success("User created");
       qc.invalidateQueries({ queryKey: ["users"] });
@@ -448,6 +499,7 @@ function NewUserDialog({ onClose }: { onClose: () => void }) {
         </div>
         <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
           <Input label="Username" value={username} onChange={setUsername} required />
+          <Input label="Full Name (optional)" value={fullName} onChange={setFullName} />
           <div>
             <Label>Password (10+ chars)</Label>
             <input

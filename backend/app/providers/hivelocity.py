@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 from .base import CloudProvider
@@ -32,17 +33,35 @@ class HivelocityProvider(CloudProvider):
         resp.raise_for_status()
         devices: list[dict[str, Any]] = resp.json()
 
+        def fetch_os(device_id: int) -> str | None:
+            try:
+                r = requests.get(f"{_BASE}/device/{device_id}", headers=self._headers(), timeout=10)
+                if r.status_code == 200:
+                    d = r.json()
+                    return d.get("os") or d.get("operatingSystem") or d.get("osName")
+            except Exception:
+                pass
+            return None
+
+        # Fetch OS for all devices in parallel (max 8 concurrent)
+        os_map: dict[int, str | None] = {}
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futs = {pool.submit(fetch_os, int(dev["deviceId"])): int(dev["deviceId"]) for dev in devices}
+            for fut in as_completed(futs, timeout=60):
+                os_map[futs[fut]] = fut.result()
+
         servers = []
         for dev in devices:
             location = dev.get("location") or {}
             billing  = dev.get("billingInfo") or {}
+            device_id = int(dev["deviceId"])
 
             # primaryIp can be IPv4 or IPv6; ipmiAddress is the out-of-band mgmt IP
             public_ip  = dev.get("primaryIp")
             private_ip = dev.get("ipmiAddress")  # OOB/IPMI, not a LAN private IP
 
             servers.append({
-                "cloud_id":      str(dev["deviceId"]),
+                "cloud_id":      str(device_id),
                 "name":          dev.get("hostname") or dev.get("name", ""),
                 "provider":      "hivelocity",
                 "region":        location.get("facility"),
@@ -54,7 +73,7 @@ class HivelocityProvider(CloudProvider):
                 "vcpu":          None,
                 "memory_gb":     None,
                 "storage_gb":    None,
-                "os":            None,
+                "os":            os_map.get(device_id),
                 "datacenter":    location.get("facility_title") or location.get("facility"),
                 "hostname":      dev.get("hostname"),
                 "tags":          {},

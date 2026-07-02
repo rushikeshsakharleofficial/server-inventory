@@ -82,12 +82,12 @@ export function PageHeader({
   return (
     <div className="flex items-start justify-between mb-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight leading-tight">{title}</h1>
         {description && (
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{description}</p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="flex items-center gap-2 ml-4 shrink-0">{actions}</div>}
     </div>
   );
 }
@@ -102,7 +102,7 @@ export function Card({
   style?: CSSProperties;
 }) {
   return (
-    <div className={`bg-surface ring-1 ring-black/5 rounded-lg ${className}`} style={style}>
+    <div className={`bg-surface ring-1 ring-black/10 rounded-xl shadow-sm ${className}`} style={style}>
       {children}
     </div>
   );
@@ -205,6 +205,48 @@ export function ProviderBadge({ provider }: { provider: string }) {
   );
 }
 
+const OS_META: Record<string, { logo: string; color: string; bg: string }> = {
+  ubuntu:  { bg: "bg-orange-50", color: "text-orange-700", logo: "https://cdn.simpleicons.org/ubuntu/E95420" },
+  debian:  { bg: "bg-red-50",    color: "text-red-700",    logo: "https://cdn.simpleicons.org/debian/A80030" },
+  centos:  { bg: "bg-purple-50", color: "text-purple-700", logo: "https://cdn.simpleicons.org/centos/262577" },
+  rocky:   { bg: "bg-green-50",  color: "text-green-700",  logo: "https://cdn.simpleicons.org/rockylinux/10B981" },
+  alma:    { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/almalinux/1B5299" },
+  fedora:  { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/fedora/3C6EB4" },
+  arch:    { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/archlinux/1793D1" },
+  freebsd: { bg: "bg-red-50",    color: "text-red-800",    logo: "https://cdn.simpleicons.org/freebsd/AB2B28" },
+  windows: { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/windows/00A4EF" },
+  coreos:  { bg: "bg-stone-50",  color: "text-stone-700",  logo: "https://cdn.simpleicons.org/coreos/595959" },
+};
+
+function _osKey(os: string): string {
+  const l = os.toLowerCase();
+  if (l.includes("ubuntu"))  return "ubuntu";
+  if (l.includes("debian"))  return "debian";
+  if (l.includes("centos"))  return "centos";
+  if (l.includes("rocky"))   return "rocky";
+  if (l.includes("alma"))    return "alma";
+  if (l.includes("fedora"))  return "fedora";
+  if (l.includes("arch"))    return "arch";
+  if (l.includes("freebsd")) return "freebsd";
+  if (l.includes("windows") || l.includes("win")) return "windows";
+  if (l.includes("coreos"))  return "coreos";
+  return "";
+}
+
+export function OsBadge({ os }: { os: string | null | undefined }) {
+  if (!os) return <span className="text-muted-foreground text-xs">—</span>;
+  const key = _osKey(os);
+  const meta = key ? OS_META[key] : null;
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${
+      meta ? `${meta.bg} ${meta.color} border-current/20` : "bg-muted text-muted-foreground border-border"
+    }`}>
+      {meta && <img src={meta.logo} alt={key} className="size-3 shrink-0" />}
+      {os}
+    </span>
+  );
+}
+
 export function EmptyState({
   title,
   description,
@@ -215,12 +257,17 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+      <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
+        <svg className="size-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4" />
+        </svg>
+      </div>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {description && (
-        <p className="text-xs text-muted-foreground mt-1 max-w-sm">{description}</p>
+        <p className="text-xs text-muted-foreground mt-1.5 max-w-xs leading-relaxed">{description}</p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
@@ -242,12 +289,12 @@ export function KpiTile({
     : tone === "danger" ? "text-red-600"
     : "text-muted-foreground";
   return (
-    <div className="bg-surface p-4 ring-1 ring-black/5 rounded-lg">
-      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+    <div className="bg-surface p-5 ring-1 ring-black/10 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
         {label}
       </div>
       <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-semibold tracking-tight tabular-nums">{value}</span>
+        <span className="text-3xl font-bold tracking-tight tabular-nums">{value}</span>
         {hint && <span className={`text-xs font-medium ${toneClass}`}>{hint}</span>}
       </div>
     </div>

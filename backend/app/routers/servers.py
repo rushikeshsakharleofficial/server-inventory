@@ -320,7 +320,7 @@ async def ssh_sync_server(
             server.vcpu = ssh_info["cpu_count"]
         if not server.memory_gb and ssh_info.get("memory_mb"):
             server.memory_gb = round(ssh_info["memory_mb"] / 1024, 1)
-        if not server.os and ssh_info.get("os_release"):
+        if ssh_info.get("os_release"):  # SSH is more accurate than cloud API
             server.os = ssh_info["os_release"]
         if not server.hostname and ssh_info.get("hostname"):
             server.hostname = ssh_info["hostname"]
@@ -557,6 +557,53 @@ def ssh_fetch_ips_stream(
                 except Exception: pass  # noqa: BLE001
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
+
+
+@router.get("/ip-inventory")
+def ip_inventory(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
+    search: str = Query("", alias="q"),
+    ip_type: str = Query("", alias="type"),
+) -> dict:
+    """Aggregate all IPs from public_ip, private_ip, and ssh_info.all_ips."""
+    servers = db.query(
+        models.Server.id, models.Server.name, models.Server.provider,
+        models.Server.public_ip, models.Server.private_ip, models.Server.ssh_info,
+    ).all()
+
+    rows = []
+    for srv in servers:
+        ssh_info = srv.ssh_info or {}
+        all_ips: list[str] = list(ssh_info.get("all_ips") or [])
+        # include public_ip / private_ip from cloud sync if not already in all_ips
+        seen_addrs = {ip.split("/")[0] for ip in all_ips}
+        for col_ip in (srv.public_ip, srv.private_ip):
+            if col_ip and col_ip not in seen_addrs:
+                all_ips.append(col_ip)
+                seen_addrs.add(col_ip)
+        for cidr in all_ips:
+            addr = cidr.split("/")[0]
+            is_v6 = ":" in addr
+            is_loopback = addr.startswith("127.") or addr == "::1"
+            is_link = addr.startswith("fe80:")
+            kind = "loopback" if is_loopback else "link-local" if is_link else "ipv6" if is_v6 else "ipv4"
+            rows.append({
+                "server_id":   srv.id,
+                "server_name": srv.name,
+                "provider":    srv.provider,
+                "cidr":        cidr,
+                "address":     addr,
+                "type":        kind,
+            })
+
+    if search:
+        q = search.lower()
+        rows = [r for r in rows if q in r["address"] or q in r["server_name"].lower()]
+    if ip_type:
+        rows = [r for r in rows if r["type"] == ip_type]
+
+    return {"total": len(rows), "items": rows}
 
 
 @router.delete("/{server_id}", status_code=204)

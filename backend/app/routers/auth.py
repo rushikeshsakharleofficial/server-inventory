@@ -43,6 +43,7 @@ def login(
         token_type="bearer",
         role=user.role,
         username=user.username,
+        full_name=user.full_name,
     )
 
 
@@ -76,6 +77,7 @@ def create_user(
         raise HTTPException(status_code=400, detail="Username already exists")
     db_user = models.User(
         username=payload.username,
+        full_name=payload.full_name,
         hashed_password=hash_password(payload.password),
         role=payload.role,
     )
@@ -98,6 +100,27 @@ def delete_user(
         raise HTTPException(status_code=400, detail="Cannot delete admin user")
     db.delete(user)
     db.commit()
+
+
+@router.patch("/api/users/{user_id}", response_model=schemas.UserResponse)
+def update_user(
+    user_id: int,
+    payload: schemas.UserUpdate,
+    _: Annotated[models.User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> models.User:
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if payload.full_name is not None:
+        user.full_name = payload.full_name or None
+    if payload.username:
+        if db.query(models.User).filter(models.User.username == payload.username, models.User.id != user_id).first():
+            raise HTTPException(status_code=400, detail="Username already exists")
+        user.username = payload.username
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.patch("/api/users/{user_id}/toggle", response_model=schemas.UserResponse)

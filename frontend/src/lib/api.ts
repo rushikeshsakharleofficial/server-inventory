@@ -11,6 +11,7 @@ const USER_KEY = "sic.user";
 
 export interface StoredUser {
   username: string;
+  full_name?: string | null;
   role: string;
 }
 
@@ -244,6 +245,7 @@ export interface CronJobCreate {
 export interface UserRow {
   id: number;
   username: string;
+  full_name?: string | null;
   role: string;
   is_active: boolean;
   created_at?: string | null;
@@ -278,6 +280,7 @@ export interface LoginResponse {
   token_type: string;
   role: string | null;
   username: string | null;
+  full_name: string | null;
   mfa_required: boolean;
   mfa_token: string | null;
 }

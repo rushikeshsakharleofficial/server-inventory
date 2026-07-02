@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type SshCredential } from "@/lib/api";
 import { Card, PageHeader, EmptyState, CustomSelect } from "@/components/ui-bits";
-import { Plus, Star, Trash2 } from "lucide-react";
+import { Plus, Star, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_app/ssh-keys")({
 function SshPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<SshCredential | null>(null);
   const { data } = useQuery({
     queryKey: ["ssh"],
     queryFn: () => api<SshCredential[]>("/api/ssh-credentials"),
@@ -54,12 +55,14 @@ function SshPage() {
               <th className="px-4 py-2 font-medium text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-border [&>tr:last-child]:border-b-0">
             {(data ?? []).map((c) => (
-              <tr key={c.id} className="text-sm">
-                <td className="px-4 py-2.5 font-medium flex items-center gap-2">
-                  {c.is_default && <Star className="size-3.5 text-amber-500 fill-amber-500" />}
-                  {c.name}
+              <tr key={c.id} className="text-sm align-middle">
+                <td className="px-4 py-2.5 font-medium">
+                  <div className="flex items-center gap-2">
+                    {c.is_default && <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+                    {c.name}
+                  </div>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-xs">{c.username}</td>
                 <td className="px-4 py-2.5">
@@ -76,6 +79,9 @@ function SshPage() {
                         <Star className="size-3.5" />
                       </button>
                     )}
+                    <button onClick={() => setEditing(c)} className="p-1.5 hover:bg-muted rounded-md" title="Edit">
+                      <Pencil className="size-3.5" />
+                    </button>
                     <button
                       onClick={() => confirm(`Delete ${c.name}?`) && del.mutate(c.id)}
                       className="p-1.5 hover:bg-muted rounded-md text-red-600"
@@ -94,50 +100,51 @@ function SshPage() {
       </Card>
 
       {open && <SshDialog onClose={() => setOpen(false)} />}
+      {editing && <SshDialog onClose={() => setEditing(null)} credential={editing} />}
     </div>
   );
 }
 
-function SshDialog({ onClose }: { onClose: () => void }) {
+function SshDialog({ onClose, credential }: { onClose: () => void; credential?: SshCredential }) {
   const qc = useQueryClient();
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("root");
-  const [authMethod, setAuthMethod] = useState<"password" | "key">("key");
+  const isEdit = !!credential;
+  const [name, setName] = useState(credential?.name ?? "");
+  const [username, setUsername] = useState(credential?.username ?? "root");
+  const [authMethod, setAuthMethod] = useState<"password" | "key">((credential?.auth_method as "password" | "key") ?? "key");
   const [password, setPassword] = useState("");
   const [privateKey, setPrivateKey] = useState("");
-  const [port, setPort] = useState(22);
-  const [showProxy, setShowProxy] = useState(false);
-  const [proxyHost, setProxyHost] = useState("");
-  const [proxyPort, setProxyPort] = useState(22);
-  const [proxyUsername, setProxyUsername] = useState("root");
-  const [proxyAuthMethod, setProxyAuthMethod] = useState<"password" | "key">("password");
+  const [port, setPort] = useState(credential?.port ?? 22);
+  const [showProxy, setShowProxy] = useState(!!(credential?.proxy_host));
+  const [proxyHost, setProxyHost] = useState(credential?.proxy_host ?? "");
+  const [proxyPort, setProxyPort] = useState(credential?.proxy_port ?? 22);
+  const [proxyUsername, setProxyUsername] = useState(credential?.proxy_username ?? "root");
+  const [proxyAuthMethod, setProxyAuthMethod] = useState<"password" | "key">((credential?.proxy_auth_method as "password" | "key") ?? "password");
   const [proxyPassword, setProxyPassword] = useState("");
   const [proxyKey, setProxyKey] = useState("");
 
-  const create = useMutation({
-    mutationFn: () =>
-      api("/api/ssh-credentials", {
-        method: "POST",
-        json: {
-          name,
-          username,
-          auth_method: authMethod,
-          password: authMethod === "password" ? password : null,
-          private_key: authMethod === "key" ? privateKey : null,
-          port,
-          is_default: false,
-          ...(showProxy && proxyHost ? {
-            proxy_host: proxyHost,
-            proxy_port: proxyPort,
-            proxy_username: proxyUsername,
-            proxy_auth_method: proxyAuthMethod,
-            proxy_password: proxyAuthMethod === "password" ? proxyPassword : null,
-            proxy_private_key: proxyAuthMethod === "key" ? proxyKey : null,
-          } : {}),
-        },
-      }),
+  const body = () => ({
+    name,
+    username,
+    auth_method: authMethod,
+    password: authMethod === "password" ? password || undefined : null,
+    private_key: authMethod === "key" ? privateKey || undefined : null,
+    port,
+    ...(showProxy && proxyHost ? {
+      proxy_host: proxyHost,
+      proxy_port: proxyPort,
+      proxy_username: proxyUsername,
+      proxy_auth_method: proxyAuthMethod,
+      proxy_password: proxyAuthMethod === "password" ? proxyPassword || undefined : null,
+      proxy_private_key: proxyAuthMethod === "key" ? proxyKey || undefined : null,
+    } : { proxy_host: null }),
+  });
+
+  const save = useMutation({
+    mutationFn: () => isEdit
+      ? api(`/api/ssh-credentials/${credential.id}`, { method: "PUT", json: body() })
+      : api("/api/ssh-credentials", { method: "POST", json: { ...body(), is_default: false } }),
     onSuccess: () => {
-      toast.success("SSH credential added");
+      toast.success(isEdit ? "SSH credential updated" : "SSH credential added");
       qc.invalidateQueries({ queryKey: ["ssh"] });
       onClose();
     },
@@ -145,12 +152,12 @@ function SshDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
         <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-sm font-semibold">New SSH credential</h3>
+          <h3 className="text-sm font-semibold">{isEdit ? "Edit SSH credential" : "New SSH credential"}</h3>
         </div>
-        <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
+        <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
           <Input label="Name" value={name} onChange={setName} required />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Username" value={username} onChange={setUsername} required />
@@ -211,8 +218,8 @@ function SshDialog({ onClose }: { onClose: () => void }) {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={create.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {create.isPending ? "Saving…" : "Save"}
+            <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+              {save.isPending ? "Saving…" : "Save"}
             </button>
           </div>
         </form>

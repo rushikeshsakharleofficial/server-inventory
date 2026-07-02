@@ -104,6 +104,7 @@ class SyncLogResponse(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
+    full_name: str | None = None
     password: str = Field(min_length=10)
     role: Literal["read", "write"] = "read"
 
@@ -111,6 +112,7 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
+    full_name: str | None = None
     role: str
     is_active: bool
     permissions: dict = {}
@@ -119,6 +121,11 @@ class UserResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+
+class UserUpdate(BaseModel):
+    full_name: str | None = None
+    username: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -180,6 +187,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     role: str | None = None
     username: str | None = None
+    full_name: str | None = None
     # MFA challenge (MFA enabled — access_token is None in this case)
     mfa_required: bool = False
     mfa_token: str | None = None

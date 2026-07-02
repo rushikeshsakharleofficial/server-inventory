@@ -215,12 +215,15 @@ class OVHProvider(CloudProvider):
                     # IP is directly in the response — no extra API call
                     public_ip = s.get("ip")
 
-                    # OS: try direct field first, fallback to install/status
-                    raw_os = s.get("os") or None
+                    # OS: dedicated API rarely exposes 'os' directly; bootScript may encode it.
+                    # install/status persists templateName from the last completed install.
+                    raw_os = s.get("os") or s.get("bootScript") or None
                     if not raw_os:
                         try:
                             install = client.get(f"/dedicated/server/{name}/install/status")
-                            raw_os = install.get("templateName") or install.get("template")
+                            raw_os = (install.get("templateName")
+                                      or install.get("template")
+                                      or (install.get("userMetadata") or {}).get("os"))
                         except Exception:
                             pass
                     os_name = _prettify_os(raw_os)

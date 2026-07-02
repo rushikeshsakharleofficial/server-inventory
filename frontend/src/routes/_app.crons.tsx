@@ -141,20 +141,20 @@ function CronsPage() {
       </div>
       <Card className="overflow-hidden">
         <table className="w-full text-left">
-          <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
+          <thead className="bg-surface-muted border-b border-border">
             <tr>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">Schedule</th>
-              <th className="px-4 py-2 font-medium">Provider</th>
-              <th className="px-4 py-2 font-medium">Last run</th>
-              <th className="px-4 py-2 font-medium">Next run</th>
-              <th className="px-4 py-2 font-medium text-right">State</th>
-              <th className="px-4 py-2 font-medium text-right">Actions</th>
+              <th className="px-4 py-2.5 th-label">Name</th>
+              <th className="px-4 py-2.5 th-label">Schedule</th>
+              <th className="px-4 py-2.5 th-label">Provider</th>
+              <th className="px-4 py-2.5 th-label">Last run</th>
+              <th className="px-4 py-2.5 th-label">Next run</th>
+              <th className="px-4 py-2.5 th-label text-right">State</th>
+              <th className="px-4 py-2.5 th-label text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {(data ?? []).map((j) => (
-              <tr key={j.id} className="text-sm">
+              <tr key={j.id} className="text-sm hover:bg-muted/40 transition-colors">
                 <td className="px-4 py-2.5 font-medium">{j.name}</td>
                 <td className="px-4 py-2.5 font-mono text-xs">{j.cron_expr}</td>
                 <td className="px-4 py-2.5">
@@ -172,21 +172,17 @@ function CronsPage() {
                   <StatusPill status={j.is_active ? "active" : "inactive"} />
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <div className="inline-flex gap-1">
-                    <button onClick={() => run.mutate(j.id)} className="p-1.5 hover:bg-muted rounded-md" title="Run now">
+                  <div className="inline-flex gap-0.5">
+                    <button onClick={() => run.mutate(j.id)} className="icon-btn" title="Run now">
                       <Play className="size-3.5" />
                     </button>
-                    <button onClick={() => setEditJob(j)} className="p-1.5 hover:bg-muted rounded-md" title="Edit">
+                    <button onClick={() => setEditJob(j)} className="icon-btn" title="Edit">
                       <Pencil className="size-3.5" />
                     </button>
-                    <button onClick={() => toggle.mutate(j.id)} className="p-1.5 hover:bg-muted rounded-md" title="Toggle">
+                    <button onClick={() => toggle.mutate(j.id)} className="icon-btn" title={j.is_active ? "Disable" : "Enable"}>
                       <Power className="size-3.5" />
                     </button>
-                    <button
-                      onClick={() => del.mutate(j.id)}
-                      className="p-1.5 hover:bg-muted rounded-md text-red-600"
-                      title="Delete"
-                    >
+                    <button onClick={() => del.mutate(j.id)} className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete">
                       <Trash2 className="size-3.5" />
                     </button>
                   </div>

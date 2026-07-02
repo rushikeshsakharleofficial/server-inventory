@@ -64,8 +64,6 @@ function StatsPage() {
 
   const isEmpty = !isLoading && !isError && chartData.length === 0;
 
-  const gridCls = "text-[10px] text-muted-foreground";
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -97,71 +95,64 @@ function StatsPage() {
       {!isEmpty && chartData.length > 0 && (
         <>
           {/* Total instances over time */}
-          <Card className="p-4 space-y-2">
-            <h3 className="text-xs font-semibold">Total instances</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} className={gridCls} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} className={gridCls} />
-                <Tooltip contentStyle={{ fontSize: 11 }} />
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  name="Total"
-                  stroke="#6366f1"
-                  fill="#6366f1"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <Card className="overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-surface-muted">
+              <h3 className="text-sm font-semibold">Total instances</h3>
+            </div>
+            <div className="p-4 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--color-border)" }} />
+                  <Area type="monotone" dataKey="total" name="Total" stroke="#6366f1" fill="#6366f1" fillOpacity={0.12} strokeWidth={2.5} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </Card>
 
           {/* Running vs Stopped */}
-          <Card className="p-4 space-y-2">
-            <h3 className="text-xs font-semibold">Running vs stopped</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ fontSize: 11 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="running" name="Running" stroke="#22c55e" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="stopped" name="Stopped" stroke="#71717a" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+          <Card className="overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-surface-muted">
+              <h3 className="text-sm font-semibold">Running vs stopped</h3>
+            </div>
+            <div className="p-4 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--color-border)" }} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Line type="monotone" dataKey="running" name="Running" stroke="#22c55e" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="stopped" name="Stopped" stroke="#71717a" strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </Card>
 
           {/* By provider stacked area */}
           {providers.length > 0 && (
-            <Card className="p-4 space-y-2">
-              <h3 className="text-xs font-semibold">By provider</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ fontSize: 11 }} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {providers.map((p, i) => (
-                    <Area
-                      key={p}
-                      type="monotone"
-                      dataKey={p}
-                      name={p.toUpperCase()}
-                      stackId="1"
-                      stroke={providerColor(p, i)}
-                      fill={providerColor(p, i)}
-                      fillOpacity={0.6}
-                      strokeWidth={1.5}
-                      dot={false}
-                    />
-                  ))}
-                </AreaChart>
-              </ResponsiveContainer>
+            <Card className="overflow-hidden">
+              <div className="px-4 py-3 border-b border-border bg-surface-muted">
+                <h3 className="text-sm font-semibold">By provider</h3>
+              </div>
+              <div className="p-4 h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--color-border)" }} />
+                    <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                    {providers.map((p, i) => (
+                      <Area key={p} type="monotone" dataKey={p} name={p.toUpperCase()} stackId="1"
+                        stroke={providerColor(p, i)} fill={providerColor(p, i)} fillOpacity={0.5} strokeWidth={1.5} dot={false} />
+                    ))}
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </Card>
           )}
         </>

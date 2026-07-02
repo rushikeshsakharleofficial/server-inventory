@@ -30,6 +30,7 @@ PING_TIMEOUT_SECS:   int = 60   # evict if no pong received within this many sec
 class _ConnMeta:
     username:       str
     last_pong:      float  = field(default_factory=time.monotonic)
+    token_exp:      float  = float("inf")
     # rate-limiting state
     msg_count:      int   = 0
     window_start:   float = field(default_factory=time.monotonic)
@@ -53,9 +54,9 @@ class ConnectionManager:
         if self._ping_task is None or self._ping_task.done():
             self._ping_task = loop.create_task(self._heartbeat_loop())
 
-    async def connect(self, ws: WebSocket, username: str) -> None:
+    async def connect(self, ws: WebSocket, username: str, token_exp: float = float("inf")) -> None:
         # ws.accept() is called by the endpoint before auth — do not accept again
-        self._meta[ws] = _ConnMeta(username=username)
+        self._meta[ws] = _ConnMeta(username=username, token_exp=token_exp)
 
     def disconnect(self, ws: WebSocket) -> None:
         """Remove all state for this connection — no leaked metadata."""
@@ -95,6 +96,13 @@ class ConnectionManager:
             dead: list[WebSocket] = []
 
             for ws, meta in list(self._meta.items()):
+                if time.time() > meta.token_exp:
+                    dead.append(ws)
+                    try:
+                        await ws.close(code=4001)
+                    except Exception:
+                        pass
+                    continue
                 if now - meta.last_pong > PING_TIMEOUT_SECS:
                     dead.append(ws)
                     continue
