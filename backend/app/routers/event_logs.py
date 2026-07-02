@@ -58,21 +58,21 @@ class StatsOut(BaseModel):
 
 # ─── Seed demo data if table is empty ─────────────────────────────────────────
 
-_SOURCES   = ["nginx", "postgres", "redis", "kubelet", "sshd", "cron", "node-exporter", "python-app"]
-_RESOURCES = ["lb-01", "db-prod-01", "db-replica-02", "app-server-01", "redis-cache-01", "worker-02", "worker-03", "api-gateway-01", "backup-worker"]
-_OWNERS    = ["infra-team", "sre", "platform", "security", "automation"]
-_STATUSES  = ["open", "open", "acknowledged", "investigating", "resolved", "resolved"]
+_SOURCES   = ["auth", "sync", "credentials", "servers", "users", "cron", "settings", "api"]
+_RESOURCES = ["OVH Cloud", "Hetzner Cloud", "Contabo", "Linode", "Hivelocity", "Dashboard", "Racknerd", "Colocrossing", "IPXO", "Rackzar"]
+_OWNERS    = ["Ayush Jain", "rushi", "admin", "system", "cron-runner"]
+_STATUSES  = ["open", "open", "acknowledged", "resolved", "resolved", "resolved"]
 _EVENTS: dict[str, list[str]] = {
-    "critical": ["Replication lag exceeded threshold", "Memory usage crossed 95%", "Disk full on /dev/sda1", "OOM killer activated"],
-    "error":    ["Pod restart back-off detected", "Connection refused", "Evicted keys rate high", "TLS handshake failed"],
-    "warning":  ["Upstream response time degraded", "Multiple failed login attempts", "Connection pool saturation high", "CPU spike above 80%"],
-    "info":     ["Nightly snapshot completed", "Node ready", "Configuration reloaded", "Backup completed successfully", "Service restarted cleanly"],
+    "critical": ["Login failed for admin — 5 consecutive attempts", "API key rotation overdue by 30 days", "Credential vault decryption error", "Cloud sync auth token expired"],
+    "error":    ["Cloud sync failed for OVH Cloud", "Credential copy rejected — insufficient role", "User session invalidated unexpectedly", "Cron job missed scheduled window"],
+    "warning":  ["MFA not enabled for provider credential", "Password not rotated in 90+ days", "Sync returned 0 servers — possible auth issue", "Duplicate IP detected across providers"],
+    "info":     ["User logged in", "Cloud sync completed — 124 servers updated", "Provider credential added", "Password revealed by admin", "Credential copied", "Server added manually", "Cron sync triggered", "User password changed", "Settings updated", "New user created"],
 }
 _MESSAGES: dict[str, str] = {
-    "Replication lag exceeded threshold": "replication_lag_seconds=45.3 threshold_seconds=30\nprimary=10.0.0.21:5432 standby=10.0.0.22:5432\nslot=replication_slot_1\nstate=lagging",
-    "Memory usage crossed 95%": "mem_used=15.6GB mem_total=16GB\nprocess=redis-server pid=12345\noom_score=800",
-    "Pod restart back-off detected": "pod=worker-03-abc123 namespace=production\nreason=CrashLoopBackOff restarts=5\nlast_exit_code=137",
-    "Multiple failed login attempts": "attempts=23 window=60s src_ip=185.220.101.47\nuser=root port=22\naction=block",
+    "Cloud sync failed for OVH Cloud": "provider=ovh\nerror=401 Unauthorized\nendpoint=https://eu.api.ovh.com/1.0/cloud/project\naction=retrying in 15min",
+    "Login failed for admin — 5 consecutive attempts": "username=admin\nip=185.220.101.47\nattempts=5\nwindow=2min\naction=account_locked",
+    "MFA not enabled for provider credential": "credential=Contabo\nowner=Ayush Jain\nrisk=medium\nrecommendation=enable_mfa",
+    "Cloud sync completed — 124 servers updated": "provider=all\nservers_added=3\nservers_updated=121\nduration_seconds=18\nstatus=success",
 }
 
 

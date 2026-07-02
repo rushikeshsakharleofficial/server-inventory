@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Wifi,
   ScrollText,
+  KeyRound,
 } from "lucide-react";
 import { useCurrentUser, logout } from "@/lib/auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,6 +56,7 @@ const NAV: Array<{
   {
     group: "Access",
     items: [
+      { to: "/provider-credentials", label: "Provider Credentials", icon: KeyRound },
       { to: "/cloud-providers", label: "Cloud Providers", icon: Cloud },
       { to: "/ssh-keys", label: "SSH Keys", icon: Terminal },
       { to: "/users-groups", label: "Users & Groups", icon: UsersRound },

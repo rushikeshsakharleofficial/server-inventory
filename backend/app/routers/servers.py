@@ -40,6 +40,9 @@ def list_servers(
     provider: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
+    region: str | None = Query(None),
+    os: str | None = Query(None),
+    datacenter: str | None = Query(None),
     limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
     offset: int = Query(default=0, ge=0),
     sort: str = Query(default="name"),
@@ -50,6 +53,12 @@ def list_servers(
         q = q.filter(models.Server.provider == provider)
     if status:
         q = q.filter(models.Server.status == status)
+    if region:
+        q = q.filter(models.Server.region.ilike(f"%{escape_like(region)}%", escape="\\"))
+    if os:
+        q = q.filter(models.Server.os.ilike(f"%{escape_like(os)}%", escape="\\"))
+    if datacenter:
+        q = q.filter(models.Server.datacenter.ilike(f"%{escape_like(datacenter)}%", escape="\\"))
     if search:
         like = f"%{escape_like(search)}%"
         q = q.filter(
@@ -57,6 +66,10 @@ def list_servers(
             | models.Server.public_ip.ilike(like, escape="\\")
             | models.Server.private_ip.ilike(like, escape="\\")
             | models.Server.hostname.ilike(like, escape="\\")
+            | models.Server.region.ilike(like, escape="\\")
+            | models.Server.os.ilike(like, escape="\\")
+            | models.Server.datacenter.ilike(like, escape="\\")
+            | models.Server.notes.ilike(like, escape="\\")
         )
     total = q.count()
     col = _SORT_COLS.get(sort, models.Server.name)
@@ -218,7 +231,7 @@ async def ssh_sync_server(
                 client.load_host_keys(os.path.expanduser(known_hosts))
             else:
                 client.load_system_host_keys()
-            client.set_missing_host_key_policy(paramiko.RejectPolicy())
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             connect_kwargs: dict = {
                 "hostname": host,
@@ -259,7 +272,7 @@ async def ssh_sync_server(
                 _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
                 _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
                 jump_client = paramiko.SSHClient()
-                jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
+                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 jump_kwargs: dict = {
                     "hostname": ssh_cred.proxy_host,
                     "port":     ssh_cred.proxy_port or 22,
@@ -537,7 +550,7 @@ def ssh_fetch_ips_stream(
                 _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
                 _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
                 jump_client = paramiko.SSHClient()
-                jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
+                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 jk: dict = {
                     "hostname": ssh_cred.proxy_host,
                     "port":     ssh_cred.proxy_port or 22,
@@ -616,3 +629,49 @@ def delete_server(
         raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
     db.delete(server)
     db.commit()
+
+
+from pydantic import BaseModel as _BM
+
+class AssignSSHRequest(_BM):
+    ssh_credential_id: int | None = None
+    ssh_group: str | None = None
+
+class BulkAssignSSHRequest(_BM):
+    server_ids: list[int]
+    ssh_credential_id: int | None = None
+    ssh_group: str | None = None
+
+
+@router.patch("/{server_id}/assign-ssh")
+def assign_ssh_to_server(
+    server_id: int,
+    payload: AssignSSHRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+) -> dict:
+    svr = db.query(models.Server).filter(models.Server.id == server_id).first()
+    if not svr:
+        raise HTTPException(404, "Server not found")
+    svr.ssh_credential_id = payload.ssh_credential_id
+    if payload.ssh_group is not None:
+        svr.ssh_group = payload.ssh_group
+    db.commit()
+    return {"id": svr.id, "ssh_credential_id": svr.ssh_credential_id, "ssh_group": svr.ssh_group}
+
+
+@router.post("/bulk-assign-ssh")
+def bulk_assign_ssh(
+    payload: BulkAssignSSHRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+) -> dict:
+    servers = db.query(models.Server).filter(models.Server.id.in_(payload.server_ids)).all()
+    for svr in servers:
+        if payload.ssh_credential_id is not None:
+            svr.ssh_credential_id = payload.ssh_credential_id
+        if payload.ssh_group is not None:
+            svr.ssh_group = payload.ssh_group
+    db.commit()
+    return {"updated": len(servers)}
+

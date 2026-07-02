@@ -5,6 +5,7 @@ import { Card, PageHeader, StatusPill, CustomSelect, EmptyState } from "@/compon
 import { Plus, Trash2, Pencil, Power } from "lucide-react";
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
+import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 
 export const Route = createFileRoute("/_app/users-groups")({
   head: () => ({ meta: [{ title: "Users & Groups — System Control" }] }),
@@ -241,6 +242,11 @@ function GroupDialog({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const USER_FIELDS = [
+  { key: "role",   label: "Role",   type: "multiselect" as const, options: ["admin","write","read"].map(v => ({ value: v })) },
+  { key: "status", label: "Status", type: "select"      as const, options: [{ value: "active" }, { value: "inactive" }] },
+];
+
 function UsersGroupsPage() {
   const [tab, setTab] = useState<"users" | "groups">("users");
   const [editUser, setEditUser] = useState<UserRow | null>(null);
@@ -248,12 +254,28 @@ function UsersGroupsPage() {
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [newGroup, setNewGroup] = useState(false);
   const [newUser, setNewUser] = useState(false);
+  const [fs, setFs] = useState<FilterState>(emptyFilterState);
 
   const qc = useQueryClient();
 
   const { data: users } = useQuery({ queryKey: ["users"], queryFn: () => api<UserRow[]>("/api/users") });
   const { data: groups } = useQuery({ queryKey: ["iam-groups"], queryFn: () => api<Group[]>("/api/iam/groups") });
   const { data: catalog } = useQuery({ queryKey: ["iam-catalog"], queryFn: () => api<PermissionCatalog>("/api/iam/catalog") });
+
+  const roles  = (fs.filters.role   as string[] | undefined) ?? [];
+  const status = (fs.filters.status as string)  ?? "";
+
+  const filteredUsers = (users ?? []).filter((u) => {
+    if (fs.q && !u.username.toLowerCase().includes(fs.q.toLowerCase()) && !(u.full_name ?? "").toLowerCase().includes(fs.q.toLowerCase())) return false;
+    if (roles.length && !roles.includes(u.role)) return false;
+    if (status === "active"   && !u.is_active) return false;
+    if (status === "inactive" &&  u.is_active) return false;
+    return true;
+  });
+  const filteredGroups = (groups ?? []).filter((g) => {
+    if (fs.q && !g.name.toLowerCase().includes(fs.q.toLowerCase())) return false;
+    return true;
+  });
 
   const toggleUser = useMutation({
     mutationFn: (id: number) => api(`/api/users/${id}/toggle`, { method: "PATCH" }),
@@ -306,9 +328,21 @@ function UsersGroupsPage() {
         }
       />
 
-      <div className="inline-flex gap-1 p-1 bg-muted rounded-lg">
-        {tabBtn("users", "Users")}
-        {tabBtn("groups", "Groups")}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex gap-1 p-1 bg-muted rounded-lg">
+          {tabBtn("users", "Users")}
+          {tabBtn("groups", "Groups")}
+        </div>
+        <div className="flex-1">
+          <Card className="p-2.5">
+            <AdvancedFilter
+              fields={tab === "users" ? USER_FIELDS : []}
+              state={fs}
+              onChange={setFs}
+              searchPlaceholder={tab === "users" ? "Search username or full name…" : "Search group name…"}
+            />
+          </Card>
+        </div>
       </div>
 
       {tab === "users" && (
@@ -324,7 +358,7 @@ function UsersGroupsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(users ?? []).map((u) => {
+              {filteredUsers.map((u) => {
                 const userGroups = (groups ?? []).filter((g) => u.group_ids?.includes(g.id));
                 return (
                   <tr key={u.id} className="text-sm">
@@ -361,7 +395,7 @@ function UsersGroupsPage() {
                   </tr>
                 );
               })}
-              {users && users.length === 0 && (
+              {users && filteredUsers.length === 0 && (
                 <tr><td colSpan={5}><EmptyState title="No users" description='Click "Add User" to create the first operator account.' /></td></tr>
               )}
             </tbody>
@@ -381,7 +415,7 @@ function UsersGroupsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(groups ?? []).map((g) => (
+              {filteredGroups.map((g) => (
                 <tr key={g.id} className="text-sm">
                   <td className="px-4 py-2.5 font-medium">{g.name}</td>
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">{g.description ?? "—"}</td>

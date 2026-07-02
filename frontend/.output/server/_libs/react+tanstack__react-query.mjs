@@ -1,5 +1,6 @@
 import { r as __toESM, t as __commonJSMin } from "../_runtime.mjs";
 import { a as environmentManager, i as notifyManager, o as noop, r as MutationObserver, s as shouldThrowError, t as QueryObserver } from "./tanstack__query-core.mjs";
+import process from "node:process";
 //#region node_modules/react/cjs/react-jsx-runtime.production.js
 /**
 * @license React

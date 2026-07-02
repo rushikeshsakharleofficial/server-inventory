@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type UserRow, type Group, type PermissionCatalog } from "@/lib/api";
 import { Card, PageHeader, EmptyState } from "@/components/ui-bits";
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/_app/policies")({
   head: () => ({ meta: [{ title: "IAM Policies — System Control" }] }),
@@ -24,8 +24,11 @@ function PoliciesPage() {
     queryFn: () => api("/api/users"),
   });
 
-  const visibleUsers = (users ?? []).slice(0, 20);
-  const truncated = (users?.length ?? 0) > 20;
+  const [q, setQ] = useState("");
+  const filteredUsers  = (users  ?? []).filter(u => !q || u.username.toLowerCase().includes(q.toLowerCase()) || (u.full_name ?? "").toLowerCase().includes(q.toLowerCase()));
+  const filteredGroups = (groups ?? []).filter(g => !q || g.name.toLowerCase().includes(q.toLowerCase()));
+  const visibleUsers = filteredUsers.slice(0, 20);
+  const truncated = filteredUsers.length > 20;
 
   return (
     <div className="p-6 space-y-6">
@@ -42,17 +45,25 @@ function PoliciesPage() {
         }
       />
 
+      {/* Search bar */}
+      <div className="relative max-w-xs">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search groups or users…"
+          className="w-full pl-8 pr-8 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring" />
+        {q && <button onClick={() => setQ("")} className="absolute right-2 top-1/2 -translate-y-1/2 hover:text-red-500"><X className="size-3.5" /></button>}
+      </div>
+
       {/* Groups grid */}
       <section className="space-y-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Groups</h2>
-          <span className="text-[11px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">{groups?.length ?? 0}</span>
+          <span className="text-[11px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">{filteredGroups.length}</span>
         </div>
-        {(groups ?? []).length === 0 ? (
-          <Card className="py-10"><EmptyState title="No groups yet." description="Create one on the Users & Groups page." /></Card>
+        {filteredGroups.length === 0 ? (
+          <Card className="py-10"><EmptyState title="No groups match." description="Create one on the Users & Groups page." /></Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(groups ?? []).map((g) => (
+            {filteredGroups.map((g) => (
               <GroupCard key={g.id} group={g} catalog={catalog} />
             ))}
           </div>
@@ -63,10 +74,10 @@ function PoliciesPage() {
       <section className="space-y-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Users</h2>
-          <span className="text-[11px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">{users?.length ?? 0}</span>
+          <span className="text-[11px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">{filteredUsers.length}</span>
         </div>
-        {(users ?? []).length === 0 ? (
-          <Card className="py-10"><EmptyState title="No users yet." description="Add one on the Users & Groups page." /></Card>
+        {filteredUsers.length === 0 ? (
+          <Card className="py-10"><EmptyState title="No users match." description="Add one on the Users & Groups page." /></Card>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -75,7 +86,7 @@ function PoliciesPage() {
               ))}
             </div>
             {truncated && (
-              <p className="text-xs text-muted-foreground">Showing 20 of {users?.length} users.</p>
+              <p className="text-xs text-muted-foreground">Showing 20 of {filteredUsers.length} matching users.</p>
             )}
           </>
         )}

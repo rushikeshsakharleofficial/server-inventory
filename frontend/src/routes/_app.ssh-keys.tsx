@@ -5,19 +5,38 @@ import { Card, PageHeader, EmptyState, CustomSelect } from "@/components/ui-bits
 import { Plus, Star, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 
 export const Route = createFileRoute("/_app/ssh-keys")({
   head: () => ({ meta: [{ title: "SSH Keys — System Control" }] }),
   component: SshPage,
 });
 
+const SSH_FIELDS = [
+  { key: "auth", label: "Auth method", type: "multiselect" as const, options: [{ value: "key", label: "Private key" }, { value: "password", label: "Password" }] },
+  { key: "hasProxy", label: "Has proxy", type: "select" as const, options: [{ value: "yes", label: "With proxy" }, { value: "no", label: "Direct" }] },
+];
+
 function SshPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SshCredential | null>(null);
+  const [fs, setFs] = useState<FilterState>(emptyFilterState);
+
   const { data } = useQuery({
     queryKey: ["ssh"],
     queryFn: () => api<SshCredential[]>("/api/ssh-credentials"),
+  });
+
+  const authMethods = (fs.filters.auth     as string[] | undefined) ?? [];
+  const hasProxy    = (fs.filters.hasProxy  as string)  ?? "";
+
+  const items = (data ?? []).filter((c) => {
+    if (fs.q && !c.name.toLowerCase().includes(fs.q.toLowerCase()) && !c.username.toLowerCase().includes(fs.q.toLowerCase())) return false;
+    if (authMethods.length && !authMethods.includes(c.auth_method)) return false;
+    if (hasProxy === "yes" && !c.proxy_host) return false;
+    if (hasProxy === "no"  &&  c.proxy_host) return false;
+    return true;
   });
 
   const setDefault = useMutation({
@@ -43,6 +62,10 @@ function SshPage() {
           </button>
         }
       />
+      <Card className="p-3">
+        <AdvancedFilter fields={SSH_FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search by name or username…" />
+      </Card>
+
       <Card className="overflow-hidden">
         <table className="w-full text-left">
           <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
@@ -56,7 +79,7 @@ function SshPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border [&>tr:last-child]:border-b-0">
-            {(data ?? []).map((c) => (
+            {items.map((c) => (
               <tr key={c.id} className="text-sm align-middle">
                 <td className="px-4 py-2.5 font-medium">
                   <div className="flex items-center gap-2">
@@ -92,8 +115,8 @@ function SshPage() {
                 </td>
               </tr>
             ))}
-            {data && data.length === 0 && (
-              <tr><td colSpan={6}><EmptyState title="No SSH credentials" description="Add one to enable SSH-based IP discovery." /></td></tr>
+            {data && items.length === 0 && (
+              <tr><td colSpan={6}><EmptyState title="No SSH credentials match" description="Add one to enable SSH-based IP discovery." /></td></tr>
             )}
           </tbody>
         </table>

@@ -5,6 +5,7 @@ import { Card, PageHeader, ProviderBadge, EmptyState, CustomSelect } from "@/com
 import { useState } from "react";
 import { Plus, Trash2, Power, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 
 export const Route = createFileRoute("/_app/cloud-providers")({
   head: () => ({ meta: [{ title: "Cloud Providers — System Control" }] }),
@@ -30,13 +31,31 @@ function isSecret(f: string) {
   return /secret|token|key|password|private|auth/.test(f) && f !== "endpoint";
 }
 
+const CP_FIELDS = [
+  { key: "provider", label: "Provider", type: "multiselect" as const, options: ["aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(v => ({ value: v })) },
+  { key: "status",   label: "Status",   type: "select"      as const, options: [{ value: "active", label: "Active" }, { value: "disabled", label: "Disabled" }] },
+];
+
 function CredentialsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Credential | null>(null);
+  const [fs, setFs] = useState<FilterState>(emptyFilterState);
+
   const { data, isLoading } = useQuery({
     queryKey: ["creds"],
-    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100 } }),
+    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100, cred_type: "api" } }),
+  });
+
+  const providers = (fs.filters.provider as string[] | undefined) ?? [];
+  const status    = (fs.filters.status   as string)  ?? "";
+
+  const items = (data?.items ?? []).filter((c) => {
+    if (fs.q && !c.name.toLowerCase().includes(fs.q.toLowerCase()) && !c.provider.toLowerCase().includes(fs.q.toLowerCase())) return false;
+    if (providers.length && !providers.includes(c.provider)) return false;
+    if (status === "active"   && !c.is_active) return false;
+    if (status === "disabled" &&  c.is_active) return false;
+    return true;
   });
 
   const toggle = useMutation({
@@ -68,8 +87,12 @@ function CredentialsPage() {
         }
       />
 
+      <Card className="p-3">
+        <AdvancedFilter fields={CP_FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search by name or provider…" />
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(data?.items ?? []).map((c) => (
+        {items.map((c) => (
           <Card key={c.id} className="p-4 flex items-start gap-3">
             <div className="size-10 bg-background ring-1 ring-border rounded grid place-items-center overflow-hidden p-1">
               <img
@@ -114,7 +137,7 @@ function CredentialsPage() {
         ))}
       </div>
 
-      {!isLoading && (data?.items.length ?? 0) === 0 && (
+      {!isLoading && items.length === 0 && (
         <Card className="py-12">
           <EmptyState
             title="No credentials yet"
@@ -215,7 +238,7 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
     mutationFn: () =>
       api("/api/credentials", {
         method: "POST",
-        json: { name, provider, config: values },
+        json: { name, provider, cred_type: "api", config: values },
       }),
     onSuccess: () => {
       toast.success("Credential added");

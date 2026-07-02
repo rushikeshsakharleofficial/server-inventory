@@ -63,6 +63,8 @@ class ServerResponse(ServerBase):
     updated_at: datetime | None = None
     last_synced: datetime | None = None
     ssh_info: dict[str, Any] | None = None
+    ssh_credential_id: int | None = None
+    ssh_group: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -70,11 +72,13 @@ class ServerResponse(ServerBase):
 class CredentialCreate(BaseModel):
     name: str
     provider: str
+    cred_type: str = "login"
     config: dict[str, Any]
 
 
 class CredentialUpdate(BaseModel):
     name: str | None = None
+    cred_type: str | None = None
     config: dict[str, Any] | None = None
 
 
@@ -83,6 +87,7 @@ class CredentialResponse(BaseModel):
     name: str
     provider: str
     is_active: bool
+    cred_type: str = "login"
     config: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime | None = None
 

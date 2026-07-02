@@ -2,11 +2,12 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, CustomSelect, OsBadge } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge } from "@/components/ui-bits";
 import type { SshCredential } from "@/lib/api";
-import { Search, RefreshCw, Trash2, Plus, Pencil, X } from "lucide-react";
+import { RefreshCw, Trash2, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 
 export const Route = createFileRoute("/_app/servers")({
   head: () => ({ meta: [{ title: "Servers — System Control" }] }),
@@ -138,22 +139,40 @@ function EditServerDialog({ server, onClose }: { server: Server; onClose: () => 
   );
 }
 
+const SERVER_FILTER_FIELDS = [
+  { key: "provider", label: "Provider", type: "multiselect" as const, options: ["aws","gcp","azure","digitalocean","linode","ovh","hivelocity","custom"].map(v => ({ value: v })) },
+  { key: "status",   label: "Status",   type: "multiselect" as const, options: ["running","stopped","pending","unknown"].map(v => ({ value: v })) },
+  { key: "region",   label: "Region",   type: "text" as const },
+  { key: "os",       label: "OS",       type: "text" as const },
+  { key: "datacenter", label: "Datacenter", type: "text" as const },
+];
+
 function ServersPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [q, setQ] = useState("");
-  const [provider, setProvider] = useState("");
-  const [status, setStatus] = useState("");
+  const [fs, setFs] = useState<FilterState>(emptyFilterState);
   const [offset, setOffset] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Server | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const limit = 50;
 
+  const providers = (fs.filters.provider as string[] | undefined) ?? [];
+  const statuses  = (fs.filters.status   as string[] | undefined) ?? [];
+  const region    = (fs.filters.region   as string)  ?? "";
+  const os        = (fs.filters.os       as string)  ?? "";
+  const datacenter = (fs.filters.datacenter as string) ?? "";
+
+  // Backend supports provider (single), status (single), search, region, os, datacenter.
+  // Multi-select for provider/status: send first value to backend, client-side filter rest.
+  const apiProvider = providers.length === 1 ? providers[0] : "";
+  const apiStatus   = statuses.length  === 1 ? statuses[0]  : "";
+
   const { data, isLoading } = useQuery({
-    queryKey: ["servers", { q, provider, status, offset }],
+    queryKey: ["servers", { q: fs.q, provider: apiProvider, status: apiStatus, region, os, datacenter, offset }],
     queryFn: () =>
       api<Page<Server>>("/api/servers", {
-        query: { search: q, provider, status, limit, offset },
+        query: { search: fs.q, provider: apiProvider, status: apiStatus, region, os, datacenter, limit: providers.length > 1 || statuses.length > 1 ? 500 : limit, offset: providers.length > 1 || statuses.length > 1 ? 0 : offset },
       }),
     placeholderData: (prev) => prev,
   });
@@ -169,17 +188,38 @@ function ServersPage() {
     queryFn: () => api("/api/ssh-credentials"),
     staleTime: 60_000,
   });
-  const defaultCredId = sshCreds.find(c => c.is_default)?.id ?? sshCreds[0]?.id;
-
   const sshSync = useMutation({
-    mutationFn: (id: number) => {
-      if (!defaultCredId) throw new Error("No SSH credential configured. Add one in SSH Keys.");
-      return api(`/api/servers/${id}/ssh-sync?ssh_credential_id=${defaultCredId}`, { method: "POST" });
-    },
+    mutationFn: (id: number) =>
+      api("/api/sync/ssh", { method: "POST", json: { server_ids: [id], ssh_group: null } }),
     onSuccess: () => {
-      toast.success("SSH sync complete");
+      toast.success("SSH sync started");
       qc.invalidateQueries({ queryKey: ["servers"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const assignSSH = useMutation({
+    mutationFn: ({ serverId, sshCredentialId, sshGroup }: { serverId: number; sshCredentialId: number | null; sshGroup?: string }) =>
+      api(`/api/servers/${serverId}/assign-ssh`, { method: "PATCH", json: { ssh_credential_id: sshCredentialId, ssh_group: sshGroup ?? null } }),
+    onSuccess: () => { toast.success("SSH key assigned"); qc.invalidateQueries({ queryKey: ["servers"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkAssignSSH = useMutation({
+    mutationFn: ({ serverIds, sshCredentialId, sshGroup }: { serverIds: number[]; sshCredentialId: number | null; sshGroup?: string }) =>
+      api("/api/servers/bulk-assign-ssh", { method: "POST", json: { server_ids: serverIds, ssh_credential_id: sshCredentialId, ssh_group: sshGroup ?? null } }),
+    onSuccess: (_, vars) => {
+      toast.success(`SSH key assigned to ${vars.serverIds.length} servers`);
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: ["servers"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const sshGroupSync = useMutation({
+    mutationFn: ({ serverIds, sshGroup }: { serverIds?: number[]; sshGroup?: string }) =>
+      api("/api/sync/ssh", { method: "POST", json: { server_ids: serverIds ?? null, ssh_group: sshGroup ?? null } }),
+    onSuccess: () => { toast.success("SSH sync started"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -192,8 +232,13 @@ function ServersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
+  // Client-side filter for multi-select provider/status
+  const allItems = data?.items ?? [];
+  const items = allItems.filter((s) =>
+    (providers.length <= 1 || providers.includes(s.provider)) &&
+    (statuses.length  <= 1 || statuses.includes(s.status))
+  );
+  const total = providers.length > 1 || statuses.length > 1 ? items.length : (data?.total ?? 0);
 
   return (
     <div className="p-6 space-y-4">
@@ -217,40 +262,59 @@ function ServersPage() {
       </div>
 
       {/* Filter bar */}
-      <Card className="p-3 flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-          <input
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setOffset(0); }}
-            placeholder="Search by name, IP, hostname…"
-            className="w-full pl-9 pr-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-        <CustomSelect
-          value={provider}
-          onChange={(v) => { setProvider(v); setOffset(0); }}
-          options={["aws", "gcp", "azure", "digitalocean", "linode", "ovh", "hivelocity"].map((p) => ({ value: p }))}
-          placeholder="All providers"
-        />
-        <CustomSelect
-          value={status}
-          onChange={(v) => { setStatus(v); setOffset(0); }}
-          options={["running", "stopped", "pending", "unknown"].map((s) => ({ value: s }))}
-          placeholder="All statuses"
+      <Card className="p-3">
+        <AdvancedFilter
+          fields={SERVER_FILTER_FIELDS}
+          state={fs}
+          onChange={(s) => { setFs(s); setOffset(0); }}
+          searchPlaceholder="Search name, IP, hostname, OS, region…"
         />
       </Card>
+
+      {selected.size > 0 && (
+        <div className="flex items-center gap-2 p-3 mb-2 bg-muted/60 border border-border rounded-lg text-sm">
+          <span className="font-medium">{selected.size} selected</span>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <select
+              className="px-2 py-1 text-xs border border-border rounded bg-background"
+              defaultValue=""
+              onChange={e => {
+                const val = e.target.value;
+                if (!val) return;
+                bulkAssignSSH.mutate({ serverIds: Array.from(selected), sshCredentialId: Number(val) });
+                e.target.value = "";
+              }}
+            >
+              <option value="">Assign SSH key…</option>
+              {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button
+              onClick={() => sshGroupSync.mutate({ serverIds: Array.from(selected) })}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted"
+            ><RefreshCw className="size-3" /> SSH Sync</button>
+            <button onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+          </div>
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-surface-muted border-b border-border">
             <tr>
+              <th className="px-3 py-2.5 w-8">
+                <input type="checkbox"
+                  checked={items.length > 0 && items.every(s => selected.has(s.id))}
+                  onChange={e => setSelected(e.target.checked ? new Set(items.map(s => s.id)) : new Set())}
+                  className="rounded"
+                />
+              </th>
               <th className="px-4 py-2.5 th-label">Instance</th>
               <th className="px-4 py-2.5 th-label">Provider</th>
               <th className="px-4 py-2.5 th-label">Region</th>
               <th className="px-4 py-2.5 th-label">Public IP</th>
               <th className="px-4 py-2.5 th-label">Type</th>
               <th className="px-4 py-2.5 th-label">OS</th>
+              <th className="px-4 py-2.5 th-label">SSH Key</th>
               <th className="px-4 py-2.5 th-label">Synced</th>
               <th className="px-4 py-2.5 th-label">Status</th>
               <th className="px-4 py-2.5 th-label text-right">Actions</th>
@@ -263,6 +327,17 @@ function ServersPage() {
                 onClick={() => navigate({ to: "/server-detail/$id", params: { id: String(s.id) } })}
                 className="cursor-pointer hover:bg-muted/40 transition-colors"
               >
+                <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                  <input type="checkbox"
+                    checked={selected.has(s.id)}
+                    onChange={e => setSelected(prev => {
+                      const next = new Set(prev);
+                      e.target.checked ? next.add(s.id) : next.delete(s.id);
+                      return next;
+                    })}
+                    className="rounded"
+                  />
+                </td>
                 <td className="px-4 py-2.5">
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{s.name}</span>
@@ -282,6 +357,16 @@ function ServersPage() {
                   ) : "—"}
                 </td>
                 <td className="px-4 py-2.5"><OsBadge os={s.os} /></td>
+                <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                  <select
+                    className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
+                    value={s.ssh_credential_id ?? ""}
+                    onChange={e => assignSSH.mutate({ serverId: s.id, sshCredentialId: e.target.value ? Number(e.target.value) : null })}
+                  >
+                    <option value="">None</option>
+                    {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </td>
                 <td className="px-4 py-2.5 text-xs text-muted-foreground">
                   {s.last_synced ? formatDistanceToNow(new Date(s.last_synced), { addSuffix: true }) : "never"}
                 </td>
@@ -306,7 +391,7 @@ function ServersPage() {
             ))}
             {!isLoading && items.length === 0 && (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={11}>
                   <EmptyState
                     title="No servers match"
                     description="Add cloud credentials and run a sync to discover instances."

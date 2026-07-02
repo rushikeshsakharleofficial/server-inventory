@@ -128,6 +128,8 @@ export interface Server {
   updated_at?: string | null;
   last_synced?: string | null;
   ssh_info?: Record<string, unknown> | null;
+  ssh_credential_id?: number | null;
+  ssh_group?: string | null;
 }
 
 export interface Stats {

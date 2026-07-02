@@ -40,10 +40,14 @@ class Server(Base):
     datacenter    = Column(String(128), nullable=True)
     hostname      = Column(String(255), nullable=True)
     notes         = Column(Text,        nullable=True)
-    ssh_info      = Column(JSONB,       nullable=True)
+    ssh_info          = Column(JSONB,    nullable=True)
+    ssh_credential_id = Column(Integer,  ForeignKey("ssh_credentials.id", ondelete="SET NULL"), nullable=True)
+    ssh_group         = Column(String(128), nullable=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_synced   = Column(DateTime(timezone=True), nullable=True)
+
+    ssh_credential = relationship("SSHCredential", foreign_keys=[ssh_credential_id])
 
     __table_args__ = (
         # Most common query: list by provider (filter/group)
@@ -76,6 +80,7 @@ class Credential(Base):
     name       = Column(String(255), nullable=False)
     provider   = Column(String(64),  nullable=False)
     is_active  = Column(Boolean,     default=True)
+    cred_type  = Column(String(16),  nullable=False, server_default="login")
     config     = Column(JSONB,       nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

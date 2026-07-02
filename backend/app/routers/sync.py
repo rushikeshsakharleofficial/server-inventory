@@ -21,23 +21,24 @@ SYNC_BATCH_SIZE: int = 25
 SYNC_BATCH_DELAY_S: float = 0.15
 
 
+def _get_default_ssh(db):
+    return db.query(models.SSHCredential).filter(models.SSHCredential.is_default.is_(True)).first()
+
+
 def _ssh_fetch_ips(db, servers: list) -> None:
-    """Best-effort: SSH each server with the default credential and store all_ips."""
+    """Best-effort: SSH each server using its assigned key (fallback to default)."""
     if not servers:
         return
-    ssh_cred = (
-        db.query(models.SSHCredential)
-        .filter(models.SSHCredential.is_default.is_(True))
-        .first()
-    )
-    if not ssh_cred:
-        return
+    default_cred = _get_default_ssh(db)
     changed = False
     for svr in servers:
         host = svr.public_ip or svr.private_ip
         if not host:
             continue
-        ips = fetch_ssh_ips(host, ssh_cred)
+        cred = svr.ssh_credential or default_cred
+        if not cred:
+            continue
+        ips = fetch_ssh_ips(host, cred)
         if ips:
             svr.ssh_info = {**(svr.ssh_info or {}), "all_ips": ips}
             changed = True
@@ -240,6 +241,43 @@ def stop_sync(
             })
 
     return {"stopped": stopped_ids}
+
+
+from pydantic import BaseModel as _BM
+
+class SSHSyncRequest(_BM):
+    server_ids: list[int] | None = None
+    ssh_group: str | None = None
+
+
+def _run_ssh_sync(server_ids: list[int] | None, ssh_group: str | None, db_url: str) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    engine = create_engine(db_url, pool_pre_ping=True)
+    db = sessionmaker(bind=engine)()
+    try:
+        q = db.query(models.Server)
+        if server_ids:
+            q = q.filter(models.Server.id.in_(server_ids))
+        elif ssh_group:
+            q = q.filter(models.Server.ssh_group == ssh_group)
+        servers = q.all()
+        _ssh_fetch_ips(db, servers)
+    finally:
+        db.close()
+
+
+@router.post("/ssh")
+def trigger_ssh_sync(
+    payload: SSHSyncRequest,
+    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+) -> dict:
+    """Trigger SSH-only sync for specific servers or a group."""
+    background_tasks.add_task(_run_ssh_sync, payload.server_ids, payload.ssh_group, DATABASE_URL)
+    count = len(payload.server_ids) if payload.server_ids else "group"
+    return {"status": "started", "targets": count}
 
 
 @router.get("/logs", response_model=list[schemas.SyncLogResponse])

@@ -6,6 +6,7 @@ import { Card, PageHeader, StatusPill, EmptyState, CustomSelect } from "@/compon
 import { Play, Power, Trash2, Plus, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 
 export const Route = createFileRoute("/_app/crons")({
   head: () => ({ meta: [{ title: "Crons — System Control" }] }),
@@ -98,12 +99,30 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
   );
 }
 
+const CRON_FIELDS = [
+  { key: "state",    label: "State",    type: "select" as const, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Disabled" }] },
+  { key: "provider", label: "Provider", type: "text" as const },
+];
+
 function CronsPage() {
   const qc = useQueryClient();
   const [editJob, setEditJob] = useState<CronJob | null | "new">(null);
+  const [fs, setFs] = useState<FilterState>(emptyFilterState);
+
   const { data } = useQuery({
     queryKey: ["crons"],
     queryFn: () => api<CronJob[]>("/api/crons"),
+  });
+
+  const stateFilter = (fs.filters.state    as string) ?? "";
+  const provFilter  = (fs.filters.provider as string) ?? "";
+
+  const items = (data ?? []).filter((j) => {
+    if (fs.q && !j.name.toLowerCase().includes(fs.q.toLowerCase())) return false;
+    if (stateFilter === "active"   && !j.is_active) return false;
+    if (stateFilter === "inactive" &&  j.is_active) return false;
+    if (provFilter && !(j.provider ?? "").toLowerCase().includes(provFilter.toLowerCase())) return false;
+    return true;
   });
   const toggle = useMutation({
     mutationFn: (id: number) => api(`/api/crons/${id}/toggle`, { method: "PATCH" }),
@@ -139,6 +158,10 @@ function CronsPage() {
           <Plus className="size-3.5" /> Add cron
         </button>
       </div>
+      <Card className="p-3">
+        <AdvancedFilter fields={CRON_FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search job name…" />
+      </Card>
+
       <Card className="overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-surface-muted border-b border-border">
@@ -153,7 +176,7 @@ function CronsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {(data ?? []).map((j) => (
+            {items.map((j) => (
               <tr key={j.id} className="text-sm hover:bg-muted/40 transition-colors">
                 <td className="px-4 py-2.5 font-medium">{j.name}</td>
                 <td className="px-4 py-2.5 font-mono text-xs">{j.cron_expr}</td>
@@ -189,8 +212,8 @@ function CronsPage() {
                 </td>
               </tr>
             ))}
-            {data && data.length === 0 && (
-              <tr><td colSpan={7}><EmptyState title="No scheduled jobs" /></td></tr>
+            {data && items.length === 0 && (
+              <tr><td colSpan={7}><EmptyState title="No scheduled jobs match" /></td></tr>
             )}
           </tbody>
         </table>

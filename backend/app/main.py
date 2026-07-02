@@ -98,6 +98,25 @@ def _migrate_ssh_proxy_columns() -> None:
         conn.commit()
 
 
+def _migrate_credential_type() -> None:
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE credentials ADD COLUMN IF NOT EXISTS cred_type VARCHAR(16) NOT NULL DEFAULT 'login'"
+        ))
+        conn.commit()
+
+
+def _migrate_server_ssh_assignment() -> None:
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_credential_id INTEGER REFERENCES ssh_credentials(id) ON DELETE SET NULL"
+        ))
+        conn.execute(text(
+            "ALTER TABLE servers ADD COLUMN IF NOT EXISTS ssh_group VARCHAR(128)"
+        ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
@@ -105,6 +124,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_user_permissions()
     _migrate_user_full_name()
     _migrate_event_logs()
+    _migrate_credential_type()
+    _migrate_server_ssh_assignment()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -139,7 +160,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173")
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost:3001,http://127.0.0.1:3001")
 _cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,

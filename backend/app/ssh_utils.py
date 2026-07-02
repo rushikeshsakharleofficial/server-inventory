@@ -45,7 +45,7 @@ def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
         client.load_host_keys(known_hosts_path)
     else:
         client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
         connect_kwargs: dict[str, Any] = {
@@ -72,7 +72,7 @@ def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
                 jump_client.load_host_keys(known_hosts_path_j)
             else:
                 jump_client.load_system_host_keys()
-            jump_client.set_missing_host_key_policy(paramiko.RejectPolicy())
+            jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             jump_kwargs: dict[str, Any] = {
                 "hostname": ssh_cred.proxy_host,
                 "port":     ssh_cred.proxy_port or 22,
@@ -124,7 +124,7 @@ def fetch_ips_via_transport(
         client.load_host_keys(known_hosts_path)
     else:
         client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         sock = jump_transport.open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
         client.connect(
