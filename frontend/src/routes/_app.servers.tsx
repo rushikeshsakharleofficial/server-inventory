@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge } from "@/components/ui-bits";
 import type { SshCredential } from "@/lib/api";
-import { RefreshCw, Trash2, Plus, Pencil } from "lucide-react";
+import { RefreshCw, Trash2, Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
