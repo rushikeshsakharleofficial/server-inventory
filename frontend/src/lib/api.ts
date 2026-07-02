@@ -1,10 +1,18 @@
 /**
  * Thin fetch client around the FastAPI backend.
- * Backend base URL is read from VITE_API_URL (defaults to http://localhost:8000).
+ * If VITE_API_URL is unset, browser builds derive the backend host from the current page host.
  */
 
-const RAW_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8001";
-export const API_BASE = RAW_BASE.replace(/\/+$/, "");
+function resolveApiBase(): string {
+  const configured = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:8001`;
+  }
+  return "http://localhost:8001";
+}
+
+export const API_BASE = resolveApiBase();
 
 const TOKEN_KEY = "sic.token";
 const USER_KEY = "sic.user";

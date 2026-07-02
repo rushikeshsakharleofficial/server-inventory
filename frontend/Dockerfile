@@ -4,7 +4,7 @@ RUN npm install -g bun
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY . .
-ARG VITE_API_URL=http://localhost:8001
+ARG VITE_API_URL
 ENV NITRO_PRESET=node-server
 ENV VITE_API_URL=${VITE_API_URL}
 RUN bun run build
