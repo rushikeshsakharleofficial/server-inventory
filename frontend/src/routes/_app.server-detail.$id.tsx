@@ -374,6 +374,7 @@ function ServerDetailPage() {
         <div className="flex items-center gap-2 shrink-0">
           <Link
             to="/resource-map"
+            search={{ server: Number(id) }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted"
           >
             <Network className="size-3.5" /> Resource Map

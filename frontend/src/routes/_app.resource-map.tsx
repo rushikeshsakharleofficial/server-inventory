@@ -19,6 +19,9 @@ import {
 
 export const Route = createFileRoute("/_app/resource-map")({
   head: () => ({ meta: [{ title: "Resource Map — System Control" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    server: search.server ? Number(search.server) : undefined,
+  }),
   component: ResourceMapPage,
 });
 
@@ -479,6 +482,7 @@ function SidebarItem({ label, sub, status, active, onClick }: {
 interface SyncProg { done: number; total: number; skipped: number; status: "idle" | "running" | "done" }
 
 function ResourceMapPage() {
+  const { server: targetServerId } = Route.useSearch();
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [activeNode, setActiveNode] = useState<Node | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -495,6 +499,12 @@ function ResourceMapPage() {
     queryKey: ["servers", "map"],
     queryFn: () => api<Page<Server>>("/api/servers", { query: { limit: 500 } }),
   });
+
+  useEffect(() => {
+    if (!targetServerId || selectedServer || !servers.data) return;
+    const match = servers.data.items.find(s => s.id === targetServerId);
+    if (match) setSelectedServer(match);
+  }, [targetServerId, servers.data, selectedServer]);
   const sshCreds = useQuery<SshCredential[]>({
     queryKey: ["sshCredentials"],
     queryFn: () => api("/api/ssh-credentials"),

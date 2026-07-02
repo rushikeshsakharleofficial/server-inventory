@@ -205,17 +205,17 @@ export function ProviderBadge({ provider }: { provider: string }) {
   );
 }
 
-const OS_META: Record<string, { logo: string; color: string; bg: string }> = {
-  ubuntu:  { bg: "bg-orange-50", color: "text-orange-700", logo: "https://cdn.simpleicons.org/ubuntu/E95420" },
-  debian:  { bg: "bg-red-50",    color: "text-red-700",    logo: "https://cdn.simpleicons.org/debian/A80030" },
-  centos:  { bg: "bg-purple-50", color: "text-purple-700", logo: "https://cdn.simpleicons.org/centos/262577" },
-  rocky:   { bg: "bg-green-50",  color: "text-green-700",  logo: "https://cdn.simpleicons.org/rockylinux/10B981" },
-  alma:    { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/almalinux/1B5299" },
-  fedora:  { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/fedora/3C6EB4" },
-  arch:    { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/archlinux/1793D1" },
-  freebsd: { bg: "bg-red-50",    color: "text-red-800",    logo: "https://cdn.simpleicons.org/freebsd/AB2B28" },
-  windows: { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/windows/00A4EF" },
-  coreos:  { bg: "bg-stone-50",  color: "text-stone-700",  logo: "https://cdn.simpleicons.org/coreos/595959" },
+const OS_META: Record<string, { logo: string; color: string; bg: string; label: string }> = {
+  ubuntu:  { bg: "bg-orange-50", color: "text-orange-700", logo: "https://cdn.simpleicons.org/ubuntu/E95420", label: "Ubuntu" },
+  debian:  { bg: "bg-red-50",    color: "text-red-700",    logo: "https://cdn.simpleicons.org/debian/A80030", label: "Debian" },
+  centos:  { bg: "bg-purple-50", color: "text-purple-700", logo: "https://cdn.simpleicons.org/centos/262577", label: "CentOS" },
+  rocky:   { bg: "bg-green-50",  color: "text-green-700",  logo: "https://cdn.simpleicons.org/rockylinux/10B981", label: "Rocky Linux" },
+  alma:    { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/almalinux/1B5299", label: "AlmaLinux" },
+  fedora:  { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/fedora/3C6EB4", label: "Fedora" },
+  arch:    { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/archlinux/1793D1", label: "Arch Linux" },
+  freebsd: { bg: "bg-red-50",    color: "text-red-800",    logo: "https://cdn.simpleicons.org/freebsd/AB2B28", label: "FreeBSD" },
+  windows: { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/windows/00A4EF", label: "Windows" },
+  coreos:  { bg: "bg-stone-50",  color: "text-stone-700",  logo: "https://cdn.simpleicons.org/coreos/595959", label: "CoreOS" },
 };
 
 function _osKey(os: string): string {
@@ -233,16 +233,23 @@ function _osKey(os: string): string {
   return "";
 }
 
+function _osVersion(os: string): string {
+  const m = os.match(/(\d+(?:\.\d+)*)/);
+  return m ? m[1] : "";
+}
+
 export function OsBadge({ os }: { os: string | null | undefined }) {
   if (!os) return <span className="text-muted-foreground text-xs">—</span>;
   const key = _osKey(os);
   const meta = key ? OS_META[key] : null;
+  const version = _osVersion(os);
+  const label = meta ? [meta.label, version].filter(Boolean).join(" ") : os;
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${
       meta ? `${meta.bg} ${meta.color} border-current/20` : "bg-muted text-muted-foreground border-border"
     }`}>
       {meta && <img src={meta.logo} alt={key} className="size-3 shrink-0" />}
-      {os}
+      {label}
     </span>
   );
 }

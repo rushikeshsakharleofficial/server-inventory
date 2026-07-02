@@ -34,11 +34,13 @@ class HivelocityProvider(CloudProvider):
         devices: list[dict[str, Any]] = resp.json()
 
         def fetch_os(device_id: int) -> str | None:
+            # Hivelocity's /device/{id} response has no os/operatingSystem/osName field —
+            # closest available hint is currentApp (the provisioned OS template, when set).
             try:
                 r = requests.get(f"{_BASE}/device/{device_id}", headers=self._headers(), timeout=10)
                 if r.status_code == 200:
                     d = r.json()
-                    return d.get("os") or d.get("operatingSystem") or d.get("osName")
+                    return d.get("currentApp") or d.get("currentAppOption")
             except Exception:
                 pass
             return None
