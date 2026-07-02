@@ -309,8 +309,8 @@ def _seed_admin() -> None:
 
     db = SessionLocal()
     try:
-        has_users = db.query(models.User.id).first() is not None
-        if has_users or not admin_password:
+        has_admin = db.query(models.User.id).filter(models.User.role == "admin").first() is not None
+        if has_admin or not admin_password:
             return
         existing = db.query(models.User).filter(models.User.username == admin_username).first()
         if not existing:

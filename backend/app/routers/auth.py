@@ -13,11 +13,15 @@ from ..auth import (
 router = APIRouter(tags=["auth & users"])
 
 
+def _admin_exists(db: Session) -> bool:
+    return db.query(models.User.id).filter(models.User.role == "admin").first() is not None
+
+
 @router.get("/api/setup/status", response_model=schemas.SetupStatusResponse)
 def setup_status(
     db: Annotated[Session, Depends(get_db)],
 ) -> schemas.SetupStatusResponse:
-    requires_setup = db.query(models.User.id).first() is None
+    requires_setup = not _admin_exists(db)
     return schemas.SetupStatusResponse(requires_setup=requires_setup)
 
 
@@ -26,7 +30,7 @@ def bootstrap_admin(
     payload: schemas.InitialSetupRequest,
     db: Annotated[Session, Depends(get_db)],
 ) -> schemas.LoginResponse:
-    if db.query(models.User.id).first() is not None:
+    if _admin_exists(db):
         raise HTTPException(status_code=409, detail="Initial setup is already complete")
 
     validate_password(payload.password)
