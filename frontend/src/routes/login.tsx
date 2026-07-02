@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { api, tokenStore, userStore, type LoginResponse } from "@/lib/api";
+import { api, API_BASE, tokenStore, userStore, type LoginResponse } from "@/lib/api";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { AlertCircle, Eye, EyeOff, Lock, User, ShieldCheck } from "lucide-react";
@@ -10,7 +10,6 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
 type SetupStatus = { requires_setup: boolean };
 
 function LoginPage() {
@@ -63,7 +62,7 @@ function LoginPage() {
         form.append("username", username);
         form.append("password", password);
         form.append("remember_me", rememberMe ? "true" : "false");
-        const res = await fetch(`${API_URL}/api/auth/login`, {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: form,
