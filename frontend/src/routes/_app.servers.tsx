@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge, CustomSelect } from "@/components/ui-bits";
 import type { SshCredential } from "@/lib/api";
 import { RefreshCw, Trash2, Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
