@@ -19,6 +19,7 @@ _SYNC_STOPPED_MSG = "Sync stopped by user"
 
 SYNC_BATCH_SIZE: int = 25
 SYNC_BATCH_DELAY_S: float = 0.15
+SYNC_PROVIDER_PARALLELISM: int = 8
 
 
 def _get_default_ssh(db):
@@ -47,6 +48,16 @@ def _ssh_fetch_ips(db, servers: list) -> None:
 
 # Per-log cancellation events (process-local — single worker only)
 _stop_events: dict[int, threading.Event] = {}
+
+
+def _get_active_providers(db: Session) -> list[str]:
+    rows = (
+        db.query(models.Credential.provider)
+        .filter(models.Credential.is_active.is_(True))
+        .distinct()
+        .all()
+    )
+    return [provider for (provider,) in rows if provider]
 
 
 def _run_sync(provider_name: str | None, db_url: str) -> None:
@@ -196,6 +207,27 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
         db.close()
 
 
+def _run_sync_all_parallel(db_url: str) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    engine = create_engine(db_url, pool_pre_ping=True)
+    db = sessionmaker(bind=engine)()
+    try:
+        providers = _get_active_providers(db)
+    finally:
+        db.close()
+
+    if not providers:
+        return
+
+    max_workers = min(len(providers), SYNC_PROVIDER_PARALLELISM)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = [ex.submit(_run_sync, provider, db_url) for provider in providers]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
+
+
 @router.post("")
 def trigger_sync(
     background_tasks: BackgroundTasks,
@@ -203,7 +235,10 @@ def trigger_sync(
     _: Annotated[models.User, Depends(require_write)],
     provider: str | None = None,
 ) -> dict[str, str]:
-    background_tasks.add_task(_run_sync, provider, DATABASE_URL)
+    if provider:
+        background_tasks.add_task(_run_sync, provider, DATABASE_URL)
+    else:
+        background_tasks.add_task(_run_sync_all_parallel, DATABASE_URL)
     return {"message": "Sync started", "provider": provider or "all"}
 
 
