@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..event_log_utils import add_event_log
 from ..auth import (
     verify_password, hash_password, create_access_token,
     get_current_user, require_admin, create_mfa_challenge_token, validate_password,
@@ -44,6 +45,15 @@ def bootstrap_admin(
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    add_event_log(
+        db,
+        source="auth",
+        resource=db_user.username,
+        event="Initial administrator setup completed",
+        owner=db_user.username,
+        message="First admin account created from setup page",
+    )
+    db.commit()
 
     token = create_access_token({"sub": db_user.username, "role": db_user.role})
     return schemas.LoginResponse(
@@ -80,6 +90,15 @@ def login(
         {"sub": user.username, "role": user.role},
         remember=bool(remember_me),
     )
+    add_event_log(
+        db,
+        source="auth",
+        resource=user.username,
+        event="User signed in",
+        owner=user.username,
+        message=f"remember_me={bool(remember_me)}",
+    )
+    db.commit()
     return schemas.LoginResponse(
         access_token=token,
         token_type="bearer",
@@ -111,7 +130,7 @@ def list_users(
 @router.post("/api/users", response_model=schemas.UserResponse, status_code=201)
 def create_user(
     payload: schemas.UserCreate,
-    _: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     validate_password(payload.password)
@@ -126,13 +145,15 @@ def create_user(
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    add_event_log(db, source="users", resource=db_user.username, event="User created", owner=current_user.username, message=f"created_user={db_user.username}")
+    db.commit()
     return db_user
 
 
 @router.delete("/api/users/{user_id}", status_code=204)
 def delete_user(
     user_id: int,
-    _: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> None:
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -140,7 +161,10 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == "admin":
         raise HTTPException(status_code=400, detail="Cannot delete admin user")
+    username = user.username
     db.delete(user)
+    db.commit()
+    add_event_log(db, source="users", resource=username, event="User deleted", owner=current_user.username, message=f"deleted_user={username}")
     db.commit()
 
 
@@ -148,7 +172,7 @@ def delete_user(
 def update_user(
     user_id: int,
     payload: schemas.UserUpdate,
-    _: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -162,13 +186,15 @@ def update_user(
         user.username = payload.username
     db.commit()
     db.refresh(user)
+    add_event_log(db, source="users", resource=user.username, event="User updated", owner=current_user.username, message=f"updated_user={user.username}")
+    db.commit()
     return user
 
 
 @router.patch("/api/users/{user_id}/toggle", response_model=schemas.UserResponse)
 def toggle_user(
     user_id: int,
-    _: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -179,6 +205,8 @@ def toggle_user(
     user.is_active = not user.is_active
     db.commit()
     db.refresh(user)
+    add_event_log(db, source="users", resource=user.username, event="User status changed", owner=current_user.username, message=f"updated_user={user.username}, is_active={user.is_active}")
+    db.commit()
     return user
 
 
@@ -192,4 +220,6 @@ def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     validate_password(payload.new_password)
     current_user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+    add_event_log(db, source="auth", resource=current_user.username, event="Password changed", owner=current_user.username)
     db.commit()

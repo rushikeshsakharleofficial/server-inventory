@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-import random
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
@@ -56,53 +53,40 @@ class StatsOut(BaseModel):
     volume: list[dict]  # [{hour, count}]
 
 
-# ─── Seed demo data if table is empty ─────────────────────────────────────────
-
-_SOURCES   = ["auth", "sync", "credentials", "servers", "users", "cron", "settings", "api"]
-_RESOURCES = ["OVH Cloud", "Hetzner Cloud", "Contabo", "Linode", "Hivelocity", "Dashboard", "Racknerd", "Colocrossing", "IPXO", "Rackzar"]
-_OWNERS    = ["Ayush Jain", "rushi", "admin", "system", "cron-runner"]
-_STATUSES  = ["open", "open", "acknowledged", "resolved", "resolved", "resolved"]
-_EVENTS: dict[str, list[str]] = {
-    "critical": ["Login failed for admin — 5 consecutive attempts", "API key rotation overdue by 30 days", "Credential vault decryption error", "Cloud sync auth token expired"],
-    "error":    ["Cloud sync failed for OVH Cloud", "Credential copy rejected — insufficient role", "User session invalidated unexpectedly", "Cron job missed scheduled window"],
-    "warning":  ["MFA not enabled for provider credential", "Password not rotated in 90+ days", "Sync returned 0 servers — possible auth issue", "Duplicate IP detected across providers"],
-    "info":     ["User logged in", "Cloud sync completed — 124 servers updated", "Provider credential added", "Password revealed by admin", "Credential copied", "Server added manually", "Cron sync triggered", "User password changed", "Settings updated", "New user created"],
+_DEMO_EVENTS = {
+    "Login failed for admin — 5 consecutive attempts",
+    "API key rotation overdue by 30 days",
+    "Credential vault decryption error",
+    "Cloud sync auth token expired",
+    "Cloud sync failed for OVH Cloud",
+    "Credential copy rejected — insufficient role",
+    "User session invalidated unexpectedly",
+    "Cron job missed scheduled window",
+    "MFA not enabled for provider credential",
+    "Password not rotated in 90+ days",
+    "Sync returned 0 servers — possible auth issue",
+    "Duplicate IP detected across providers",
+    "User logged in",
+    "Cloud sync completed — 124 servers updated",
+    "Provider credential added",
+    "Password revealed by admin",
+    "Credential copied",
+    "Server added manually",
+    "Cron sync triggered",
+    "User password changed",
+    "Settings updated",
+    "New user created",
 }
-_MESSAGES: dict[str, str] = {
-    "Cloud sync failed for OVH Cloud": "provider=ovh\nerror=401 Unauthorized\nendpoint=https://eu.api.ovh.com/1.0/cloud/project\naction=retrying in 15min",
-    "Login failed for admin — 5 consecutive attempts": "username=admin\nip=185.220.101.47\nattempts=5\nwindow=2min\naction=account_locked",
-    "MFA not enabled for provider credential": "credential=Contabo\nowner=Ayush Jain\nrisk=medium\nrecommendation=enable_mfa",
-    "Cloud sync completed — 124 servers updated": "provider=all\nservers_added=3\nservers_updated=121\nduration_seconds=18\nstatus=success",
-}
 
 
-def _seed_demo(db: Session) -> None:
-    if db.query(func.count(models.EventLog.id)).scalar() > 0:
-        return
-    now = datetime.now(timezone.utc)
-    sev_weights = [("info", 0.658), ("warning", 0.223), ("error", 0.095), ("critical", 0.024)]
-    rows = []
-    for i in range(512):
-        # pick severity by weight
-        r = random.random(); acc = 0.0
-        sev = "info"
-        for s, w in sev_weights:
-            acc += w
-            if r < acc: sev = s; break
-        event = random.choice(_EVENTS[sev])
-        ts = now - timedelta(hours=random.uniform(0, 48))
-        rows.append(models.EventLog(
-            timestamp=ts, severity=sev,
-            source=random.choice(_SOURCES),
-            resource=random.choice(_RESOURCES),
-            event=event,
-            status=random.choice(_STATUSES),
-            owner=random.choice(_OWNERS),
-            message=_MESSAGES.get(event, f"{event.lower().replace(' ', '_')}=true ts={ts.isoformat()}"),
-            tags=random.sample(["database", "replication", "production", "staging", "network", "security"], k=random.randint(0, 3)),
-        ))
-    db.bulk_save_objects(rows)
-    db.commit()
+def _purge_demo_events(db: Session) -> None:
+    deleted = (
+        db.query(models.EventLog)
+        .filter(models.EventLog.event.in_(_DEMO_EVENTS))
+        .delete(synchronize_session=False)
+    )
+    if deleted:
+        db.commit()
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -113,7 +97,7 @@ def event_stats(
     _: Annotated[models.User, Depends(get_current_user)],
     hours: int = Query(default=24, ge=1, le=720),
 ):
-    _seed_demo(db)
+    _purge_demo_events(db)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -169,10 +153,13 @@ def list_events(
     limit:    int        = Query(default=10, ge=1, le=200),
     offset:   int        = Query(default=0, ge=0),
 ):
-    _seed_demo(db)
+    _purge_demo_events(db)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     qry = db.query(models.EventLog).filter(models.EventLog.timestamp >= since)
-    if severity: qry = qry.filter(models.EventLog.severity == severity.lower())
+    if severity:
+        values = [v.strip().lower() for v in severity.split(",") if v.strip()]
+        if values:
+            qry = qry.filter(models.EventLog.severity.in_(values))
     if source:   qry = qry.filter(models.EventLog.source == source)
     if resource: qry = qry.filter(models.EventLog.resource == resource)
     if status:   qry = qry.filter(models.EventLog.status == status.lower())

@@ -10,6 +10,7 @@ from ..database import get_db, DATABASE_URL
 from ..providers import get_provider
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_config
+from ..event_log_utils import add_event_log
 from ..ssh_utils import fetch_ssh_ips
 from ..ws_manager import manager
 
@@ -191,6 +192,17 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
             log.servers_updated = updated
             log.error_message = error
             log.completed_at  = datetime.now(timezone.utc)
+            add_event_log(
+                db,
+                severity="error" if error else "info",
+                source="sync",
+                resource=cred.provider,
+                event="Provider sync failed" if error else "Provider sync completed",
+                status="open" if error else "resolved",
+                owner="system",
+                message=error or f"servers_added={added}, servers_updated={updated}",
+                tags=[cred.provider],
+            )
             db.commit()
 
             manager.broadcast({
@@ -235,6 +247,15 @@ def trigger_sync(
     _: Annotated[models.User, Depends(require_write)],
     provider: str | None = None,
 ) -> dict[str, str]:
+    add_event_log(
+        db,
+        source="sync",
+        resource=provider or "all",
+        event="Sync requested",
+        owner=getattr(_, "username", None),
+        message=f"provider={provider or 'all'}",
+    )
+    db.commit()
     if provider:
         background_tasks.add_task(_run_sync, provider, DATABASE_URL)
     else:
