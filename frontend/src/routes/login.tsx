@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api, tokenStore, userStore, type LoginResponse } from "@/lib/api";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/login")({
 });
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+type SetupStatus = { requires_setup: boolean };
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -22,6 +23,29 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    async function checkSetup() {
+      try {
+        const status = await api<SetupStatus>("/api/setup/status");
+        if (!active) return;
+        if (status.requires_setup) {
+          navigate({ to: "/setup" });
+          return;
+        }
+      } catch {
+        // Fall through to normal login if setup status cannot be determined.
+      } finally {
+        if (active) setCheckingSetup(false);
+      }
+    }
+    void checkSetup();
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -72,6 +96,14 @@ function LoginPage() {
     userStore.set({ username: res.username ?? username, full_name: res.full_name, role: res.role ?? "read" });
     toast.success("Signed in");
     navigate({ to: "/dashboard" });
+  }
+
+  if (checkingSetup) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 text-sm text-gray-500" style={{ background: "#f8fafc" }}>
+        Checking instance status…
+      </div>
+    );
   }
 
   return (

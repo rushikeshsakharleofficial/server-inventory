@@ -13,6 +13,44 @@ from ..auth import (
 router = APIRouter(tags=["auth & users"])
 
 
+@router.get("/api/setup/status", response_model=schemas.SetupStatusResponse)
+def setup_status(
+    db: Annotated[Session, Depends(get_db)],
+) -> schemas.SetupStatusResponse:
+    requires_setup = db.query(models.User.id).first() is None
+    return schemas.SetupStatusResponse(requires_setup=requires_setup)
+
+
+@router.post("/api/setup/bootstrap", response_model=schemas.LoginResponse, status_code=201)
+def bootstrap_admin(
+    payload: schemas.InitialSetupRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> schemas.LoginResponse:
+    if db.query(models.User.id).first() is not None:
+        raise HTTPException(status_code=409, detail="Initial setup is already complete")
+
+    validate_password(payload.password)
+    db_user = models.User(
+        username=payload.username,
+        full_name=payload.full_name,
+        hashed_password=hash_password(payload.password),
+        role="admin",
+        is_active=True,
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+
+    token = create_access_token({"sub": db_user.username, "role": db_user.role})
+    return schemas.LoginResponse(
+        access_token=token,
+        token_type="bearer",
+        role=db_user.role,
+        username=db_user.username,
+        full_name=db_user.full_name,
+    )
+
+
 @router.post("/api/auth/login", response_model=schemas.LoginResponse)
 @limiter.limit("100/minute")
 def login(

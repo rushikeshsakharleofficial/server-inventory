@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -20,8 +21,11 @@ import { Route as AppSshKeysRouteImport } from './routes/_app.ssh-keys'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppServersRouteImport } from './routes/_app.servers'
 import { Route as AppResourceMapRouteImport } from './routes/_app.resource-map'
+import { Route as AppProviderCredentialsRouteImport } from './routes/_app.provider-credentials'
 import { Route as AppPoliciesRouteImport } from './routes/_app.policies'
 import { Route as AppKubernetesRouteImport } from './routes/_app.kubernetes'
+import { Route as AppIpsRouteImport } from './routes/_app.ips'
+import { Route as AppEventLogsRouteImport } from './routes/_app.event-logs'
 import { Route as AppDatabasesRouteImport } from './routes/_app.databases'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCronsRouteImport } from './routes/_app.crons'
@@ -30,6 +34,11 @@ import { Route as AppBlockStoragesRouteImport } from './routes/_app.block-storag
 import { Route as AppServerDetailIdRouteImport } from './routes/_app.server-detail.$id'
 import { Route as AppPoliciesSlugRouteImport } from './routes/_app.policies.$slug'
 
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -84,6 +93,11 @@ const AppResourceMapRoute = AppResourceMapRouteImport.update({
   path: '/resource-map',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProviderCredentialsRoute = AppProviderCredentialsRouteImport.update({
+  id: '/provider-credentials',
+  path: '/provider-credentials',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPoliciesRoute = AppPoliciesRouteImport.update({
   id: '/policies',
   path: '/policies',
@@ -92,6 +106,16 @@ const AppPoliciesRoute = AppPoliciesRouteImport.update({
 const AppKubernetesRoute = AppKubernetesRouteImport.update({
   id: '/kubernetes',
   path: '/kubernetes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIpsRoute = AppIpsRouteImport.update({
+  id: '/ips',
+  path: '/ips',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEventLogsRoute = AppEventLogsRouteImport.update({
+  id: '/event-logs',
+  path: '/event-logs',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDatabasesRoute = AppDatabasesRouteImport.update({
@@ -133,13 +157,17 @@ const AppPoliciesSlugRoute = AppPoliciesSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
   '/block-storages': typeof AppBlockStoragesRoute
   '/cloud-providers': typeof AppCloudProvidersRoute
   '/crons': typeof AppCronsRoute
   '/dashboard': typeof AppDashboardRoute
   '/databases': typeof AppDatabasesRoute
+  '/event-logs': typeof AppEventLogsRoute
+  '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
   '/policies': typeof AppPoliciesRouteWithChildren
+  '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
   '/servers': typeof AppServersRoute
   '/settings': typeof AppSettingsRoute
@@ -154,13 +182,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
   '/block-storages': typeof AppBlockStoragesRoute
   '/cloud-providers': typeof AppCloudProvidersRoute
   '/crons': typeof AppCronsRoute
   '/dashboard': typeof AppDashboardRoute
   '/databases': typeof AppDatabasesRoute
+  '/event-logs': typeof AppEventLogsRoute
+  '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
   '/policies': typeof AppPoliciesRouteWithChildren
+  '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
   '/servers': typeof AppServersRoute
   '/settings': typeof AppSettingsRoute
@@ -177,13 +209,17 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
   '/_app/block-storages': typeof AppBlockStoragesRoute
   '/_app/cloud-providers': typeof AppCloudProvidersRoute
   '/_app/crons': typeof AppCronsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/databases': typeof AppDatabasesRoute
+  '/_app/event-logs': typeof AppEventLogsRoute
+  '/_app/ips': typeof AppIpsRoute
   '/_app/kubernetes': typeof AppKubernetesRoute
   '/_app/policies': typeof AppPoliciesRouteWithChildren
+  '/_app/provider-credentials': typeof AppProviderCredentialsRoute
   '/_app/resource-map': typeof AppResourceMapRoute
   '/_app/servers': typeof AppServersRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -200,13 +236,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/setup'
     | '/block-storages'
     | '/cloud-providers'
     | '/crons'
     | '/dashboard'
     | '/databases'
+    | '/event-logs'
+    | '/ips'
     | '/kubernetes'
     | '/policies'
+    | '/provider-credentials'
     | '/resource-map'
     | '/servers'
     | '/settings'
@@ -221,13 +261,17 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/setup'
     | '/block-storages'
     | '/cloud-providers'
     | '/crons'
     | '/dashboard'
     | '/databases'
+    | '/event-logs'
+    | '/ips'
     | '/kubernetes'
     | '/policies'
+    | '/provider-credentials'
     | '/resource-map'
     | '/servers'
     | '/settings'
@@ -243,13 +287,17 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/setup'
     | '/_app/block-storages'
     | '/_app/cloud-providers'
     | '/_app/crons'
     | '/_app/dashboard'
     | '/_app/databases'
+    | '/_app/event-logs'
+    | '/_app/ips'
     | '/_app/kubernetes'
     | '/_app/policies'
+    | '/_app/provider-credentials'
     | '/_app/resource-map'
     | '/_app/servers'
     | '/_app/settings'
@@ -266,10 +314,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  SetupRoute: typeof SetupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -347,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppResourceMapRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/provider-credentials': {
+      id: '/_app/provider-credentials'
+      path: '/provider-credentials'
+      fullPath: '/provider-credentials'
+      preLoaderRoute: typeof AppProviderCredentialsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/policies': {
       id: '/_app/policies'
       path: '/policies'
@@ -359,6 +422,20 @@ declare module '@tanstack/react-router' {
       path: '/kubernetes'
       fullPath: '/kubernetes'
       preLoaderRoute: typeof AppKubernetesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ips': {
+      id: '/_app/ips'
+      path: '/ips'
+      fullPath: '/ips'
+      preLoaderRoute: typeof AppIpsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/event-logs': {
+      id: '/_app/event-logs'
+      path: '/event-logs'
+      fullPath: '/event-logs'
+      preLoaderRoute: typeof AppEventLogsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/databases': {
@@ -431,8 +508,11 @@ interface AppRouteChildren {
   AppCronsRoute: typeof AppCronsRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDatabasesRoute: typeof AppDatabasesRoute
+  AppEventLogsRoute: typeof AppEventLogsRoute
+  AppIpsRoute: typeof AppIpsRoute
   AppKubernetesRoute: typeof AppKubernetesRoute
   AppPoliciesRoute: typeof AppPoliciesRouteWithChildren
+  AppProviderCredentialsRoute: typeof AppProviderCredentialsRoute
   AppResourceMapRoute: typeof AppResourceMapRoute
   AppServersRoute: typeof AppServersRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -450,8 +530,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppCronsRoute: AppCronsRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDatabasesRoute: AppDatabasesRoute,
+  AppEventLogsRoute: AppEventLogsRoute,
+  AppIpsRoute: AppIpsRoute,
   AppKubernetesRoute: AppKubernetesRoute,
   AppPoliciesRoute: AppPoliciesRouteWithChildren,
+  AppProviderCredentialsRoute: AppProviderCredentialsRoute,
   AppResourceMapRoute: AppResourceMapRoute,
   AppServersRoute: AppServersRoute,
   AppSettingsRoute: AppSettingsRoute,
@@ -469,6 +552,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  SetupRoute: SetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

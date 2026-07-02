@@ -198,6 +198,16 @@ class LoginResponse(BaseModel):
     mfa_token: str | None = None
 
 
+class SetupStatusResponse(BaseModel):
+    requires_setup: bool
+
+
+class InitialSetupRequest(BaseModel):
+    username: str
+    full_name: str | None = None
+    password: str = Field(min_length=10)
+
+
 class MfaStatusResponse(BaseModel):
     enabled: bool
 
