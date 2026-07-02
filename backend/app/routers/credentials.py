@@ -7,6 +7,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write, require_admin
 from ..crypto import encrypt_config, decrypt_config
+from ..event_log_utils import add_event_log
 
 router = APIRouter(prefix="/api/credentials", tags=["credentials"])
 
@@ -68,12 +69,14 @@ def list_credentials(
 def create_credential(
     cred: schemas.CredentialCreate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> dict:
     data = cred.model_dump()
     data["config"] = encrypt_config(data.get("config") or {})
     db_cred = models.Credential(**data)
     db.add(db_cred)
+    add_event_log(db, source="credentials", resource=db_cred.name, event="Credential added",
+                  owner=user.username, message=f"provider={db_cred.provider}, type={db_cred.cred_type}")
     db.commit()
     db.refresh(db_cred)
     return _build_response(db_cred)
@@ -83,11 +86,13 @@ def create_credential(
 def delete_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_admin)],
+    user: Annotated[models.User, Depends(require_admin)],
 ) -> None:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
+    add_event_log(db, source="credentials", resource=cred.name, event="Credential removed",
+                  owner=user.username, message=f"provider={cred.provider}, type={cred.cred_type}")
     db.delete(cred)
     db.commit()
 
@@ -97,7 +102,7 @@ def update_credential(
     cred_id: int,
     payload: schemas.CredentialUpdate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> dict:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
@@ -108,6 +113,8 @@ def update_credential(
         existing = decrypt_config(cred.config or {})
         merged = {**existing, **payload.config}
         cred.config = encrypt_config(merged)
+    add_event_log(db, source="credentials", resource=cred.name, event="Credential updated",
+                  owner=user.username)
     db.commit()
     db.refresh(cred)
     return _build_response(cred)
@@ -117,12 +124,14 @@ def update_credential(
 def toggle_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> dict:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="Credential not found")
     cred.is_active = not cred.is_active
+    add_event_log(db, source="credentials", resource=cred.name, event="Credential status changed",
+                  owner=user.username, message=f"is_active={cred.is_active}")
     db.commit()
     db.refresh(cred)
     return _build_response(cred)

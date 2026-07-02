@@ -11,6 +11,7 @@ from .. import models, schemas
 from ..permissions import (
     FEATURES, ACTIONS, FEATURE_ACTIONS, ROLE_BASELINE, effective_permissions
 )
+from ..event_log_utils import add_event_log
 
 router = APIRouter(prefix="/api/iam", tags=["iam"])
 
@@ -47,7 +48,7 @@ def list_groups(db: Session = Depends(get_db), _user=Depends(get_current_user)):
 def create_group(
     body: schemas.GroupCreate,
     db: Session = Depends(get_db),
-    _user=Depends(_require_admin),
+    user=Depends(_require_admin),
 ):
     if db.query(models.Group).filter_by(name=body.name).first():
         raise HTTPException(400, detail="Group name already exists")
@@ -57,6 +58,7 @@ def create_group(
         permissions=body.permissions,
     )
     db.add(g)
+    add_event_log(db, source="iam", resource=g.name, event="Group created", owner=user.username)
     db.commit()
     db.refresh(g)
     d = schemas.GroupResponse.model_validate(g)
@@ -69,7 +71,7 @@ def update_group(
     group_id: int,
     body: schemas.GroupUpdate,
     db: Session = Depends(get_db),
-    _user=Depends(_require_admin),
+    user=Depends(_require_admin),
 ):
     g = db.get(models.Group, group_id)
     if not g:
@@ -85,6 +87,7 @@ def update_group(
         g.description = body.description
     if body.permissions is not None:
         g.permissions = body.permissions
+    add_event_log(db, source="iam", resource=g.name, event="Group updated", owner=user.username)
     db.commit()
     db.refresh(g)
     d = schemas.GroupResponse.model_validate(g)
@@ -96,11 +99,12 @@ def update_group(
 def delete_group(
     group_id: int,
     db: Session = Depends(get_db),
-    _user=Depends(_require_admin),
+    user=Depends(_require_admin),
 ):
     g = db.get(models.Group, group_id)
     if not g:
         raise HTTPException(404, detail="Group not found")
+    add_event_log(db, source="iam", resource=g.name, event="Group removed", owner=user.username)
     db.delete(g)
     db.commit()
 
@@ -110,7 +114,7 @@ def set_group_members(
     group_id: int,
     body: schemas.UserGroupsUpdate,
     db: Session = Depends(get_db),
-    _user=Depends(_require_admin),
+    user=Depends(_require_admin),
 ):
     """Replace group membership with the supplied user_id list."""
     g = db.get(models.Group, group_id)
@@ -118,6 +122,8 @@ def set_group_members(
         raise HTTPException(404, detail="Group not found")
     users = db.query(models.User).filter(models.User.id.in_(body.group_ids)).all()
     g.members = users
+    add_event_log(db, source="iam", resource=g.name, event="Group members updated",
+                  owner=user.username, message=f"members={[u.username for u in users]}")
     db.commit()
     db.refresh(g)
     d = schemas.GroupResponse.model_validate(g)
@@ -132,12 +138,13 @@ def set_user_permissions(
     user_id: int,
     body: schemas.UserPermissionsUpdate,
     db: Session = Depends(get_db),
-    _user=Depends(_require_admin),
+    user=Depends(_require_admin),
 ):
     u = db.get(models.User, user_id)
     if not u:
         raise HTTPException(404, detail="User not found")
     u.permissions = body.permissions
+    add_event_log(db, source="iam", resource=u.username, event="User permissions changed", owner=user.username)
     db.commit()
     db.refresh(u)
     resp = schemas.UserResponse.model_validate(u)
@@ -150,13 +157,15 @@ def set_user_groups(
     user_id: int,
     body: schemas.UserGroupsUpdate,
     db: Session = Depends(get_db),
-    _user=Depends(_require_admin),
+    user=Depends(_require_admin),
 ):
     u = db.get(models.User, user_id)
     if not u:
         raise HTTPException(404, detail="User not found")
     groups = db.query(models.Group).filter(models.Group.id.in_(body.group_ids)).all()
     u.groups = groups
+    add_event_log(db, source="iam", resource=u.username, event="User groups changed",
+                  owner=user.username, message=f"groups={[g.name for g in groups]}")
     db.commit()
     db.refresh(u)
     resp = schemas.UserResponse.model_validate(u)

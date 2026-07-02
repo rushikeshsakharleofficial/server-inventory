@@ -14,6 +14,7 @@ from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
 from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey
 from ..ws_manager import manager as ws_manager
+from ..event_log_utils import add_event_log
 from .query_utils import escape_like
 
 router = APIRouter(prefix="/api/servers", tags=["servers"])
@@ -172,10 +173,12 @@ def get_server(
 def create_server(
     server: schemas.ServerCreate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> models.Server:
     db_server = models.Server(**server.model_dump())
     db.add(db_server)
+    add_event_log(db, source="servers", resource=db_server.name, event="Server added",
+                  owner=user.username, message=f"provider={db_server.provider}")
     db.commit()
     db.refresh(db_server)
     return db_server
@@ -186,13 +189,17 @@ def update_server(
     server_id: int,
     update: schemas.ServerUpdate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
-    for field, value in update.model_dump(exclude_unset=True).items():
+    changed = update.model_dump(exclude_unset=True)
+    for field, value in changed.items():
         setattr(server, field, value)
+    if changed:
+        add_event_log(db, source="servers", resource=server.name, event="Server updated",
+                      owner=user.username, message=", ".join(f"{k}={v}" for k, v in changed.items()))
     db.commit()
     db.refresh(server)
     return server
@@ -622,11 +629,13 @@ def ssh_fetch_ips_stream(
 def delete_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> None:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
+    add_event_log(db, source="servers", resource=server.name, event="Server removed",
+                  owner=user.username, message=f"provider={server.provider}, id={server.id}")
     db.delete(server)
     db.commit()
 

@@ -5,6 +5,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import encrypt_str
+from ..event_log_utils import add_event_log
 
 router = APIRouter(prefix="/api/ssh-credentials", tags=["ssh-credentials"])
 
@@ -50,7 +51,7 @@ def list_ssh_credentials(
 def create_ssh_credential(
     payload: schemas.SSHCredentialCreate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> schemas.SSHCredentialResponse:
     # If this one is being set as default, unset all others first
     if payload.is_default:
@@ -67,6 +68,8 @@ def create_ssh_credential(
         data["proxy_private_key"] = encrypt_str(data["proxy_private_key"])
     cred = models.SSHCredential(**data)
     db.add(cred)
+    add_event_log(db, source="ssh-keys", resource=cred.name, event="SSH key added",
+                  owner=user.username, message=f"username={cred.username}, auth_method={cred.auth_method}")
     db.commit()
     db.refresh(cred)
     return _mask(cred)
@@ -77,7 +80,7 @@ def update_ssh_credential(
     cred_id: int,
     payload: schemas.SSHCredentialUpdate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
@@ -103,6 +106,8 @@ def update_ssh_credential(
     for field, value in updates.items():
         setattr(cred, field, value)
 
+    if updates:
+        add_event_log(db, source="ssh-keys", resource=cred.name, event="SSH key updated", owner=user.username)
     db.commit()
     db.refresh(cred)
     return _mask(cred)
@@ -112,11 +117,12 @@ def update_ssh_credential(
 def delete_ssh_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> None:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail=_SSH_CRED_NOT_FOUND)
+    add_event_log(db, source="ssh-keys", resource=cred.name, event="SSH key removed", owner=user.username)
     db.delete(cred)
     db.commit()
 
@@ -125,7 +131,7 @@ def delete_ssh_credential(
 def set_default_ssh_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
@@ -134,6 +140,7 @@ def set_default_ssh_credential(
     # Unset all others, then set this one
     db.query(models.SSHCredential).update({"is_default": False})
     cred.is_default = True
+    add_event_log(db, source="ssh-keys", resource=cred.name, event="SSH key set as default", owner=user.username)
     db.commit()
     db.refresh(cred)
     return _mask(cred)

@@ -6,6 +6,7 @@ from .. import models, schemas
 from ..database import get_db, DATABASE_URL
 from ..auth import get_current_user, require_write, require_admin
 from .. import scheduler as sched_module
+from ..event_log_utils import add_event_log
 
 router = APIRouter(prefix="/api/crons", tags=["crons"])
 
@@ -30,7 +31,7 @@ def list_crons(
 def create_cron(
     payload: schemas.CronJobCreate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> models.CronJob:
     _validate_cron(payload.cron_expr)
     job = models.CronJob(**payload.model_dump())
@@ -41,6 +42,8 @@ def create_cron(
         job.next_run_at = nxt.replace(tzinfo=None)
 
     db.add(job)
+    add_event_log(db, source="crons", resource=job.name, event="Cron job added",
+                  owner=user.username, message=f"cron_expr={job.cron_expr}, provider={job.provider}")
     db.commit()
     db.refresh(job)
 
@@ -55,7 +58,7 @@ def update_cron(
     job_id: int,
     payload: schemas.CronJobUpdate,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
@@ -73,6 +76,9 @@ def update_cron(
     if nxt:
         job.next_run_at = nxt.replace(tzinfo=None)
 
+    if updates:
+        add_event_log(db, source="crons", resource=job.name, event="Cron job updated",
+                      owner=user.username, message=", ".join(f"{k}={v}" for k, v in updates.items()))
     db.commit()
     db.refresh(job)
     sched_module.reload_job(job.id, DATABASE_URL)
@@ -83,12 +89,13 @@ def update_cron(
 def delete_cron(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> None:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail=_CRON_NOT_FOUND)
     sched_module.remove_job(job_id)
+    add_event_log(db, source="crons", resource=job.name, event="Cron job removed", owner=user.username)
     db.delete(job)
     db.commit()
 
@@ -97,7 +104,7 @@ def delete_cron(
 def toggle_cron(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_write)],
 ) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
@@ -109,6 +116,8 @@ def toggle_cron(
             job.next_run_at = nxt.replace(tzinfo=None)
     else:
         job.next_run_at = None
+    add_event_log(db, source="crons", resource=job.name, event="Cron job status changed",
+                  owner=user.username, message=f"is_active={job.is_active}")
     db.commit()
     db.refresh(job)
     sched_module.reload_job(job.id, DATABASE_URL)
