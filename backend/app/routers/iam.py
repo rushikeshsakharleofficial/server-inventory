@@ -143,6 +143,8 @@ def set_user_permissions(
     u = db.get(models.User, user_id)
     if not u:
         raise HTTPException(404, detail="User not found")
+    if u.role == "admin":
+        raise HTTPException(status_code=400, detail="Cannot change admin user's permissions")
     u.permissions = body.permissions
     add_event_log(db, source="iam", resource=u.username, event="User permissions changed", owner=user.username)
     db.commit()
@@ -162,6 +164,8 @@ def set_user_groups(
     u = db.get(models.User, user_id)
     if not u:
         raise HTTPException(404, detail="User not found")
+    if u.role == "admin":
+        raise HTTPException(status_code=400, detail="Cannot change admin user's groups")
     groups = db.query(models.Group).filter(models.Group.id.in_(body.group_ids)).all()
     u.groups = groups
     add_event_log(db, source="iam", resource=u.username, event="User groups changed",
