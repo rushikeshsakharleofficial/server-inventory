@@ -142,7 +142,7 @@ function RevealBtn({ credId, field = "password", onReveal }: {
   }
   return (
     <button onClick={handle} title="Reveal password" style={{ padding: "3px 5px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", color: "#6b7280" }}>
-      {loading ? <RefreshCw style={{ width: 11, height: 11, animation: "spin 1s linear infinite" }} /> : <Eye style={{ width: 11, height: 11 }} />}
+      {loading ? <RefreshCw className="animate-spin" style={{ width: 11, height: 11 }} /> : <Eye style={{ width: 11, height: 11 }} />}
     </button>
   );
 }
@@ -713,8 +713,6 @@ function ProviderCredentialsPage() {
       {editCred && (
         <CredModal initial={editCred === "new" ? null : editCred as Cred} onClose={() => setEditCred(null)} onSave={handleSave} />
       )}
-
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

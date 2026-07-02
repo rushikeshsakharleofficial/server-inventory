@@ -329,7 +329,7 @@ function LoginPage() {
               onMouseUp={e => { (e.target as HTMLButtonElement).style.transform = "scale(1)"; }}
             >
               {loading && (
-                <svg style={{ width: 15, height: 15, animation: "spin 1s linear infinite" }} viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin" style={{ width: 15, height: 15 }} viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3" />
                   <path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
                 </svg>
@@ -365,8 +365,6 @@ function LoginPage() {
       </div>
 
       <Toaster position="top-right" richColors />
-
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

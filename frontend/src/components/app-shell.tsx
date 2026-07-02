@@ -101,8 +101,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 border-r border-border bg-surface flex flex-col shrink-0 sticky top-0 h-screen shadow-[1px_0_0_0_var(--color-border)]">
         <div className="px-4 py-4 border-b border-border flex items-center gap-2.5">
-          <div className="size-7 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-            <span className="size-2 bg-success rounded-full" />
+          <div className="size-7 bg-primary rounded-lg flex items-center justify-center shadow-sm logo-pop">
+            <span className={`size-2 bg-success rounded-full ${!wsLive ? "animate-pulse" : ""}`} />
           </div>
           <span className="font-semibold text-sm tracking-tight">System Control</span>
         </div>
@@ -123,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       key={it.to}
                       to={it.to}
                       className={[
-                        "flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-lg transition-colors duration-150",
+                        "flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-lg transition-all duration-150",
                         active
                           ? "bg-primary text-primary-foreground font-medium shadow-sm"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -194,7 +194,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               onClick={() => sync.mutate()}
               disabled={sync.isPending}
-              className="flex items-center text-sm font-medium py-1.5 px-3 gap-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="flex items-center text-sm font-medium py-1.5 px-3 gap-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm btn-press"
             >
               <RefreshCw className={`size-3.5 ${sync.isPending ? "animate-spin" : ""}`} />
               Force Sync

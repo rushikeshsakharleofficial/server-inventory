@@ -321,10 +321,9 @@ function MapSkeleton() {
         </div>
       ))}
       <div className="absolute" style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <RefreshCw style={{ width: 20, height: 20, color: "#cbd5e1", animation: "spin 1s linear infinite" }} />
+        <RefreshCw className="animate-spin" style={{ width: 20, height: 20, color: "#cbd5e1" }} />
         <div style={{ fontSize: 12, color: "#94a3b8" }}>Building topology…</div>
       </div>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
@@ -611,7 +610,7 @@ function ResourceMapPage() {
               <div style={{ padding: "0 4px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <RefreshCw style={{ width: 10, height: 10, animation: "spin 1s linear infinite" }} />
+                    <RefreshCw className="animate-spin" style={{ width: 10, height: 10 }} />
                     Syncing {syncProg.done}/{syncProg.total}
                   </span>
                   <button onClick={() => { syncAbortRef.current = true; }} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: 10 }}>stop</button>
@@ -670,7 +669,7 @@ function ResourceMapPage() {
               padding: "4px 10px", borderRadius: 8, border: "1px solid #e5e7eb",
               boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
             }}>
-              <RefreshCw style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />
+              <RefreshCw className="animate-spin" style={{ width: 12, height: 12 }} />
               Fetching topology…
             </div>
           )}
@@ -716,8 +715,6 @@ function ResourceMapPage() {
           </div>
         </div>
       </div>
-
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

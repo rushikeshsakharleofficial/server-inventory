@@ -42,6 +42,9 @@
 
 :root {
   --radius: 0.5rem;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
   /* Operator high-density — light slate */
   --background: oklch(0.985 0.002 240);            /* zinc-50 */
   --foreground: oklch(0.21 0.006 285);             /* zinc-900 */
@@ -90,7 +93,15 @@
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";
   }
+  html { scroll-behavior: smooth; }
   ::selection { background: oklch(0.21 0.006 285 / 0.15); }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 /* Status pill semantics */
@@ -124,11 +135,31 @@
   padding: 0.375rem;
   border-radius: 0.375rem;
   color: var(--color-muted-foreground);
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color var(--duration-fast), color var(--duration-fast), transform var(--duration-fast);
   &:hover {
     background-color: var(--color-muted);
     color: var(--color-foreground);
   }
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+/* Press feedback for inline primary/secondary buttons */
+@utility btn-press {
+  transition: transform var(--duration-fast);
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+/* One-time entrance pop, ends at identity — used on the logo mark */
+@keyframes logo-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@utility logo-pop {
+  animation: logo-pop var(--duration-base) var(--ease-standard);
 }
 
 /* Disabled state */
@@ -138,4 +169,5 @@ button:disabled { cursor: not-allowed; }
 input:focus-visible, textarea:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-ring);
+  transition: box-shadow var(--duration-fast) var(--ease-standard);
 }
