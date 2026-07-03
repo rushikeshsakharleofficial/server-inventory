@@ -1,10 +1,11 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write
-from ..crypto import encrypt_str
+from ..auth import get_current_user, require_write, require_admin
+from ..crypto import encrypt_str, decrypt_str
 from ..event_log_utils import add_event_log
 
 router = APIRouter(prefix="/api/ssh-credentials", tags=["ssh-credentials"])
@@ -125,6 +126,30 @@ def delete_ssh_credential(
     add_event_log(db, source="ssh-keys", resource=cred.name, event="SSH key removed", owner=user.username)
     db.delete(cred)
     db.commit()
+
+
+class RevealFieldRequest(BaseModel):
+    field: str = "password"  # "password" or "private_key"
+
+
+@router.post("/{cred_id}/reveal-secret")
+def reveal_ssh_secret(
+    cred_id: int,
+    payload: RevealFieldRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(require_admin)],
+) -> dict:
+    """Admin-only: returns a single decrypted secret field. Audit-logged."""
+    cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
+    if not cred:
+        raise HTTPException(status_code=404, detail=_SSH_CRED_NOT_FOUND)
+    raw = getattr(cred, payload.field, None)
+    if payload.field not in ("password", "private_key") or not raw:
+        raise HTTPException(status_code=404, detail=f"Field '{payload.field}' not found")
+    add_event_log(db, source="ssh-keys", resource=cred.name, event="SSH secret revealed",
+                  owner=user.username, message=f"field={payload.field}")
+    db.commit()
+    return {"field": payload.field, "value": decrypt_str(raw)}
 
 
 @router.patch("/{cred_id}/set-default")

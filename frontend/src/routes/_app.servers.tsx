@@ -4,10 +4,86 @@ import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge, CustomSelect, confirmAsync } from "@/components/ui-bits";
 import type { SshCredential } from "@/lib/api";
-import { RefreshCw, Trash2, Plus, Pencil, X } from "lucide-react";
+import { useCurrentUser } from "@/lib/auth";
+import { RefreshCw, Trash2, Plus, Pencil, X, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
+
+function copyToClipboard(text: string): boolean {
+  if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text); return true; }
+  const el = document.createElement("textarea");
+  el.value = text;
+  el.style.position = "fixed";
+  el.style.opacity = "0";
+  document.body.appendChild(el);
+  el.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(el);
+  return ok;
+}
+
+function SshInfoDialog({ cred, isAdmin, onClose }: { cred: SshCredential; isAdmin: boolean; onClose: () => void }) {
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function reveal(): Promise<string | null> {
+    if (!isAdmin) { toast.error("Admin role required to reveal secrets"); return null; }
+    if (!(await confirmAsync("Reveal password? This action will be audit logged."))) return null;
+    setLoading(true);
+    try {
+      const res = await api<{ value: string }>(`/api/ssh-credentials/${cred.id}/reveal-secret`, {
+        method: "POST", json: { field: cred.auth_method === "key" ? "private_key" : "password" },
+      });
+      setRevealed(res.value);
+      return res.value;
+    } catch { toast.error("Failed to reveal"); return null; }
+    finally { setLoading(false); }
+  }
+
+  function copy(label: string, value: string) {
+    if (copyToClipboard(value)) toast.success(`${label} copied`);
+    else toast.error("Failed to copy");
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-sm">{cred.name}</h2>
+          <button onClick={onClose} className="icon-btn"><X className="size-4" /></button>
+        </div>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="text-xs text-muted-foreground">Username</div>
+              <div className="font-mono">{cred.username}</div>
+            </div>
+            <button onClick={() => copy("Username", cred.username)} className="icon-btn" title="Copy username"><Copy className="size-3.5" /></button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">{cred.auth_method === "key" ? "Private key" : "Password"}</div>
+              <div className="font-mono truncate">{revealed ?? "••••••••••••"}</div>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button onClick={reveal} disabled={loading} className="icon-btn disabled:opacity-40" title="Reveal">
+                {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </button>
+              <button
+                onClick={async () => {
+                  const value = revealed ?? (await reveal());
+                  if (value) copy(cred.auth_method === "key" ? "Private key" : "Password", value);
+                }}
+                className="icon-btn" title="Copy"
+              ><Copy className="size-3.5" /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/_app/servers")({
   head: () => ({ meta: [{ title: "Servers — System Control" }] }),
@@ -150,11 +226,13 @@ const SERVER_FILTER_FIELDS = [
 function ServersPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const currentUser = useCurrentUser();
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
   const [offset, setOffset] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Server | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [sshInfoFor, setSshInfoFor] = useState<Server | null>(null);
   const limit = 50;
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
@@ -244,6 +322,13 @@ function ServersPage() {
     <div className="p-6 space-y-4">
       {showAdd && <AddServerDialog onClose={() => setShowAdd(false)} />}
       {editing && <EditServerDialog server={editing} onClose={() => setEditing(null)} />}
+      {sshInfoFor && sshCreds.find(c => c.id === sshInfoFor.ssh_credential_id) && (
+        <SshInfoDialog
+          cred={sshCreds.find(c => c.id === sshInfoFor.ssh_credential_id)!}
+          isAdmin={currentUser?.role === "admin"}
+          onClose={() => setSshInfoFor(null)}
+        />
+      )}
       <div className="flex items-center justify-between">
         <PageHeader
           title="Servers"
@@ -373,6 +458,11 @@ function ServersPage() {
                 <td className="px-4 py-2.5"><StatusPill status={s.status} /></td>
                 <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
                   <div className="inline-flex items-center gap-0.5">
+                    {s.ssh_credential_id && (
+                      <button onClick={() => setSshInfoFor(s)} className="icon-btn" title="View SSH credential">
+                        <KeyRound className="size-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => setEditing(s)} className="icon-btn" title="Edit">
                       <Pencil className="size-3.5" />
                     </button>
