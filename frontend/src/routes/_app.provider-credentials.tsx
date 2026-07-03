@@ -94,6 +94,23 @@ function CopyBtn({ value, label, title, isSecret = false, credId, field, isAdmin
 }) {
   const [copied, setCopied] = useState(false);
 
+  function copyToClipboard(text: string): boolean {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      return true;
+    }
+    // Fallback for insecure (non-HTTPS) contexts where the Clipboard API is unavailable.
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(el);
+    return ok;
+  }
+
   async function handleCopy() {
     if (isSecret && credId && field) {
       if (!isAdmin) { toast.error("Admin role required to copy passwords"); return; }
@@ -101,14 +118,14 @@ function CopyBtn({ value, label, title, isSecret = false, credId, field, isAdmin
         const res = await api<{ value: string }>(`/api/credentials/${credId}/copy-secret`, {
           method: "POST", json: { field },
         });
-        await navigator.clipboard.writeText(res.value);
+        if (!copyToClipboard(res.value)) { toast.error("Failed to copy"); return; }
         toast.success(`${title} copied`);
         setCopied(true); setTimeout(() => setCopied(false), 2000);
       } catch { toast.error("Failed to copy"); }
       return;
     }
     if (!value) return;
-    await navigator.clipboard.writeText(value);
+    if (!copyToClipboard(value)) { toast.error("Failed to copy"); return; }
     toast.success(`${title} copied`);
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
