@@ -20,6 +20,7 @@ import {
   Wifi,
   ScrollText,
   KeyRound,
+  Layers,
 } from "lucide-react";
 import { useCurrentUser, logout } from "@/lib/auth";
 import { ConfirmDialogHost } from "@/components/ui-bits";
@@ -48,6 +49,7 @@ const NAV: Array<{
     group: "Infrastructure",
     items: [
       { to: "/resource-map", label: "Resource Map", icon: Network },
+      { to: "/server-groups", label: "Server Groups", icon: Layers },
       { to: "/ips", label: "IP Inventory", icon: Wifi },
       { to: "/sync", label: "Sync", icon: RefreshCw },
       { to: "/crons", label: "Crons", icon: Clock },

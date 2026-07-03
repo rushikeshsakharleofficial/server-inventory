@@ -20,6 +20,7 @@ import { Route as AppStatsRouteImport } from './routes/_app.stats'
 import { Route as AppSshKeysRouteImport } from './routes/_app.ssh-keys'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppServersRouteImport } from './routes/_app.servers'
+import { Route as AppServerGroupsRouteImport } from './routes/_app.server-groups'
 import { Route as AppResourceMapRouteImport } from './routes/_app.resource-map'
 import { Route as AppProviderCredentialsRouteImport } from './routes/_app.provider-credentials'
 import { Route as AppPoliciesRouteImport } from './routes/_app.policies'
@@ -86,6 +87,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppServersRoute = AppServersRouteImport.update({
   id: '/servers',
   path: '/servers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppServerGroupsRoute = AppServerGroupsRouteImport.update({
+  id: '/server-groups',
+  path: '/server-groups',
   getParentRoute: () => AppRoute,
 } as any)
 const AppResourceMapRoute = AppResourceMapRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/policies': typeof AppPoliciesRouteWithChildren
   '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
+  '/server-groups': typeof AppServerGroupsRoute
   '/servers': typeof AppServersRoute
   '/settings': typeof AppSettingsRoute
   '/ssh-keys': typeof AppSshKeysRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/policies': typeof AppPoliciesRouteWithChildren
   '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
+  '/server-groups': typeof AppServerGroupsRoute
   '/servers': typeof AppServersRoute
   '/settings': typeof AppSettingsRoute
   '/ssh-keys': typeof AppSshKeysRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/_app/policies': typeof AppPoliciesRouteWithChildren
   '/_app/provider-credentials': typeof AppProviderCredentialsRoute
   '/_app/resource-map': typeof AppResourceMapRoute
+  '/_app/server-groups': typeof AppServerGroupsRoute
   '/_app/servers': typeof AppServersRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/ssh-keys': typeof AppSshKeysRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/provider-credentials'
     | '/resource-map'
+    | '/server-groups'
     | '/servers'
     | '/settings'
     | '/ssh-keys'
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/provider-credentials'
     | '/resource-map'
+    | '/server-groups'
     | '/servers'
     | '/settings'
     | '/ssh-keys'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/_app/policies'
     | '/_app/provider-credentials'
     | '/_app/resource-map'
+    | '/_app/server-groups'
     | '/_app/servers'
     | '/_app/settings'
     | '/_app/ssh-keys'
@@ -394,6 +406,13 @@ declare module '@tanstack/react-router' {
       path: '/servers'
       fullPath: '/servers'
       preLoaderRoute: typeof AppServersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/server-groups': {
+      id: '/_app/server-groups'
+      path: '/server-groups'
+      fullPath: '/server-groups'
+      preLoaderRoute: typeof AppServerGroupsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/resource-map': {
@@ -514,6 +533,7 @@ interface AppRouteChildren {
   AppPoliciesRoute: typeof AppPoliciesRouteWithChildren
   AppProviderCredentialsRoute: typeof AppProviderCredentialsRoute
   AppResourceMapRoute: typeof AppResourceMapRoute
+  AppServerGroupsRoute: typeof AppServerGroupsRoute
   AppServersRoute: typeof AppServersRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSshKeysRoute: typeof AppSshKeysRoute
@@ -536,6 +556,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPoliciesRoute: AppPoliciesRouteWithChildren,
   AppProviderCredentialsRoute: AppProviderCredentialsRoute,
   AppResourceMapRoute: AppResourceMapRoute,
+  AppServerGroupsRoute: AppServerGroupsRoute,
   AppServersRoute: AppServersRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSshKeysRoute: AppSshKeysRoute,

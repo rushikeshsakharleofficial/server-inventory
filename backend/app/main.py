@@ -20,6 +20,7 @@ from .routers.resource_map import router as resource_map_router
 from .routers.block_storages import router as block_storages_router
 from .routers.mfa import router as mfa_router
 from .routers.iam import router as iam_router
+from .routers.server_groups import router as server_groups_router
 from .routers.event_logs import router as event_logs_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
@@ -132,6 +133,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _cleanup_stale_syncs()
     _seed_default_settings()
     _seed_admin_group()
+    _seed_default_server_groups()
     sched_module.start(DATABASE_URL)
     yield
     sched_module.shutdown()
@@ -185,6 +187,7 @@ app.include_router(block_storages_router)
 app.include_router(mfa_router)
 app.include_router(iam_router)
 app.include_router(event_logs_router)
+app.include_router(server_groups_router)
 
 
 def _apply_db_optimizations() -> None:
@@ -287,6 +290,23 @@ def _seed_admin_group() -> None:
             db.commit()
     except IntegrityError:
         db.rollback()  # another worker beat us to it — that's fine
+    finally:
+        db.close()
+
+
+def _seed_default_server_groups() -> None:
+    """Seed example custom server groups once. Deleted ones are never recreated."""
+    from sqlalchemy.exc import IntegrityError
+    DEFAULTS = ["DB-group", "Auth-group", "Webservers", "SMTP servers"]
+    db = SessionLocal()
+    try:
+        has_custom = db.query(models.ServerGroup.id).filter_by(is_auto=False).first()
+        if has_custom is None:
+            for n in DEFAULTS:
+                db.add(models.ServerGroup(name=n, is_auto=False))
+            db.commit()
+    except IntegrityError:
+        db.rollback()
     finally:
         db.close()
 

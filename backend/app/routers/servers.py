@@ -652,6 +652,18 @@ class BulkAssignSSHRequest(_BM):
     ssh_group: str | None = None
 
 
+def apply_ssh_assignment(db: Session, server_ids: list[int], ssh_credential_id: int | None, ssh_group: str | None) -> int:
+    """Set ssh_credential_id/ssh_group on the given servers. Shared by bulk-assign and group-assign."""
+    servers = db.query(models.Server).filter(models.Server.id.in_(server_ids)).all()
+    for svr in servers:
+        if ssh_credential_id is not None:
+            svr.ssh_credential_id = ssh_credential_id
+        if ssh_group is not None:
+            svr.ssh_group = ssh_group
+    db.commit()
+    return len(servers)
+
+
 @router.patch("/{server_id}/assign-ssh")
 def assign_ssh_to_server(
     server_id: int,
@@ -675,12 +687,6 @@ def bulk_assign_ssh(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
 ) -> dict:
-    servers = db.query(models.Server).filter(models.Server.id.in_(payload.server_ids)).all()
-    for svr in servers:
-        if payload.ssh_credential_id is not None:
-            svr.ssh_credential_id = payload.ssh_credential_id
-        if payload.ssh_group is not None:
-            svr.ssh_group = payload.ssh_group
-    db.commit()
-    return {"updated": len(servers)}
+    updated = apply_ssh_assignment(db, payload.server_ids, payload.ssh_credential_id, payload.ssh_group)
+    return {"updated": updated}
 

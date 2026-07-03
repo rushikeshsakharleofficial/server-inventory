@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge, CustomSelect, confirmAsync } from "@/components/ui-bits";
-import type { SshCredential } from "@/lib/api";
+import type { SshCredential, ServerGroup } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
 import { RefreshCw, Trash2, Plus, Pencil, X, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -266,6 +266,24 @@ function ServersPage() {
     queryFn: () => api("/api/ssh-credentials"),
     staleTime: 60_000,
   });
+  const { data: serverGroups = [] } = useQuery<ServerGroup[]>({
+    queryKey: ["server-groups"],
+    queryFn: () => api("/api/server-groups"),
+    staleTime: 30_000,
+  });
+  const addToGroup = useMutation({
+    mutationFn: async ({ groupId, serverIds }: { groupId: number; serverIds: number[] }) => {
+      const current = await api<number[]>(`/api/server-groups/${groupId}/members`);
+      const merged = Array.from(new Set([...current, ...serverIds]));
+      return api(`/api/server-groups/${groupId}/members`, { method: "PUT", json: { server_ids: merged } });
+    },
+    onSuccess: () => {
+      toast.success("Added to group");
+      qc.invalidateQueries({ queryKey: ["server-groups"] });
+      setSelected(new Set());
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const sshSync = useMutation({
     mutationFn: (id: number) =>
       api("/api/sync/ssh", { method: "POST", json: { server_ids: [id], ssh_group: null } }),
@@ -372,6 +390,19 @@ function ServersPage() {
             >
               <option value="">Assign SSH key…</option>
               {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select
+              className="px-2 py-1 text-xs border border-border rounded bg-background"
+              defaultValue=""
+              onChange={e => {
+                const val = e.target.value;
+                if (!val) return;
+                addToGroup.mutate({ groupId: Number(val), serverIds: Array.from(selected) });
+                e.target.value = "";
+              }}
+            >
+              <option value="">Add to group…</option>
+              {serverGroups.filter(g => !g.is_auto).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
             <button
               onClick={() => sshGroupSync.mutate({ serverIds: Array.from(selected) })}

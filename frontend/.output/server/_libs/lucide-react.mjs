@@ -1279,6 +1279,32 @@ var User = createLucideIcon("user", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Users = createLucideIcon("users", [
+	["path", {
+		d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",
+		key: "1yyitq"
+	}],
+	["path", {
+		d: "M16 3.128a4 4 0 0 1 0 7.744",
+		key: "16gr8j"
+	}],
+	["path", {
+		d: "M22 21v-2a4 4 0 0 0-3-3.87",
+		key: "kshegd"
+	}],
+	["circle", {
+		cx: "9",
+		cy: "7",
+		r: "4",
+		key: "nufk8"
+	}]
+]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Wifi = createLucideIcon("wifi", [
 	["path", {
 		d: "M12 20h.01",
@@ -1311,4 +1337,4 @@ var X = createLucideIcon("x", [["path", {
 	key: "d8bk6v"
 }]]);
 //#endregion
-export { UsersRound as $, Link2 as A, Download as B, Network as C, LogOut as D, MapPin as E, HardDrive as F, ChevronRight as G, Copy as H, Globe as I, Check as J, ChevronLeft as K, Eye as L, KeyRound as M, Info as N, Lock as O, History as P, Activity as Q, EyeOff as R, Pencil as S, Maximize2 as T, Cloud as U, Database as V, Clock as W, Box as X, Boxes as Y, ArrowLeft as Z, Save as _, TrendingUp as a, CircleAlert as at, Plus as b, Star as c, Shield as d, TriangleAlert as et, ShieldCheck as f, ScrollText as g, Search as h, UserCog as i, CircleCheck as it, LayoutDashboard as j, List as k, Square as l, Server as m, Wifi as n, Funnel as nt, Trash2 as o, Settings as p, ChevronDown as q, User as r, CirclePlus as rt, Terminal as s, X as t, Layers as tt, SlidersHorizontal as u, RefreshCw as v, Minimize2 as w, Play as x, Power as y, ExternalLink as z };
+export { Activity as $, List as A, ExternalLink as B, Pencil as C, MapPin as D, Maximize2 as E, History as F, Clock as G, Database as H, HardDrive as I, ChevronDown as J, ChevronRight as K, Globe as L, LayoutDashboard as M, KeyRound as N, LogOut as O, Info as P, ArrowLeft as Q, Eye as R, Play as S, Minimize2 as T, Copy as U, Download as V, Cloud as W, Boxes as X, Check as Y, Box as Z, ScrollText as _, UserCog as a, CircleCheck as at, Power as b, Terminal as c, SlidersHorizontal as d, UsersRound as et, Shield as f, Search as g, Server as h, User as i, CirclePlus as it, Link2 as j, Lock as k, Star as l, Settings as m, Wifi as n, Layers as nt, TrendingUp as o, CircleAlert as ot, ShieldCheck as p, ChevronLeft as q, Users as r, Funnel as rt, Trash2 as s, X as t, TriangleAlert as tt, Square as u, Save as v, Network as w, Plus as x, RefreshCw as y, EyeOff as z };

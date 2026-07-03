@@ -112,6 +112,28 @@ class Group(Base):
     )
 
 
+server_group_members = Table(
+    "server_group_members",
+    Base.metadata,
+    Column("server_id",       Integer, ForeignKey("servers.id",       ondelete="CASCADE"), primary_key=True),
+    Column("server_group_id", Integer, ForeignKey("server_groups.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class ServerGroup(Base):
+    __tablename__ = "server_groups"
+
+    id          = Column(Integer, primary_key=True)
+    name        = Column(String(64), unique=True, nullable=False)
+    description = Column(String(255), nullable=True)
+    is_auto     = Column(Boolean, nullable=False, server_default="false")  # true = provider auto-group
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    members = relationship("Server", secondary="server_group_members")
+
+    __table_args__ = (Index("ix_server_groups_name", "name", unique=True),)
+
+
 class User(Base):
     __tablename__ = "users"
 

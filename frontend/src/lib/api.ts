@@ -278,6 +278,20 @@ export interface GroupCreate {
   permissions?: Record<string, string[]>;
 }
 
+export interface ServerGroup {
+  id: number;
+  name: string;
+  description?: string | null;
+  is_auto: boolean;
+  server_count: number;
+  created_at?: string | null;
+}
+
+export interface ServerGroupCreate {
+  name: string;
+  description?: string;
+}
+
 export interface PermissionCatalog {
   features: string[];
   actions: string[];

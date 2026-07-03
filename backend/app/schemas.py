@@ -178,6 +178,38 @@ class PermissionCatalog(BaseModel):
     role_baseline: dict[str, dict[str, list[str]]]
 
 
+# ─── Server groups ──────────────────────────────────────────────────────────────
+
+class ServerGroupCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    description: str | None = None
+
+
+class ServerGroupUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=64)
+    description: str | None = None
+
+
+class ServerGroupResponse(BaseModel):
+    id: int
+    name: str
+    description: str | None = None
+    is_auto: bool = False
+    server_count: int = 0
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ServerMembersUpdate(BaseModel):
+    server_ids: list[int]
+
+
+class GroupAssignSSHRequest(BaseModel):
+    ssh_credential_id: int | None = None
+    ssh_group: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
