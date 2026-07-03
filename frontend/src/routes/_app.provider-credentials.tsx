@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
 import { confirmAsync } from "@/components/ui-bits";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { toast } from "sonner";
 import {
   Copy, Eye, EyeOff, ExternalLink, Shield, KeyRound,
@@ -464,6 +465,141 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// ─── Table columns ────────────────────────────────────────────────────────────
+
+function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMut: { mutate: (id: number) => void }): SmartTableColumn<Cred>[] {
+  return [
+    {
+      key: "platform",
+      header: "Platform",
+      render: (cred) => {
+        const m = provMeta(cred.provider);
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: m.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+              {(cred.config.logo_data || cred.config.logo_url)
+                ? <img src={cred.config.logo_data || cred.config.logo_url} alt={cred.name} style={{ width: 28, height: 28, objectFit: "contain" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                : <span style={{ fontSize: 9, fontWeight: 800, color: m.color }}>{m.initials}</span>
+              }
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, color: "#111827" }}>{cred.name}</div>
+              <div style={{ fontSize: 10, color: "#9ca3af" }}>{m.type}</div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "login_url",
+      header: "Login URL",
+      render: (cred) => {
+        const cfg = cred.config;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+              style={{ color: "#3b82f6", fontSize: 12, textDecoration: "none", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+              {(cfg.login_url ?? "").replace(/^https?:\/\//, "")}
+            </a>
+            <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: "#9ca3af", flexShrink: 0 }}>
+              <ExternalLink style={{ width: 11, height: 11 }} />
+            </a>
+            <div onClick={e => e.stopPropagation()}>
+              <CopyBtn value={cfg.login_url} title="Copy URL" small />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "username",
+      header: "Username / Email",
+      render: (cred) => {
+        const cfg = cred.config;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 12, color: "#374151", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cfg.username ?? "—"}</span>
+            <div onClick={e => e.stopPropagation()}>
+              <CopyBtn value={cfg.username} title="Copy Username" small />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "password",
+      header: "Password",
+      render: (cred) => (
+        <div onClick={e => e.stopPropagation()}>
+          <PasswordCell cred={cred} isAdmin={isAdmin} />
+        </div>
+      ),
+    },
+    {
+      key: "mfa",
+      header: "MFA",
+      render: (cred) => <MfaBadge enabled={cred.config.mfa_enabled === "true"} />,
+    },
+    {
+      key: "tags",
+      header: "Tags",
+      render: (cred) => {
+        const tags = (cred.config.tags ?? "").split(",").map(t => t.trim()).filter(Boolean);
+        return (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+            {tags.slice(0, 2).map(t => <TagBadge key={t} tag={t} />)}
+          </div>
+        );
+      },
+    },
+    {
+      key: "owner",
+      header: "Owner",
+      render: (cred) => {
+        const cfg = cred.config;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#2563eb" }}>{(cfg.owner ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
+            </div>
+            <span style={{ fontSize: 12, color: "#374151" }}>{(cfg.owner ?? "—").split(" ")[0]}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "last_updated",
+      header: "Last Updated",
+      className: "whitespace-nowrap",
+      render: (cred) => (
+        <span style={{ fontSize: 12, color: "#6b7280" }}>{relativeTime(cred.created_at)}</span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (cred) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()}>
+          <a href={cred.config.login_url} target="_blank" rel="noreferrer" title="Open login" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
+            <ExternalLink style={{ width: 12, height: 12 }} />
+          </a>
+          {isAdmin && (
+            <button onClick={() => setEditCred(cred)} title="Edit" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer" }}>
+              <History style={{ width: 12, height: 12 }} />
+            </button>
+          )}
+          {isAdmin && (
+            <button onClick={async () => { if (await confirmAsync(`Delete ${cred.name}?`)) deleteMut.mutate(cred.id); }} title="Delete"
+              style={{ padding: "4px", borderRadius: 5, border: "1px solid #fecaca", background: "#fff", color: "#ef4444", cursor: "pointer" }}>
+              <X style={{ width: 12, height: 12 }} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function ProviderCredentialsPage() {
@@ -478,6 +614,7 @@ function ProviderCredentialsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState<Cred | null>(null);
   const [editCred, setEditCred] = useState<Cred | null | "new">(null);
+  const [page, setPage] = useState(1);
   const listQ = useQuery({
     queryKey: ["provider-creds"],
     queryFn: () => api<{ total: number; limit: number; offset: number; items: Cred[] }>("/api/credentials", { query: { limit: 100, cred_type: "login" } }),
@@ -532,6 +669,8 @@ function ProviderCredentialsPage() {
 
   const owners = [...new Set(items.map(c => c.config.owner).filter(Boolean))];
   const providers = [...new Set(items.map(c => c.provider))];
+
+  const columns = buildColumns(isAdmin, setEditCred, deleteMut);
 
   function handleSave(data: { name: string; provider: string; config: Record<string, string> }) {
     if (editCred && editCred !== "new") {
@@ -595,131 +734,25 @@ function ProviderCredentialsPage() {
         </div>
 
         {/* Table */}
-        <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #f1f5f9", boxShadow: "0 1px 4px rgba(15,23,42,0.06)", overflow: "hidden" }}>
-          {listQ.isLoading ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>Loading credentials…</div>
-          ) : filtered.length === 0 ? (
+        <SmartTable
+          columns={columns}
+          rows={filtered}
+          rowKey={(cred) => cred.id}
+          mode="client"
+          page={page}
+          onPageChange={setPage}
+          totalItems={filtered.length}
+          isLoading={listQ.isLoading}
+          onRowClick={(cred) => setSelected(selected?.id === cred.id ? null : cred)}
+          rowClassName={(cred) => (selected?.id === cred.id ? "bg-blue-50" : "")}
+          empty={
             <div style={{ padding: "64px 0", textAlign: "center" }}>
               <Lock style={{ width: 32, height: 32, color: "#e5e7eb", margin: "0 auto 10px" }} />
               <p style={{ color: "#9ca3af", fontSize: 13, margin: 0 }}>No provider credentials added yet.</p>
               <button onClick={() => setEditCred("new")} style={{ marginTop: 12, padding: "8px 18px", borderRadius: 8, border: "none", background: "#18181b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Add Credential</button>
             </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "#f9fafb", borderBottom: "1px solid #f1f5f9" }}>
-                  {["Platform","Login URL","Username / Email","Password","MFA","Tags","Owner","Last Updated","Actions"].map(h => (
-                    <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(cred => {
-                  const m = provMeta(cred.provider);
-                  const cfg = cred.config;
-                  const tags = (cfg.tags ?? "").split(",").map(t => t.trim()).filter(Boolean);
-                  const mfaOn = cfg.mfa_enabled === "true";
-                  const isSelected = selected?.id === cred.id;
-                  return (
-                    <tr key={cred.id} onClick={() => setSelected(isSelected ? null : cred)}
-                      style={{ borderBottom: "1px solid #f9fafb", cursor: "pointer", background: isSelected ? "#eff6ff" : "transparent", transition: "background 0.1s" }}
-                      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "#f9fafb"; }}
-                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                      {/* Platform */}
-                      <td style={{ padding: "10px 12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 9, background: m.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
-                            {(cred.config.logo_data || cred.config.logo_url)
-                              ? <img src={cred.config.logo_data || cred.config.logo_url} alt={cred.name} style={{ width: 28, height: 28, objectFit: "contain" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                              : <span style={{ fontSize: 9, fontWeight: 800, color: m.color }}>{m.initials}</span>
-                            }
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: 600, color: "#111827" }}>{cred.name}</div>
-                            <div style={{ fontSize: 10, color: "#9ca3af" }}>{m.type}</div>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Login URL */}
-                      <td style={{ padding: "10px 12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                            style={{ color: "#3b82f6", fontSize: 12, textDecoration: "none", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
-                            {(cfg.login_url ?? "").replace(/^https?:\/\//, "")}
-                          </a>
-                          <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: "#9ca3af", flexShrink: 0 }}>
-                            <ExternalLink style={{ width: 11, height: 11 }} />
-                          </a>
-                          <div onClick={e => e.stopPropagation()}>
-                            <CopyBtn value={cfg.login_url} title="Copy URL" small />
-                          </div>
-                        </div>
-                      </td>
-                      {/* Username */}
-                      <td style={{ padding: "10px 12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <span style={{ fontSize: 12, color: "#374151", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cfg.username ?? "—"}</span>
-                          <div onClick={e => e.stopPropagation()}>
-                            <CopyBtn value={cfg.username} title="Copy Username" small />
-                          </div>
-                        </div>
-                      </td>
-                      {/* Password */}
-                      <td style={{ padding: "10px 12px" }} onClick={e => e.stopPropagation()}>
-                        <PasswordCell cred={cred} isAdmin={isAdmin} />
-                      </td>
-                      {/* MFA */}
-                      <td style={{ padding: "10px 12px" }}><MfaBadge enabled={mfaOn} /></td>
-                      {/* Tags */}
-                      <td style={{ padding: "10px 12px" }}>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-                          {tags.slice(0, 2).map(t => <TagBadge key={t} tag={t} />)}
-                        </div>
-                      </td>
-                      {/* Owner */}
-                      <td style={{ padding: "10px 12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: "#2563eb" }}>{(cfg.owner ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
-                          </div>
-                          <span style={{ fontSize: 12, color: "#374151" }}>{(cfg.owner ?? "—").split(" ")[0]}</span>
-                        </div>
-                      </td>
-                      {/* Last updated */}
-                      <td style={{ padding: "10px 12px", fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" }}>
-                        {relativeTime(cred.created_at)}
-                      </td>
-                      {/* Actions */}
-                      <td style={{ padding: "10px 12px" }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <a href={cfg.login_url} target="_blank" rel="noreferrer" title="Open login" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
-                            <ExternalLink style={{ width: 12, height: 12 }} />
-                          </a>
-                          {isAdmin && (
-                            <button onClick={() => setEditCred(cred)} title="Edit" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer" }}>
-                              <History style={{ width: 12, height: 12 }} />
-                            </button>
-                          )}
-                          {isAdmin && (
-                            <button onClick={async () => { if (await confirmAsync(`Delete ${cred.name}?`)) deleteMut.mutate(cred.id); }} title="Delete"
-                              style={{ padding: "4px", borderRadius: 5, border: "1px solid #fecaca", background: "#fff", color: "#ef4444", cursor: "pointer" }}>
-                              <X style={{ width: 12, height: 12 }} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-          {filtered.length > 0 && (
-            <div style={{ padding: "10px 16px", borderTop: "1px solid #f1f5f9", fontSize: 11, color: "#9ca3af" }}>
-              Showing 1 to {filtered.length} of {filtered.length} providers
-            </div>
-          )}
-        </div>
+          }
+        />
       </div>
 
       {/* Details drawer */}

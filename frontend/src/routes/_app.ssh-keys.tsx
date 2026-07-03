@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type SshCredential } from "@/lib/api";
 import { Card, PageHeader, EmptyState, CustomSelect, confirmAsync } from "@/components/ui-bits";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Star, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -22,8 +23,9 @@ function SshPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SshCredential | null>(null);
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
+  const [page, setPage] = useState(1);
 
-  const { data } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["ssh"],
     queryFn: () => api<SshCredential[]>("/api/ssh-credentials"),
   });
@@ -48,6 +50,60 @@ function SshPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ssh"] }),
   });
 
+  const columns: SmartTableColumn<SshCredential>[] = [
+    {
+      key: "name",
+      header: "Name",
+      render: (c) => (
+        <div className="flex items-center gap-2 font-medium">
+          {c.is_default && <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />}
+          {c.name}
+        </div>
+      ),
+    },
+    { key: "username", header: "User", render: (c) => <span className="font-mono text-xs">{c.username}</span> },
+    {
+      key: "auth",
+      header: "Auth",
+      render: (c) => (
+        <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{c.auth_method}</span>
+      ),
+    },
+    { key: "port", header: "Port", render: (c) => <span className="font-mono text-xs">{c.port}</span> },
+    {
+      key: "proxy",
+      header: "Proxy",
+      render: (c) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {c.proxy_host ? `${c.proxy_host}:${c.proxy_port ?? 22}` : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      className: "text-right",
+      render: (c) => (
+        <div className="inline-flex gap-1">
+          {!c.is_default && (
+            <button onClick={() => setDefault.mutate(c.id)} className="p-1.5 hover:bg-muted rounded-md" title="Set default">
+              <Star className="size-3.5" />
+            </button>
+          )}
+          <button onClick={() => setEditing(c)} className="p-1.5 hover:bg-muted rounded-md" title="Edit">
+            <Pencil className="size-3.5" />
+          </button>
+          <button
+            onClick={async () => (await confirmAsync(`Delete ${c.name}?`)) && del.mutate(c.id)}
+            className="p-1.5 hover:bg-muted rounded-md text-red-600"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 space-y-4">
       <PageHeader
@@ -63,65 +119,26 @@ function SshPage() {
         }
       />
       <Card className="p-3">
-        <AdvancedFilter fields={SSH_FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search by name or username…" />
+        <AdvancedFilter
+          fields={SSH_FIELDS}
+          state={fs}
+          onChange={(next) => { setFs(next); setPage(1); }}
+          searchPlaceholder="Search by name or username…"
+        />
       </Card>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">User</th>
-              <th className="px-4 py-2 font-medium">Auth</th>
-              <th className="px-4 py-2 font-medium">Port</th>
-              <th className="px-4 py-2 font-medium">Proxy</th>
-              <th className="px-4 py-2 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border [&>tr:last-child]:border-b-0">
-            {items.map((c) => (
-              <tr key={c.id} className="text-sm align-middle">
-                <td className="px-4 py-2.5 font-medium">
-                  <div className="flex items-center gap-2">
-                    {c.is_default && <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />}
-                    {c.name}
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-xs">{c.username}</td>
-                <td className="px-4 py-2.5">
-                  <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{c.auth_method}</span>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-xs">{c.port}</td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
-                  {c.proxy_host ? `${c.proxy_host}:${c.proxy_port ?? 22}` : "—"}
-                </td>
-                <td className="px-4 py-2.5 text-right">
-                  <div className="inline-flex gap-1">
-                    {!c.is_default && (
-                      <button onClick={() => setDefault.mutate(c.id)} className="p-1.5 hover:bg-muted rounded-md" title="Set default">
-                        <Star className="size-3.5" />
-                      </button>
-                    )}
-                    <button onClick={() => setEditing(c)} className="p-1.5 hover:bg-muted rounded-md" title="Edit">
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      onClick={async () => (await confirmAsync(`Delete ${c.name}?`)) && del.mutate(c.id)}
-                      className="p-1.5 hover:bg-muted rounded-md text-red-600"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {data && items.length === 0 && (
-              <tr><td colSpan={6}><EmptyState title="No SSH credentials match" description="Add one to enable SSH-based IP discovery." /></td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
-
+      <SmartTable
+        columns={columns}
+        rows={items}
+        rowKey={(c) => c.id}
+        mode="client"
+        page={page}
+        onPageChange={setPage}
+        totalItems={items.length}
+        isLoading={isLoading}
+        error={error ? (error as Error).message : null}
+        empty={<EmptyState title="No SSH credentials match" description="Add one to enable SSH-based IP discovery." />}
+      />
       {open && <SshDialog onClose={() => setOpen(false)} />}
       {editing && <SshDialog onClose={() => setEditing(null)} credential={editing} />}
     </div>

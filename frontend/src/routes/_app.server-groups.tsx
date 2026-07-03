@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server, type ServerGroup, type ServerGroupCreate, type SshCredential } from "@/lib/api";
-import { Card, PageHeader, EmptyState, confirmAsync } from "@/components/ui-bits";
+import { PageHeader, EmptyState, confirmAsync } from "@/components/ui-bits";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Trash2, Pencil, Users, KeyRound, Cloud } from "lucide-react";
 import { toast } from "sonner";
 
@@ -157,6 +158,7 @@ function ServerGroupsPage() {
   const [editGroup, setEditGroup] = useState<ServerGroup | null>(null);
   const [membersGroup, setMembersGroup] = useState<ServerGroup | null>(null);
   const [sshFor, setSshFor] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data: groups = [] } = useQuery({
     queryKey: ["server-groups"],
@@ -185,6 +187,73 @@ function ServerGroupsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const columns: SmartTableColumn<ServerGroup>[] = [
+    {
+      key: "name",
+      header: "Name",
+      className: "font-medium",
+      render: (g) => (
+        <div className="flex items-center gap-1.5">
+          {g.is_auto && <Cloud className="size-3.5 text-muted-foreground" title="Provider auto-group" />}
+          {g.name}
+        </div>
+      ),
+    },
+    {
+      key: "description",
+      header: "Description",
+      className: "text-xs text-muted-foreground",
+      render: (g) => g.description ?? (g.is_auto ? "Auto-maintained by provider" : "—"),
+    },
+    {
+      key: "servers",
+      header: "Servers",
+      className: "text-xs text-muted-foreground",
+      render: (g) => g.server_count,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      className: "text-right",
+      render: (g) => (
+        <div className="inline-flex items-center gap-0.5">
+          {sshFor === g.id ? (
+            <select
+              autoFocus
+              className="text-xs px-1.5 py-0.5 border border-border rounded bg-background"
+              onChange={e => e.target.value && assignSSH.mutate({ id: g.id, sshCredentialId: Number(e.target.value) })}
+              onBlur={() => setSshFor(null)}
+              defaultValue=""
+            >
+              <option value="">Select SSH key…</option>
+              {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          ) : (
+            <button onClick={() => setSshFor(g.id)} className="icon-btn" title="Assign SSH key to group">
+              <KeyRound className="size-3.5" />
+            </button>
+          )}
+          {!g.is_auto && (
+            <>
+              <button onClick={() => setMembersGroup(g)} className="icon-btn" title="Manage members">
+                <Users className="size-3.5" />
+              </button>
+              <button onClick={() => setEditGroup(g)} className="icon-btn" title="Edit">
+                <Pencil className="size-3.5" />
+              </button>
+              <button
+                onClick={async () => (await confirmAsync(`Delete group "${g.name}"?`)) && delGroup.mutate(g.id)}
+                className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 space-y-4">
       {showAdd && <GroupDialog onClose={() => setShowAdd(false)} />}
@@ -202,73 +271,16 @@ function ServerGroupsPage() {
         </button>
       </div>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">Description</th>
-              <th className="px-4 py-2 font-medium">Servers</th>
-              <th className="px-4 py-2 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {groups.map(g => (
-              <tr key={g.id} className="text-sm">
-                <td className="px-4 py-2.5 font-medium">
-                  <div className="flex items-center gap-1.5">
-                    {g.is_auto && <Cloud className="size-3.5 text-muted-foreground" title="Provider auto-group" />}
-                    {g.name}
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                  {g.description ?? (g.is_auto ? "Auto-maintained by provider" : "—")}
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">{g.server_count}</td>
-                <td className="px-4 py-2.5 text-right">
-                  <div className="inline-flex items-center gap-0.5">
-                    {sshFor === g.id ? (
-                      <select
-                        autoFocus
-                        className="text-xs px-1.5 py-0.5 border border-border rounded bg-background"
-                        onChange={e => e.target.value && assignSSH.mutate({ id: g.id, sshCredentialId: Number(e.target.value) })}
-                        onBlur={() => setSshFor(null)}
-                        defaultValue=""
-                      >
-                        <option value="">Select SSH key…</option>
-                        {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    ) : (
-                      <button onClick={() => setSshFor(g.id)} className="icon-btn" title="Assign SSH key to group">
-                        <KeyRound className="size-3.5" />
-                      </button>
-                    )}
-                    {!g.is_auto && (
-                      <>
-                        <button onClick={() => setMembersGroup(g)} className="icon-btn" title="Manage members">
-                          <Users className="size-3.5" />
-                        </button>
-                        <button onClick={() => setEditGroup(g)} className="icon-btn" title="Edit">
-                          <Pencil className="size-3.5" />
-                        </button>
-                        <button
-                          onClick={async () => (await confirmAsync(`Delete group "${g.name}"?`)) && delGroup.mutate(g.id)}
-                          className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {groups.length === 0 && (
-              <tr><td colSpan={4}><EmptyState title="No server groups" description='Click "New Group" to create the first one.' /></td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <SmartTable
+        columns={columns}
+        rows={groups}
+        rowKey={(g) => g.id}
+        mode="client"
+        page={page}
+        onPageChange={setPage}
+        totalItems={groups.length}
+        empty={<EmptyState title="No server groups" description='Click "New Group" to create the first one.' />}
+      />
     </div>
   );
 }

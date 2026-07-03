@@ -2,13 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server, type Stats } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge, CustomSelect, confirmAsync } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, StatusPill, OsBadge, CustomSelect, confirmAsync, EmptyState } from "@/components/ui-bits";
 import type { SshCredential, ServerGroup } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
 import { RefreshCw, Trash2, Plus, Pencil, X, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 
 function copyToClipboard(text: string): boolean {
   if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text); return true; }
@@ -234,12 +235,13 @@ function ServersPage() {
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
-  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Server | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [sshInfoFor, setSshInfoFor] = useState<Server | null>(null);
-  const limit = 50;
+  const offset = (page - 1) * pageSize;
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
   const statuses  = (fs.filters.status   as string[] | undefined) ?? [];
@@ -256,10 +258,10 @@ function ServersPage() {
   const anyMultiOverflow = providers.length > 1 || statuses.length > 1 || regions.length > 1 || oses.length > 1;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["servers", { q: fs.q, provider: apiProvider, status: apiStatus, region: apiRegion, os: apiOs, datacenter, offset }],
+    queryKey: ["servers", { q: fs.q, provider: apiProvider, status: apiStatus, region: apiRegion, os: apiOs, datacenter, offset, pageSize }],
     queryFn: () =>
       api<Page<Server>>("/api/servers", {
-        query: { search: fs.q, provider: apiProvider, status: apiStatus, region: apiRegion, os: apiOs, datacenter, limit: anyMultiOverflow ? 500 : limit, offset: anyMultiOverflow ? 0 : offset },
+        query: { search: fs.q, provider: apiProvider, status: apiStatus, region: apiRegion, os: apiOs, datacenter, limit: anyMultiOverflow ? 500 : pageSize, offset: anyMultiOverflow ? 0 : offset },
       }),
     placeholderData: (prev) => prev,
   });
@@ -354,6 +356,105 @@ function ServersPage() {
   );
   const total = anyMultiOverflow ? items.length : (data?.total ?? 0);
 
+  const serverColumns: SmartTableColumn<Server>[] = [
+    {
+      key: "select",
+      className: "w-8",
+      header: (
+        <input type="checkbox"
+          checked={items.length > 0 && items.every(s => selected.has(s.id))}
+          onChange={e => setSelected(e.target.checked ? new Set(items.map(s => s.id)) : new Set())}
+          className="rounded"
+        />
+      ),
+      render: (s) => (
+        <div onClick={e => e.stopPropagation()}>
+          <input type="checkbox"
+            checked={selected.has(s.id)}
+            onChange={e => setSelected(prev => {
+              const next = new Set(prev);
+              e.target.checked ? next.add(s.id) : next.delete(s.id);
+              return next;
+            })}
+            className="rounded"
+          />
+        </div>
+      ),
+    },
+    {
+      key: "instance",
+      header: "Instance",
+      render: (s) => (
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">{s.name}</span>
+          {s.cloud_id && (
+            <span className="text-[10px] text-muted-foreground font-mono">{s.cloud_id}</span>
+          )}
+        </div>
+      ),
+    },
+    { key: "provider", header: "Provider", render: (s) => <ProviderBadge provider={s.provider} /> },
+    { key: "region", header: "Region", className: "text-xs text-muted-foreground font-mono", render: (s) => s.region ?? "—" },
+    { key: "public_ip", header: "Public IP", className: "font-mono text-xs text-muted-foreground", render: (s) => s.public_ip ?? "—" },
+    {
+      key: "type",
+      header: "Type",
+      render: (s) => s.instance_type ? (
+        <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{s.instance_type}</span>
+      ) : "—",
+    },
+    { key: "os", header: "OS", render: (s) => <OsBadge os={s.os} /> },
+    {
+      key: "ssh_key",
+      header: "SSH Key",
+      render: (s) => (
+        <div onClick={e => e.stopPropagation()}>
+          <select
+            className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
+            value={s.ssh_credential_id ?? ""}
+            onChange={e => assignSSH.mutate({ serverId: s.id, sshCredentialId: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">None</option>
+            {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      ),
+    },
+    {
+      key: "synced",
+      header: "Synced",
+      className: "text-xs text-muted-foreground",
+      render: (s) => s.last_synced ? formatDistanceToNow(new Date(s.last_synced), { addSuffix: true }) : "never",
+    },
+    { key: "status", header: "Status", render: (s) => <StatusPill status={s.status} /> },
+    {
+      key: "actions",
+      header: "Actions",
+      className: "text-right",
+      render: (s) => (
+        <div className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+          {s.ssh_credential_id && (
+            <button onClick={() => setSshInfoFor(s)} className="icon-btn" title="View SSH credential">
+              <KeyRound className="size-3.5" />
+            </button>
+          )}
+          <button onClick={() => setEditing(s)} className="icon-btn" title="Edit">
+            <Pencil className="size-3.5" />
+          </button>
+          <button
+            onClick={() => sshSync.mutate(s.id)}
+            disabled={sshSync.isPending}
+            className="icon-btn disabled:opacity-40" title="SSH sync"
+          ><RefreshCw className={`size-3.5 ${sshSync.isPending ? "animate-spin" : ""}`} /></button>
+          <button
+            onClick={async () => { if (await confirmAsync(`Delete ${s.name}?`)) del.mutate(s.id); }}
+            className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete"
+          ><Trash2 className="size-3.5" /></button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 space-y-4">
       {showAdd && <AddServerDialog onClose={() => setShowAdd(false)} />}
@@ -387,7 +488,7 @@ function ServersPage() {
         <AdvancedFilter
           fields={filterFields}
           state={fs}
-          onChange={(s) => { setFs(s); setOffset(0); }}
+          onChange={(s) => { setFs(s); setPage(1); }}
           searchPlaceholder="Search name, IP, hostname, OS, region…"
         />
       </Card>
@@ -431,139 +532,24 @@ function ServersPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-3 py-2.5 w-8">
-                <input type="checkbox"
-                  checked={items.length > 0 && items.every(s => selected.has(s.id))}
-                  onChange={e => setSelected(e.target.checked ? new Set(items.map(s => s.id)) : new Set())}
-                  className="rounded"
-                />
-              </th>
-              <th className="px-4 py-2.5 th-label">Instance</th>
-              <th className="px-4 py-2.5 th-label">Provider</th>
-              <th className="px-4 py-2.5 th-label">Region</th>
-              <th className="px-4 py-2.5 th-label">Public IP</th>
-              <th className="px-4 py-2.5 th-label">Type</th>
-              <th className="px-4 py-2.5 th-label">OS</th>
-              <th className="px-4 py-2.5 th-label">SSH Key</th>
-              <th className="px-4 py-2.5 th-label">Synced</th>
-              <th className="px-4 py-2.5 th-label">Status</th>
-              <th className="px-4 py-2.5 th-label text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {items.map((s) => (
-              <tr
-                key={s.id}
-                onClick={() => navigate({ to: "/server-detail/$id", params: { id: String(s.id) } })}
-                className="cursor-pointer hover:bg-muted/40 transition-colors"
-              >
-                <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                  <input type="checkbox"
-                    checked={selected.has(s.id)}
-                    onChange={e => setSelected(prev => {
-                      const next = new Set(prev);
-                      e.target.checked ? next.add(s.id) : next.delete(s.id);
-                      return next;
-                    })}
-                    className="rounded"
-                  />
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{s.name}</span>
-                    {s.cloud_id && (
-                      <span className="text-[10px] text-muted-foreground font-mono">{s.cloud_id}</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-2.5">
-                  <ProviderBadge provider={s.provider} />
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono">{s.region ?? "—"}</td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{s.public_ip ?? "—"}</td>
-                <td className="px-4 py-2.5">
-                  {s.instance_type ? (
-                    <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{s.instance_type}</span>
-                  ) : "—"}
-                </td>
-                <td className="px-4 py-2.5"><OsBadge os={s.os} /></td>
-                <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
-                  <select
-                    className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
-                    value={s.ssh_credential_id ?? ""}
-                    onChange={e => assignSSH.mutate({ serverId: s.id, sshCredentialId: e.target.value ? Number(e.target.value) : null })}
-                  >
-                    <option value="">None</option>
-                    {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                  {s.last_synced ? formatDistanceToNow(new Date(s.last_synced), { addSuffix: true }) : "never"}
-                </td>
-                <td className="px-4 py-2.5"><StatusPill status={s.status} /></td>
-                <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
-                  <div className="inline-flex items-center gap-0.5">
-                    {s.ssh_credential_id && (
-                      <button onClick={() => setSshInfoFor(s)} className="icon-btn" title="View SSH credential">
-                        <KeyRound className="size-3.5" />
-                      </button>
-                    )}
-                    <button onClick={() => setEditing(s)} className="icon-btn" title="Edit">
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      onClick={() => sshSync.mutate(s.id)}
-                      disabled={sshSync.isPending}
-                      className="icon-btn disabled:opacity-40" title="SSH sync"
-                    ><RefreshCw className={`size-3.5 ${sshSync.isPending ? "animate-spin" : ""}`} /></button>
-                    <button
-                      onClick={async () => { if (await confirmAsync(`Delete ${s.name}?`)) del.mutate(s.id); }}
-                      className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete"
-                    ><Trash2 className="size-3.5" /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!isLoading && items.length === 0 && (
-              <tr>
-                <td colSpan={11}>
-                  <EmptyState
-                    title="No servers match"
-                    description="Add cloud credentials and run a sync to discover instances."
-                  />
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {total > limit && (
-          <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
-              {offset + 1}–{Math.min(offset + limit, total)} of {total.toLocaleString()}
-            </span>
-            <div className="flex gap-1">
-              <button
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - limit))}
-                className="px-3 py-1 border border-border rounded-md disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <button
-                disabled={offset + limit >= total}
-                onClick={() => setOffset(offset + limit)}
-                className="px-3 py-1 border border-border rounded-md disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </Card>
+      <SmartTable<Server>
+        columns={serverColumns}
+        rows={items}
+        rowKey={(s) => s.id}
+        mode={anyMultiOverflow ? "client" : "server"}
+        page={page}
+        onPageChange={setPage}
+        totalItems={total}
+        onPageSizeChange={setPageSize}
+        isLoading={isLoading}
+        onRowClick={(s) => navigate({ to: "/server-detail/$id", params: { id: String(s.id) } })}
+        empty={
+          <EmptyState
+            title="No servers match"
+            description="Add cloud credentials and run a sync to discover instances."
+          />
+        }
+      />
 
     </div>
   );

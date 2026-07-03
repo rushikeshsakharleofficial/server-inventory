@@ -5,6 +5,7 @@ import { api, type SyncLog } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill } from "@/components/ui-bits";
 import { formatDistanceToNow } from "date-fns";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 
 export const Route = createFileRoute("/_app/sync")({
   head: () => ({ meta: [{ title: "Sync — System Control" }] }),
@@ -18,6 +19,7 @@ const FIELDS = [
 
 function SyncPage() {
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
+  const [page, setPage] = useState(1);
 
   const { data } = useQuery({
     queryKey: ["syncLogs", "all"],
@@ -34,6 +36,34 @@ function SyncPage() {
     return true;
   });
 
+  const columns: SmartTableColumn<SyncLog>[] = [
+    { key: "provider", header: "Provider", render: (l) => <ProviderBadge provider={l.provider ?? "all"} /> },
+    { key: "status", header: "Status", render: (l) => <StatusPill status={l.status} /> },
+    { key: "added", header: "Added", className: "font-mono text-xs", render: (l) => l.servers_added },
+    { key: "updated", header: "Updated", className: "font-mono text-xs", render: (l) => l.servers_updated },
+    {
+      key: "started",
+      header: "Started",
+      className: "text-xs text-muted-foreground",
+      render: (l) => (l.started_at ? formatDistanceToNow(new Date(l.started_at), { addSuffix: true }) : "—"),
+    },
+    {
+      key: "duration",
+      header: "Duration",
+      className: "font-mono text-xs",
+      render: (l) =>
+        l.started_at && l.completed_at
+          ? `${Math.round((new Date(l.completed_at).getTime() - new Date(l.started_at).getTime()) / 1000)}s`
+          : l.status === "running" ? "…" : "—",
+    },
+    {
+      key: "error",
+      header: "Error",
+      className: "text-xs text-red-600 max-w-xs truncate",
+      render: (l) => l.error_message ?? "",
+    },
+  ];
+
   return (
     <div className="p-6 space-y-4">
       <PageHeader
@@ -42,52 +72,27 @@ function SyncPage() {
       />
 
       <Card className="p-3">
-        <AdvancedFilter fields={FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search provider or error…" />
+        <AdvancedFilter
+          fields={FIELDS}
+          state={fs}
+          onChange={(s) => { setFs(s); setPage(1); }}
+          searchPlaceholder="Search provider or error…"
+        />
       </Card>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-4 py-2 font-medium">Provider</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Added</th>
-              <th className="px-4 py-2 font-medium">Updated</th>
-              <th className="px-4 py-2 font-medium">Started</th>
-              <th className="px-4 py-2 font-medium">Duration</th>
-              <th className="px-4 py-2 font-medium">Error</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {items.map((l) => {
-              const dur =
-                l.started_at && l.completed_at
-                  ? `${Math.round((new Date(l.completed_at).getTime() - new Date(l.started_at).getTime()) / 1000)}s`
-                  : l.status === "running" ? "…" : "—";
-              return (
-                <tr key={l.id} className="text-sm">
-                  <td className="px-4 py-2.5"><ProviderBadge provider={l.provider ?? "all"} /></td>
-                  <td className="px-4 py-2.5"><StatusPill status={l.status} /></td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{l.servers_added}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{l.servers_updated}</td>
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                    {l.started_at ? formatDistanceToNow(new Date(l.started_at), { addSuffix: true }) : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{dur}</td>
-                  <td className="px-4 py-2.5 text-xs text-red-600 max-w-xs truncate">{l.error_message ?? ""}</td>
-                </tr>
-              );
-            })}
-            {data && items.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-xs text-muted-foreground">
-                  No sync runs match.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <SmartTable
+        columns={columns}
+        rows={items}
+        rowKey={(l) => l.id}
+        mode="client"
+        page={page}
+        onPageChange={setPage}
+        totalItems={items.length}
+        isLoading={!data}
+        empty={
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground">No sync runs match.</div>
+        }
+      />
     </div>
   );
 }

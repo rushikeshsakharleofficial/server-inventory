@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type UserRow } from "@/lib/api";
-import { Card, PageHeader, StatusPill, CustomSelect, confirmAsync } from "@/components/ui-bits";
+import { PageHeader, StatusPill, CustomSelect, confirmAsync } from "@/components/ui-bits";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,7 +15,8 @@ export const Route = createFileRoute("/_app/users")({
 function UsersPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const { data } = useQuery({
+  const [page, setPage] = useState(1);
+  const { data, isLoading, error } = useQuery({
     queryKey: ["users"],
     queryFn: () => api<UserRow[]>("/api/users"),
   });
@@ -27,6 +29,51 @@ function UsersPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 
+  const rows = data ?? [];
+  const columns: SmartTableColumn<UserRow>[] = [
+    { key: "username", header: "Username", render: (u) => <span className="font-medium">{u.username}</span> },
+    {
+      key: "role",
+      header: "Role",
+      render: (u) => (
+        <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border uppercase">{u.role}</span>
+      ),
+    },
+    {
+      key: "created",
+      header: "Created",
+      render: (u) => (
+        <span className="text-xs text-muted-foreground">
+          {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "state",
+      header: "State",
+      className: "text-right",
+      render: (u) => <StatusPill status={u.is_active ? "active" : "inactive"} />,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      className: "text-right",
+      render: (u) => (
+        <div className="inline-flex gap-1">
+          <button onClick={() => toggle.mutate(u.id)} className="p-1.5 hover:bg-muted rounded-md">
+            <Power className="size-3.5" />
+          </button>
+          <button
+            onClick={async () => (await confirmAsync(`Delete ${u.username}?`)) && del.mutate(u.id)}
+            className="p-1.5 hover:bg-muted rounded-md text-red-600"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 space-y-4">
       <PageHeader
@@ -38,46 +85,17 @@ function UsersPage() {
           </button>
         }
       />
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-4 py-2 font-medium">Username</th>
-              <th className="px-4 py-2 font-medium">Role</th>
-              <th className="px-4 py-2 font-medium">Created</th>
-              <th className="px-4 py-2 font-medium text-right">State</th>
-              <th className="px-4 py-2 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {(data ?? []).map((u) => (
-              <tr key={u.id} className="text-sm">
-                <td className="px-4 py-2.5 font-medium">{u.username}</td>
-                <td className="px-4 py-2.5">
-                  <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border uppercase">{u.role}</span>
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                  {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
-                </td>
-                <td className="px-4 py-2.5 text-right"><StatusPill status={u.is_active ? "active" : "inactive"} /></td>
-                <td className="px-4 py-2.5 text-right">
-                  <div className="inline-flex gap-1">
-                    <button onClick={() => toggle.mutate(u.id)} className="p-1.5 hover:bg-muted rounded-md">
-                      <Power className="size-3.5" />
-                    </button>
-                    <button
-                      onClick={async () => (await confirmAsync(`Delete ${u.username}?`)) && del.mutate(u.id)}
-                      className="p-1.5 hover:bg-muted rounded-md text-red-600"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      <SmartTable
+        columns={columns}
+        rows={rows}
+        rowKey={(u) => u.id}
+        mode="client"
+        page={page}
+        onPageChange={setPage}
+        totalItems={rows.length}
+        isLoading={isLoading}
+        error={error instanceof Error ? error.message : null}
+      />
       {open && <NewUserDialog onClose={() => setOpen(false)} />}
     </div>
   );

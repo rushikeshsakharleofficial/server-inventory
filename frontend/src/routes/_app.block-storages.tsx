@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type BlockStorage } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState } from "@/components/ui-bits";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
@@ -27,10 +28,16 @@ function buildFields(items: BlockStorage[]) {
 function BlockStoragePage() {
   const qc = useQueryClient();
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  const { data } = useQuery({
-    queryKey: ["bs"],
-    queryFn: () => api<Page<BlockStorage>>("/api/block-storages", { query: { limit: 500 } }),
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["bs", { page, pageSize }],
+    queryFn: () =>
+      api<Page<BlockStorage>>("/api/block-storages", {
+        query: { limit: pageSize, offset: (page - 1) * pageSize },
+      }),
+    placeholderData: (prev) => prev,
   });
 
   const sync = useMutation({
@@ -55,6 +62,33 @@ function BlockStoragePage() {
     return true;
   });
 
+  const columns: SmartTableColumn<BlockStorage>[] = [
+    { key: "name", header: "Volume", render: (v) => <span className="font-medium">{v.name}</span> },
+    { key: "size", header: "Size", className: "font-mono text-xs", render: (v) => (v.size_gb ? `${v.size_gb} GB` : "—") },
+    {
+      key: "provider",
+      header: "Provider / Region",
+      render: (v) => (
+        <div className="flex items-center gap-2">
+          <ProviderBadge provider={v.provider} />
+          <span className="text-xs text-muted-foreground">{v.region ?? "—"}</span>
+        </div>
+      ),
+    },
+    {
+      key: "attachment",
+      header: "Attached",
+      className: "font-mono text-xs text-muted-foreground",
+      render: (v) => v.attachment ?? "—",
+    },
+    {
+      key: "status",
+      header: "Status",
+      className: "text-right",
+      render: (v) => <StatusPill status={v.status} />,
+    },
+  ];
+
   return (
     <div className="p-6 space-y-4">
       <PageHeader
@@ -69,41 +103,27 @@ function BlockStoragePage() {
       />
 
       <Card className="p-3">
-        <AdvancedFilter fields={fields} state={fs} onChange={setFs} searchPlaceholder="Search name, region, attachment…" />
+        <AdvancedFilter
+          fields={fields}
+          state={fs}
+          onChange={(s) => { setFs(s); setPage(1); }}
+          searchPlaceholder="Search name, region, attachment…"
+        />
       </Card>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-4 py-2 font-medium">Volume</th>
-              <th className="px-4 py-2 font-medium">Size</th>
-              <th className="px-4 py-2 font-medium">Provider / Region</th>
-              <th className="px-4 py-2 font-medium">Attached</th>
-              <th className="px-4 py-2 font-medium text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {items.map((v) => (
-              <tr key={v.id} className="text-sm">
-                <td className="px-4 py-2.5 font-medium">{v.name}</td>
-                <td className="px-4 py-2.5 font-mono text-xs">{v.size_gb ? `${v.size_gb} GB` : "—"}</td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <ProviderBadge provider={v.provider} />
-                    <span className="text-xs text-muted-foreground">{v.region ?? "—"}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{v.attachment ?? "—"}</td>
-                <td className="px-4 py-2.5 text-right"><StatusPill status={v.status} /></td>
-              </tr>
-            ))}
-            {data && items.length === 0 && (
-              <tr><td colSpan={5}><EmptyState title="No volumes match" description="Adjust filters or run a sync." /></td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <SmartTable
+        columns={columns}
+        rows={items}
+        rowKey={(v) => v.id}
+        mode="server"
+        page={page}
+        onPageChange={setPage}
+        totalItems={data?.total ?? 0}
+        onPageSizeChange={setPageSize}
+        isLoading={isLoading}
+        error={error ? (error as Error).message : null}
+        empty={<EmptyState title="No volumes match" description="Adjust filters or run a sync." />}
+      />
     </div>
   );
 }

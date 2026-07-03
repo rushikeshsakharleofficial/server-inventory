@@ -8,6 +8,7 @@ import {
   emptyFilterState,
   type FilterState,
 } from "@/components/advanced-filter";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 
 export const Route = createFileRoute("/_app/ips")({
   head: () => ({ meta: [{ title: "IP Inventory — System Control" }] }),
@@ -43,8 +44,53 @@ const FIELDS = [
   { key: "provider", label: "Provider", type: "text" as const },
 ];
 
+const COLUMNS: SmartTableColumn<IpRow>[] = [
+  {
+    key: "address",
+    header: "Address / CIDR",
+    render: (row) => <span className="font-mono">{row.cidr}</span>,
+  },
+  {
+    key: "rdns",
+    header: "RDNS",
+    className: "text-muted-foreground",
+    render: (row) => row.rdns ?? "—",
+  },
+  {
+    key: "type",
+    header: "Type",
+    render: (row) => (
+      <span
+        className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${TYPE_STYLES[row.type] ?? "bg-muted text-muted-foreground border-border"}`}
+      >
+        {row.type}
+      </span>
+    ),
+  },
+  {
+    key: "server",
+    header: "Server",
+    render: (row) => (
+      <Link
+        to="/server-detail/$id"
+        params={{ id: String(row.server_id) }}
+        className="text-primary hover:underline"
+      >
+        {row.server_name}
+      </Link>
+    ),
+  },
+  {
+    key: "provider",
+    header: "Provider",
+    className: "text-muted-foreground",
+    render: (row) => row.provider,
+  },
+];
+
 function IpsPage() {
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
+  const [page, setPage] = useState(1);
 
   const types = (fs.filters.type as string[] | undefined) ?? [];
   const prov = (fs.filters.provider as string) ?? "";
@@ -79,67 +125,30 @@ function IpsPage() {
         <AdvancedFilter
           fields={FIELDS}
           state={fs}
-          onChange={setFs}
+          onChange={(s) => {
+            setFs(s);
+            setPage(1);
+          }}
           searchPlaceholder="Search IP address or server name…"
         />
       </Card>
 
-      <Card className="overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            Loading…
-          </div>
-        ) : items.length === 0 ? (
+      <SmartTable
+        columns={COLUMNS}
+        rows={items}
+        rowKey={(row) => `${row.server_id}-${row.address}`}
+        mode="client"
+        page={page}
+        onPageChange={setPage}
+        totalItems={items.length}
+        isLoading={isLoading}
+        empty={
           <EmptyState
             title="No IPs found"
             description="Run SSH Sync on servers to populate IP inventory."
           />
-        ) : (
-          <table className="w-full text-left">
-            <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">Address / CIDR</th>
-                <th className="px-4 py-2.5 font-medium">RDNS</th>
-                <th className="px-4 py-2.5 font-medium">Type</th>
-                <th className="px-4 py-2.5 font-medium">Server</th>
-                <th className="px-4 py-2.5 font-medium">Provider</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border [&>tr:last-child]:border-b-0">
-              {items.map((row, i) => (
-                <tr
-                  key={i}
-                  className="text-sm hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-2.5 font-mono">{row.cidr}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
-                    {row.rdns ?? "—"}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${TYPE_STYLES[row.type] ?? "bg-muted text-muted-foreground border-border"}`}
-                    >
-                      {row.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <Link
-                      to="/server-detail/$id"
-                      params={{ id: String(row.server_id) }}
-                      className="text-primary hover:underline"
-                    >
-                      {row.server_name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
-                    {row.provider}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+        }
+      />
     </div>
   );
 }

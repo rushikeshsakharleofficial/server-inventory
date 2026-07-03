@@ -2,13 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { api } from "@/lib/api";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
 import {
   AlertCircle, AlertTriangle, Info, CheckCircle2, Download,
-  Search, ChevronLeft, ChevronRight, X, Shield, ScrollText,
+  Search, X, Shield, ScrollText,
   RefreshCw,
 } from "lucide-react";
 
@@ -227,8 +228,8 @@ function EventLogsPage() {
   const [hours, setHours]         = useState(24);
   const [q, setQ]                 = useState("");
   const [page, setPage]           = useState(1);
+  const [pageSize, setPageSize]   = useState(25);
   const [selected, setSelected]   = useState<EventLog | null>(null);
-  const LIMIT = 10;
 
   const statsQ = useQuery({
     queryKey: ["eventStats", hours],
@@ -237,12 +238,12 @@ function EventLogsPage() {
   });
 
   const listQ = useQuery({
-    queryKey: ["eventLogs", severity, source, status, hours, q, page, tab],
+    queryKey: ["eventLogs", severity, source, status, hours, q, page, pageSize, tab],
     queryFn: () => {
       const params = new URLSearchParams();
       params.set("hours", String(hours));
-      params.set("limit", String(LIMIT));
-      params.set("offset", String((page - 1) * LIMIT));
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
       if (severity || (tab === "alerts")) params.set("severity", severity || "critical,error");
       if (source) params.set("source", source);
       if (status) params.set("status", status);
@@ -264,7 +265,6 @@ function EventLogsPage() {
 
   const stats = statsQ.data;
   const list  = listQ.data;
-  const totalPages = list ? Math.ceil(list.total / LIMIT) : 1;
 
   const pieData = useMemo(() => {
     if (!stats) return [];
@@ -280,6 +280,27 @@ function EventLogsPage() {
     const blob = new Blob([rows.map(r => r.join(",")).join("\n")], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "event-logs.csv"; a.click();
   }
+
+  const columns: SmartTableColumn<EventLog>[] = [
+    { key: "timestamp", header: "TIMESTAMP ↓", className: "font-mono text-gray-500 whitespace-nowrap", render: ev => fmt(ev.timestamp) },
+    { key: "severity", header: "SEVERITY", render: ev => <SevPill severity={ev.severity} /> },
+    { key: "source", header: "SOURCE", className: "text-gray-600", render: ev => ev.source ?? "—" },
+    {
+      key: "resource", header: "RESOURCE",
+      render: ev => (
+        <div className="flex items-center gap-1.5">
+          <span className="size-4 rounded flex items-center justify-center bg-gray-100 shrink-0">
+            <ScrollText style={{ width: 9, height: 9, color: "#6b7280" }} />
+          </span>
+          <span className="text-gray-700 font-medium">{ev.resource ?? "—"}</span>
+        </div>
+      ),
+    },
+    { key: "event", header: "EVENT", className: "text-gray-700 max-w-[220px] truncate", render: ev => ev.event },
+    { key: "status", header: "STATUS", render: ev => <StatusPillEl status={ev.status} /> },
+    { key: "owner", header: "OWNER", className: "text-gray-500", render: ev => ev.owner ?? "—" },
+    { key: "menu", header: "", className: "text-gray-300 text-right", render: () => "⋮" },
+  ];
 
   return (
     <div className="p-6 space-y-5">
@@ -382,9 +403,9 @@ function EventLogsPage() {
 
       {/* Main table + detail panel */}
       <div className="flex gap-4">
-        <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
           {/* Table header row */}
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-sm font-semibold text-gray-800 shrink-0">Recent activity</h2>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Severity filter */}
@@ -423,85 +444,22 @@ function EventLogsPage() {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  {["TIMESTAMP ↓","SEVERITY","SOURCE","RESOURCE","EVENT","STATUS","OWNER",""].map(h => (
-                    <th key={h} className="px-3 py-2.5 text-left font-semibold text-gray-400 text-[10px] tracking-widest uppercase whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {listQ.isLoading && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
-                )}
-                {!listQ.isLoading && !list?.items.length && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No events found.</td></tr>
-                )}
-                {list?.items.map(ev => {
-                  const isSelected = selected?.id === ev.id;
-                  return (
-                    <tr key={ev.id} onClick={() => setSelected(isSelected ? null : ev)}
-                      className={`border-b border-gray-50 cursor-pointer transition-colors ${isSelected ? "bg-blue-50" : "hover:bg-gray-50/60"}`}>
-                      <td className="px-3 py-2.5 font-mono text-gray-500 whitespace-nowrap">{fmt(ev.timestamp)}</td>
-                      <td className="px-3 py-2.5"><SevPill severity={ev.severity} /></td>
-                      <td className="px-3 py-2.5 text-gray-600">{ev.source ?? "—"}</td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="size-4 rounded flex items-center justify-center bg-gray-100 shrink-0">
-                            <ScrollText style={{ width: 9, height: 9, color: "#6b7280" }} />
-                          </span>
-                          <span className="text-gray-700 font-medium">{ev.resource ?? "—"}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-700 max-w-[220px] truncate">{ev.event}</td>
-                      <td className="px-3 py-2.5"><StatusPillEl status={ev.status} /></td>
-                      <td className="px-3 py-2.5 text-gray-500">{ev.owner ?? "—"}</td>
-                      <td className="px-3 py-2.5 text-gray-300 text-right">⋮</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              Showing {list ? (page - 1) * LIMIT + 1 : 0}–{list ? Math.min(page * LIMIT, list.total) : 0} of {list?.total.toLocaleString() ?? 0} results
-            </span>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="p-1.5 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <ChevronLeft style={{ width: 13, height: 13 }} />
-              </button>
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                const n = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page + i - 2;
-                if (n < 1 || n > totalPages) return null;
-                return (
-                  <button key={n} onClick={() => setPage(n)}
-                    className={`w-7 h-7 text-xs rounded border transition-colors ${page === n ? "bg-blue-600 border-blue-600 text-white font-semibold" : "border-gray-200 hover:bg-gray-50 text-gray-600"}`}>
-                    {n}
-                  </button>
-                );
-              })}
-              {totalPages > 5 && (
-                <>
-                  <span className="text-gray-400 text-xs px-1">…</span>
-                  <button onClick={() => setPage(totalPages)}
-                    className={`w-7 h-7 text-xs rounded border transition-colors ${page === totalPages ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 hover:bg-gray-50 text-gray-600"}`}>
-                    {totalPages}
-                  </button>
-                </>
-              )}
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="p-1.5 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <ChevronRight style={{ width: 13, height: 13 }} />
-              </button>
-            </div>
-          </div>
+          {/* Table + pagination (SmartTable) */}
+          <SmartTable
+            columns={columns}
+            rows={list?.items ?? []}
+            rowKey={ev => ev.id}
+            mode="server"
+            page={page}
+            onPageChange={setPage}
+            totalItems={list?.total ?? 0}
+            onPageSizeChange={setPageSize}
+            isLoading={listQ.isLoading}
+            error={listQ.isError ? "Failed to load event logs." : null}
+            empty={<div className="px-4 py-8 text-center text-gray-400 text-xs">No events found.</div>}
+            onRowClick={ev => setSelected(selected?.id === ev.id ? null : ev)}
+            rowClassName={ev => (selected?.id === ev.id ? "bg-blue-50" : "")}
+          />
         </div>
 
         {/* Right panel — top sources + event detail */}

@@ -9,6 +9,7 @@ import {
   StatusPill,
   EmptyState,
 } from "@/components/ui-bits";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -49,8 +50,6 @@ function buildFields(items: DnsRecord[]) {
   ];
 }
 
-const PAGE_SIZE = 25;
-
 function DomainsPage() {
   const qc = useQueryClient();
   const [fs, setFs] = useState<FilterState>(() =>
@@ -62,7 +61,8 @@ function DomainsPage() {
           "zone",
         ]),
   );
-  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
   const statuses = (fs.filters.status as string[] | undefined) ?? [];
@@ -78,7 +78,7 @@ function DomainsPage() {
   const anyMultiOverflow =
     providers.length > 1 || statuses.length > 1 || zones.length > 1;
 
-  const { data } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: [
       "domains",
       {
@@ -87,7 +87,8 @@ function DomainsPage() {
         status: apiStatus,
         zone: apiZone,
         rectype,
-        offset,
+        page,
+        pageSize,
       },
     ],
     queryFn: () =>
@@ -98,8 +99,8 @@ function DomainsPage() {
           status: apiStatus,
           zone: apiZone,
           record_type: rectype,
-          limit: anyMultiOverflow ? 500 : PAGE_SIZE,
-          offset: anyMultiOverflow ? 0 : offset,
+          limit: anyMultiOverflow ? 500 : pageSize,
+          offset: anyMultiOverflow ? 0 : (page - 1) * pageSize,
         },
       }),
     placeholderData: (prev) => prev,
@@ -123,7 +124,63 @@ function DomainsPage() {
     return true;
   });
 
-  const total = data?.total ?? 0;
+  const total = anyMultiOverflow ? items.length : (data?.total ?? 0);
+
+  const columns: SmartTableColumn<DnsRecord>[] = [
+    {
+      key: "record",
+      header: "Record",
+      render: (v) => <span className="font-medium">{v.name}</span>,
+    },
+    {
+      key: "type",
+      header: "Type",
+      render: (v) => (
+        <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">
+          {v.record_type ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "content",
+      header: "Content",
+      render: (v) => (
+        <span className="font-mono text-xs text-muted-foreground truncate max-w-xs block">
+          {v.content ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "provider_zone",
+      header: "Provider / Zone",
+      render: (v) => (
+        <div className="flex items-center gap-2">
+          <ProviderBadge provider={v.provider} />
+          <span className="text-xs text-muted-foreground">{v.zone ?? "—"}</span>
+        </div>
+      ),
+    },
+    {
+      key: "ttl",
+      header: "TTL",
+      render: (v) => <span className="font-mono text-xs">{v.ttl ?? "—"}</span>,
+    },
+    {
+      key: "proxied",
+      header: "Proxied",
+      render: (v) => (
+        <span className="text-xs text-muted-foreground">
+          {v.proxied === null || v.proxied === undefined ? "—" : v.proxied ? "Yes" : "No"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      className: "text-right",
+      render: (v) => <StatusPill status={v.status} />,
+    },
+  ];
 
   return (
     <div className="p-6 space-y-4">
@@ -147,97 +204,30 @@ function DomainsPage() {
           state={fs}
           onChange={(s) => {
             setFs(s);
-            setOffset(0);
+            setPage(1);
           }}
           searchPlaceholder="Search name…"
         />
       </Card>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-4 py-2 font-medium">Record</th>
-              <th className="px-4 py-2 font-medium">Type</th>
-              <th className="px-4 py-2 font-medium">Content</th>
-              <th className="px-4 py-2 font-medium">Provider / Zone</th>
-              <th className="px-4 py-2 font-medium">TTL</th>
-              <th className="px-4 py-2 font-medium">Proxied</th>
-              <th className="px-4 py-2 font-medium text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {items.map((v) => (
-              <tr key={v.id} className="text-sm">
-                <td className="px-4 py-2.5 font-medium">{v.name}</td>
-                <td className="px-4 py-2.5">
-                  <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">
-                    {v.record_type ?? "—"}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground truncate max-w-xs">
-                  {v.content ?? "—"}
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <ProviderBadge provider={v.provider} />
-                    <span className="text-xs text-muted-foreground">
-                      {v.zone ?? "—"}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-xs">
-                  {v.ttl ?? "—"}
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                  {v.proxied === null || v.proxied === undefined
-                    ? "—"
-                    : v.proxied
-                      ? "Yes"
-                      : "No"}
-                </td>
-                <td className="px-4 py-2.5 text-right">
-                  <StatusPill status={v.status} />
-                </td>
-              </tr>
-            ))}
-            {data && items.length === 0 && (
-              <tr>
-                <td colSpan={7}>
-                  <EmptyState
-                    title="No records match"
-                    description="Adjust filters or run a sync."
-                  />
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {!anyMultiOverflow && total > PAGE_SIZE && (
-          <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
-              {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of{" "}
-              {total.toLocaleString()}
-            </span>
-            <div className="flex gap-1">
-              <button
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-                className="px-3 py-1 border border-border rounded-md disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <button
-                disabled={offset + PAGE_SIZE >= total}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-                className="px-3 py-1 border border-border rounded-md disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </Card>
+      <SmartTable<DnsRecord>
+        columns={columns}
+        rows={anyMultiOverflow ? items : (data?.items ?? [])}
+        rowKey={(v) => v.id}
+        mode={anyMultiOverflow ? "client" : "server"}
+        page={page}
+        onPageChange={setPage}
+        totalItems={total}
+        onPageSizeChange={setPageSize}
+        isLoading={isLoading}
+        error={error instanceof Error ? error.message : null}
+        empty={
+          <EmptyState
+            title="No records match"
+            description="Adjust filters or run a sync."
+          />
+        }
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Play, Power, Trash2, Plus, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
+import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 
 export const Route = createFileRoute("/_app/crons")({
   head: () => ({ meta: [{ title: "Crons — System Control" }] }),
@@ -108,6 +109,7 @@ function CronsPage() {
   const qc = useQueryClient();
   const [editJob, setEditJob] = useState<CronJob | null | "new">(null);
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
+  const [page, setPage] = useState(1);
 
   const { data } = useQuery({
     queryKey: ["crons"],
@@ -159,65 +161,84 @@ function CronsPage() {
         </button>
       </div>
       <Card className="p-3">
-        <AdvancedFilter fields={CRON_FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search job name…" />
+        <AdvancedFilter fields={CRON_FIELDS} state={fs} onChange={s => { setFs(s); setPage(1); }} searchPlaceholder="Search job name…" />
       </Card>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-surface-muted border-b border-border">
-            <tr>
-              <th className="px-4 py-2.5 th-label">Name</th>
-              <th className="px-4 py-2.5 th-label">Schedule</th>
-              <th className="px-4 py-2.5 th-label">Provider</th>
-              <th className="px-4 py-2.5 th-label">Last run</th>
-              <th className="px-4 py-2.5 th-label">Next run</th>
-              <th className="px-4 py-2.5 th-label text-right">State</th>
-              <th className="px-4 py-2.5 th-label text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {items.map((j) => (
-              <tr key={j.id} className="text-sm hover:bg-muted/40 transition-colors">
-                <td className="px-4 py-2.5 font-medium">{j.name}</td>
-                <td className="px-4 py-2.5 font-mono text-xs">{j.cron_expr}</td>
-                <td className="px-4 py-2.5">
-                  {j.provider
-                    ? <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{j.provider}</span>
-                    : <span className="text-xs text-muted-foreground">—</span>}
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                  {j.last_run_at ? formatDistanceToNow(new Date(j.last_run_at), { addSuffix: true }) : "—"}
-                </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                  {j.next_run_at ? formatDistanceToNow(new Date(j.next_run_at), { addSuffix: true }) : "—"}
-                </td>
-                <td className="px-4 py-2.5 text-right">
-                  <StatusPill status={j.is_active ? "active" : "inactive"} />
-                </td>
-                <td className="px-4 py-2.5 text-right">
-                  <div className="inline-flex gap-0.5">
-                    <button onClick={() => run.mutate(j.id)} className="icon-btn" title="Run now">
-                      <Play className="size-3.5" />
-                    </button>
-                    <button onClick={() => setEditJob(j)} className="icon-btn" title="Edit">
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button onClick={() => toggle.mutate(j.id)} className="icon-btn" title={j.is_active ? "Disable" : "Enable"}>
-                      <Power className="size-3.5" />
-                    </button>
-                    <button onClick={() => del.mutate(j.id)} className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete">
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {data && items.length === 0 && (
-              <tr><td colSpan={7}><EmptyState title="No scheduled jobs match" /></td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <SmartTable
+        columns={cronColumns(run, setEditJob, toggle, del)}
+        rows={items}
+        rowKey={(j) => j.id}
+        mode="client"
+        page={page}
+        onPageChange={setPage}
+        totalItems={items.length}
+        empty={<EmptyState title="No scheduled jobs match" />}
+      />
     </div>
   );
+}
+
+function cronColumns(
+  run: ReturnType<typeof useMutation<unknown, Error, number>>,
+  setEditJob: (j: CronJob) => void,
+  toggle: ReturnType<typeof useMutation<unknown, Error, number>>,
+  del: ReturnType<typeof useMutation<unknown, Error, number>>
+): SmartTableColumn<CronJob>[] {
+  return [
+    { key: "name", header: "Name", render: (j) => <span className="font-medium">{j.name}</span> },
+    { key: "schedule", header: "Schedule", render: (j) => <span className="font-mono text-xs">{j.cron_expr}</span> },
+    {
+      key: "provider",
+      header: "Provider",
+      render: (j) =>
+        j.provider
+          ? <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{j.provider}</span>
+          : <span className="text-xs text-muted-foreground">—</span>,
+    },
+    {
+      key: "last_run",
+      header: "Last run",
+      render: (j) => (
+        <span className="text-xs text-muted-foreground">
+          {j.last_run_at ? formatDistanceToNow(new Date(j.last_run_at), { addSuffix: true }) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "next_run",
+      header: "Next run",
+      render: (j) => (
+        <span className="text-xs text-muted-foreground">
+          {j.next_run_at ? formatDistanceToNow(new Date(j.next_run_at), { addSuffix: true }) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "state",
+      header: "State",
+      className: "text-right",
+      render: (j) => <StatusPill status={j.is_active ? "active" : "inactive"} />,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      className: "text-right",
+      render: (j) => (
+        <div className="inline-flex gap-0.5">
+          <button onClick={() => run.mutate(j.id)} className="icon-btn" title="Run now">
+            <Play className="size-3.5" />
+          </button>
+          <button onClick={() => setEditJob(j)} className="icon-btn" title="Edit">
+            <Pencil className="size-3.5" />
+          </button>
+          <button onClick={() => toggle.mutate(j.id)} className="icon-btn" title={j.is_active ? "Disable" : "Enable"}>
+            <Power className="size-3.5" />
+          </button>
+          <button onClick={() => del.mutate(j.id)} className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete">
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 }
