@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write, require_admin
+from ..auth import get_current_user, require_write, require_admin, require_perm
 from ..crypto import encrypt_str, decrypt_str
 from ..event_log_utils import add_event_log
 
@@ -81,7 +81,7 @@ def update_ssh_credential(
     cred_id: int,
     payload: schemas.SSHCredentialUpdate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("ssh-credentials", "write"))],
 ) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:
@@ -118,7 +118,7 @@ def update_ssh_credential(
 def delete_ssh_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("ssh-credentials", "delete"))],
 ) -> None:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:

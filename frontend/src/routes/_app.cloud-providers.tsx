@@ -169,11 +169,15 @@ function EditCredentialDialog({ cred, onClose }: { cred: Credential; onClose: ()
   const def = PROVIDERS.find(p => p.id === cred.provider);
   const [name, setName] = useState(cred.name);
   const [values, setValues] = useState<Record<string, string>>(
-    Object.fromEntries(Object.entries(cred.config ?? {}).map(([k, v]) => [k, String(v ?? "")]))
+    Object.fromEntries(Object.entries(cred.config ?? {}).map(([k, v]) => [k, isSecret(k) ? "" : String(v ?? "")]))
   );
 
   const update = useMutation({
-    mutationFn: () => api(`/api/credentials/${cred.id}`, { method: "PUT", json: { name, provider: cred.provider, config: values } }),
+    mutationFn: () => {
+      // Blank secret fields mean "keep existing" — never resend the masked "***" placeholder.
+      const config = Object.fromEntries(Object.entries(values).filter(([k, v]) => !(isSecret(k) && !v)));
+      return api(`/api/credentials/${cred.id}`, { method: "PUT", json: { name, provider: cred.provider, config } });
+    },
     onSuccess: () => { toast.success("Credential updated"); qc.invalidateQueries({ queryKey: ["creds"] }); onClose(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -212,7 +216,7 @@ function EditCredentialDialog({ cred, onClose }: { cred: Credential; onClose: ()
                   type={isSecret(f) ? "password" : "text"}
                   value={values[f] ?? ""}
                   onChange={e => setValues(v => ({ ...v, [f]: e.target.value }))}
-                  placeholder={isSecret(f) && values[f] ? "leave blank to keep current" : ""}
+                  placeholder={isSecret(f) ? "leave blank to keep current" : ""}
                   className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
                 />
               )}

@@ -149,17 +149,18 @@ function SshDialog({ onClose, credential }: { onClose: () => void; credential?: 
     name,
     username,
     auth_method: authMethod,
-    password: authMethod === "password" ? password || undefined : null,
-    private_key: authMethod === "key" ? privateKey || undefined : null,
+    // Editing: blank secret = keep existing (omit field). Adding: blank = clear/unused method (send null).
+    password: authMethod === "password" ? (password || undefined) : (isEdit ? undefined : null),
+    private_key: authMethod === "key" ? (privateKey || undefined) : (isEdit ? undefined : null),
     port,
     ...(showProxy && proxyHost ? {
       proxy_host: proxyHost,
       proxy_port: proxyPort,
       proxy_username: proxyUsername,
       proxy_auth_method: proxyAuthMethod,
-      proxy_password: proxyAuthMethod === "password" ? proxyPassword || undefined : null,
-      proxy_private_key: proxyAuthMethod === "key" ? proxyKey || undefined : null,
-    } : { proxy_host: null }),
+      proxy_password: proxyAuthMethod === "password" ? (proxyPassword || undefined) : (isEdit ? undefined : null),
+      proxy_private_key: proxyAuthMethod === "key" ? (proxyKey || undefined) : (isEdit ? undefined : null),
+    } : (isEdit ? {} : { proxy_host: null })),
   });
 
   const save = useMutation({
@@ -195,16 +196,17 @@ function SshDialog({ onClose, credential }: { onClose: () => void; credential?: 
             />
           </div>
           {authMethod === "password" ? (
-            <Input label="Password" value={password} onChange={setPassword} type="password" required />
+            <Input label="Password" value={password} onChange={setPassword} type="password" required={!isEdit}
+              placeholder={isEdit ? "Leave blank to keep existing" : undefined} />
           ) : (
             <div>
               <Label>Private key</Label>
               <textarea
-                required
+                required={!isEdit}
                 rows={5}
                 value={privateKey}
                 onChange={(e) => setPrivateKey(e.target.value)}
-                placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                placeholder={isEdit ? "Leave blank to keep existing" : "-----BEGIN OPENSSH PRIVATE KEY-----"}
                 className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
               />
             </div>
@@ -254,7 +256,7 @@ function SshDialog({ onClose, credential }: { onClose: () => void; credential?: 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{children}</label>;
 }
-function Input({ label, value, onChange, type = "text", required }: { label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean }) {
+function Input({ label, value, onChange, type = "text", required, placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string }) {
   return (
     <div>
       <Label>{label}</Label>
@@ -263,6 +265,7 @@ function Input({ label, value, onChange, type = "text", required }: { label: str
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
         className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
       />
     </div>

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write, require_admin
+from ..auth import get_current_user, require_write, require_admin, require_perm
 from ..crypto import encrypt_config, decrypt_config
 from ..event_log_utils import add_event_log
 
@@ -102,7 +102,7 @@ def update_credential(
     cred_id: int,
     payload: schemas.CredentialUpdate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("credentials", "write"))],
 ) -> dict:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
@@ -111,8 +111,11 @@ def update_credential(
         cred.name = payload.name
     if payload.config is not None:
         existing = decrypt_config(cred.config or {})
+        status = payload.config.pop("status", None)
         merged = {**existing, **payload.config}
         cred.config = encrypt_config(merged)
+        if status is not None:
+            cred.is_active = status == "active"
     add_event_log(db, source="credentials", resource=cred.name, event="Credential updated",
                   owner=user.username)
     db.commit()
