@@ -26,6 +26,7 @@ FEATURES: list[str] = [
     "databases",
     "kubernetes",
     "block-storages",
+    "domains",
     "resource-map",
     "users",
 ]
@@ -44,6 +45,7 @@ FEATURE_ACTIONS: dict[str, list[str]] = {
     "databases":       ["read", "sync"],
     "kubernetes":      ["read", "sync"],
     "block-storages":  ["read", "sync"],
+    "domains":         ["read", "sync"],
     "resource-map":    ["read"],
     "users":           ["read", "admin"],
 }

@@ -436,6 +436,25 @@ class BlockStorageResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DnsRecordResponse(BaseModel):
+    id: int
+    cloud_id: str | None = None
+    name: str
+    provider: str
+    zone: str | None = None
+    record_type: str | None = None
+    content: str | None = None
+    ttl: int | None = None
+    proxied: bool | None = None
+    status: str
+    tags: dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+    last_synced: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class HostKeyTrustResponse(BaseModel):
     fingerprint: str
     key_type: str

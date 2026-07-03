@@ -359,6 +359,33 @@ class BlockStorage(Base):
     )
 
 
+class DnsRecord(Base):
+    __tablename__ = "dns_records"
+
+    id          = Column(Integer, primary_key=True)
+    cloud_id    = Column(String(255), nullable=True)   # Cloudflare DNS record ID
+    name        = Column(String(255), nullable=False)  # record name, e.g. "www.example.com"
+    provider    = Column(String(64),  nullable=False)  # "cloudflare"
+    zone        = Column(String(255), nullable=True)   # domain/zone name, e.g. "example.com"
+    record_type = Column(String(16),  nullable=True)   # A, CNAME, MX, TXT, ...
+    content     = Column(String(1024), nullable=True)  # record value
+    ttl         = Column(Integer, nullable=True)
+    proxied     = Column(Boolean, nullable=True)        # Cloudflare-specific (orange-cloud)
+    status      = Column(String(32),  default="unknown")
+    tags        = Column(JSONB, default=_empty_json_dict)
+    extra       = Column(JSONB, default=_empty_json_dict)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_synced = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_dns_provider", "provider"),
+        Index("ix_dns_provider_zone", "provider", "zone"),
+        Index("ix_dns_cloud_id_provider", "cloud_id", "provider"),
+        Index("ix_dns_tags_gin", "tags", postgresql_using="gin"),
+    )
+
+
 class EventLog(Base):
     __tablename__ = "event_logs"
 

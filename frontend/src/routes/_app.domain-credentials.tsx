@@ -1,16 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { api, type Page, type Credential, DNS_PROVIDERS } from "@/lib/api";
 import {
   Card,
   PageHeader,
-  ProviderBadge,
   EmptyState,
-  CustomSelect,
   confirmAsync,
 } from "@/components/ui-bits";
-import { useState } from "react";
-import { Plus, Trash2, Power, Pencil } from "lucide-react";
+import { Plus, Trash2, Power, Pencil, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   AdvancedFilter,
@@ -18,55 +16,21 @@ import {
   type FilterState,
 } from "@/components/advanced-filter";
 
-export const Route = createFileRoute("/_app/cloud-providers")({
-  head: () => ({ meta: [{ title: "Cloud Providers — System Control" }] }),
-  component: CredentialsPage,
+export const Route = createFileRoute("/_app/domain-credentials")({
+  head: () => ({ meta: [{ title: "DNS Providers — System Control" }] }),
+  component: DomainCredentialsPage,
 });
 
 const PROVIDERS = [
-  {
-    id: "aws",
-    name: "Amazon Web Services",
-    fields: ["access_key_id", "secret_access_key", "region"],
-  },
-  { id: "gcp", name: "Google Cloud", fields: ["service_account_json"] },
-  {
-    id: "azure",
-    name: "Microsoft Azure",
-    fields: ["tenant_id", "client_id", "client_secret", "subscription_id"],
-  },
-  { id: "digitalocean", name: "DigitalOcean", fields: ["api_token"] },
-  { id: "linode", name: "Linode", fields: ["api_token"] },
-  {
-    id: "ovh",
-    name: "OVH",
-    fields: [
-      "endpoint",
-      "application_key",
-      "application_secret",
-      "consumer_key",
-    ],
-  },
-  { id: "hivelocity", name: "Hivelocity", fields: ["api_key"] },
+  { id: "cloudflare", name: "Cloudflare", fields: ["api_token"] },
 ];
-
-const FIELD_OPTIONS: Record<string, string[]> = {
-  endpoint: ["ovh-eu", "ovh-us", "ovh-ca"],
-  region: ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"],
-};
 
 function isSecret(f: string) {
   return /secret|token|key|password|private|auth/.test(f) && f !== "endpoint";
 }
 
-function buildCpFields(items: Credential[]) {
-  const providerOpts = [
-    ...new Set(
-      items
-        .map((c) => c.provider)
-        .filter((p) => !(DNS_PROVIDERS as readonly string[]).includes(p)),
-    ),
-  ]
+function buildFields(items: Credential[]) {
+  const providerOpts = [...new Set(items.map((c) => c.provider))]
     .sort()
     .map((v) => ({ value: v }));
   return [
@@ -88,26 +52,30 @@ function buildCpFields(items: Credential[]) {
   ];
 }
 
-function CredentialsPage() {
+function DomainCredentialsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [editing, setEditing] = useState<Credential | null>(null);
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["creds"],
+    queryKey: ["dns-creds"],
     queryFn: () =>
       api<Page<Credential>>("/api/credentials", {
-        query: { limit: 100, cred_type: "api" },
+        query: { limit: 200, cred_type: "api" },
       }),
   });
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
   const status = (fs.filters.status as string) ?? "";
-  const cpFields = buildCpFields(data?.items ?? []);
 
-  const items = (data?.items ?? []).filter((c) => {
-    if ((DNS_PROVIDERS as readonly string[]).includes(c.provider)) return false;
+  const dnsOnly = (data?.items ?? []).filter((c) =>
+    (DNS_PROVIDERS as readonly string[]).includes(c.provider),
+  );
+  const fields = buildFields(dnsOnly);
+
+  const items = dnsOnly.filter((c) => {
     if (
       fs.q &&
       !c.name.toLowerCase().includes(fs.q.toLowerCase()) &&
@@ -123,7 +91,7 @@ function CredentialsPage() {
   const toggle = useMutation({
     mutationFn: (id: number) =>
       api(`/api/credentials/${id}/toggle`, { method: "PATCH" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["creds"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dns-creds"] }),
     onError: (e: Error) => toast.error(e.message),
   });
   const del = useMutation({
@@ -131,7 +99,7 @@ function CredentialsPage() {
       api(`/api/credentials/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success("Credential removed");
-      qc.invalidateQueries({ queryKey: ["creds"] });
+      qc.invalidateQueries({ queryKey: ["dns-creds"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -139,21 +107,29 @@ function CredentialsPage() {
   return (
     <div className="p-6 space-y-4">
       <PageHeader
-        title="Cloud Providers"
-        description="API keys used to discover and sync resources from your cloud providers."
+        title="DNS Providers"
+        description="API keys used to discover and sync DNS records for your domains."
         actions={
-          <button
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
-            <Plus className="size-3.5" /> Add credential
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setBulkOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-border rounded-md hover:bg-muted"
+            >
+              <Upload className="size-3.5" /> Bulk import
+            </button>
+            <button
+              onClick={() => setOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              <Plus className="size-3.5" /> Add credential
+            </button>
+          </div>
         }
       />
 
       <Card className="p-3">
         <AdvancedFilter
-          fields={cpFields}
+          fields={fields}
           state={fs}
           onChange={setFs}
           searchPlaceholder="Search by name or provider…"
@@ -165,12 +141,12 @@ function CredentialsPage() {
           <Card key={c.id} className="p-4 flex items-start gap-3">
             <div className="size-10 bg-background ring-1 ring-border rounded grid place-items-center overflow-hidden p-1">
               <img
-                src={`/providers/${c.provider}.png`}
+                src={`/providers/${c.provider}.svg`}
                 onError={(e) => {
                   const img = e.currentTarget as HTMLImageElement;
-                  if (img.src.endsWith(".png")) {
-                    img.src = `/providers/${c.provider}.svg`;
-                  } else if (img.src.endsWith(".svg")) {
+                  if (img.src.endsWith(".svg")) {
+                    img.src = `/providers/${c.provider}.png`;
+                  } else if (img.src.endsWith(".png")) {
                     img.src = `/providers/${c.provider}.webp`;
                   } else {
                     img.onerror = null;
@@ -225,8 +201,8 @@ function CredentialsPage() {
       {!isLoading && items.length === 0 && (
         <Card className="py-12">
           <EmptyState
-            title="No credentials yet"
-            description="Connect a cloud provider to start discovering servers."
+            title="No DNS credentials yet"
+            description="Connect Cloudflare to start discovering domains, or bulk-import a list."
             action={
               <button
                 onClick={() => setOpen(true)}
@@ -243,6 +219,7 @@ function CredentialsPage() {
       {editing && (
         <EditCredentialDialog cred={editing} onClose={() => setEditing(null)} />
       )}
+      {bulkOpen && <BulkImportDialog onClose={() => setBulkOpen(false)} />}
     </div>
   );
 }
@@ -268,7 +245,6 @@ function EditCredentialDialog({
 
   const update = useMutation({
     mutationFn: () => {
-      // Blank secret fields mean "keep existing" — never resend the masked "***" placeholder.
       const config = Object.fromEntries(
         Object.entries(values).filter(([k, v]) => !(isSecret(k) && !v)),
       );
@@ -279,7 +255,7 @@ function EditCredentialDialog({
     },
     onSuccess: () => {
       toast.success("Credential updated");
-      qc.invalidateQueries({ queryKey: ["creds"] });
+      qc.invalidateQueries({ queryKey: ["dns-creds"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -324,33 +300,15 @@ function EditCredentialDialog({
               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
                 {f.replace(/_/g, " ")}
               </label>
-              {f.includes("json") ? (
-                <textarea
-                  rows={4}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
-                />
-              ) : FIELD_OPTIONS[f] ? (
-                <CustomSelect
-                  value={values[f] ?? ""}
-                  onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
-                  options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
-                  placeholder="— select —"
-                />
-              ) : (
-                <input
-                  type={isSecret(f) ? "password" : "text"}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  placeholder={isSecret(f) ? "leave blank to keep current" : ""}
-                  className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-                />
-              )}
+              <input
+                type={isSecret(f) ? "password" : "text"}
+                value={values[f] ?? ""}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, [f]: e.target.value }))
+                }
+                placeholder={isSecret(f) ? "leave blank to keep current" : ""}
+                className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+              />
             </div>
           ))}
           <div className="flex justify-end gap-2 pt-2">
@@ -390,7 +348,7 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       toast.success("Credential added");
-      qc.invalidateQueries({ queryKey: ["creds"] });
+      qc.invalidateQueries({ queryKey: ["dns-creds"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -406,7 +364,7 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
       >
         <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold">Add cloud credential</h3>
+          <h3 className="text-sm font-semibold">Add DNS credential</h3>
         </div>
         <form
           className="p-4 space-y-3"
@@ -435,27 +393,11 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
                   }`}
                 >
                   <img
-                    src={`/providers/${p.id}.png`}
-                    onError={(e) => {
-                      const img = e.currentTarget as HTMLImageElement;
-                      if (img.src.endsWith(".png")) {
-                        img.src = `/providers/${p.id}.svg`;
-                      } else if (img.src.endsWith(".svg")) {
-                        img.src = `/providers/${p.id}.webp`;
-                      } else {
-                        img.onerror = null;
-                      }
-                    }}
+                    src={`/providers/${p.id}.svg`}
                     alt={p.name}
                     className="size-6 object-contain"
                   />
-                  <span className="truncate w-full text-center leading-tight">
-                    {p.id === "digitalocean"
-                      ? "DO"
-                      : p.id === "hivelocity"
-                        ? "HV"
-                        : p.id.toUpperCase()}
-                  </span>
+                  {p.name}
                 </button>
               ))}
             </div>
@@ -468,7 +410,7 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Production account"
+              placeholder="e.g. example.com"
               className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
             />
           </div>
@@ -477,34 +419,15 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
                 {f.replace(/_/g, " ")}
               </label>
-              {f.includes("json") ? (
-                <textarea
-                  required
-                  rows={4}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
-                />
-              ) : FIELD_OPTIONS[f] ? (
-                <CustomSelect
-                  value={values[f] ?? ""}
-                  onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
-                  options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
-                  placeholder="— select —"
-                />
-              ) : (
-                <input
-                  required
-                  type={isSecret(f) ? "password" : "text"}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-                />
-              )}
+              <input
+                required
+                type={isSecret(f) ? "password" : "text"}
+                value={values[f] ?? ""}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, [f]: e.target.value }))
+                }
+                className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+              />
             </div>
           ))}
           <div className="flex justify-end gap-2 pt-2">
@@ -520,10 +443,121 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
               disabled={create.isPending}
               className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
             >
-              {create.isPending ? "Saving…" : "Save"}
+              {create.isPending ? "Adding…" : "Add"}
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+type ParsedRow = { domain: string; email: string; token: string };
+
+function parseBulkText(text: string): ParsedRow[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(/\s+/).filter(Boolean))
+    .filter((parts) => parts.length >= 3)
+    .map(([domain, email, token]) => ({ domain, email, token }));
+}
+
+function BulkImportDialog({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const [provider] = useState("cloudflare");
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0, failed: 0 });
+
+  const rows = parseBulkText(text);
+
+  async function runImport() {
+    setImporting(true);
+    setProgress({ done: 0, total: rows.length, failed: 0 });
+    let failed = 0;
+    for (const row of rows) {
+      try {
+        await api("/api/credentials", {
+          method: "POST",
+          json: {
+            name: row.domain,
+            provider,
+            cred_type: "api",
+            config: { api_token: row.token, email: row.email },
+          },
+        });
+      } catch {
+        failed++;
+      }
+      setProgress((p) => ({ ...p, done: p.done + 1, failed }));
+    }
+    setImporting(false);
+    qc.invalidateQueries({ queryKey: ["dns-creds"] });
+    if (failed === 0) {
+      toast.success(`Imported ${rows.length} credentials`);
+      onClose();
+    } else {
+      toast.error(`${failed} of ${rows.length} failed to import`);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
+      onClick={importing ? undefined : onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
+      >
+        <div className="p-4 border-b border-border shrink-0">
+          <h3 className="text-sm font-semibold">Bulk import DNS credentials</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            One domain per line:{" "}
+            <code className="font-mono">domain email api_token</code> (space or
+            tab separated). Each line becomes its own Cloudflare credential.
+          </p>
+        </div>
+        <div className="p-4 space-y-3 overflow-y-auto flex-1">
+          <textarea
+            rows={10}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={importing}
+            placeholder={"example.com    user@example.com    <api_token>"}
+            className="w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
+          />
+          <div className="text-xs text-muted-foreground">
+            {rows.length} valid row{rows.length === 1 ? "" : "s"} detected
+            {text.trim() && rows.length === 0 && " — check the format"}
+          </div>
+          {importing && (
+            <div className="text-xs text-muted-foreground">
+              Importing {progress.done} / {progress.total}
+              {progress.failed > 0 && ` (${progress.failed} failed)`}
+            </div>
+          )}
+        </div>
+        <div className="p-4 border-t border-border flex justify-end gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={importing}
+            className="px-3 py-1.5 text-sm rounded-md hover:bg-muted disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={runImport}
+            disabled={importing || rows.length === 0}
+            className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
+          >
+            {importing ? "Importing…" : `Import ${rows.length || ""}`}
+          </button>
+        </div>
       </div>
     </div>
   );

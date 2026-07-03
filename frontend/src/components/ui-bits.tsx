@@ -1,4 +1,10 @@
-import { type ReactNode, type CSSProperties, useState, useRef, useEffect } from "react";
+import {
+  type ReactNode,
+  type CSSProperties,
+  useState,
+  useRef,
+  useEffect,
+} from "react";
 import { ChevronDown, Check } from "lucide-react";
 
 export function CustomSelect({
@@ -17,11 +23,18 @@ export function CustomSelect({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [dropStyle, setDropStyle] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
-  const selected = options.find(o => o.value === value);
+  const [dropStyle, setDropStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  }>({ top: 0, left: 0, width: 0 });
+  const selected = options.find((o) => o.value === value);
 
   useEffect(() => {
-    function close(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    function close(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
@@ -29,9 +42,13 @@ export function CustomSelect({
   function handleOpen() {
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setDropStyle({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
+      setDropStyle({
+        top: r.bottom + window.scrollY + 4,
+        left: r.left + window.scrollX,
+        width: r.width,
+      });
     }
-    setOpen(o => !o);
+    setOpen((o) => !o);
   }
 
   return (
@@ -42,22 +59,39 @@ export function CustomSelect({
         onClick={handleOpen}
         className="w-full flex items-center justify-between px-3 py-2 text-sm bg-background border border-border rounded-md hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
       >
-        <span className={selected ? "text-foreground" : "text-muted-foreground"}>
+        <span
+          className={selected ? "text-foreground" : "text-muted-foreground"}
+        >
           {selected?.label ?? selected?.value ?? placeholder}
         </span>
-        <ChevronDown className={`size-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`size-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
         <div
-          style={{ position: "fixed", top: dropStyle.top, left: dropStyle.left, width: dropStyle.width, zIndex: 9999 }}
+          style={{
+            position: "fixed",
+            top: dropStyle.top,
+            left: dropStyle.left,
+            width: dropStyle.width,
+            zIndex: 9999,
+          }}
           className="bg-background border border-border rounded-md shadow-lg"
         >
-          {!value && <div className="px-3 py-2 text-sm text-muted-foreground">{placeholder}</div>}
-          {options.map(o => (
+          {!value && (
+            <div className="px-3 py-2 text-sm text-muted-foreground">
+              {placeholder}
+            </div>
+          )}
+          {options.map((o) => (
             <button
               key={o.value}
               type="button"
-              onClick={() => { onChange(o.value); setOpen(false); }}
+              onClick={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
               className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted transition-colors text-left ${value === o.value ? "text-primary font-medium" : "text-foreground"}`}
             >
               {o.label ?? o.value}
@@ -82,12 +116,18 @@ export function PageHeader({
   return (
     <div className="flex items-start justify-between mb-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight leading-tight">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight leading-tight">
+          {title}
+        </h1>
         {description && (
-          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{description}</p>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            {description}
+          </p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2 ml-4 shrink-0">{actions}</div>}
+      {actions && (
+        <div className="flex items-center gap-2 ml-4 shrink-0">{actions}</div>
+      )}
     </div>
   );
 }
@@ -102,7 +142,10 @@ export function Card({
   style?: CSSProperties;
 }) {
   return (
-    <div className={`bg-surface ring-1 ring-black/10 rounded-xl shadow-sm ${className}`} style={style}>
+    <div
+      className={`bg-surface ring-1 ring-black/10 rounded-xl shadow-sm ${className}`}
+      style={style}
+    >
       {children}
     </div>
   );
@@ -153,10 +196,18 @@ export function StatusPill({ status }: { status: string }) {
   const key = (status || "unknown").toLowerCase();
   const cls = STATUS_STYLES[key] ?? "bg-zinc-100 text-zinc-600";
   const dot = DOT_STYLES[key] ?? "bg-zinc-400";
-  const pulse = ["syncing", "pending", "starting", "creating", "rebooting"].includes(key);
+  const pulse = [
+    "syncing",
+    "pending",
+    "starting",
+    "creating",
+    "rebooting",
+  ].includes(key);
   return (
     <span className={`pill ${cls}`}>
-      <span className={`size-1.5 rounded-full ${dot} ${pulse ? "animate-pulse" : ""}`} />
+      <span
+        className={`size-1.5 rounded-full ${dot} ${pulse ? "animate-pulse" : ""}`}
+      />
       {status.toUpperCase()}
     </span>
   );
@@ -171,6 +222,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   linode: "text-green-600",
   ovh: "text-indigo-600",
   hivelocity: "text-amber-600",
+  cloudflare: "text-orange-500",
 };
 
 const PROVIDER_LOGOS: Record<string, string> = {
@@ -181,22 +233,31 @@ const PROVIDER_LOGOS: Record<string, string> = {
   linode: "/providers/linode.png",
   ovh: "/providers/ovh.png",
   hivelocity: "/providers/hivelocity.png",
+  cloudflare: "/providers/cloudflare.svg",
 };
 
 export function ProviderBadge({ provider }: { provider: string }) {
   const p = (provider || "").toLowerCase();
   const logo = PROVIDER_LOGOS[p];
   const short =
-    p === "digitalocean" ? "DO" :
-    p === "kubernetes" ? "K8S" :
-    p.slice(0, 3).toUpperCase();
+    p === "digitalocean"
+      ? "DO"
+      : p === "kubernetes"
+        ? "K8S"
+        : p.slice(0, 3).toUpperCase();
   const color = PROVIDER_COLORS[p] ?? "text-zinc-600";
   return (
     <div className="flex items-center gap-2">
       {logo ? (
-        <img src={logo} alt={provider} className="size-5 object-contain rounded-sm" />
+        <img
+          src={logo}
+          alt={provider}
+          className="size-5 object-contain rounded-sm"
+        />
       ) : (
-        <div className={`size-5 bg-secondary rounded-sm flex items-center justify-center text-[9px] font-bold ${color}`}>
+        <div
+          className={`size-5 bg-secondary rounded-sm flex items-center justify-center text-[9px] font-bold ${color}`}
+        >
           {short}
         </div>
       )}
@@ -205,33 +266,91 @@ export function ProviderBadge({ provider }: { provider: string }) {
   );
 }
 
-const OS_META: Record<string, { logo: string; color: string; bg: string; label: string }> = {
-  ubuntu:  { bg: "bg-orange-50", color: "text-orange-700", logo: "/os/ubuntu.svg", label: "Ubuntu" },
-  debian:  { bg: "bg-rose-50",   color: "text-rose-700",   logo: "https://cdn.simpleicons.org/debian/A80030", label: "Debian" },
-  centos:  { bg: "bg-purple-50", color: "text-purple-700", logo: "https://cdn.simpleicons.org/centos/262577", label: "CentOS" },
-  rocky:   { bg: "bg-green-50",  color: "text-green-700",  logo: "https://cdn.simpleicons.org/rockylinux/10B981", label: "Rocky Linux" },
-  alma:    { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/almalinux/1B5299", label: "AlmaLinux" },
-  fedora:  { bg: "bg-blue-50",   color: "text-blue-700",   logo: "https://cdn.simpleicons.org/fedora/3C6EB4", label: "Fedora" },
-  arch:    { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/archlinux/1793D1", label: "Arch Linux" },
-  redhat:  { bg: "bg-rose-50",   color: "text-rose-700",   logo: "/os/redhat.svg", label: "Red Hat" },
-  freebsd: { bg: "bg-amber-50",  color: "text-amber-800",  logo: "https://cdn.simpleicons.org/freebsd/AB2B28", label: "FreeBSD" },
-  windows: { bg: "bg-sky-50",    color: "text-sky-700",    logo: "https://cdn.simpleicons.org/windows/00A4EF", label: "Windows" },
-  coreos:  { bg: "bg-stone-50",  color: "text-stone-700",  logo: "https://cdn.simpleicons.org/coreos/595959", label: "CoreOS" },
+const OS_META: Record<
+  string,
+  { logo: string; color: string; bg: string; label: string }
+> = {
+  ubuntu: {
+    bg: "bg-orange-50",
+    color: "text-orange-700",
+    logo: "/os/ubuntu.svg",
+    label: "Ubuntu",
+  },
+  debian: {
+    bg: "bg-rose-50",
+    color: "text-rose-700",
+    logo: "https://cdn.simpleicons.org/debian/A80030",
+    label: "Debian",
+  },
+  centos: {
+    bg: "bg-purple-50",
+    color: "text-purple-700",
+    logo: "https://cdn.simpleicons.org/centos/262577",
+    label: "CentOS",
+  },
+  rocky: {
+    bg: "bg-green-50",
+    color: "text-green-700",
+    logo: "https://cdn.simpleicons.org/rockylinux/10B981",
+    label: "Rocky Linux",
+  },
+  alma: {
+    bg: "bg-blue-50",
+    color: "text-blue-700",
+    logo: "https://cdn.simpleicons.org/almalinux/1B5299",
+    label: "AlmaLinux",
+  },
+  fedora: {
+    bg: "bg-blue-50",
+    color: "text-blue-700",
+    logo: "https://cdn.simpleicons.org/fedora/3C6EB4",
+    label: "Fedora",
+  },
+  arch: {
+    bg: "bg-sky-50",
+    color: "text-sky-700",
+    logo: "https://cdn.simpleicons.org/archlinux/1793D1",
+    label: "Arch Linux",
+  },
+  redhat: {
+    bg: "bg-rose-50",
+    color: "text-rose-700",
+    logo: "/os/redhat.svg",
+    label: "Red Hat",
+  },
+  freebsd: {
+    bg: "bg-amber-50",
+    color: "text-amber-800",
+    logo: "https://cdn.simpleicons.org/freebsd/AB2B28",
+    label: "FreeBSD",
+  },
+  windows: {
+    bg: "bg-sky-50",
+    color: "text-sky-700",
+    logo: "https://cdn.simpleicons.org/windows/00A4EF",
+    label: "Windows",
+  },
+  coreos: {
+    bg: "bg-stone-50",
+    color: "text-stone-700",
+    logo: "https://cdn.simpleicons.org/coreos/595959",
+    label: "CoreOS",
+  },
 };
 
 function _osKey(os: string): string {
   const l = os.toLowerCase();
-  if (l.includes("ubuntu"))  return "ubuntu";
-  if (l.includes("debian"))  return "debian";
-  if (l.includes("centos"))  return "centos";
-  if (l.includes("rocky"))   return "rocky";
-  if (l.includes("alma"))    return "alma";
-  if (l.includes("fedora"))  return "fedora";
-  if (l.includes("arch"))    return "arch";
+  if (l.includes("ubuntu")) return "ubuntu";
+  if (l.includes("debian")) return "debian";
+  if (l.includes("centos")) return "centos";
+  if (l.includes("rocky")) return "rocky";
+  if (l.includes("alma")) return "alma";
+  if (l.includes("fedora")) return "fedora";
+  if (l.includes("arch")) return "arch";
   if (l.includes("redhat") || l.includes("rhel")) return "redhat";
   if (l.includes("freebsd")) return "freebsd";
   if (l.includes("windows") || l.includes("win")) return "windows";
-  if (l.includes("coreos"))  return "coreos";
+  if (l.includes("coreos")) return "coreos";
   return "";
 }
 
@@ -247,9 +366,13 @@ export function OsBadge({ os }: { os: string | null | undefined }) {
   const version = _osVersion(os);
   const label = meta ? [meta.label, version].filter(Boolean).join(" ") : os;
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${
-      meta ? `${meta.bg} ${meta.color} border-current/20` : "bg-muted text-muted-foreground border-border"
-    }`}>
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${
+        meta
+          ? `${meta.bg} ${meta.color} border-current/20`
+          : "bg-muted text-muted-foreground border-border"
+      }`}
+    >
       {meta && <img src={meta.logo} alt={key} className="size-3 shrink-0" />}
       {label}
     </span>
@@ -268,13 +391,25 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center px-6">
       <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
-        <svg className="size-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4" />
+        <svg
+          className="size-5 text-muted-foreground"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"
+          />
         </svg>
       </div>
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {description && (
-        <p className="text-xs text-muted-foreground mt-1.5 max-w-xs leading-relaxed">{description}</p>
+        <p className="text-xs text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
+          {description}
+        </p>
       )}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -293,18 +428,25 @@ export function KpiTile({
   tone?: "muted" | "success" | "warning" | "danger";
 }) {
   const toneClass =
-    tone === "success" ? "text-emerald-600"
-    : tone === "warning" ? "text-amber-600"
-    : tone === "danger" ? "text-red-600"
-    : "text-muted-foreground";
+    tone === "success"
+      ? "text-emerald-600"
+      : tone === "warning"
+        ? "text-amber-600"
+        : tone === "danger"
+          ? "text-red-600"
+          : "text-muted-foreground";
   return (
     <div className="bg-surface p-5 ring-1 ring-black/10 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
       <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
         {label}
       </div>
       <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold tracking-tight tabular-nums">{value}</span>
-        {hint && <span className={`text-xs font-medium ${toneClass}`}>{hint}</span>}
+        <span className="text-3xl font-bold tracking-tight tabular-nums">
+          {value}
+        </span>
+        {hint && (
+          <span className={`text-xs font-medium ${toneClass}`}>{hint}</span>
+        )}
       </div>
     </div>
   );
@@ -316,7 +458,10 @@ let _confirmRequest: ((req: ConfirmRequest) => void) | null = null;
 /** In-app replacement for window.confirm() — renders a dashboard dialog instead of a browser popup. */
 export function confirmAsync(message: string): Promise<boolean> {
   return new Promise((resolve) => {
-    if (!_confirmRequest) { resolve(window.confirm(message)); return; }
+    if (!_confirmRequest) {
+      resolve(window.confirm(message));
+      return;
+    }
     _confirmRequest({ message, resolve });
   });
 }
@@ -325,17 +470,38 @@ export function ConfirmDialogHost() {
   const [req, setReq] = useState<ConfirmRequest | null>(null);
   useEffect(() => {
     _confirmRequest = setReq;
-    return () => { _confirmRequest = null; };
+    return () => {
+      _confirmRequest = null;
+    };
   }, []);
   if (!req) return null;
-  const close = (ok: boolean) => { req.resolve(ok); setReq(null); };
+  const close = (ok: boolean) => {
+    req.resolve(ok);
+    setReq(null);
+  };
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={() => close(false)}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
+      onClick={() => close(false)}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-4"
+      >
         <p className="text-sm">{req.message}</p>
         <div className="flex justify-end gap-2">
-          <button onClick={() => close(false)} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
-          <button onClick={() => close(true)} className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90">Confirm</button>
+          <button
+            onClick={() => close(false)}
+            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => close(true)}
+            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90"
+          >
+            Confirm
+          </button>
         </div>
       </div>
     </div>

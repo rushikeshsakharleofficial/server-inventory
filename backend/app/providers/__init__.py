@@ -3,6 +3,7 @@ from typing import Any
 from .aws import AWSProvider
 from .azure import AzureProvider
 from .base import CloudProvider
+from .cloudflare import CloudflareProvider
 from .digitalocean import DigitalOceanProvider
 from .gcp import GCPProvider
 from .linode import LinodeProvider
@@ -17,6 +18,7 @@ PROVIDER_MAP: dict[str, type[CloudProvider]] = {
     "digitalocean": DigitalOceanProvider,
     "ovh":          OVHProvider,
     "hivelocity":   HivelocityProvider,
+    "cloudflare":   CloudflareProvider,
 }
 
 

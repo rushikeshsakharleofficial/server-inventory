@@ -21,6 +21,7 @@ import {
   ScrollText,
   KeyRound,
   Layers,
+  Globe,
 } from "lucide-react";
 import { useCurrentUser, logout } from "@/lib/auth";
 import { ConfirmDialogHost } from "@/components/ui-bits";
@@ -58,6 +59,13 @@ const NAV: Array<{
       { to: "/sync", label: "Sync", icon: RefreshCw },
       { to: "/crons", label: "Crons", icon: Clock },
       { to: "/event-logs", label: "Event Logs", icon: ScrollText },
+    ],
+  },
+  {
+    group: "Domains",
+    items: [
+      { to: "/domains", label: "Domain Inventory", icon: Globe },
+      { to: "/domain-credentials", label: "DNS Providers", icon: KeyRound },
     ],
   },
   {

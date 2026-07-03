@@ -27,6 +27,8 @@ import { Route as AppPoliciesRouteImport } from './routes/_app.policies'
 import { Route as AppKubernetesRouteImport } from './routes/_app.kubernetes'
 import { Route as AppIpsRouteImport } from './routes/_app.ips'
 import { Route as AppEventLogsRouteImport } from './routes/_app.event-logs'
+import { Route as AppDomainsRouteImport } from './routes/_app.domains'
+import { Route as AppDomainCredentialsRouteImport } from './routes/_app.domain-credentials'
 import { Route as AppDatabasesRouteImport } from './routes/_app.databases'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCronsRouteImport } from './routes/_app.crons'
@@ -124,6 +126,16 @@ const AppEventLogsRoute = AppEventLogsRouteImport.update({
   path: '/event-logs',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDomainsRoute = AppDomainsRouteImport.update({
+  id: '/domains',
+  path: '/domains',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDomainCredentialsRoute = AppDomainCredentialsRouteImport.update({
+  id: '/domain-credentials',
+  path: '/domain-credentials',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDatabasesRoute = AppDatabasesRouteImport.update({
   id: '/databases',
   path: '/databases',
@@ -169,6 +181,8 @@ export interface FileRoutesByFullPath {
   '/crons': typeof AppCronsRoute
   '/dashboard': typeof AppDashboardRoute
   '/databases': typeof AppDatabasesRoute
+  '/domain-credentials': typeof AppDomainCredentialsRoute
+  '/domains': typeof AppDomainsRoute
   '/event-logs': typeof AppEventLogsRoute
   '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
@@ -195,6 +209,8 @@ export interface FileRoutesByTo {
   '/crons': typeof AppCronsRoute
   '/dashboard': typeof AppDashboardRoute
   '/databases': typeof AppDatabasesRoute
+  '/domain-credentials': typeof AppDomainCredentialsRoute
+  '/domains': typeof AppDomainsRoute
   '/event-logs': typeof AppEventLogsRoute
   '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
@@ -223,6 +239,8 @@ export interface FileRoutesById {
   '/_app/crons': typeof AppCronsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/databases': typeof AppDatabasesRoute
+  '/_app/domain-credentials': typeof AppDomainCredentialsRoute
+  '/_app/domains': typeof AppDomainsRoute
   '/_app/event-logs': typeof AppEventLogsRoute
   '/_app/ips': typeof AppIpsRoute
   '/_app/kubernetes': typeof AppKubernetesRoute
@@ -251,6 +269,8 @@ export interface FileRouteTypes {
     | '/crons'
     | '/dashboard'
     | '/databases'
+    | '/domain-credentials'
+    | '/domains'
     | '/event-logs'
     | '/ips'
     | '/kubernetes'
@@ -277,6 +297,8 @@ export interface FileRouteTypes {
     | '/crons'
     | '/dashboard'
     | '/databases'
+    | '/domain-credentials'
+    | '/domains'
     | '/event-logs'
     | '/ips'
     | '/kubernetes'
@@ -304,6 +326,8 @@ export interface FileRouteTypes {
     | '/_app/crons'
     | '/_app/dashboard'
     | '/_app/databases'
+    | '/_app/domain-credentials'
+    | '/_app/domains'
     | '/_app/event-logs'
     | '/_app/ips'
     | '/_app/kubernetes'
@@ -457,6 +481,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEventLogsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/domains': {
+      id: '/_app/domains'
+      path: '/domains'
+      fullPath: '/domains'
+      preLoaderRoute: typeof AppDomainsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/domain-credentials': {
+      id: '/_app/domain-credentials'
+      path: '/domain-credentials'
+      fullPath: '/domain-credentials'
+      preLoaderRoute: typeof AppDomainCredentialsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/databases': {
       id: '/_app/databases'
       path: '/databases'
@@ -527,6 +565,8 @@ interface AppRouteChildren {
   AppCronsRoute: typeof AppCronsRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDatabasesRoute: typeof AppDatabasesRoute
+  AppDomainCredentialsRoute: typeof AppDomainCredentialsRoute
+  AppDomainsRoute: typeof AppDomainsRoute
   AppEventLogsRoute: typeof AppEventLogsRoute
   AppIpsRoute: typeof AppIpsRoute
   AppKubernetesRoute: typeof AppKubernetesRoute
@@ -550,6 +590,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppCronsRoute: AppCronsRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDatabasesRoute: AppDatabasesRoute,
+  AppDomainCredentialsRoute: AppDomainCredentialsRoute,
+  AppDomainsRoute: AppDomainsRoute,
   AppEventLogsRoute: AppEventLogsRoute,
   AppIpsRoute: AppIpsRoute,
   AppKubernetesRoute: AppKubernetesRoute,

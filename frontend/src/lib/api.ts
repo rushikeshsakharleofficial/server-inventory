@@ -4,7 +4,9 @@
  */
 
 function resolveApiBase(): string {
-  const configured = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  const configured = (
+    import.meta.env.VITE_API_URL as string | undefined
+  )?.trim();
   if (configured) return configured.replace(/\/+$/, "");
   if (typeof window !== "undefined") {
     return `${window.location.protocol}//${window.location.hostname}:8001`;
@@ -24,7 +26,8 @@ export interface StoredUser {
 }
 
 export const tokenStore = {
-  get: () => (typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY)),
+  get: () =>
+    typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY),
   set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
   clear: () => {
     localStorage.removeItem(TOKEN_KEY);
@@ -77,18 +80,26 @@ export async function api<T = unknown>(
   const res = await fetch(url, {
     ...rest,
     headers: h,
-    body: json !== undefined ? JSON.stringify(json) : (rest.body as BodyInit | undefined),
+    body:
+      json !== undefined
+        ? JSON.stringify(json)
+        : (rest.body as BodyInit | undefined),
   });
 
   if (res.status === 204) return undefined as T;
 
   const contentType = res.headers.get("content-type") ?? "";
-  const data = contentType.includes("application/json") ? await res.json() : await res.text();
+  const data = contentType.includes("application/json")
+    ? await res.json()
+    : await res.text();
 
   if (!res.ok) {
     if (res.status === 401) {
       tokenStore.clear();
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith("/login")
+      ) {
         window.location.assign("/login");
       }
     }
@@ -225,6 +236,24 @@ export interface BlockStorage {
   volume_type?: string | null;
   last_synced?: string | null;
 }
+
+export interface DnsRecord {
+  id: number;
+  cloud_id?: string | null;
+  name: string;
+  provider: string;
+  zone?: string | null;
+  record_type?: string | null;
+  content?: string | null;
+  ttl?: number | null;
+  proxied?: boolean | null;
+  status: string;
+  last_synced?: string | null;
+}
+
+// Providers whose credentials live under Domains (not Cloud Providers) —
+// DNS-only, no compute servers.
+export const DNS_PROVIDERS = ["cloudflare"] as const;
 
 export interface Snapshot {
   date: string;
