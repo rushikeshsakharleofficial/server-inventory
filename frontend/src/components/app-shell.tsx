@@ -122,20 +122,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         style={{ width: sidebarWidth }}
         className="fixed left-0 top-0 h-screen border-r border-border bg-surface flex flex-col shrink-0 shadow-[1px_0_0_0_var(--color-border)] transition-[width] duration-300 ease-in-out z-20 overflow-hidden"
       >
-        <div className="h-16 px-4 border-b border-border flex items-center gap-2.5 shrink-0">
+        <div
+          className={`h-16 border-b border-border flex items-center shrink-0 transition-all duration-300 ${collapsed ? "justify-center px-0" : "gap-2.5 px-4"}`}
+        >
           <div className="size-7 bg-primary rounded-lg flex items-center justify-center shadow-sm logo-pop shrink-0">
             <span
               className={`size-2 bg-success rounded-full ${!wsLive ? "animate-pulse" : ""}`}
             />
           </div>
-          <span
-            className={`font-semibold text-sm tracking-tight whitespace-nowrap transition-all duration-300 ${collapsed ? "opacity-0 -translate-x-2 w-0" : "opacity-100 translate-x-0"}`}
-          >
-            System Control
-          </span>
+          {!collapsed && (
+            <span className="font-semibold text-sm tracking-tight whitespace-nowrap">
+              System Control
+            </span>
+          )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-0">
+        <nav
+          className={`flex-1 overflow-y-auto overflow-x-hidden sidebar-scroll py-3 space-y-0 transition-all duration-300 ${collapsed ? "px-2" : "px-3"}`}
+        >
           {NAV.map((group) => (
             <div key={group.group} className="mb-5">
               <div
@@ -158,7 +162,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                       to={it.to}
                       title={collapsed ? it.label : undefined}
                       className={[
-                        "flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-lg transition-all duration-150",
+                        "flex items-center w-full py-2 text-sm rounded-lg transition-all duration-150",
+                        collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
                         active
                           ? "bg-primary text-primary-foreground font-medium shadow-sm"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -168,11 +173,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                         className="size-4 shrink-0"
                         strokeWidth={active ? 2 : 1.75}
                       />
-                      <span
-                        className={`flex-1 truncate whitespace-nowrap transition-all duration-300 ${collapsed ? "opacity-0 -translate-x-2 w-0" : "opacity-100 translate-x-0"}`}
-                      >
-                        {it.label}
-                      </span>
+                      {!collapsed && (
+                        <span className="flex-1 truncate whitespace-nowrap">
+                          {it.label}
+                        </span>
+                      )}
                       {!collapsed && count !== undefined && (
                         <span
                           className={`text-[10px] font-mono tabular-nums ${active ? "text-primary-foreground/70" : "text-muted-foreground"}`}

@@ -171,3 +171,11 @@ input:focus-visible, textarea:focus-visible {
   box-shadow: 0 0 0 2px var(--color-ring);
   transition: box-shadow var(--duration-fast) var(--ease-standard);
 }
+
+/* Hide the sidebar nav's scrollbar — a native scrollbar reserves layout
+   space unevenly (right side only), which throws off icon centering in the
+   collapsed 72px rail. Wheel/trackpad scroll still works. */
+@utility sidebar-scroll {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
