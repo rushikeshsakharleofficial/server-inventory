@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type UserRow } from "@/lib/api";
-import { Card, PageHeader, StatusPill, CustomSelect } from "@/components/ui-bits";
+import { Card, PageHeader, StatusPill, CustomSelect, confirmAsync } from "@/components/ui-bits";
 import { Plus, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -66,7 +66,7 @@ function UsersPage() {
                       <Power className="size-3.5" />
                     </button>
                     <button
-                      onClick={() => confirm(`Delete ${u.username}?`) && del.mutate(u.id)}
+                      onClick={async () => (await confirmAsync(`Delete ${u.username}?`)) && del.mutate(u.id)}
                       className="p-1.5 hover:bg-muted rounded-md text-red-600"
                     >
                       <Trash2 className="size-3.5" />

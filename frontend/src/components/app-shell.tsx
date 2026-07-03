@@ -22,6 +22,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { useCurrentUser, logout } from "@/lib/auth";
+import { ConfirmDialogHost } from "@/components/ui-bits";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppWebSocket, onWsConnectChange } from "@/lib/ws";
@@ -204,6 +205,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="flex-1 overflow-y-auto">{children}</div>
       </main>
+      <ConfirmDialogHost />
     </div>
   );
 }

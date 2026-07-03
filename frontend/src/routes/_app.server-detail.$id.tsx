@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
 import { X } from "lucide-react";
-import { CustomSelect } from "@/components/ui-bits";
+import { CustomSelect, confirmAsync } from "@/components/ui-bits";
 
 export const Route = createFileRoute("/_app/server-detail/$id")({
   head: () => ({ meta: [{ title: "Server Detail — System Control" }] }),
@@ -396,7 +396,7 @@ function ServerDetailPage() {
             <Terminal className="size-3.5" /> Connect
           </button>
           <button
-            onClick={() => { if (confirm(`Delete ${server.name}?`)) del.mutate(); }}
+            onClick={async () => { if (await confirmAsync(`Delete ${server.name}?`)) del.mutate(); }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50"
           >
             <Trash2 className="size-3.5" />

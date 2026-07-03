@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
+import { confirmAsync } from "@/components/ui-bits";
 import { toast } from "sonner";
 import {
   Copy, Eye, EyeOff, ExternalLink, Shield, KeyRound,
@@ -147,7 +148,7 @@ function RevealBtn({ credId, field = "password", onReveal }: {
 }) {
   const [loading, setLoading] = useState(false);
   async function handle() {
-    if (!confirm("Reveal password? This action will be audit logged.")) return;
+    if (!(await confirmAsync("Reveal password? This action will be audit logged."))) return;
     setLoading(true);
     try {
       const res = await api<{ value: string }>(`/api/credentials/${credId}/reveal-secret`, {
@@ -700,7 +701,7 @@ function ProviderCredentialsPage() {
                             </button>
                           )}
                           {isAdmin && (
-                            <button onClick={() => { if (confirm(`Delete ${cred.name}?`)) deleteMut.mutate(cred.id); }} title="Delete"
+                            <button onClick={async () => { if (await confirmAsync(`Delete ${cred.name}?`)) deleteMut.mutate(cred.id); }} title="Delete"
                               style={{ padding: "4px", borderRadius: 5, border: "1px solid #fecaca", background: "#fff", color: "#ef4444", cursor: "pointer" }}>
                               <X style={{ width: 12, height: 12 }} />
                             </button>

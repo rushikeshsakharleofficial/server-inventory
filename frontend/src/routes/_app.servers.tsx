@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge, CustomSelect } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge, CustomSelect, confirmAsync } from "@/components/ui-bits";
 import type { SshCredential } from "@/lib/api";
 import { RefreshCw, Trash2, Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
@@ -382,7 +382,7 @@ function ServersPage() {
                       className="icon-btn disabled:opacity-40" title="SSH sync"
                     ><RefreshCw className={`size-3.5 ${sshSync.isPending ? "animate-spin" : ""}`} /></button>
                     <button
-                      onClick={() => { if (confirm(`Delete ${s.name}?`)) del.mutate(s.id); }}
+                      onClick={async () => { if (await confirmAsync(`Delete ${s.name}?`)) del.mutate(s.id); }}
                       className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete"
                     ><Trash2 className="size-3.5" /></button>
                   </div>

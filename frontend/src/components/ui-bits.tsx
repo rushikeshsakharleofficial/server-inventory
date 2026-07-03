@@ -309,3 +309,35 @@ export function KpiTile({
     </div>
   );
 }
+
+type ConfirmRequest = { message: string; resolve: (ok: boolean) => void };
+let _confirmRequest: ((req: ConfirmRequest) => void) | null = null;
+
+/** In-app replacement for window.confirm() — renders a dashboard dialog instead of a browser popup. */
+export function confirmAsync(message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!_confirmRequest) { resolve(window.confirm(message)); return; }
+    _confirmRequest({ message, resolve });
+  });
+}
+
+export function ConfirmDialogHost() {
+  const [req, setReq] = useState<ConfirmRequest | null>(null);
+  useEffect(() => {
+    _confirmRequest = setReq;
+    return () => { _confirmRequest = null; };
+  }, []);
+  if (!req) return null;
+  const close = (ok: boolean) => { req.resolve(ok); setReq(null); };
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={() => close(false)}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-4">
+        <p className="text-sm">{req.message}</p>
+        <div className="flex justify-end gap-2">
+          <button onClick={() => close(false)} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
+          <button onClick={() => close(true)} className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90">Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+}

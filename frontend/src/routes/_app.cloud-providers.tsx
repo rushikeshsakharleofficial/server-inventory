@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Page, type Credential } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, EmptyState, CustomSelect } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, EmptyState, CustomSelect, confirmAsync } from "@/components/ui-bits";
 import { useState } from "react";
 import { Plus, Trash2, Power, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -126,7 +126,7 @@ function CredentialsPage() {
                   <Pencil className="size-3.5" />
                 </button>
                 <button
-                  onClick={() => confirm(`Delete ${c.name}?`) && del.mutate(c.id)}
+                  onClick={async () => (await confirmAsync(`Delete ${c.name}?`)) && del.mutate(c.id)}
                   className="p-1.5 hover:bg-muted rounded-md text-red-600"
                 >
                   <Trash2 className="size-3.5" />

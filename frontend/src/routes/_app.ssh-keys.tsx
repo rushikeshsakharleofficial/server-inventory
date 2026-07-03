@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type SshCredential } from "@/lib/api";
-import { Card, PageHeader, EmptyState, CustomSelect } from "@/components/ui-bits";
+import { Card, PageHeader, EmptyState, CustomSelect, confirmAsync } from "@/components/ui-bits";
 import { Plus, Star, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -106,7 +106,7 @@ function SshPage() {
                       <Pencil className="size-3.5" />
                     </button>
                     <button
-                      onClick={() => confirm(`Delete ${c.name}?`) && del.mutate(c.id)}
+                      onClick={async () => (await confirmAsync(`Delete ${c.name}?`)) && del.mutate(c.id)}
                       className="p-1.5 hover:bg-muted rounded-md text-red-600"
                     >
                       <Trash2 className="size-3.5" />

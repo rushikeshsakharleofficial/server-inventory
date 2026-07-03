@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type UserRow, type Group, type GroupCreate, type PermissionCatalog } from "@/lib/api";
-import { Card, PageHeader, StatusPill, CustomSelect, EmptyState } from "@/components/ui-bits";
+import { Card, PageHeader, StatusPill, CustomSelect, EmptyState, confirmAsync } from "@/components/ui-bits";
 import { Plus, Trash2, Pencil, Power } from "lucide-react";
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
@@ -387,7 +387,7 @@ function UsersGroupsPage() {
                         <button onClick={() => toggleUser.mutate(u.id)} className="p-1.5 hover:bg-muted rounded-md" title="Toggle active">
                           <Power className="size-3.5" />
                         </button>
-                        <button onClick={() => { if (confirm(`Delete ${u.username}?`)) delUser.mutate(u.id); }} className="p-1.5 hover:bg-muted rounded-md text-red-600" title="Delete">
+                        <button onClick={async () => { if (await confirmAsync(`Delete ${u.username}?`)) delUser.mutate(u.id); }} className="p-1.5 hover:bg-muted rounded-md text-red-600" title="Delete">
                           <Trash2 className="size-3.5" />
                         </button>
                       </div>
@@ -426,7 +426,7 @@ function UsersGroupsPage() {
                         <Pencil className="size-3.5" />
                       </button>
                       <button
-                        onClick={() => confirm(`Delete group "${g.name}"?`) && delGroup.mutate(g.id)}
+                        onClick={async () => (await confirmAsync(`Delete group "${g.name}"?`)) && delGroup.mutate(g.id)}
                         className="p-1.5 hover:bg-muted rounded-md text-red-600"
                         title="Delete"
                       >
