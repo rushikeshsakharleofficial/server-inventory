@@ -1,6 +1,7 @@
 import io
 import asyncio
 import os
+import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Annotated, Literal
 from datetime import datetime, timezone
@@ -147,6 +148,33 @@ def ip_inventory(
                 "address":     addr,
                 "type":        kind,
             })
+
+    # Reverse-DNS lookups, concurrent, one per unique address (same pattern as
+    # the ThreadPoolExecutor SSH fan-out above).
+    def _rdns(addr: str) -> tuple[str, str | None]:
+        try:
+            return addr, socket.gethostbyaddr(addr)[0]
+        except Exception:  # noqa: BLE001 — no PTR record is the normal case
+            return addr, None
+
+    unique_addrs = {r["address"] for r in rows}
+    rdns_map: dict[str, str | None] = {}
+    _prev_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(2)
+    try:
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futures = {ex.submit(_rdns, addr): addr for addr in unique_addrs}
+            for fut in as_completed(futures):
+                try:
+                    addr, hostname = fut.result()
+                    rdns_map[addr] = hostname
+                except Exception:  # noqa: BLE001
+                    pass
+    finally:
+        socket.setdefaulttimeout(_prev_timeout)
+
+    for row in rows:
+        row["rdns"] = rdns_map.get(row["address"])
 
     if search:
         q = search.lower()

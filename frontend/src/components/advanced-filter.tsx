@@ -1,5 +1,12 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { Search, X, Filter, ChevronDown, Check, SlidersHorizontal } from "lucide-react";
+import {
+  Search,
+  X,
+  Filter,
+  ChevronDown,
+  Check,
+  SlidersHorizontal,
+} from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -23,7 +30,48 @@ export function emptyFilterState(): FilterState {
 
 export function hasActiveFilters(s: FilterState): boolean {
   if (s.q) return true;
-  return Object.values(s.filters).some((v) => (Array.isArray(v) ? v.length > 0 : !!v));
+  return Object.values(s.filters).some((v) =>
+    Array.isArray(v) ? v.length > 0 : !!v,
+  );
+}
+
+// ── URL <-> FilterState ──────────────────────────────────────────────────────
+// Deep-link a page's filters via query params. Search text uses "q"; each
+// filter key becomes its own param, multiselect values comma-joined. Any page
+// using FilterState can round-trip through these without per-page slug logic.
+
+export function filterStateToSearchParams(s: FilterState): URLSearchParams {
+  const params = new URLSearchParams();
+  if (s.q) params.set("q", s.q);
+  for (const [key, value] of Object.entries(s.filters)) {
+    if (Array.isArray(value)) {
+      if (value.length) params.set(key, value.join(","));
+    } else if (value) {
+      params.set(key, value);
+    }
+  }
+  return params;
+}
+
+/** Parse a query string into FilterState. `multiselectKeys` lists which filter
+ * keys should be split back into arrays (must match the field's `type` on the
+ * receiving page's FilterField list) — everything else stays a plain string. */
+export function searchParamsToFilterState(
+  search: string | URLSearchParams,
+  multiselectKeys: readonly string[],
+): FilterState {
+  const params =
+    typeof search === "string" ? new URLSearchParams(search) : search;
+  const state = emptyFilterState();
+  const q = params.get("q");
+  if (q) state.q = q;
+  for (const [key, value] of params.entries()) {
+    if (key === "q" || !value) continue;
+    state.filters[key] = multiselectKeys.includes(key)
+      ? value.split(",").filter(Boolean)
+      : value;
+  }
+  return state;
 }
 
 // ── MultiSelect dropdown ───────────────────────────────────────────────────────
@@ -47,7 +95,8 @@ function MultiSelectDropdown({
 
   useEffect(() => {
     function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -56,14 +105,20 @@ function MultiSelectDropdown({
   function handleOpen() {
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: Math.max(r.width, 180) });
+      setPos({
+        top: r.bottom + window.scrollY + 4,
+        left: r.left + window.scrollX,
+        width: Math.max(r.width, 180),
+      });
     }
     setOpen((o) => !o);
     setSearch("");
   }
 
   const filteredOptions = search
-    ? options.filter(o => (o.label ?? o.value).toLowerCase().includes(search.toLowerCase()))
+    ? options.filter((o) =>
+        (o.label ?? o.value).toLowerCase().includes(search.toLowerCase()),
+      )
     : options;
 
   function toggle(v: string) {
@@ -90,11 +145,19 @@ function MultiSelectDropdown({
             {value.length}
           </span>
         )}
-        <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`size-3 transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
         <div
-          style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
+          style={{
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            width: pos.width,
+            zIndex: 9999,
+          }}
           className="bg-background border border-border rounded-md shadow-lg py-1 max-h-72 overflow-hidden flex flex-col"
         >
           {options.length > 6 && (
@@ -102,10 +165,10 @@ function MultiSelectDropdown({
               <input
                 autoFocus
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${label.toLowerCase()}…`}
                 className="w-full px-2 py-1 text-xs bg-muted/50 border border-border rounded"
-                onClick={e => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
               />
             </div>
           )}
@@ -124,7 +187,11 @@ function MultiSelectDropdown({
                 </button>
               );
             })}
-            {filteredOptions.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No options</div>}
+            {filteredOptions.length === 0 && (
+              <div className="px-3 py-2 text-xs text-muted-foreground">
+                No options
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -152,7 +219,8 @@ function SingleSelectDropdown({
 
   useEffect(() => {
     function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -161,7 +229,11 @@ function SingleSelectDropdown({
   function handleOpen() {
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: Math.max(r.width, 160) });
+      setPos({
+        top: r.bottom + window.scrollY + 4,
+        left: r.left + window.scrollX,
+        width: Math.max(r.width, 160),
+      });
     }
     setOpen((o) => !o);
   }
@@ -185,23 +257,39 @@ function SingleSelectDropdown({
         {active && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onChange(""); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange("");
+            }}
             className="ml-0.5 hover:text-red-500"
           >
             <X className="size-3" />
           </button>
         )}
-        {!active && <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />}
+        {!active && (
+          <ChevronDown
+            className={`size-3 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        )}
       </button>
       {open && (
         <div
-          style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
+          style={{
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            width: pos.width,
+            zIndex: 9999,
+          }}
           className="bg-background border border-border rounded-md shadow-lg py-1 max-h-56 overflow-y-auto"
         >
           {value && (
             <button
               type="button"
-              onClick={() => { onChange(""); setOpen(false); }}
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
               className="w-full flex items-center px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted text-left"
             >
               — clear —
@@ -211,7 +299,10 @@ function SingleSelectDropdown({
             <button
               key={o.value}
               type="button"
-              onClick={() => { onChange(o.value); setOpen(false); }}
+              onClick={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
               className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-muted transition-colors text-left ${value === o.value ? "text-primary font-medium" : "text-foreground"}`}
             >
               {o.label ?? o.value}
@@ -241,7 +332,9 @@ function FilterChips({
     const field = fields.find((f) => f.key === k);
     if (!field) continue;
     if (Array.isArray(v)) {
-      v.forEach((val) => chips.push({ key: k, label: field.label, value: val }));
+      v.forEach((val) =>
+        chips.push({ key: k, label: field.label, value: val }),
+      );
     } else if (v) {
       chips.push({ key: k, label: field.label, value: v });
     }
@@ -299,13 +392,17 @@ export function AdvancedFilter({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const active = hasActiveFilters(state);
 
-  function setQ(q: string) { onChange({ ...state, q }); }
+  function setQ(q: string) {
+    onChange({ ...state, q });
+  }
 
   function setFilter(key: string, value: string | string[]) {
     onChange({ ...state, filters: { ...state.filters, [key]: value } });
   }
 
-  function reset() { onChange(emptyFilterState()); }
+  function reset() {
+    onChange(emptyFilterState());
+  }
 
   function renderField(f: FilterField) {
     if (f.type === "select") {
@@ -355,7 +452,9 @@ export function AdvancedFilter({
     return null;
   }
 
-  const chips = <FilterChips fields={fields} state={state} onChange={onChange} />;
+  const chips = (
+    <FilterChips fields={fields} state={state} onChange={onChange} />
+  );
 
   return (
     <div className="space-y-2">
@@ -393,7 +492,11 @@ export function AdvancedFilter({
         >
           <SlidersHorizontal className="size-3.5" />
           Filters
-          {active && <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-[10px] font-bold leading-4">!</span>}
+          {active && (
+            <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-[10px] font-bold leading-4">
+              !
+            </span>
+          )}
         </button>
 
         {extra}
@@ -414,23 +517,43 @@ export function AdvancedFilter({
       {/* Mobile drawer */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setDrawerOpen(false)}
+          />
           <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border rounded-t-xl p-4 space-y-3 max-h-[70vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-semibold flex items-center gap-1.5"><Filter className="size-4" />Filters</span>
-              <button onClick={() => setDrawerOpen(false)}><X className="size-4" /></button>
+              <span className="text-sm font-semibold flex items-center gap-1.5">
+                <Filter className="size-4" />
+                Filters
+              </span>
+              <button onClick={() => setDrawerOpen(false)}>
+                <X className="size-4" />
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {fields.map((f) => (
                 <div key={f.key} className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{f.label}</label>
+                  <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
+                    {f.label}
+                  </label>
                   {renderField(f)}
                 </div>
               ))}
             </div>
             <div className="flex gap-2 pt-2">
-              <button onClick={reset} className="flex-1 py-2 text-sm border border-border rounded-md hover:bg-muted">Reset all</button>
-              <button onClick={() => setDrawerOpen(false)} className="flex-1 py-2 text-sm bg-primary text-primary-foreground rounded-md">Done</button>
+              <button
+                onClick={reset}
+                className="flex-1 py-2 text-sm border border-border rounded-md hover:bg-muted"
+              >
+                Reset all
+              </button>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="flex-1 py-2 text-sm bg-primary text-primary-foreground rounded-md"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

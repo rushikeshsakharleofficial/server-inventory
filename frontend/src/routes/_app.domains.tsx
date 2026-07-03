@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   AdvancedFilter,
   emptyFilterState,
+  searchParamsToFilterState,
   type FilterState,
 } from "@/components/advanced-filter";
 
@@ -21,10 +22,6 @@ export const Route = createFileRoute("/_app/domains")({
   head: () => ({ meta: [{ title: "Domain Inventory — System Control" }] }),
   component: DomainsPage,
 });
-
-function match(s: string, q: string) {
-  return s.toLowerCase().includes(q.toLowerCase());
-}
 
 function buildFields(items: DnsRecord[]) {
   const uniq = (vals: (string | undefined | null)[]) =>
@@ -52,14 +49,60 @@ function buildFields(items: DnsRecord[]) {
   ];
 }
 
+const PAGE_SIZE = 25;
+
 function DomainsPage() {
   const qc = useQueryClient();
-  const [fs, setFs] = useState<FilterState>(emptyFilterState);
+  const [fs, setFs] = useState<FilterState>(() =>
+    typeof window === "undefined"
+      ? emptyFilterState()
+      : searchParamsToFilterState(window.location.search, [
+          "provider",
+          "status",
+          "zone",
+        ]),
+  );
+  const [offset, setOffset] = useState(0);
+
+  const providers = (fs.filters.provider as string[] | undefined) ?? [];
+  const statuses = (fs.filters.status as string[] | undefined) ?? [];
+  const zones = (fs.filters.zone as string[] | undefined) ?? [];
+  const rectype = (fs.filters.type as string) ?? "";
+
+  // Backend supports provider/status/zone/record_type as single values.
+  // Multi-select: send the first value to the backend, client-side filter
+  // the rest — same fallback pattern as _app.servers.tsx.
+  const apiProvider = providers.length === 1 ? providers[0] : "";
+  const apiStatus = statuses.length === 1 ? statuses[0] : "";
+  const apiZone = zones.length === 1 ? zones[0] : "";
+  const anyMultiOverflow =
+    providers.length > 1 || statuses.length > 1 || zones.length > 1;
 
   const { data } = useQuery({
-    queryKey: ["domains"],
+    queryKey: [
+      "domains",
+      {
+        q: fs.q,
+        provider: apiProvider,
+        status: apiStatus,
+        zone: apiZone,
+        rectype,
+        offset,
+      },
+    ],
     queryFn: () =>
-      api<Page<DnsRecord>>("/api/domains", { query: { limit: 500 } }),
+      api<Page<DnsRecord>>("/api/domains", {
+        query: {
+          search: fs.q,
+          provider: apiProvider,
+          status: apiStatus,
+          zone: apiZone,
+          record_type: rectype,
+          limit: anyMultiOverflow ? 500 : PAGE_SIZE,
+          offset: anyMultiOverflow ? 0 : offset,
+        },
+      }),
+    placeholderData: (prev) => prev,
   });
 
   const sync = useMutation({
@@ -71,33 +114,22 @@ function DomainsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const providers = (fs.filters.provider as string[] | undefined) ?? [];
-  const statuses = (fs.filters.status as string[] | undefined) ?? [];
-  const zones = (fs.filters.zone as string[] | undefined) ?? [];
-  const rectype = (fs.filters.type as string) ?? "";
-
   const fields = buildFields(data?.items ?? []);
 
   const items = (data?.items ?? []).filter((v) => {
-    if (
-      fs.q &&
-      !match(v.name, fs.q) &&
-      !match(v.zone ?? "", fs.q) &&
-      !match(v.content ?? "", fs.q)
-    )
-      return false;
-    if (providers.length && !providers.includes(v.provider)) return false;
-    if (statuses.length && !statuses.includes(v.status)) return false;
-    if (zones.length && !zones.includes(v.zone ?? "")) return false;
-    if (rectype && !match(v.record_type ?? "", rectype)) return false;
+    if (providers.length > 1 && !providers.includes(v.provider)) return false;
+    if (statuses.length > 1 && !statuses.includes(v.status)) return false;
+    if (zones.length > 1 && !zones.includes(v.zone ?? "")) return false;
     return true;
   });
+
+  const total = data?.total ?? 0;
 
   return (
     <div className="p-6 space-y-4">
       <PageHeader
         title="Domain inventory"
-        description={`${items.length} of ${data?.total ?? 0} DNS records`}
+        description={`${total.toLocaleString()} DNS records`}
         actions={
           <button
             onClick={() => sync.mutate()}
@@ -113,8 +145,11 @@ function DomainsPage() {
         <AdvancedFilter
           fields={fields}
           state={fs}
-          onChange={setFs}
-          searchPlaceholder="Search name, zone, content…"
+          onChange={(s) => {
+            setFs(s);
+            setOffset(0);
+          }}
+          searchPlaceholder="Search name…"
         />
       </Card>
 
@@ -178,6 +213,30 @@ function DomainsPage() {
             )}
           </tbody>
         </table>
+        {!anyMultiOverflow && total > PAGE_SIZE && (
+          <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of{" "}
+              {total.toLocaleString()}
+            </span>
+            <div className="flex gap-1">
+              <button
+                disabled={offset === 0}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                className="px-3 py-1 border border-border rounded-md disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <button
+                disabled={offset + PAGE_SIZE >= total}
+                onClick={() => setOffset(offset + PAGE_SIZE)}
+                className="px-3 py-1 border border-border rounded-md disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

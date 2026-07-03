@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
-from ..auth import get_current_user, require_write
+from ..auth import get_current_user, require_perm
 from ..database import DATABASE_URL, get_db
 from .query_utils import escape_like
 from .sync_utils import _sync_resources
@@ -23,6 +23,7 @@ def list_domains(
     provider: str | None = Query(None),
     status: str | None = Query(None),
     zone: str | None = Query(None),
+    record_type: str | None = Query(None),
     search: str | None = Query(None),
     limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
     offset: int = Query(default=0, ge=0),
@@ -34,6 +35,8 @@ def list_domains(
         q = q.filter(models.DnsRecord.status == status)
     if zone:
         q = q.filter(models.DnsRecord.zone == zone)
+    if record_type:
+        q = q.filter(models.DnsRecord.record_type.ilike(f"%{escape_like(record_type)}%", escape="\\"))
     if search:
         q = q.filter(models.DnsRecord.name.ilike(f"%{escape_like(search)}%", escape="\\"))
     total = q.count()
@@ -45,7 +48,7 @@ def list_domains(
 def sync_domains(
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("domains", "sync"))],
     provider: str | None = Query(None),
 ) -> dict[str, str]:
     background_tasks.add_task(_sync_domains, provider, DATABASE_URL)

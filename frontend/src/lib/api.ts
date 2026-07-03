@@ -253,7 +253,7 @@ export interface DnsRecord {
 
 // Providers whose credentials live under Domains (not Cloud Providers) —
 // DNS-only, no compute servers.
-export const DNS_PROVIDERS = ["cloudflare"] as const;
+export const DNS_PROVIDERS = ["cloudflare", "generic-dns"] as const;
 
 export interface Snapshot {
   date: string;

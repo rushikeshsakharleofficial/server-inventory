@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import {
   AdvancedFilter,
   emptyFilterState,
+  filterStateToSearchParams,
   type FilterState,
 } from "@/components/advanced-filter";
 
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_app/domain-credentials")({
 
 const PROVIDERS = [
   { id: "cloudflare", name: "Cloudflare", fields: ["api_token"] },
+  { id: "generic-dns", name: "Domain (no API)", fields: ["domain"] },
 ];
 
 function isSecret(f: string) {
@@ -158,7 +160,12 @@ function DomainCredentialsPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium truncate">{c.name}</span>
+                <a
+                  href={`/domains?${filterStateToSearchParams({ q: "", filters: { zone: [c.name] } }).toString()}`}
+                  className="text-sm font-medium truncate hover:text-primary hover:underline cursor-pointer"
+                >
+                  {c.name}
+                </a>
                 <span
                   className={`text-[10px] ${c.is_active ? "text-emerald-600" : "text-muted-foreground"}`}
                 >
@@ -452,7 +459,9 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-type ParsedRow = { domain: string; email: string; token: string };
+type ParsedRow =
+  | { provider: "cloudflare"; domain: string; email: string; token: string }
+  | { provider: "generic-dns"; domain: string };
 
 function parseBulkText(text: string): ParsedRow[] {
   return text
@@ -460,14 +469,22 @@ function parseBulkText(text: string): ParsedRow[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => line.split(/\s+/).filter(Boolean))
-    .filter((parts) => parts.length >= 3)
-    .map(([domain, email, token]) => ({ domain, email, token }));
+    .filter((parts) => parts.length === 1 || parts.length >= 3)
+    .map((parts): ParsedRow =>
+      parts.length === 1
+        ? { provider: "generic-dns", domain: parts[0] }
+        : {
+            provider: "cloudflare",
+            domain: parts[0],
+            email: parts[1],
+            token: parts[2],
+          },
+    );
 }
 
 function BulkImportDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [text, setText] = useState("");
-  const [provider] = useState("cloudflare");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, failed: 0 });
 
@@ -483,9 +500,12 @@ function BulkImportDialog({ onClose }: { onClose: () => void }) {
           method: "POST",
           json: {
             name: row.domain,
-            provider,
+            provider: row.provider,
             cred_type: "api",
-            config: { api_token: row.token, email: row.email },
+            config:
+              row.provider === "generic-dns"
+                ? { domain: row.domain }
+                : { api_token: row.token, email: row.email },
           },
         });
       } catch {
@@ -515,9 +535,11 @@ function BulkImportDialog({ onClose }: { onClose: () => void }) {
         <div className="p-4 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold">Bulk import DNS credentials</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            One domain per line:{" "}
+            One domain per line. Use{" "}
             <code className="font-mono">domain email api_token</code> (space or
-            tab separated). Each line becomes its own Cloudflare credential.
+            tab separated) for a Cloudflare credential, or just{" "}
+            <code className="font-mono">domain</code> alone to auto-resolve its
+            DNS with no API key.
           </p>
         </div>
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
@@ -526,7 +548,9 @@ function BulkImportDialog({ onClose }: { onClose: () => void }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             disabled={importing}
-            placeholder={"example.com    user@example.com    <api_token>"}
+            placeholder={
+              "example.com    user@example.com    <api_token>\nexample-noapi.com"
+            }
             className="w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
           />
           <div className="text-xs text-muted-foreground">
