@@ -110,9 +110,15 @@ function GroupCard({ group, catalog }: { group: Group; catalog?: PermissionCatal
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">
-            {grantCount} grants
-          </span>
+          {group.is_super_admin ? (
+            <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/30 font-medium">
+              Super admin
+            </span>
+          ) : (
+            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">
+              {grantCount} grants
+            </span>
+          )}
           <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border text-muted-foreground">
             {group.member_count} members
           </span>

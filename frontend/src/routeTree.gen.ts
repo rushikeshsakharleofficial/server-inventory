@@ -35,7 +35,7 @@ import { Route as AppCronsRouteImport } from './routes/_app.crons'
 import { Route as AppCloudProvidersRouteImport } from './routes/_app.cloud-providers'
 import { Route as AppBlockStoragesRouteImport } from './routes/_app.block-storages'
 import { Route as AppServerDetailIdRouteImport } from './routes/_app.server-detail.$id'
-import { Route as AppPoliciesSlugRouteImport } from './routes/_app.policies.$slug'
+import { Route as AppPoliciesSlugRouteImport } from './routes/_app.policies_.$slug'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -167,9 +167,9 @@ const AppServerDetailIdRoute = AppServerDetailIdRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppPoliciesSlugRoute = AppPoliciesSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => AppPoliciesRoute,
+  id: '/policies_/$slug',
+  path: '/policies/$slug',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -186,7 +186,7 @@ export interface FileRoutesByFullPath {
   '/event-logs': typeof AppEventLogsRoute
   '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
-  '/policies': typeof AppPoliciesRouteWithChildren
+  '/policies': typeof AppPoliciesRoute
   '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
   '/server-groups': typeof AppServerGroupsRoute
@@ -214,7 +214,7 @@ export interface FileRoutesByTo {
   '/event-logs': typeof AppEventLogsRoute
   '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
-  '/policies': typeof AppPoliciesRouteWithChildren
+  '/policies': typeof AppPoliciesRoute
   '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
   '/server-groups': typeof AppServerGroupsRoute
@@ -244,7 +244,7 @@ export interface FileRoutesById {
   '/_app/event-logs': typeof AppEventLogsRoute
   '/_app/ips': typeof AppIpsRoute
   '/_app/kubernetes': typeof AppKubernetesRoute
-  '/_app/policies': typeof AppPoliciesRouteWithChildren
+  '/_app/policies': typeof AppPoliciesRoute
   '/_app/provider-credentials': typeof AppProviderCredentialsRoute
   '/_app/resource-map': typeof AppResourceMapRoute
   '/_app/server-groups': typeof AppServerGroupsRoute
@@ -255,7 +255,7 @@ export interface FileRoutesById {
   '/_app/sync': typeof AppSyncRoute
   '/_app/users': typeof AppUsersRoute
   '/_app/users-groups': typeof AppUsersGroupsRoute
-  '/_app/policies/$slug': typeof AppPoliciesSlugRoute
+  '/_app/policies_/$slug': typeof AppPoliciesSlugRoute
   '/_app/server-detail/$id': typeof AppServerDetailIdRoute
 }
 export interface FileRouteTypes {
@@ -342,7 +342,7 @@ export interface FileRouteTypes {
     | '/_app/sync'
     | '/_app/users'
     | '/_app/users-groups'
-    | '/_app/policies/$slug'
+    | '/_app/policies_/$slug'
     | '/_app/server-detail/$id'
   fileRoutesById: FileRoutesById
 }
@@ -537,27 +537,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppServerDetailIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/policies/$slug': {
-      id: '/_app/policies/$slug'
-      path: '/$slug'
+    '/_app/policies_/$slug': {
+      id: '/_app/policies_/$slug'
+      path: '/policies/$slug'
       fullPath: '/policies/$slug'
       preLoaderRoute: typeof AppPoliciesSlugRouteImport
-      parentRoute: typeof AppPoliciesRoute
+      parentRoute: typeof AppRoute
     }
   }
 }
-
-interface AppPoliciesRouteChildren {
-  AppPoliciesSlugRoute: typeof AppPoliciesSlugRoute
-}
-
-const AppPoliciesRouteChildren: AppPoliciesRouteChildren = {
-  AppPoliciesSlugRoute: AppPoliciesSlugRoute,
-}
-
-const AppPoliciesRouteWithChildren = AppPoliciesRoute._addFileChildren(
-  AppPoliciesRouteChildren,
-)
 
 interface AppRouteChildren {
   AppBlockStoragesRoute: typeof AppBlockStoragesRoute
@@ -570,7 +558,7 @@ interface AppRouteChildren {
   AppEventLogsRoute: typeof AppEventLogsRoute
   AppIpsRoute: typeof AppIpsRoute
   AppKubernetesRoute: typeof AppKubernetesRoute
-  AppPoliciesRoute: typeof AppPoliciesRouteWithChildren
+  AppPoliciesRoute: typeof AppPoliciesRoute
   AppProviderCredentialsRoute: typeof AppProviderCredentialsRoute
   AppResourceMapRoute: typeof AppResourceMapRoute
   AppServerGroupsRoute: typeof AppServerGroupsRoute
@@ -581,6 +569,7 @@ interface AppRouteChildren {
   AppSyncRoute: typeof AppSyncRoute
   AppUsersRoute: typeof AppUsersRoute
   AppUsersGroupsRoute: typeof AppUsersGroupsRoute
+  AppPoliciesSlugRoute: typeof AppPoliciesSlugRoute
   AppServerDetailIdRoute: typeof AppServerDetailIdRoute
 }
 
@@ -595,7 +584,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEventLogsRoute: AppEventLogsRoute,
   AppIpsRoute: AppIpsRoute,
   AppKubernetesRoute: AppKubernetesRoute,
-  AppPoliciesRoute: AppPoliciesRouteWithChildren,
+  AppPoliciesRoute: AppPoliciesRoute,
   AppProviderCredentialsRoute: AppProviderCredentialsRoute,
   AppResourceMapRoute: AppResourceMapRoute,
   AppServerGroupsRoute: AppServerGroupsRoute,
@@ -606,6 +595,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSyncRoute: AppSyncRoute,
   AppUsersRoute: AppUsersRoute,
   AppUsersGroupsRoute: AppUsersGroupsRoute,
+  AppPoliciesSlugRoute: AppPoliciesSlugRoute,
   AppServerDetailIdRoute: AppServerDetailIdRoute,
 }
 
