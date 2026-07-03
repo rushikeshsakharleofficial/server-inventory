@@ -19,7 +19,7 @@ function buildFields(items: BlockStorage[]) {
   return [
     { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(v => v.provider)).map(v => ({ value: v })) },
     { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(v => v.status)).map(v => ({ value: v })) },
-    { key: "region",   label: "Region",   type: "text" as const },
+    { key: "region",   label: "Region",   type: "multiselect" as const, options: uniq(items.map(v => v.region)).map(v => ({ value: v })) },
     { key: "type",     label: "Vol type", type: "text" as const },
   ];
 }
@@ -41,7 +41,7 @@ function BlockStoragePage() {
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
   const statuses  = (fs.filters.status   as string[] | undefined) ?? [];
-  const region    = (fs.filters.region   as string)  ?? "";
+  const regions   = (fs.filters.region   as string[] | undefined) ?? [];
   const voltype   = (fs.filters.type     as string)  ?? "";
 
   const fields = buildFields(data?.items ?? []);
@@ -50,7 +50,7 @@ function BlockStoragePage() {
     if (fs.q && !match(v.name, fs.q) && !match(v.region ?? "", fs.q) && !match(v.attachment ?? "", fs.q)) return false;
     if (providers.length && !providers.includes(v.provider)) return false;
     if (statuses.length  && !statuses.includes(v.status))   return false;
-    if (region  && !match(v.region  ?? "", region))  return false;
+    if (regions.length && !regions.includes(v.region ?? "")) return false;
     if (voltype && !match(v.volume_type ?? "", voltype)) return false;
     return true;
   });

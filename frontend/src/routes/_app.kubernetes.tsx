@@ -19,7 +19,7 @@ function buildFields(items: KubernetesCluster[]) {
   return [
     { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(c => c.provider)).map(v => ({ value: v })) },
     { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(c => c.status)).map(v => ({ value: v })) },
-    { key: "region",   label: "Region",   type: "text" as const },
+    { key: "region",   label: "Region",   type: "multiselect" as const, options: uniq(items.map(c => c.region)).map(v => ({ value: v })) },
     { key: "version",  label: "Version",  type: "text" as const },
   ];
 }
@@ -41,7 +41,7 @@ function KubernetesPage() {
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
   const statuses  = (fs.filters.status   as string[] | undefined) ?? [];
-  const region    = (fs.filters.region   as string)  ?? "";
+  const regions   = (fs.filters.region   as string[] | undefined) ?? [];
   const version   = (fs.filters.version  as string)  ?? "";
 
   const fields = buildFields(data?.items ?? []);
@@ -50,7 +50,7 @@ function KubernetesPage() {
     if (fs.q && !match(c.name, fs.q) && !match(c.endpoint ?? "", fs.q) && !match(c.region ?? "", fs.q) && !match(c.version ?? "", fs.q)) return false;
     if (providers.length && !providers.includes(c.provider)) return false;
     if (statuses.length  && !statuses.includes(c.status))   return false;
-    if (region  && !match(c.region  ?? "", region))  return false;
+    if (regions.length && !regions.includes(c.region ?? "")) return false;
     if (version && !match(c.version ?? "", version)) return false;
     return true;
   });

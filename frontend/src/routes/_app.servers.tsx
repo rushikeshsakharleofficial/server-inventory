@@ -215,14 +215,16 @@ function EditServerDialog({ server, onClose }: { server: Server; onClose: () => 
   );
 }
 
-function buildServerFilterFields(stats: Stats | undefined) {
+function buildServerFilterFields(stats: Stats | undefined, items: Server[]) {
   const providerOpts = Object.keys(stats?.by_provider ?? {}).sort().map(v => ({ value: v }));
   const statusOpts   = Object.keys(stats?.by_status   ?? {}).sort().map(v => ({ value: v }));
+  const regionOpts   = Object.keys(stats?.by_region ?? {}).sort().map(v => ({ value: v }));
+  const osOpts       = [...new Set(items.map(s => s.os).filter((v): v is string => !!v))].sort().map(v => ({ value: v }));
   return [
     { key: "provider", label: "Provider", type: "multiselect" as const, options: providerOpts },
     { key: "status",   label: "Status",   type: "multiselect" as const, options: statusOpts },
-    { key: "region",   label: "Region",   type: "text" as const },
-    { key: "os",       label: "OS",       type: "text" as const },
+    { key: "region",   label: "Region",   type: "multiselect" as const, options: regionOpts },
+    { key: "os",       label: "OS",       type: "multiselect" as const, options: osOpts },
     { key: "datacenter", label: "Datacenter", type: "text" as const },
   ];
 }
@@ -241,20 +243,23 @@ function ServersPage() {
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
   const statuses  = (fs.filters.status   as string[] | undefined) ?? [];
-  const region    = (fs.filters.region   as string)  ?? "";
-  const os        = (fs.filters.os       as string)  ?? "";
+  const regions   = (fs.filters.region   as string[] | undefined) ?? [];
+  const oses      = (fs.filters.os       as string[] | undefined) ?? [];
   const datacenter = (fs.filters.datacenter as string) ?? "";
 
-  // Backend supports provider (single), status (single), search, region, os, datacenter.
-  // Multi-select for provider/status: send first value to backend, client-side filter rest.
+  // Backend supports provider/status/region/os as single values, search, datacenter.
+  // Multi-select: send first value to backend, client-side filter the rest.
   const apiProvider = providers.length === 1 ? providers[0] : "";
   const apiStatus   = statuses.length  === 1 ? statuses[0]  : "";
+  const apiRegion   = regions.length   === 1 ? regions[0]   : "";
+  const apiOs       = oses.length      === 1 ? oses[0]      : "";
+  const anyMultiOverflow = providers.length > 1 || statuses.length > 1 || regions.length > 1 || oses.length > 1;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["servers", { q: fs.q, provider: apiProvider, status: apiStatus, region, os, datacenter, offset }],
+    queryKey: ["servers", { q: fs.q, provider: apiProvider, status: apiStatus, region: apiRegion, os: apiOs, datacenter, offset }],
     queryFn: () =>
       api<Page<Server>>("/api/servers", {
-        query: { search: fs.q, provider: apiProvider, status: apiStatus, region, os, datacenter, limit: providers.length > 1 || statuses.length > 1 ? 500 : limit, offset: providers.length > 1 || statuses.length > 1 ? 0 : offset },
+        query: { search: fs.q, provider: apiProvider, status: apiStatus, region: apiRegion, os: apiOs, datacenter, limit: anyMultiOverflow ? 500 : limit, offset: anyMultiOverflow ? 0 : offset },
       }),
     placeholderData: (prev) => prev,
   });
@@ -264,7 +269,7 @@ function ServersPage() {
     queryFn: () => api<Stats>("/api/servers/stats"),
     staleTime: 30_000,
   });
-  const filterFields = buildServerFilterFields(stats);
+  const filterFields = buildServerFilterFields(stats, data?.items ?? []);
 
   const sync = useMutation({
     mutationFn: () => api("/api/sync", { method: "POST" }),
@@ -339,13 +344,15 @@ function ServersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Client-side filter for multi-select provider/status
+  // Client-side filter for multi-select overflow (provider/status/region/os)
   const allItems = data?.items ?? [];
   const items = allItems.filter((s) =>
     (providers.length <= 1 || providers.includes(s.provider)) &&
-    (statuses.length  <= 1 || statuses.includes(s.status))
+    (statuses.length  <= 1 || statuses.includes(s.status)) &&
+    (regions.length   <= 1 || regions.includes(s.region ?? "")) &&
+    (oses.length      <= 1 || oses.includes(s.os ?? ""))
   );
-  const total = providers.length > 1 || statuses.length > 1 ? items.length : (data?.total ?? 0);
+  const total = anyMultiOverflow ? items.length : (data?.total ?? 0);
 
   return (
     <div className="p-6 space-y-4">

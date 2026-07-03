@@ -20,7 +20,7 @@ function buildFields(items: DatabaseInstance[]) {
     { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(d => d.provider)).map(v => ({ value: v })) },
     { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(d => d.status)).map(v => ({ value: v })) },
     { key: "engine",   label: "Engine",   type: "select" as const, options: uniq(items.map(d => d.engine)).map(v => ({ value: v })) },
-    { key: "region",   label: "Region",   type: "text" as const },
+    { key: "region",   label: "Region",   type: "multiselect" as const, options: uniq(items.map(d => d.region)).map(v => ({ value: v })) },
   ];
 }
 
@@ -42,7 +42,7 @@ function DatabasesPage() {
   const providers  = (fs.filters.provider as string[] | undefined) ?? [];
   const statuses   = (fs.filters.status   as string[] | undefined) ?? [];
   const engine     = (fs.filters.engine   as string)  ?? "";
-  const region     = (fs.filters.region   as string)  ?? "";
+  const regions    = (fs.filters.region   as string[] | undefined) ?? [];
 
   const fields = buildFields(data?.items ?? []);
 
@@ -51,7 +51,7 @@ function DatabasesPage() {
     if (providers.length && !providers.includes(d.provider)) return false;
     if (statuses.length  && !statuses.includes(d.status))   return false;
     if (engine && !match(d.engine ?? "", engine)) return false;
-    if (region && !match(d.region ?? "", region)) return false;
+    if (regions.length && !regions.includes(d.region ?? "")) return false;
     return true;
   });
 
