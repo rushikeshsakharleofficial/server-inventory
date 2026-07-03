@@ -297,6 +297,7 @@ export interface Group {
   name: string;
   description?: string | null;
   permissions: Record<string, string[]>;
+  is_super_admin: boolean;
   member_count: number;
   created_at?: string | null;
 }

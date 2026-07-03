@@ -119,6 +119,20 @@ def _migrate_server_ssh_assignment() -> None:
         conn.commit()
 
 
+def _migrate_group_super_admin() -> None:
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE groups ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
+        # Backfill: a pre-existing "Administrators" group is the super-admin group by
+        # convention (see _seed_admin_group) — flag it so it stops relying on its
+        # permissions JSON snapshot staying in sync with FEATURES.
+        conn.execute(text(
+            "UPDATE groups SET is_super_admin = TRUE WHERE name = 'Administrators'"
+        ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
@@ -128,6 +142,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_event_logs()
     _migrate_credential_type()
     _migrate_server_ssh_assignment()
+    _migrate_group_super_admin()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -288,6 +303,7 @@ def _seed_admin_group() -> None:
                 name="Administrators",
                 description="Full access to all features and actions.",
                 permissions=all_perms,
+                is_super_admin=True,
             ))
             db.commit()
     except IntegrityError:

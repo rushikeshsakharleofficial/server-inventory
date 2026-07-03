@@ -2,11 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Group, type PermissionCatalog } from "@/lib/api";
 import { Card, PageHeader } from "@/components/ui-bits";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, ShieldCheck } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/policies/$slug")({
+export const Route = createFileRoute("/_app/policies_/$slug")({
   head: () => ({ meta: [{ title: "Edit Policy — System Control" }] }),
   component: PolicyEditPage,
 });
@@ -94,6 +94,7 @@ function PolicyEditPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [permissions, setPermissions] = useState<Record<string, string[]>>({});
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
@@ -101,6 +102,7 @@ function PolicyEditPage() {
       setName(group.name);
       setDescription(group.description ?? "");
       setPermissions(group.permissions ?? {});
+      setIsSuperAdmin(group.is_super_admin ?? false);
       setDirty(false);
     }
   }, [group]);
@@ -109,7 +111,7 @@ function PolicyEditPage() {
     mutationFn: () =>
       api(`/api/iam/groups/${groupId}`, {
         method: "PUT",
-        json: { name, description, permissions },
+        json: { name, description, permissions, is_super_admin: isSuperAdmin },
       }),
     onSuccess: () => {
       toast.success("Policy saved");
@@ -185,16 +187,34 @@ function PolicyEditPage() {
               className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
             />
           </div>
+          <label className="flex items-start gap-3 p-3 rounded-md border border-border bg-surface-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isSuperAdmin}
+              onChange={(e) => { setIsSuperAdmin(e.target.checked); setDirty(true); }}
+              className="mt-0.5 accent-primary cursor-pointer size-4"
+            />
+            <span>
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <ShieldCheck className="size-3.5 text-primary" /> Super admin
+              </span>
+              <span className="block text-xs text-muted-foreground mt-0.5">
+                Members get every action on every feature, always — computed live, not
+                from the checkboxes below. Stays fully granted even as new features are
+                added, so it never needs manual re-syncing.
+              </span>
+            </span>
+          </label>
         </div>
       </Card>
 
       {/* Permission matrix */}
       {catalog && (
-        <Card className="overflow-hidden">
+        <Card className={`overflow-hidden ${isSuperAdmin ? "opacity-50 pointer-events-none" : ""}`}>
           <div className="px-4 py-3 border-b border-border bg-surface-muted flex items-center justify-between">
             <h3 className="text-sm font-semibold">Permissions</h3>
             <span className="text-[10px] text-muted-foreground">
-              {Object.values(permissions).reduce((n, acts) => n + acts.length, 0)} grants
+              {isSuperAdmin ? "Ignored — super admin grants all" : `${Object.values(permissions).reduce((n, acts) => n + acts.length, 0)} grants`}
             </span>
           </div>
           <div className="p-2">

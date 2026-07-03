@@ -90,7 +90,15 @@ def effective_permissions(user: "User") -> dict[str, set[str]]:
       2. user.permissions (direct per-user JSON overlay)
       3. each group's permissions the user belongs to
     All sources are unioned — additive only; no deny rules.
+
+    Membership in a group with is_super_admin=True short-circuits everything above:
+    it grants every action on every current FEATURE, computed live rather than from
+    a stored JSON snapshot — so it can never drift out of sync as FEATURES grows
+    (unlike a plain permissions overlay, which has to be manually re-synced).
     """
+    if any(getattr(g, "is_super_admin", False) for g in (user.groups or [])):
+        return {f: set(FEATURE_ACTIONS[f]) for f in FEATURES}
+
     role = user.role or "read"
     baseline = ROLE_BASELINE.get(role, ROLE_BASELINE["read"])
 

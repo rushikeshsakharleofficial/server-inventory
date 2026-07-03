@@ -144,12 +144,14 @@ class GroupCreate(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     description: str | None = None
     permissions: dict = {}
+    is_super_admin: bool = False
 
 
 class GroupUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=64)
     description: str | None = None
     permissions: dict | None = None
+    is_super_admin: bool | None = None
 
 
 class GroupResponse(BaseModel):
@@ -157,6 +159,7 @@ class GroupResponse(BaseModel):
     name: str
     description: str | None = None
     permissions: dict = {}
+    is_super_admin: bool = False
     member_count: int = 0
     created_at: datetime | None = None
 

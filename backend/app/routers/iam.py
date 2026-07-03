@@ -56,6 +56,7 @@ def create_group(
         name=body.name,
         description=body.description,
         permissions=body.permissions,
+        is_super_admin=body.is_super_admin,
     )
     db.add(g)
     add_event_log(db, source="iam", resource=g.name, event="Group created", owner=user.username)
@@ -87,6 +88,8 @@ def update_group(
         g.description = body.description
     if body.permissions is not None:
         g.permissions = body.permissions
+    if body.is_super_admin is not None:
+        g.is_super_admin = body.is_super_admin
     add_event_log(db, source="iam", resource=g.name, event="Group updated", owner=user.username)
     db.commit()
     db.refresh(g)

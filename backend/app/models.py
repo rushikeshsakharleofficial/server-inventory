@@ -99,11 +99,12 @@ class Credential(Base):
 class Group(Base):
     __tablename__ = "groups"
 
-    id          = Column(Integer, primary_key=True)
-    name        = Column(String(64), unique=True, nullable=False)
-    description = Column(String(255), nullable=True)
-    permissions = Column(JSONB, default=_empty_json_dict, nullable=False, server_default="{}")
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    id             = Column(Integer, primary_key=True)
+    name           = Column(String(64), unique=True, nullable=False)
+    description    = Column(String(255), nullable=True)
+    permissions    = Column(JSONB, default=_empty_json_dict, nullable=False, server_default="{}")
+    is_super_admin = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     members     = relationship("User", secondary="user_groups", back_populates="groups")
 
