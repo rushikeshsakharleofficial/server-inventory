@@ -26,4 +26,5 @@ GEMINI.md
 # Build artifacts & tool logs
 frontend/.output/
 .playwright-mcp/
+*.png
 
