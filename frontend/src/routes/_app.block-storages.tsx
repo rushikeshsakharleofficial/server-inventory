@@ -12,14 +12,17 @@ export const Route = createFileRoute("/_app/block-storages")({
   component: BlockStoragePage,
 });
 
-const FIELDS = [
-  { key: "provider", label: "Provider", type: "multiselect" as const, options: ["aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(v => ({ value: v })) },
-  { key: "status",   label: "Status",   type: "multiselect" as const, options: ["available","in-use","creating","deleting","error"].map(v => ({ value: v })) },
-  { key: "region",   label: "Region",   type: "text" as const },
-  { key: "type",     label: "Vol type", type: "text" as const },
-];
-
 function match(s: string, q: string) { return s.toLowerCase().includes(q.toLowerCase()); }
+
+function buildFields(items: BlockStorage[]) {
+  const uniq = (vals: (string | undefined | null)[]) => [...new Set(vals.filter((v): v is string => !!v))].sort();
+  return [
+    { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(v => v.provider)).map(v => ({ value: v })) },
+    { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(v => v.status)).map(v => ({ value: v })) },
+    { key: "region",   label: "Region",   type: "text" as const },
+    { key: "type",     label: "Vol type", type: "text" as const },
+  ];
+}
 
 function BlockStoragePage() {
   const qc = useQueryClient();
@@ -40,6 +43,8 @@ function BlockStoragePage() {
   const statuses  = (fs.filters.status   as string[] | undefined) ?? [];
   const region    = (fs.filters.region   as string)  ?? "";
   const voltype   = (fs.filters.type     as string)  ?? "";
+
+  const fields = buildFields(data?.items ?? []);
 
   const items = (data?.items ?? []).filter((v) => {
     if (fs.q && !match(v.name, fs.q) && !match(v.region ?? "", fs.q) && !match(v.attachment ?? "", fs.q)) return false;
@@ -64,7 +69,7 @@ function BlockStoragePage() {
       />
 
       <Card className="p-3">
-        <AdvancedFilter fields={FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search name, region, attachment…" />
+        <AdvancedFilter fields={fields} state={fs} onChange={setFs} searchPlaceholder="Search name, region, attachment…" />
       </Card>
 
       <Card className="overflow-hidden">

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, type Page, type Server } from "@/lib/api";
+import { api, type Page, type Server, type Stats } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState, OsBadge, CustomSelect, confirmAsync } from "@/components/ui-bits";
 import type { SshCredential, ServerGroup } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
@@ -215,13 +215,17 @@ function EditServerDialog({ server, onClose }: { server: Server; onClose: () => 
   );
 }
 
-const SERVER_FILTER_FIELDS = [
-  { key: "provider", label: "Provider", type: "multiselect" as const, options: ["aws","gcp","azure","digitalocean","linode","ovh","hivelocity","custom"].map(v => ({ value: v })) },
-  { key: "status",   label: "Status",   type: "multiselect" as const, options: ["running","stopped","pending","unknown"].map(v => ({ value: v })) },
-  { key: "region",   label: "Region",   type: "text" as const },
-  { key: "os",       label: "OS",       type: "text" as const },
-  { key: "datacenter", label: "Datacenter", type: "text" as const },
-];
+function buildServerFilterFields(stats: Stats | undefined) {
+  const providerOpts = Object.keys(stats?.by_provider ?? {}).sort().map(v => ({ value: v }));
+  const statusOpts   = Object.keys(stats?.by_status   ?? {}).sort().map(v => ({ value: v }));
+  return [
+    { key: "provider", label: "Provider", type: "multiselect" as const, options: providerOpts },
+    { key: "status",   label: "Status",   type: "multiselect" as const, options: statusOpts },
+    { key: "region",   label: "Region",   type: "text" as const },
+    { key: "os",       label: "OS",       type: "text" as const },
+    { key: "datacenter", label: "Datacenter", type: "text" as const },
+  ];
+}
 
 function ServersPage() {
   const qc = useQueryClient();
@@ -254,6 +258,13 @@ function ServersPage() {
       }),
     placeholderData: (prev) => prev,
   });
+
+  const { data: stats } = useQuery({
+    queryKey: ["stats"],
+    queryFn: () => api<Stats>("/api/servers/stats"),
+    staleTime: 30_000,
+  });
+  const filterFields = buildServerFilterFields(stats);
 
   const sync = useMutation({
     mutationFn: () => api("/api/sync", { method: "POST" }),
@@ -367,7 +378,7 @@ function ServersPage() {
       {/* Filter bar */}
       <Card className="p-3">
         <AdvancedFilter
-          fields={SERVER_FILTER_FIELDS}
+          fields={filterFields}
           state={fs}
           onChange={(s) => { setFs(s); setOffset(0); }}
           searchPlaceholder="Search name, IP, hostname, OS, region…"

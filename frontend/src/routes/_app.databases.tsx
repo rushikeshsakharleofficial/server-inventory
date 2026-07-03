@@ -12,14 +12,17 @@ export const Route = createFileRoute("/_app/databases")({
   component: DatabasesPage,
 });
 
-const FIELDS = [
-  { key: "provider", label: "Provider", type: "multiselect" as const, options: ["aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(v => ({ value: v })) },
-  { key: "status",   label: "Status",   type: "multiselect" as const, options: ["available","running","stopped","creating","deleting","modifying","failed"].map(v => ({ value: v })) },
-  { key: "engine",   label: "Engine",   type: "select" as const, options: ["postgres","mysql","aurora","mariadb","sqlserver","oracle","mongodb"].map(v => ({ value: v })) },
-  { key: "region",   label: "Region",   type: "text" as const },
-];
-
 function match(s: string, q: string) { return s.toLowerCase().includes(q.toLowerCase()); }
+
+function buildFields(items: DatabaseInstance[]) {
+  const uniq = (vals: (string | undefined | null)[]) => [...new Set(vals.filter((v): v is string => !!v))].sort();
+  return [
+    { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(d => d.provider)).map(v => ({ value: v })) },
+    { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(d => d.status)).map(v => ({ value: v })) },
+    { key: "engine",   label: "Engine",   type: "select" as const, options: uniq(items.map(d => d.engine)).map(v => ({ value: v })) },
+    { key: "region",   label: "Region",   type: "text" as const },
+  ];
+}
 
 function DatabasesPage() {
   const qc = useQueryClient();
@@ -40,6 +43,8 @@ function DatabasesPage() {
   const statuses   = (fs.filters.status   as string[] | undefined) ?? [];
   const engine     = (fs.filters.engine   as string)  ?? "";
   const region     = (fs.filters.region   as string)  ?? "";
+
+  const fields = buildFields(data?.items ?? []);
 
   const items = (data?.items ?? []).filter((d) => {
     if (fs.q && !match(d.name, fs.q) && !match(d.endpoint ?? "", fs.q) && !match(d.region ?? "", fs.q)) return false;
@@ -64,7 +69,7 @@ function DatabasesPage() {
       />
 
       <Card className="p-3">
-        <AdvancedFilter fields={FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search name, endpoint, region…" />
+        <AdvancedFilter fields={fields} state={fs} onChange={setFs} searchPlaceholder="Search name, endpoint, region…" />
       </Card>
 
       <Card className="overflow-hidden">

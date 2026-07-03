@@ -12,14 +12,17 @@ export const Route = createFileRoute("/_app/kubernetes")({
   component: KubernetesPage,
 });
 
-const FIELDS = [
-  { key: "provider", label: "Provider", type: "multiselect" as const, options: ["aws","gcp","azure","digitalocean","linode","ovh"].map(v => ({ value: v })) },
-  { key: "status",   label: "Status",   type: "multiselect" as const, options: ["running","stopped","pending","degraded","provisioning"].map(v => ({ value: v })) },
-  { key: "region",   label: "Region",   type: "text" as const },
-  { key: "version",  label: "Version",  type: "text" as const },
-];
-
 function match(s: string, q: string) { return s.toLowerCase().includes(q.toLowerCase()); }
+
+function buildFields(items: KubernetesCluster[]) {
+  const uniq = (vals: (string | undefined | null)[]) => [...new Set(vals.filter((v): v is string => !!v))].sort();
+  return [
+    { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(c => c.provider)).map(v => ({ value: v })) },
+    { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(c => c.status)).map(v => ({ value: v })) },
+    { key: "region",   label: "Region",   type: "text" as const },
+    { key: "version",  label: "Version",  type: "text" as const },
+  ];
+}
 
 function KubernetesPage() {
   const qc = useQueryClient();
@@ -40,6 +43,8 @@ function KubernetesPage() {
   const statuses  = (fs.filters.status   as string[] | undefined) ?? [];
   const region    = (fs.filters.region   as string)  ?? "";
   const version   = (fs.filters.version  as string)  ?? "";
+
+  const fields = buildFields(data?.items ?? []);
 
   const items = (data?.items ?? []).filter((c) => {
     if (fs.q && !match(c.name, fs.q) && !match(c.endpoint ?? "", fs.q) && !match(c.region ?? "", fs.q) && !match(c.version ?? "", fs.q)) return false;
@@ -64,7 +69,7 @@ function KubernetesPage() {
       />
 
       <Card className="p-3">
-        <AdvancedFilter fields={FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search name, endpoint, region, version…" />
+        <AdvancedFilter fields={fields} state={fs} onChange={setFs} searchPlaceholder="Search name, endpoint, region, version…" />
       </Card>
 
       <Card className="overflow-hidden">

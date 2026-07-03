@@ -31,10 +31,13 @@ function isSecret(f: string) {
   return /secret|token|key|password|private|auth/.test(f) && f !== "endpoint";
 }
 
-const CP_FIELDS = [
-  { key: "provider", label: "Provider", type: "multiselect" as const, options: ["aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(v => ({ value: v })) },
-  { key: "status",   label: "Status",   type: "select"      as const, options: [{ value: "active", label: "Active" }, { value: "disabled", label: "Disabled" }] },
-];
+function buildCpFields(items: Credential[]) {
+  const providerOpts = [...new Set(items.map(c => c.provider))].sort().map(v => ({ value: v }));
+  return [
+    { key: "provider", label: "Provider", type: "multiselect" as const, options: providerOpts },
+    { key: "status",   label: "Status",   type: "select"      as const, options: [{ value: "active", label: "Active" }, { value: "disabled", label: "Disabled" }] },
+  ];
+}
 
 function CredentialsPage() {
   const qc = useQueryClient();
@@ -49,6 +52,7 @@ function CredentialsPage() {
 
   const providers = (fs.filters.provider as string[] | undefined) ?? [];
   const status    = (fs.filters.status   as string)  ?? "";
+  const cpFields  = buildCpFields(data?.items ?? []);
 
   const items = (data?.items ?? []).filter((c) => {
     if (fs.q && !c.name.toLowerCase().includes(fs.q.toLowerCase()) && !c.provider.toLowerCase().includes(fs.q.toLowerCase())) return false;
@@ -88,7 +92,7 @@ function CredentialsPage() {
       />
 
       <Card className="p-3">
-        <AdvancedFilter fields={CP_FIELDS} state={fs} onChange={setFs} searchPlaceholder="Search by name or provider…" />
+        <AdvancedFilter fields={cpFields} state={fs} onChange={setFs} searchPlaceholder="Search by name or provider…" />
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
