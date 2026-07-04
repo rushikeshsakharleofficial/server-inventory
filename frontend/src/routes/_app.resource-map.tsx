@@ -87,7 +87,7 @@ const CAT_LABEL: Record<string, string> = {
 
 // ─── Node icon (no wrapper span — avoids SSR hydration mismatch) ──────────────
 
-function NodeIcon({ cat, size = 14 }: { cat: string; size?: number }) {
+function NodeIcon({ cat, size = 14 }: Readonly<{ cat: string; size?: number }>) {
   const s = { width: size, height: size };
   if (cat === "database") return <Database style={s} />;
   if (cat === "storage" || cat === "backup") return <HardDrive style={s} />;
@@ -107,18 +107,22 @@ function ResourceNode({ data, selected }: NodeProps<RmNodeData>) {
   const { color, bg } = catMeta(cat);
   const sColor = data.status ? statusColor(String(data.status)) : "#6b7280";
   const isRoot = !!data.isRoot;
-  const borderColor = selected ? "#3b82f6" : isRoot ? color : "#e5e7eb";
+  let borderColor: string;
+  if (selected) borderColor = "#3b82f6";
+  else if (isRoot) borderColor = color;
+  else borderColor = "#e5e7eb";
   const borderWidth = selected || isRoot ? 2 : 1;
+
+  let boxShadow: string;
+  if (selected) boxShadow = "0 0 0 4px rgba(59,130,246,0.15), 0 4px 16px rgba(0,0,0,0.1)";
+  else if (isRoot) boxShadow = `0 0 0 3px ${color}22, 0 4px 12px rgba(0,0,0,0.08)`;
+  else boxShadow = "0 2px 8px rgba(15,23,42,0.07)";
 
   return (
     <div style={{
       background: "#fff",
       border: `${borderWidth}px solid ${borderColor}`,
-      boxShadow: selected
-        ? "0 0 0 4px rgba(59,130,246,0.15), 0 4px 16px rgba(0,0,0,0.1)"
-        : isRoot
-          ? `0 0 0 3px ${color}22, 0 4px 12px rgba(0,0,0,0.08)`
-          : "0 2px 8px rgba(15,23,42,0.07)",
+      boxShadow,
       borderRadius: 14,
       width: isRoot ? 240 : 210,
       padding: "12px 14px",
@@ -183,7 +187,6 @@ function layoutNodes(apiNodes: RmApiNode[], rootId: string): Map<string, { x: nu
   const COL_W = 280, ROW_H = 130;
 
   // Determine tree depth from root using BFS
-  const adjOut = new Map<string, string[]>();
   // We get edges from the API response, passed separately
   // For layout, group by category then order root category first
   const cats = [...new Set(apiNodes.map(n => n.category))];
@@ -249,11 +252,11 @@ function apiToFlow(rmData: RmApiData): { nodes: Node[]; edges: Edge[] } {
         meta: String(p.os ?? p.engine ?? p.cidr ?? p.ip ?? p.version ?? p.type ?? ""),
         details: (() => {
           const parts: string[] = [];
-          if (p.vcpu || p.vcpus) parts.push(`${p.vcpu ?? p.vcpus} vCPU`);
-          if (p.memory_gb) parts.push(`${p.memory_gb} GB RAM`);
+          if (p.vcpu || p.vcpus) parts.push(`${String(p.vcpu ?? p.vcpus)} vCPU`);
+          if (p.memory_gb) parts.push(`${String(p.memory_gb)} GB RAM`);
           if (p.size_mb) parts.push(`${Math.round(Number(p.size_mb) / 1024)} GB`);
-          if (p.rules) parts.push(`${p.rules} rules`);
-          if (p.count) parts.push(`${p.count} nodes`);
+          if (p.rules) parts.push(`${String(p.rules)} rules`);
+          if (p.count) parts.push(`${String(p.count)} nodes`);
           return parts.join(" · ") || "";
         })(),
         status: String(p.status ?? p.state ?? p.power_status ?? ""),
@@ -305,8 +308,8 @@ function MapSkeleton() {
         <line x1={811} y1={155} x2={920} y2={185} stroke="#e2e8f0" strokeWidth={2} strokeDasharray="6 4" />
         <line x1={811} y1={165} x2={920} y2={315} stroke="#e2e8f0" strokeWidth={2} strokeDasharray="6 4" />
       </svg>
-      {cards.map((c, i) => (
-        <div key={i} className="absolute animate-pulse" style={{ left: c.x, top: c.y }}>
+      {cards.map((c) => (
+        <div key={`${c.x}-${c.y}-${c.w}`} className="absolute animate-pulse" style={{ left: c.x, top: c.y }}>
           <div style={{ width: c.w, background: "#fff", borderRadius: 14, border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(15,23,42,0.06)", padding: "12px 14px" }}>
             <div style={{ height: 8, background: "#f1f5f9", borderRadius: 4, width: "60%", marginBottom: 10 }} />
             <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
@@ -333,7 +336,7 @@ function MapSkeleton() {
 
 // ─── Properties panel ─────────────────────────────────────────────────────────
 
-function PropsPanel({ node, serverId }: { node: Node | null; serverId?: number }) {
+function PropsPanel({ node, serverId }: Readonly<{ node: Node | null; serverId?: number }>) {
   if (!node) return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, padding: "0 16px", textAlign: "center" }}>
       <Layers style={{ width: 24, height: 24, color: "#d1d5db" }} />
@@ -406,9 +409,9 @@ function PropsPanel({ node, serverId }: { node: Node | null; serverId?: number }
 
 function FlowInner({
   nodes: initNodes, edges: initEdges, onNodeClick,
-}: {
+}: Readonly<{
   nodes: Node[]; edges: Edge[]; onNodeClick: (n: Node) => void;
-}) {
+}>) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initEdges);
   const { fitView } = useReactFlow();
@@ -455,9 +458,9 @@ function FlowInner({
 
 // ─── Sidebar server item ──────────────────────────────────────────────────────
 
-function SidebarItem({ label, sub, status, active, onClick }: {
+function SidebarItem({ label, sub, status, active, onClick }: Readonly<{
   label: string; sub: string; status?: string; active: boolean; onClick: () => void;
-}) {
+}>) {
   return (
     <button
       onClick={onClick}
@@ -572,8 +575,8 @@ function ResourceMapPage() {
   }, []);
 
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) { containerRef.current?.requestFullscreen(); setFullscreen(true); }
-    else { document.exitFullscreen(); setFullscreen(false); }
+    if (document.fullscreenElement) { document.exitFullscreen(); setFullscreen(false); }
+    else { containerRef.current?.requestFullscreen(); setFullscreen(true); }
   };
 
   const q = search.toLowerCase();
@@ -617,32 +620,43 @@ function ResourceMapPage() {
 
           {/* SSH sync bar */}
           <div style={{ flexShrink: 0 }}>
-            {syncProg.status === "running" ? (
-              <div style={{ padding: "0 4px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <RefreshCw className="animate-spin" style={{ width: 10, height: 10 }} />
-                    Syncing {syncProg.done}/{syncProg.total}
-                  </span>
-                  <button onClick={() => { syncAbortRef.current = true; }} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: 10 }}>stop</button>
-                </div>
-                <div style={{ height: 4, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", background: "#6366f1", borderRadius: 4, transition: "width 0.3s", width: syncProg.total ? `${(syncProg.done / syncProg.total) * 100}%` : "0%" }} />
-                </div>
-              </div>
-            ) : syncProg.status === "done" ? (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, padding: "0 4px" }}>
-                <span style={{ color: "#22c55e" }}>SSH sync done ✓</span>
-                {defaultCredId && <button onClick={() => runSshSync(servers.data!.items, defaultCredId)} style={{ color: "#9ca3af", background: "none", border: "none", cursor: "pointer", fontSize: 10 }}>re-run</button>}
-              </div>
-            ) : defaultCredId && servers.data?.items.length ? (
-              <button
-                onClick={() => runSshSync(servers.data!.items, defaultCredId)}
-                className="w-full flex items-center justify-center gap-1.5 text-[10px] font-medium px-2 py-1.5 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors"
-              >
-                <Wifi className="size-3" /> Sync All via SSH
-              </button>
-            ) : null}
+            {(() => {
+              if (syncProg.status === "running") {
+                return (
+                  <div style={{ padding: "0 4px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <RefreshCw className="animate-spin" style={{ width: 10, height: 10 }} />
+                        Syncing {syncProg.done}/{syncProg.total}
+                      </span>
+                      <button onClick={() => { syncAbortRef.current = true; }} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: 10 }}>stop</button>
+                    </div>
+                    <div style={{ height: 4, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ height: "100%", background: "#6366f1", borderRadius: 4, transition: "width 0.3s", width: syncProg.total ? `${(syncProg.done / syncProg.total) * 100}%` : "0%" }} />
+                    </div>
+                  </div>
+                );
+              }
+              if (syncProg.status === "done") {
+                return (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, padding: "0 4px" }}>
+                    <span style={{ color: "#22c55e" }}>SSH sync done ✓</span>
+                    {defaultCredId && <button onClick={() => runSshSync(servers.data!.items, defaultCredId)} style={{ color: "#9ca3af", background: "none", border: "none", cursor: "pointer", fontSize: 10 }}>re-run</button>}
+                  </div>
+                );
+              }
+              if (defaultCredId && servers.data?.items.length) {
+                return (
+                  <button
+                    onClick={() => runSshSync(servers.data!.items, defaultCredId)}
+                    className="w-full flex items-center justify-center gap-1.5 text-[10px] font-medium px-2 py-1.5 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors"
+                  >
+                    <Wifi className="size-3" /> Sync All via SSH
+                  </button>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           <div style={{ flex: 1, overflowY: "auto" }}>
@@ -690,32 +704,39 @@ function ResourceMapPage() {
             </div>
           )}
 
-          {!selectedServer ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: "#94a3b8" }}>
-              <Network style={{ width: 48, height: 48, opacity: 0.2 }} />
-              <p style={{ fontSize: 13 }}>Select a server from the left to view its topology.</p>
-            </div>
-          ) : !flowData ? (
-            <MapSkeleton />
-          ) : flowData.nodes.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: "#94a3b8" }}>
-              <Network style={{ width: 48, height: 48, opacity: 0.2 }} />
-              <p style={{ fontSize: 13, textAlign: "center", maxWidth: 300 }}>
-                No cloud topology available for this server.<br />
-                <span style={{ fontSize: 11, color: "#b0b8c1" }}>Run a cloud sync to fetch connected resources (ELB, SGs, NICs, VPCs, etc.).</span>
-              </p>
-            </div>
-          ) : (
-            <div style={{ width: "100%", height: "100%" }}>
-              <ReactFlowProvider>
-                <FlowInner
-                  nodes={flowData.nodes}
-                  edges={flowData.edges}
-                  onNodeClick={setActiveNode}
-                />
-              </ReactFlowProvider>
-            </div>
-          )}
+          {(() => {
+            if (!selectedServer) {
+              return (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: "#94a3b8" }}>
+                  <Network style={{ width: 48, height: 48, opacity: 0.2 }} />
+                  <p style={{ fontSize: 13 }}>Select a server from the left to view its topology.</p>
+                </div>
+              );
+            }
+            if (!flowData) return <MapSkeleton />;
+            if (flowData.nodes.length === 0) {
+              return (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: "#94a3b8" }}>
+                  <Network style={{ width: 48, height: 48, opacity: 0.2 }} />
+                  <p style={{ fontSize: 13, textAlign: "center", maxWidth: 300 }}>
+                    No cloud topology available for this server.<br />
+                    <span style={{ fontSize: 11, color: "#b0b8c1" }}>Run a cloud sync to fetch connected resources (ELB, SGs, NICs, VPCs, etc.).</span>
+                  </p>
+                </div>
+              );
+            }
+            return (
+              <div style={{ width: "100%", height: "100%" }}>
+                <ReactFlowProvider>
+                  <FlowInner
+                    nodes={flowData.nodes}
+                    edges={flowData.edges}
+                    onNodeClick={setActiveNode}
+                  />
+                </ReactFlowProvider>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Properties panel */}

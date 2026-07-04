@@ -57,7 +57,7 @@ function buildFields(items: DnsRecord[]) {
 function DomainsPage() {
   const qc = useQueryClient();
   const [fs, setFs] = useState<FilterState>(() =>
-    typeof globalThis.window === "undefined"
+    globalThis.window === undefined
       ? emptyFilterState()
       : searchParamsToFilterState(globalThis.location.search, [
           "provider",

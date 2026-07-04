@@ -399,7 +399,7 @@ async def ssh_sync_server(
             if jump_client:
                 jump_client.close()
             return None, "Authentication failed — check username and credentials"
-        except (socket.timeout, paramiko.SSHException, OSError) as e:
+        except (paramiko.SSHException, OSError) as e:
             client.close()
             if jump_client:
                 jump_client.close()

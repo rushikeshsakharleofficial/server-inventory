@@ -124,7 +124,6 @@ function EventDetails({ event, onClose, onUpdate }: Readonly<{
   onUpdate: (id: number, status: string) => void;
 }>) {
   const s = sev(event.severity);
-  const { Icon } = s;
   return (
     <div className="flex flex-col h-full" style={{ borderLeft: "1px solid #f3f4f6" }}>
       {/* Header */}

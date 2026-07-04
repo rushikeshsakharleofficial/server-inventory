@@ -18,6 +18,8 @@ function copyToClipboard(text: string): boolean {
   el.style.opacity = "0";
   document.body.appendChild(el);
   el.select();
+  // ponytail: execCommand is deprecated but kept as the fallback for browsers/contexts
+  // (e.g. non-HTTPS) where navigator.clipboard is unavailable — remove once that's no longer a target.
   const ok = document.execCommand("copy");
   document.body.removeChild(el);
   return ok;
@@ -114,7 +116,7 @@ function AddServerDialog({ onClose }: Readonly<{ onClose: () => void }>) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Provider</label>
+            <span className="text-xs text-muted-foreground font-medium block mb-1">Provider</span>
             <CustomSelect
               value={form.provider}
               onChange={(v) => setForm(f => ({ ...f, provider: v }))}
@@ -122,7 +124,7 @@ function AddServerDialog({ onClose }: Readonly<{ onClose: () => void }>) {
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
+            <span className="text-xs text-muted-foreground font-medium block mb-1">Status</span>
             <CustomSelect
               value={form.status}
               onChange={(v) => setForm(f => ({ ...f, status: v }))}
@@ -180,7 +182,7 @@ function EditServerDialog({ server, onClose }: Readonly<{ server: Server; onClos
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
+            <span className="text-xs text-muted-foreground font-medium block mb-1">Status</span>
             <CustomSelect value={form.status} onChange={(v) => setForm(f => ({ ...f, status: v }))}
               options={["unknown","running","stopped","pending"].map(s => ({ value: s }))} />
           </div>

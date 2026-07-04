@@ -10,22 +10,22 @@ def _get_page():
 
 class TestPageSchema:
     def test_basic_construction(self):
-        Page, _, _ = _get_page()
-        p = Page[str](total=100, limit=10, offset=0, items=["a", "b"])
+        page_cls, _, _ = _get_page()
+        p = page_cls[str](total=100, limit=10, offset=0, items=["a", "b"])
         assert p.total == 100
         assert p.limit == 10
         assert p.offset == 0
         assert p.items == ["a", "b"]
 
     def test_empty_items(self):
-        Page, _, _ = _get_page()
-        p = Page[int](total=0, limit=50, offset=0, items=[])
+        page_cls, _, _ = _get_page()
+        p = page_cls[int](total=0, limit=50, offset=0, items=[])
         assert p.items == []
         assert p.total == 0
 
     def test_serializes_to_dict(self):
-        Page, _, _ = _get_page()
-        p = Page[str](total=5, limit=5, offset=0, items=["x"])
+        page_cls, _, _ = _get_page()
+        p = page_cls[str](total=5, limit=5, offset=0, items=["x"])
         d = p.model_dump()
         assert set(d.keys()) == {"total", "limit", "offset", "items"}
 
@@ -36,11 +36,11 @@ class TestPageSchema:
 
     def test_nested_model_items(self):
         from pydantic import BaseModel
-        Page, _, _ = _get_page()
+        page_cls, _, _ = _get_page()
 
         class Item(BaseModel):
             id: int
             name: str
 
-        p = Page[Item](total=1, limit=50, offset=0, items=[Item(id=1, name="srv")])
+        p = page_cls[Item](total=1, limit=50, offset=0, items=[Item(id=1, name="srv")])
         assert p.items[0].name == "srv"

@@ -316,7 +316,7 @@ function SshInfoSection({ sshInfo }: Readonly<{ sshInfo: Record<string, unknown>
                   else if (isV6) badgeClass = "bg-blue-50 text-blue-700 border-blue-200";
                   else badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
                   return (
-                    <tr key={i} className="hover:bg-muted/30">
+                    <tr key={ip} className="hover:bg-muted/30">
                       <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
                       <td className="px-3 py-1.5 font-mono">{ip}</td>
                       <td className="px-3 py-1.5">

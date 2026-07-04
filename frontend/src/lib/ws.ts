@@ -113,13 +113,15 @@ export function useAppWebSocket() {
         }
       };
 
+      function scheduleReconnect() {
+        if (!unmountedRef.current && gen === genRef.current) connect(gen); // Fix 6
+      }
+
       ws.onclose = () => {
         _wsListener?.(false); // Fix 5
         wsRef.current = null;
         if (unmountedRef.current || gen !== genRef.current) return; // Fix 6
-        setTimeout(() => {
-          if (!unmountedRef.current && gen === genRef.current) connect(gen); // Fix 6
-        }, delayRef.current);
+        setTimeout(scheduleReconnect, delayRef.current);
         delayRef.current = Math.min(delayRef.current * 2, MAX_RECONNECT_DELAY_MS);
       };
 

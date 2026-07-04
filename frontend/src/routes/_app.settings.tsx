@@ -36,10 +36,9 @@ function SettingsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const mfaStatus = useQuery({
-    queryKey: ["mfaStatus"],
-    queryFn: () => api<{ enabled: boolean }>("/api/auth/mfa/status"),
-  });
+  function setDraftValue(k: string, val: string) {
+    setDraft((d) => ({ ...d, [k]: val }));
+  }
 
   function save() {
     if (!data) return;
@@ -75,7 +74,7 @@ function SettingsPage() {
                         return (
                           <CustomSelect
                             value={v}
-                            onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                            onChange={(val) => setDraftValue(k, val)}
                             options={[
                               { value: "false", label: "Off (default)" },
                               { value: "true",  label: "On" },
@@ -87,7 +86,7 @@ function SettingsPage() {
                         return (
                           <CustomSelect
                             value={v}
-                            onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                            onChange={(val) => setDraftValue(k, val)}
                             options={[
                               { value: "22",    label: "22 (standard)" },
                               { value: "2222",  label: "2222" },
@@ -101,7 +100,7 @@ function SettingsPage() {
                         return (
                           <CustomSelect
                             value={v}
-                            onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                            onChange={(val) => setDraftValue(k, val)}
                             options={[
                               { value: "60",  label: "1 min" },
                               { value: "120", label: "2 min" },
@@ -115,7 +114,7 @@ function SettingsPage() {
                       return (
                         <input
                           value={v}
-                          onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
+                          onChange={(e) => setDraftValue(k, e.target.value)}
                           className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md font-mono"
                         />
                       );

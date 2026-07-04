@@ -427,7 +427,7 @@ async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> 
             raw = await asyncio.wait_for(ws.receive_text(), timeout=10.0)
             data = json.loads(raw)
             token = data.get("token") if isinstance(data, dict) else None
-        except (asyncio.TimeoutError, json.JSONDecodeError, Exception):
+        except Exception:
             await ws.close(code=4001)
             return
 

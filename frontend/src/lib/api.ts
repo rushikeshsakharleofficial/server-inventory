@@ -8,7 +8,7 @@ function resolveApiBase(): string {
     import.meta.env.VITE_API_URL as string | undefined
   )?.trim();
   if (configured) return configured.replace(/\/+$/, "");
-  if (typeof globalThis.window !== "undefined") {
+  if (globalThis.window !== undefined) {
     // ponytail: HTTPS pages need the API's own TLS-terminated port (8444),
     // not the plain-HTTP backend port (8001) — calling the latter from an
     // HTTPS origin fails as mixed content / connection-refused.
@@ -31,9 +31,7 @@ export interface StoredUser {
 
 export const tokenStore = {
   get: () =>
-    typeof globalThis.window === "undefined"
-      ? null
-      : localStorage.getItem(TOKEN_KEY),
+    globalThis.window === undefined ? null : localStorage.getItem(TOKEN_KEY),
   set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
   clear: () => {
     localStorage.removeItem(TOKEN_KEY);
@@ -43,7 +41,7 @@ export const tokenStore = {
 
 export const userStore = {
   get: (): StoredUser | null => {
-    if (typeof globalThis.window === "undefined") return null;
+    if (globalThis.window === undefined) return null;
     const raw = localStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
   },
@@ -70,7 +68,7 @@ export async function api<T = unknown>(
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(query)) {
       if (v === undefined || v === null || v === "") continue;
-      qs.append(k, String(v));
+      qs.append(k, `${v}`);
     }
     const s = qs.toString();
     if (s) url += `?${s}`;
@@ -103,19 +101,21 @@ export async function api<T = unknown>(
     if (res.status === 401) {
       tokenStore.clear();
       if (
-        typeof globalThis.window !== "undefined" &&
+        globalThis.window !== undefined &&
         !globalThis.location.pathname.startsWith("/login")
       ) {
         globalThis.location.assign("/login");
       }
     }
-    const msg =
-      (typeof data === "object" && data && "detail" in data
-        ? String((data as { detail: unknown }).detail)
-        : typeof data === "string"
-          ? data
-          : res.statusText) || "Request failed";
-    throw new ApiError(res.status, msg, data);
+    let msg: string;
+    if (typeof data === "object" && data && "detail" in data) {
+      msg = String((data as { detail: unknown }).detail);
+    } else if (typeof data === "string") {
+      msg = data;
+    } else {
+      msg = res.statusText;
+    }
+    throw new ApiError(res.status, msg || "Request failed", data);
   }
   return data as T;
 }

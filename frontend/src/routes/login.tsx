@@ -97,7 +97,14 @@ function LoginPage() {
     navigate({ to: "/dashboard" });
   }
 
-  const submitLabel = loading ? "Signing in…" : mfaToken ? "Verify" : "Sign in";
+  let submitLabel: string;
+  if (loading) {
+    submitLabel = "Signing in…";
+  } else if (mfaToken) {
+    submitLabel = "Verify";
+  } else {
+    submitLabel = "Sign in";
+  }
 
   if (checkingSetup) {
     return (
@@ -268,7 +275,7 @@ function LoginPage() {
 
                 {/* Remember me */}
                 <div>
-                  <label htmlFor="login-remember" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                  <label htmlFor="login-remember" aria-label="Remember me for 90 days" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
                     <input
                       id="login-remember"
                       type="checkbox"

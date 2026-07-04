@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: () => {
-    if (typeof globalThis.window !== "undefined" && !tokenStore.get()) {
+    if (globalThis.window !== undefined && !tokenStore.get()) {
       throw redirect({ to: "/login" });
     }
   },

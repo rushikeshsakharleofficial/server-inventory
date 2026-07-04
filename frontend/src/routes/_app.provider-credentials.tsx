@@ -102,6 +102,8 @@ function CopyBtn({ value, label, title, isSecret = false, credId, field, isAdmin
       return true;
     }
     // Fallback for insecure (non-HTTPS) contexts where the Clipboard API is unavailable.
+    // ponytail: execCommand is deprecated but remains the only copy path outside secure
+    // contexts; no upgrade until browsers drop it entirely.
     const el = document.createElement("textarea");
     el.value = text;
     el.style.position = "fixed";

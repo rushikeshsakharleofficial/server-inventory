@@ -343,42 +343,50 @@ function EditCredentialDialog({
                 <label htmlFor={fieldId} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
                   {f.replaceAll("_", " ")}
                 </label>
-                {f.includes("json") ? (
-                  <textarea
-                    id={fieldId}
-                    rows={4}
-                    value={values[f] ?? ""}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, [f]: e.target.value }))
-                    }
-                    className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
-                  />
-                ) : FIELD_OPTIONS[f] ? (
-                  <CustomSelect
-                    value={values[f] ?? ""}
-                    onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
-                    options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
-                    placeholder="— select —"
-                  />
-                ) : (
-                  <>
-                    <input
-                      id={fieldId}
-                      type={isSecret(f) ? "password" : "text"}
-                      value={values[f] ?? ""}
-                      onChange={(e) =>
-                        setValues((v) => ({ ...v, [f]: e.target.value }))
-                      }
-                      placeholder={
-                        isReplacingSecret
-                          ? "•••••••••••• (locked — type to replace)"
-                          : ""
-                      }
-                      className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-                    />
-                    {secretHint}
-                  </>
-                )}
+                {(() => {
+                  if (f.includes("json")) {
+                    return (
+                      <textarea
+                        id={fieldId}
+                        rows={4}
+                        value={values[f] ?? ""}
+                        onChange={(e) =>
+                          setValues((v) => ({ ...v, [f]: e.target.value }))
+                        }
+                        className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
+                      />
+                    );
+                  }
+                  if (FIELD_OPTIONS[f]) {
+                    return (
+                      <CustomSelect
+                        value={values[f] ?? ""}
+                        onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
+                        options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
+                        placeholder="— select —"
+                      />
+                    );
+                  }
+                  return (
+                    <>
+                      <input
+                        id={fieldId}
+                        type={isSecret(f) ? "password" : "text"}
+                        value={values[f] ?? ""}
+                        onChange={(e) =>
+                          setValues((v) => ({ ...v, [f]: e.target.value }))
+                        }
+                        placeholder={
+                          isReplacingSecret
+                            ? "•••••••••••• (locked — type to replace)"
+                            : ""
+                        }
+                        className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+                      />
+                      {secretHint}
+                    </>
+                  );
+                })()}
               </div>
             );
           })}
@@ -439,10 +447,10 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
             create.mutate();
           }}
         >
-          <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+          <fieldset className="m-0 p-0 border-0">
+            <legend className="p-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               Provider
-            </label>
+            </legend>
             <div className="mt-1 grid grid-cols-4 gap-2">
               {PROVIDERS.map((p) => {
                 let label = p.id.toUpperCase();
@@ -484,7 +492,7 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
                 );
               })}
             </div>
-          </div>
+          </fieldset>
           <div>
             <label htmlFor="new-cred-name" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               Name
@@ -505,36 +513,44 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
               <label htmlFor={fieldId} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
                 {f.replaceAll("_", " ")}
               </label>
-              {f.includes("json") ? (
-                <textarea
-                  id={fieldId}
-                  required
-                  rows={4}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
-                />
-              ) : FIELD_OPTIONS[f] ? (
-                <CustomSelect
-                  value={values[f] ?? ""}
-                  onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
-                  options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
-                  placeholder="— select —"
-                />
-              ) : (
-                <input
-                  id={fieldId}
-                  required
-                  type={isSecret(f) ? "password" : "text"}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-                />
-              )}
+              {(() => {
+                if (f.includes("json")) {
+                  return (
+                    <textarea
+                      id={fieldId}
+                      required
+                      rows={4}
+                      value={values[f] ?? ""}
+                      onChange={(e) =>
+                        setValues((v) => ({ ...v, [f]: e.target.value }))
+                      }
+                      className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
+                    />
+                  );
+                }
+                if (FIELD_OPTIONS[f]) {
+                  return (
+                    <CustomSelect
+                      value={values[f] ?? ""}
+                      onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
+                      options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
+                      placeholder="— select —"
+                    />
+                  );
+                }
+                return (
+                  <input
+                    id={fieldId}
+                    required
+                    type={isSecret(f) ? "password" : "text"}
+                    value={values[f] ?? ""}
+                    onChange={(e) =>
+                      setValues((v) => ({ ...v, [f]: e.target.value }))
+                    }
+                    className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+                  />
+                );
+              })()}
             </div>
             );
           })}

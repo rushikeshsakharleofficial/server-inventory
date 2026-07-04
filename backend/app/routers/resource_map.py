@@ -712,7 +712,7 @@ def _do_server_map(server: models.Server, config: dict) -> dict:
                 edges.append(_edge(root_id, vpc_uuid, "VPC"))
 
         # Floating IPs
-        fip_resp = requests.get(f"https://api.digitalocean.com/v2/floating_ips", headers=headers, timeout=15)
+        fip_resp = requests.get("https://api.digitalocean.com/v2/floating_ips", headers=headers, timeout=15)
         if fip_resp.ok:
             for fip in fip_resp.json().get("floating_ips", []):
                 if fip.get("droplet", {}).get("id") == int(server.cloud_id or 0):
@@ -868,7 +868,7 @@ def _linode_server_map(server: models.Server, config: dict) -> dict:
                 edges.append(_edge(root_id, str(fw["id"]), "firewall"))
 
         # NodeBalancers
-        nb_resp = requests.get(f"https://api.linode.com/v4/nodebalancers", headers=headers, timeout=15)
+        nb_resp = requests.get("https://api.linode.com/v4/nodebalancers", headers=headers, timeout=15)
         if nb_resp.ok:
             # Check each NB's configs for this linode
             for nb in nb_resp.json().get("data", []):
@@ -1387,7 +1387,7 @@ def _ovh_server_map(server: models.Server, config: dict) -> dict:
                 edges.append(_edge(root_id, f"ip-{ip}", "IP address"))
 
         # Failover IPs
-        fo_resp = ovh_get(f"/ip?type=failover")
+        fo_resp = ovh_get("/ip?type=failover")
         if fo_resp.ok:
             for fo_ip in fo_resp.json()[:10]:
                 # Check if routed to this server

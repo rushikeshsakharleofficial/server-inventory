@@ -77,9 +77,12 @@ function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: Cron
 
   const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
 
-  const saveLabel = save.isPending
-    ? (job ? "Saving…" : "Creating…")
-    : (job ? "Save" : "Create");
+  let saveLabel: string;
+  if (save.isPending) {
+    saveLabel = job ? "Saving…" : "Creating…";
+  } else {
+    saveLabel = job ? "Save" : "Create";
+  }
 
   return (
     <Modal onClose={onClose} closeOnOutsideClick={false} className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">

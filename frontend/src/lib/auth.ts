@@ -18,7 +18,7 @@ export function useCurrentUser(): StoredUser | null {
 export function useRequireAuth() {
   const router = useRouter();
   useEffect(() => {
-    if (typeof globalThis.window !== "undefined" && !tokenStore.get()) {
+    if (globalThis.window !== undefined && !tokenStore.get()) {
       router.navigate({ to: "/login" });
     }
   }, [router]);

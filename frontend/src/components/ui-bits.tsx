@@ -239,12 +239,14 @@ export const PROVIDER_LOGOS: Record<string, string> = {
 export function ProviderBadge({ provider }: Readonly<{ provider: string }>) {
   const p = (provider || "").toLowerCase();
   const logo = PROVIDER_LOGOS[p];
-  const short =
-    p === "digitalocean"
-      ? "DO"
-      : p === "kubernetes"
-        ? "K8S"
-        : p.slice(0, 3).toUpperCase();
+  let short: string;
+  if (p === "digitalocean") {
+    short = "DO";
+  } else if (p === "kubernetes") {
+    short = "K8S";
+  } else {
+    short = p.slice(0, 3).toUpperCase();
+  }
   const color = PROVIDER_COLORS[p] ?? "text-zinc-600";
   return (
     <div className="flex items-center gap-2">

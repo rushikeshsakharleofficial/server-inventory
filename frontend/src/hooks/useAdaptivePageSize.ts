@@ -28,15 +28,17 @@ export function useAdaptivePageSize(opts: {
     const el = bodyRef.current;
     if (!el) return;
 
+    function applyRecalc() {
+      rafRef.current = null;
+      const height = bodyRef.current?.clientHeight ?? 0;
+      const rows = Math.floor(height / rowHeight);
+      const clamped = Math.min(max, Math.max(min, rows || min));
+      setPageSize((prev) => (prev === clamped ? prev : clamped));
+    }
+
     function recalc() {
       if (rafRef.current !== null) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        const height = bodyRef.current?.clientHeight ?? 0;
-        const rows = Math.floor(height / rowHeight);
-        const clamped = Math.min(max, Math.max(min, rows || min));
-        setPageSize((prev) => (prev === clamped ? prev : clamped));
-      });
+      rafRef.current = requestAnimationFrame(applyRecalc);
     }
 
     recalc();

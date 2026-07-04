@@ -733,6 +733,9 @@
     flex-wrap: wrap;
     gap: var(--sp-xs);
     justify-content: center;
+    border: 0;
+    margin: 0;
+    padding: 0;
   }
   .chip {
     background: var(--canvas);
@@ -916,7 +919,7 @@
         <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-34.4-147.2-90.2C158.2 866.8 102 774.4 102 661.4c0-169.5 111.7-260.1 221.7-260.1 60 0 109.9 40.2 147.2 40.2 35.6 0 91.8-42.7 158.8-42.7 26.2 0 108.2 2.6 160.4 80.4zm-160.8-67c-7.1-35.4-21.4-68.7-44.5-97.2C547.4 124.4 504 98.1 463.2 98.1c-5.4 0-10.9.6-16.4.9 32.5 35.4 47.5 71.9 50.5 107.4.3 5.1.5 10.3.5 15.1 0 42.2-15.6 86.3-43.4 120.7 27.2 7.3 54 10.9 77.8 10.9 32.6 0 65.6-7.9 95.1-29.1z"/>
       </svg>
     </a>
-    <ul class="global-nav__links" role="list">
+    <ul class="global-nav__links">
       <li><a href="#">Store</a></li>
       <li><a href="#">Mac</a></li>
       <li><a href="#">iPad</a></li>
@@ -952,7 +955,7 @@
 <div class="sub-nav">
   <div class="sub-nav__inner">
     <span class="sub-nav__title">Mac</span>
-    <ul class="sub-nav__links" role="list">
+    <ul class="sub-nav__links">
       <li><a href="#">Overview</a></li>
       <li><a href="#">MacBook Air</a></li>
       <li><a href="#">MacBook Pro</a></li>
@@ -1121,7 +1124,7 @@
 
   <section class="configurator">
     <span class="configurator__label">Filter by category</span>
-    <div class="configurator__chips" role="group" aria-label="Category filters">
+    <fieldset class="configurator__chips" aria-label="Category filters">
       <button class="chip chip--selected" aria-pressed="true">All Accessories</button>
       <button class="chip" aria-pressed="false">iPhone</button>
       <button class="chip" aria-pressed="false">Mac</button>
@@ -1129,7 +1132,7 @@
       <button class="chip" aria-pressed="false">Apple Watch</button>
       <button class="chip" aria-pressed="false">AirPods</button>
       <button class="chip" aria-pressed="false">Apple TV</button>
-    </div>
+    </fieldset>
   </section>
 
   <!-- Utility Card Grid -->
@@ -1197,10 +1200,10 @@
   </section>
 
   <!-- Floating Sticky Bar -->
-  <div class="sticky-bar" role="complementary" aria-label="Order summary">
+  <aside class="sticky-bar" aria-label="Order summary">
     <span class="sticky-bar__price">iPhone 17 Pro — from <strong>$999</strong></span>
     <button class="btn-primary" style="font-size:14px; padding:10px 20px;">Add to Bag</button>
-  </div>
+  </aside>
 
 </main>
 

@@ -78,7 +78,7 @@ function PolicyEditPage() {
   const qc = useQueryClient();
 
   // slug is "group-{id}"
-  const groupId = slug.startsWith("group-") ? parseInt(slug.replace("group-", ""), 10) : NaN;
+  const groupId = slug.startsWith("group-") ? Number.parseInt(slug.replace("group-", ""), 10) : Number.NaN;
 
   const { data: groups, isLoading: groupsLoading } = useQuery<Group[]>({
     queryKey: ["iam-groups"],
@@ -129,7 +129,7 @@ function PolicyEditPage() {
     );
   }
 
-  if (isNaN(groupId) || (!groupsLoading && !group)) {
+  if (Number.isNaN(groupId) || (!groupsLoading && !group)) {
     return (
       <div className="p-6">
         <p className="text-sm text-red-500">Group not found.</p>
@@ -189,7 +189,7 @@ function PolicyEditPage() {
               className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
             />
           </div>
-          <label htmlFor="policy-super-admin" className="flex items-start gap-3 p-3 rounded-md border border-border bg-surface-muted cursor-pointer">
+          <label htmlFor="policy-super-admin" aria-label="Super admin" className="flex items-start gap-3 p-3 rounded-md border border-border bg-surface-muted cursor-pointer">
             <input
               id="policy-super-admin"
               type="checkbox"

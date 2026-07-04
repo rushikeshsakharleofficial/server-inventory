@@ -85,9 +85,9 @@ export function SmartPagination({
 
         {/* Desktop/tablet: full page-number window. Mobile: "Page X of Y" */}
         <div className="hidden sm:flex items-center gap-1">
-          {pageWindow(currentPage, clampedTotalPages).map((p, i) =>
+          {pageWindow(currentPage, clampedTotalPages).map((p, i, arr) =>
             p === "ellipsis" ? (
-              <span key={`e${i}`} className="px-1 text-muted-foreground">…</span>
+              <span key={`e-${arr[i + 1]}`} className="px-1 text-muted-foreground">…</span>
             ) : (
               <button
                 key={p}
