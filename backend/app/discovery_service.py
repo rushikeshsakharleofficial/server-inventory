@@ -236,104 +236,100 @@ def check_identity_conflict(
 
 # ─── Server + IP upsert (DB writes — single consumer thread ONLY) ─────────
 
-def upsert_server_and_ips(
-    db: Session,
-    matched_server: models.Server | None,
-    signals: dict[str, Any],
-    ssh_host_key_fp: str | None,
-    facts: dict[str, Any],
-    network: "models.DiscoveryNetwork | None",
-    discovered_ip: str,
-) -> tuple[models.Server, bool]:
-    """Create or update the Server row, then upsert every discovered
-    interface address into server_ip_addresses. Returns (server, was_new).
-
-    Identity columns are filled only when currently blank — never overwrite
-    a populated value with a differing observed value, to avoid identity
-    churn from re-scans/clones.
-    """
-    now = datetime.now(timezone.utc)
-    was_new = matched_server is None
-
-    if matched_server is not None:
-        server = matched_server
-        if facts.get("os"):
-            server.os = facts["os"]
-        if facts.get("hostname"):
-            server.hostname = facts["hostname"]
-        if not server.machine_id and signals.get("machine_id"):
-            server.machine_id = signals["machine_id"]
-        if not server.product_uuid and signals.get("product_uuid"):
-            server.product_uuid = signals["product_uuid"]
-        if not server.ssh_host_key_fp and ssh_host_key_fp:
-            server.ssh_host_key_fp = ssh_host_key_fp
-        if facts.get("vcpu") is not None:
-            server.vcpu = facts["vcpu"]
-        if facts.get("memory_mb"):
-            server.memory_gb = facts["memory_mb"] / 1024
-        server.last_synced = now
-    else:
-        server = models.Server(
-            name=facts.get("hostname") or discovered_ip,
-            provider="on-prem",
-            status="running",
-            datacenter=getattr(network, "datacenter", None) if network else None,
-            hostname=facts.get("hostname"),
-            os=facts.get("os"),
-            vcpu=facts.get("vcpu"),
-            memory_gb=(facts["memory_mb"] / 1024) if facts.get("memory_mb") else None,
-            machine_id=signals.get("machine_id"),
-            product_uuid=signals.get("product_uuid"),
-            ssh_host_key_fp=ssh_host_key_fp,
-            last_synced=now,
-        )
-        db.add(server)
-        db.flush()  # need server.id before the IP upsert below
-
+def _iter_discovered_addresses(facts: dict[str, Any]):
+    """Yields (iface, addr) for every non-loopback, non-link-local address
+    across all interfaces in facts."""
     for iface in facts.get("interfaces") or []:
         for addr in iface.get("addresses") or []:
             if addr.get("scope") in ("loopback", "link-local"):
                 continue
-            stmt = pg_insert(models.ServerIpAddress).values(
-                server_id=server.id,
-                address=addr["address"],
-                cidr=addr.get("cidr"),
-                ip_version=addr.get("ip_version"),
-                interface_name=iface.get("name"),
-                mac_address=iface.get("mac"),
-                scope=addr.get("scope"),
-                discovered_from_ip=discovered_ip,
-                source="ssh_discovery",
-                last_seen_at=func.now(),
-            ).on_conflict_do_update(
-                index_elements=["address"],
-                set_={
-                    "server_id": server.id,
-                    "cidr": addr.get("cidr"),
-                    "interface_name": iface.get("name"),
-                    "mac_address": iface.get("mac"),
-                    "scope": addr.get("scope"),
-                    "ip_version": addr.get("ip_version"),
-                    "last_seen_at": func.now(),
-                    "discovered_from_ip": discovered_ip,
-                },
-            )
-            db.execute(stmt)
+            yield iface, addr
 
-    # Backward-compat: recompute legacy columns from the fresh interface list.
+
+def _update_existing_server_facts(server: models.Server, signals: dict[str, Any], ssh_host_key_fp: str | None, facts: dict[str, Any], now) -> None:
+    """Identity columns are filled only when currently blank — never
+    overwrite a populated value with a differing observed value, to avoid
+    identity churn from re-scans/clones. OS/hostname/vcpu/memory are always
+    refreshed since SSH facts are more current than whatever's stored."""
+    if facts.get("os"):
+        server.os = facts["os"]
+    if facts.get("hostname"):
+        server.hostname = facts["hostname"]
+    if not server.machine_id and signals.get("machine_id"):
+        server.machine_id = signals["machine_id"]
+    if not server.product_uuid and signals.get("product_uuid"):
+        server.product_uuid = signals["product_uuid"]
+    if not server.ssh_host_key_fp and ssh_host_key_fp:
+        server.ssh_host_key_fp = ssh_host_key_fp
+    if facts.get("vcpu") is not None:
+        server.vcpu = facts["vcpu"]
+    if facts.get("memory_mb"):
+        server.memory_gb = facts["memory_mb"] / 1024
+    server.last_synced = now
+
+
+def _create_new_server(db: Session, signals: dict[str, Any], ssh_host_key_fp: str | None, facts: dict[str, Any], network, discovered_ip: str, now) -> models.Server:
+    server = models.Server(
+        name=facts.get("hostname") or discovered_ip,
+        provider="on-prem",
+        status="running",
+        datacenter=getattr(network, "datacenter", None) if network else None,
+        hostname=facts.get("hostname"),
+        os=facts.get("os"),
+        vcpu=facts.get("vcpu"),
+        memory_gb=(facts["memory_mb"] / 1024) if facts.get("memory_mb") else None,
+        machine_id=signals.get("machine_id"),
+        product_uuid=signals.get("product_uuid"),
+        ssh_host_key_fp=ssh_host_key_fp,
+        last_synced=now,
+    )
+    db.add(server)
+    db.flush()  # need server.id before the IP upsert below
+    return server
+
+
+def _upsert_ip_address_rows(db: Session, server: models.Server, facts: dict[str, Any], discovered_ip: str) -> None:
+    for iface, addr in _iter_discovered_addresses(facts):
+        stmt = pg_insert(models.ServerIpAddress).values(
+            server_id=server.id,
+            address=addr["address"],
+            cidr=addr.get("cidr"),
+            ip_version=addr.get("ip_version"),
+            interface_name=iface.get("name"),
+            mac_address=iface.get("mac"),
+            scope=addr.get("scope"),
+            discovered_from_ip=discovered_ip,
+            source="ssh_discovery",
+            last_seen_at=func.now(),
+        ).on_conflict_do_update(
+            index_elements=["address"],
+            set_={
+                "server_id": server.id,
+                "cidr": addr.get("cidr"),
+                "interface_name": iface.get("name"),
+                "mac_address": iface.get("mac"),
+                "scope": addr.get("scope"),
+                "ip_version": addr.get("ip_version"),
+                "last_seen_at": func.now(),
+                "discovered_from_ip": discovered_ip,
+            },
+        )
+        db.execute(stmt)
+
+
+def _recompute_legacy_ip_columns(db: Session, server: models.Server, facts: dict[str, Any]) -> None:
+    """Backward-compat: recompute public_ip/private_ip/ssh_info.all_ips and
+    the is_primary flag from the fresh interface list."""
     all_ips: list[str] = []
     public_ip = None
     private_ip = None
-    for iface in facts.get("interfaces") or []:
-        for addr in iface.get("addresses") or []:
-            scope = addr.get("scope")
-            if scope in ("loopback", "link-local"):
-                continue
-            all_ips.append(addr["address"])
-            if scope == "public" and public_ip is None:
-                public_ip = addr["address"]
-            if scope == "private" and private_ip is None:
-                private_ip = addr["address"]
+    for _iface, addr in _iter_discovered_addresses(facts):
+        scope = addr.get("scope")
+        all_ips.append(addr["address"])
+        if scope == "public" and public_ip is None:
+            public_ip = addr["address"]
+        if scope == "private" and private_ip is None:
+            private_ip = addr["address"]
 
     if public_ip:
         server.public_ip = public_ip
@@ -350,6 +346,31 @@ def upsert_server_and_ips(
             models.ServerIpAddress.server_id == server.id,
             models.ServerIpAddress.address == primary_addr,
         ).update({"is_primary": True})
+
+
+def upsert_server_and_ips(
+    db: Session,
+    matched_server: models.Server | None,
+    signals: dict[str, Any],
+    ssh_host_key_fp: str | None,
+    facts: dict[str, Any],
+    network: "models.DiscoveryNetwork | None",
+    discovered_ip: str,
+) -> tuple[models.Server, bool]:
+    """Create or update the Server row, then upsert every discovered
+    interface address into server_ip_addresses. Returns (server, was_new).
+    """
+    now = datetime.now(timezone.utc)
+    was_new = matched_server is None
+
+    if matched_server is not None:
+        server = matched_server
+        _update_existing_server_facts(server, signals, ssh_host_key_fp, facts, now)
+    else:
+        server = _create_new_server(db, signals, ssh_host_key_fp, facts, network, discovered_ip, now)
+
+    _upsert_ip_address_rows(db, server, facts, discovered_ip)
+    _recompute_legacy_ip_columns(db, server, facts)
 
     return server, was_new
 
