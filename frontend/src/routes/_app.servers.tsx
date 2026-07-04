@@ -49,12 +49,12 @@ function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredentia
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onClose(); }}
     >
-      <div onClick={e => e.stopPropagation()} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
+      <div className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-sm">{cred.name}</h2>
           <button onClick={onClose} className="icon-btn"><X className="size-4" /></button>
@@ -374,17 +374,16 @@ function ServersPage() {
         />
       ),
       render: (s) => (
-        <div onClick={e => e.stopPropagation()}>
-          <input type="checkbox"
-            checked={selected.has(s.id)}
-            onChange={e => setSelected(prev => {
-              const next = new Set(prev);
-              e.target.checked ? next.add(s.id) : next.delete(s.id);
-              return next;
-            })}
-            className="rounded"
-          />
-        </div>
+        <input type="checkbox"
+          checked={selected.has(s.id)}
+          onClick={e => e.stopPropagation()}
+          onChange={e => setSelected(prev => {
+            const next = new Set(prev);
+            e.target.checked ? next.add(s.id) : next.delete(s.id);
+            return next;
+          })}
+          className="rounded"
+        />
       ),
     },
     {
@@ -414,16 +413,15 @@ function ServersPage() {
       key: "ssh_key",
       header: "SSH Key",
       render: (s) => (
-        <div onClick={e => e.stopPropagation()}>
-          <select
-            className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
-            value={s.ssh_credential_id ?? ""}
-            onChange={e => assignSSH.mutate({ serverId: s.id, sshCredentialId: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">None</option>
-            {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
+        <select
+          className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
+          value={s.ssh_credential_id ?? ""}
+          onClick={e => e.stopPropagation()}
+          onChange={e => assignSSH.mutate({ serverId: s.id, sshCredentialId: e.target.value ? Number(e.target.value) : null })}
+        >
+          <option value="">None</option>
+          {sshCreds.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       ),
     },
     {
@@ -438,22 +436,22 @@ function ServersPage() {
       header: "Actions",
       className: "text-right",
       render: (s) => (
-        <div className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+        <div className="inline-flex items-center gap-0.5">
           {s.ssh_credential_id && (
-            <button onClick={() => setSshInfoFor(s)} className="icon-btn" title="View SSH credential">
+            <button onClick={e => { e.stopPropagation(); setSshInfoFor(s); }} className="icon-btn" title="View SSH credential">
               <KeyRound className="size-3.5" />
             </button>
           )}
-          <button onClick={() => setEditing(s)} className="icon-btn" title="Edit">
+          <button onClick={e => { e.stopPropagation(); setEditing(s); }} className="icon-btn" title="Edit">
             <Pencil className="size-3.5" />
           </button>
           <button
-            onClick={() => sshSync.mutate(s.id)}
+            onClick={e => { e.stopPropagation(); sshSync.mutate(s.id); }}
             disabled={sshSync.isPending}
             className="icon-btn disabled:opacity-40" title="SSH sync"
           ><RefreshCw className={`size-3.5 ${sshSync.isPending ? "animate-spin" : ""}`} /></button>
           <button
-            onClick={async () => { if (await confirmAsync(`Delete ${s.name}?`)) del.mutate(s.id); }}
+            onClick={async e => { e.stopPropagation(); if (await confirmAsync(`Delete ${s.name}?`)) del.mutate(s.id); }}
             className="icon-btn hover:text-red-600 hover:bg-red-50" title="Delete"
           ><Trash2 className="size-3.5" /></button>
         </div>
