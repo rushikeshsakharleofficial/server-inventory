@@ -1092,6 +1092,95 @@ def _gcp_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
 
 # ── Azure Database ────────────────────────────────────────────────────────────
 
+def _azuredb_api_version(engine: str | None) -> str:
+    engine = (engine or "").lower()
+    if "mysql" in engine:
+        return "2021-05-01"
+    return "2022-12-01"
+
+
+def _azuredb_append_firewall_rules(headers: dict, root_id: str, cloud_id: str, api_ver: str, nodes: list, edges: list) -> None:
+    import requests
+    fw_url = f"https://management.azure.com{cloud_id}/firewallRules?api-version={api_ver}"
+    try:
+        fw_resp = requests.get(fw_url, headers=headers, timeout=15)
+        if fw_resp.ok:
+            for rule in fw_resp.json().get("value", []):
+                rule_id = rule["id"]
+                rp = rule.get("properties", {})
+                nodes.append(_node(rule_id, "firewall_rule", "security", rule["name"],
+                                   {"start_ip": rp.get("startIpAddress"), "end_ip": rp.get("endIpAddress")}))
+                edges.append(_edge(root_id, rule_id, "firewall rule"))
+    except Exception:
+        pass
+
+
+def _azuredb_append_vnet_rules(headers: dict, root_id: str, cloud_id: str, api_ver: str, nodes: list, edges: list) -> None:
+    import requests
+    vnet_url = f"https://management.azure.com{cloud_id}/virtualNetworkRules?api-version={api_ver}"
+    try:
+        vnet_resp = requests.get(vnet_url, headers=headers, timeout=15)
+        if vnet_resp.ok:
+            for rule in vnet_resp.json().get("value", []):
+                vnet_id = rule.get("properties", {}).get("virtualNetworkSubnetId", "")
+                vnet_name = vnet_id.split("/")[-3] if vnet_id else rule["name"]
+                sub_name = vnet_id.split("/")[-1] if vnet_id else ""
+                nodes.append(_node(rule["id"], "subnet", "network", f"{vnet_name}/{sub_name}",
+                                   {"vnet_subnet_id": vnet_id}))
+                edges.append(_edge(root_id, rule["id"], "VNet rule"))
+    except Exception:
+        pass
+
+
+def _azuredb_append_private_endpoints(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    for pe_ref in props.get("privateEndpointConnections", []):
+        pe_id = pe_ref.get("id", "")
+        pe_name = pe_id.split("/")[-1] if pe_id else "private endpoint"
+        nodes.append(_node(pe_id, "public_ip", "network", pe_name,
+                           {"state": pe_ref.get("properties", {}).get("privateLinkServiceConnectionState", {}).get("status")}))
+        edges.append(_edge(root_id, pe_id, "private endpoint"))
+
+
+def _azuredb_append_high_availability(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    ha = props.get("highAvailability", {})
+    if ha.get("mode") and ha["mode"] != "Disabled":
+        nodes.append(_node("high-availability", "availability_zone", "compute",
+                           f"HA: {ha['mode']}", {"standby_az": ha.get("standbyAvailabilityZone"), "state": ha.get("state")}))
+        edges.append(_edge(root_id, "high-availability", "high availability"))
+
+
+def _azuredb_append_maintenance_window(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    maint = props.get("maintenanceWindow", {})
+    if maint.get("customWindow") == "Enabled":
+        nodes.append(_node("maint-window", "maintenance_policy", "config",
+                           f"Maintenance: day {maint.get('dayOfWeek')} at {maint.get('startHour')}:00",
+                           {"day_of_week": maint.get("dayOfWeek"), "start_hour": maint.get("startHour")}))
+        edges.append(_edge(root_id, "maint-window", "maintenance window"))
+
+
+def _azuredb_append_backup(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    backup = props.get("backup", {})
+    if backup:
+        nodes.append(_node("backup-policy", "backup", "config", "Backup Policy",
+                           {"retention_days": backup.get("backupRetentionDays"), "geo_redundant": backup.get("geoRedundantBackup"),
+                            "earliest_restore": backup.get("earliestRestoreDate")}))
+        edges.append(_edge(root_id, "backup-policy", "backup policy"))
+
+
+def _azuredb_append_read_replicas(headers: dict, root_id: str, cloud_id: str, api_ver: str, nodes: list, edges: list) -> None:
+    import requests
+    replicas_url = f"https://management.azure.com{cloud_id}/replicas?api-version={api_ver}"
+    try:
+        rep_resp = requests.get(replicas_url, headers=headers, timeout=15)
+        if rep_resp.ok:
+            for rep in rep_resp.json().get("value", []):
+                nodes.append(_node(rep["id"], "read_replica", "compute", rep["name"],
+                                   {"location": rep.get("location"), "fqdn": rep.get("properties", {}).get("fullyQualifiedDomainName")}))
+                edges.append(_edge(root_id, rep["id"], _READ_REPLICA))
+    except Exception:
+        pass
+
+
 def _azure_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     import requests
     root_id = f"db-{db_inst.id}"
@@ -1105,91 +1194,20 @@ def _azure_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     if not db_inst.cloud_id:
         return {"nodes": [], "edges": []}
 
-    # Determine API version based on engine
-    engine = (db_inst.engine or "").lower()
-    if "postgres" in engine:
-        api_ver = "2022-12-01"
-    elif "mysql" in engine:
-        api_ver = "2021-05-01"
-    else:
-        api_ver = "2022-12-01"
+    api_ver = _azuredb_api_version(db_inst.engine)
 
     try:
         srv_url = f"https://management.azure.com{db_inst.cloud_id}?api-version={api_ver}"
         srv = requests.get(srv_url, headers=headers, timeout=20).json()
         props = srv.get("properties", {})
 
-        # Firewall rules
-        fw_url = f"https://management.azure.com{db_inst.cloud_id}/firewallRules?api-version={api_ver}"
-        try:
-            fw_resp = requests.get(fw_url, headers=headers, timeout=15)
-            if fw_resp.ok:
-                for rule in fw_resp.json().get("value", []):
-                    rule_id = rule["id"]
-                    rp = rule.get("properties", {})
-                    nodes.append(_node(rule_id, "firewall_rule", "security", rule["name"],
-                                       {"start_ip": rp.get("startIpAddress"), "end_ip": rp.get("endIpAddress")}))
-                    edges.append(_edge(root_id, rule_id, "firewall rule"))
-        except Exception:
-            pass
-
-        # VNet rules
-        vnet_url = f"https://management.azure.com{db_inst.cloud_id}/virtualNetworkRules?api-version={api_ver}"
-        try:
-            vnet_resp = requests.get(vnet_url, headers=headers, timeout=15)
-            if vnet_resp.ok:
-                for rule in vnet_resp.json().get("value", []):
-                    vnet_id = rule.get("properties", {}).get("virtualNetworkSubnetId", "")
-                    vnet_name = vnet_id.split("/")[-3] if vnet_id else rule["name"]
-                    sub_name = vnet_id.split("/")[-1] if vnet_id else ""
-                    nodes.append(_node(rule["id"], "subnet", "network", f"{vnet_name}/{sub_name}",
-                                       {"vnet_subnet_id": vnet_id}))
-                    edges.append(_edge(root_id, rule["id"], "VNet rule"))
-        except Exception:
-            pass
-
-        # Private endpoints
-        for pe_ref in props.get("privateEndpointConnections", []):
-            pe_id = pe_ref.get("id", "")
-            pe_name = pe_id.split("/")[-1] if pe_id else "private endpoint"
-            nodes.append(_node(pe_id, "public_ip", "network", pe_name,
-                               {"state": pe_ref.get("properties", {}).get("privateLinkServiceConnectionState", {}).get("status")}))
-            edges.append(_edge(root_id, pe_id, "private endpoint"))
-
-        # High availability
-        ha = props.get("highAvailability", {})
-        if ha.get("mode") and ha["mode"] != "Disabled":
-            nodes.append(_node("high-availability", "availability_zone", "compute",
-                               f"HA: {ha['mode']}", {"standby_az": ha.get("standbyAvailabilityZone"), "state": ha.get("state")}))
-            edges.append(_edge(root_id, "high-availability", "high availability"))
-
-        # Maintenance window
-        maint = props.get("maintenanceWindow", {})
-        if maint.get("customWindow") == "Enabled":
-            nodes.append(_node("maint-window", "maintenance_policy", "config",
-                               f"Maintenance: day {maint.get('dayOfWeek')} at {maint.get('startHour')}:00",
-                               {"day_of_week": maint.get("dayOfWeek"), "start_hour": maint.get("startHour")}))
-            edges.append(_edge(root_id, "maint-window", "maintenance window"))
-
-        # Backup
-        backup = props.get("backup", {})
-        if backup:
-            nodes.append(_node("backup-policy", "backup", "config", "Backup Policy",
-                               {"retention_days": backup.get("backupRetentionDays"), "geo_redundant": backup.get("geoRedundantBackup"),
-                                "earliest_restore": backup.get("earliestRestoreDate")}))
-            edges.append(_edge(root_id, "backup-policy", "backup policy"))
-
-        # Read replicas
-        replicas_url = f"https://management.azure.com{db_inst.cloud_id}/replicas?api-version={api_ver}"
-        try:
-            rep_resp = requests.get(replicas_url, headers=headers, timeout=15)
-            if rep_resp.ok:
-                for rep in rep_resp.json().get("value", []):
-                    nodes.append(_node(rep["id"], "read_replica", "compute", rep["name"],
-                                       {"location": rep.get("location"), "fqdn": rep.get("properties", {}).get("fullyQualifiedDomainName")}))
-                    edges.append(_edge(root_id, rep["id"], _READ_REPLICA))
-        except Exception:
-            pass
+        _azuredb_append_firewall_rules(headers, root_id, db_inst.cloud_id, api_ver, nodes, edges)
+        _azuredb_append_vnet_rules(headers, root_id, db_inst.cloud_id, api_ver, nodes, edges)
+        _azuredb_append_private_endpoints(root_id, props, nodes, edges)
+        _azuredb_append_high_availability(root_id, props, nodes, edges)
+        _azuredb_append_maintenance_window(root_id, props, nodes, edges)
+        _azuredb_append_backup(root_id, props, nodes, edges)
+        _azuredb_append_read_replicas(headers, root_id, db_inst.cloud_id, api_ver, nodes, edges)
 
     except Exception:
         pass
