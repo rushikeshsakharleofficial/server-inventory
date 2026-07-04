@@ -799,6 +799,59 @@ def _azure_server_map(server: models.Server, config: dict) -> dict:
 
 # ── DigitalOcean helpers ──────────────────────────────────────────────────────
 
+def _do_append_vpc(headers: dict, root_id: str, vpc_uuid: str | None, nodes: list, edges: list) -> None:
+    import requests
+    if not vpc_uuid:
+        return
+    vpc_resp = requests.get(f"https://api.digitalocean.com/v2/vpcs/{vpc_uuid}", headers=headers, timeout=15)
+    if vpc_resp.ok:
+        vpc = vpc_resp.json().get("vpc", {})
+        nodes.append(_node(vpc_uuid, "vpc", "network", vpc.get("name", vpc_uuid), {"ip_range": vpc.get("ip_range"), "region": vpc.get("region")}))
+        edges.append(_edge(root_id, vpc_uuid, "VPC"))
+
+
+def _do_append_floating_ips(headers: dict, root_id: str, cloud_id: str | None, nodes: list, edges: list) -> None:
+    import requests
+    fip_resp = requests.get("https://api.digitalocean.com/v2/floating_ips", headers=headers, timeout=15)
+    if fip_resp.ok:
+        for fip in fip_resp.json().get("floating_ips", []):
+            if fip.get("droplet", {}).get("id") == int(cloud_id or 0):
+                ip = fip.get("ip", "")
+                nodes.append(_node(f"fip-{ip}", "floating_ip", "network", ip, {"region": fip.get("region", {}).get("slug")}))
+                edges.append(_edge(root_id, f"fip-{ip}", "floating IP"))
+
+
+def _do_append_firewalls(headers: dict, root_id: str, cloud_id: str | None, nodes: list, edges: list) -> None:
+    import requests
+    fw_resp = requests.get("https://api.digitalocean.com/v2/firewalls", headers=headers, timeout=15)
+    if fw_resp.ok:
+        for fw in fw_resp.json().get("firewalls", []):
+            droplet_ids = [d["droplet_id"] for d in fw.get("droplet_ids", [])] if isinstance(fw.get("droplet_ids"), list) else fw.get("droplet_ids", [])
+            if int(cloud_id or 0) in droplet_ids or cloud_id in [str(d) for d in droplet_ids]:
+                nodes.append(_node(fw["id"], "firewall", "security", fw.get("name", fw["id"]), {
+                    "status": fw.get("status"),
+                    "inbound_rules": len(fw.get("inbound_rules", [])),
+                    "outbound_rules": len(fw.get("outbound_rules", [])),
+                }))
+                edges.append(_edge(root_id, fw["id"], "firewall"))
+
+
+def _do_append_load_balancers(headers: dict, root_id: str, cloud_id: str | None, nodes: list, edges: list) -> None:
+    import requests
+    lb_resp = requests.get("https://api.digitalocean.com/v2/load_balancers", headers=headers, timeout=15)
+    if lb_resp.ok:
+        for lb in lb_resp.json().get("load_balancers", []):
+            if int(cloud_id or 0) in lb.get("droplet_ids", []):
+                nodes.append(_node(lb["id"], "load_balancer", "network", lb.get("name", lb["id"]), {"ip": lb.get("ip"), "algorithm": lb.get("algorithm")}))
+                edges.append(_edge(root_id, lb["id"], "behind LB"))
+
+
+def _do_append_tags(root_id: str, droplet: dict, nodes: list, edges: list) -> None:
+    for tag in droplet.get("tags", []):
+        nodes.append(_node(f"tag-{tag}", "tag", "meta", tag, {}))
+        edges.append(_edge(root_id, f"tag-{tag}", "tag"))
+
+
 def _do_server_map(server: models.Server, config: dict) -> dict:
     import requests
     root_id = f"server-{server.id}"
@@ -812,49 +865,11 @@ def _do_server_map(server: models.Server, config: dict) -> dict:
             return {"nodes": [], "edges": []}
         droplet = resp.json().get("droplet", {})
 
-        # VPC
-        vpc_uuid = droplet.get("vpc_uuid")
-        if vpc_uuid:
-            vpc_resp = requests.get(f"https://api.digitalocean.com/v2/vpcs/{vpc_uuid}", headers=headers, timeout=15)
-            if vpc_resp.ok:
-                vpc = vpc_resp.json().get("vpc", {})
-                nodes.append(_node(vpc_uuid, "vpc", "network", vpc.get("name", vpc_uuid), {"ip_range": vpc.get("ip_range"), "region": vpc.get("region")}))
-                edges.append(_edge(root_id, vpc_uuid, "VPC"))
-
-        # Floating IPs
-        fip_resp = requests.get("https://api.digitalocean.com/v2/floating_ips", headers=headers, timeout=15)
-        if fip_resp.ok:
-            for fip in fip_resp.json().get("floating_ips", []):
-                if fip.get("droplet", {}).get("id") == int(server.cloud_id or 0):
-                    ip = fip.get("ip", "")
-                    nodes.append(_node(f"fip-{ip}", "floating_ip", "network", ip, {"region": fip.get("region", {}).get("slug")}))
-                    edges.append(_edge(root_id, f"fip-{ip}", "floating IP"))
-
-        # Firewalls
-        fw_resp = requests.get("https://api.digitalocean.com/v2/firewalls", headers=headers, timeout=15)
-        if fw_resp.ok:
-            for fw in fw_resp.json().get("firewalls", []):
-                droplet_ids = [d["droplet_id"] for d in fw.get("droplet_ids", [])] if isinstance(fw.get("droplet_ids"), list) else fw.get("droplet_ids", [])
-                if int(server.cloud_id or 0) in droplet_ids or server.cloud_id in [str(d) for d in droplet_ids]:
-                    nodes.append(_node(fw["id"], "firewall", "security", fw.get("name", fw["id"]), {
-                        "status": fw.get("status"),
-                        "inbound_rules": len(fw.get("inbound_rules", [])),
-                        "outbound_rules": len(fw.get("outbound_rules", [])),
-                    }))
-                    edges.append(_edge(root_id, fw["id"], "firewall"))
-
-        # Load Balancers
-        lb_resp = requests.get("https://api.digitalocean.com/v2/load_balancers", headers=headers, timeout=15)
-        if lb_resp.ok:
-            for lb in lb_resp.json().get("load_balancers", []):
-                if int(server.cloud_id or 0) in lb.get("droplet_ids", []):
-                    nodes.append(_node(lb["id"], "load_balancer", "network", lb.get("name", lb["id"]), {"ip": lb.get("ip"), "algorithm": lb.get("algorithm")}))
-                    edges.append(_edge(root_id, lb["id"], "behind LB"))
-
-        # Tags
-        for tag in droplet.get("tags", []):
-            nodes.append(_node(f"tag-{tag}", "tag", "meta", tag, {}))
-            edges.append(_edge(root_id, f"tag-{tag}", "tag"))
+        _do_append_vpc(headers, root_id, droplet.get("vpc_uuid"), nodes, edges)
+        _do_append_floating_ips(headers, root_id, server.cloud_id, nodes, edges)
+        _do_append_firewalls(headers, root_id, server.cloud_id, nodes, edges)
+        _do_append_load_balancers(headers, root_id, server.cloud_id, nodes, edges)
+        _do_append_tags(root_id, droplet, nodes, edges)
 
     except Exception:
         pass
