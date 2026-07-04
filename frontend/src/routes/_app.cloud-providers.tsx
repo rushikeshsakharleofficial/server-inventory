@@ -10,7 +10,7 @@ import {
   confirmAsync,
 } from "@/components/ui-bits";
 import { useState } from "react";
-import { Plus, Trash2, Power, Pencil } from "lucide-react";
+import { Plus, Trash2, Power, Pencil, Lock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
   AdvancedFilter,
@@ -265,6 +265,13 @@ function EditCredentialDialog({
       ]),
     ),
   );
+  // Which secret fields already have a real stored value — drives the locked/
+  // configured indicator, since blanking on open (above) loses that info.
+  const configuredSecrets = new Set(
+    Object.entries(cred.config ?? {})
+      .filter(([k, v]) => isSecret(k) && v)
+      .map(([k]) => k),
+  );
 
   const update = useMutation({
     mutationFn: () => {
@@ -341,15 +348,32 @@ function EditCredentialDialog({
                   placeholder="— select —"
                 />
               ) : (
-                <input
-                  type={isSecret(f) ? "password" : "text"}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  placeholder={isSecret(f) ? "leave blank to keep current" : ""}
-                  className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-                />
+                <>
+                  <input
+                    type={isSecret(f) ? "password" : "text"}
+                    value={values[f] ?? ""}
+                    onChange={(e) =>
+                      setValues((v) => ({ ...v, [f]: e.target.value }))
+                    }
+                    placeholder={
+                      isSecret(f) && configuredSecrets.has(f)
+                        ? "•••••••••••• (locked — type to replace)"
+                        : ""
+                    }
+                    className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+                  />
+                  {isSecret(f) && configuredSecrets.has(f) && (
+                    values[f] ? (
+                      <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
+                        <AlertTriangle className="size-3" /> This will replace the existing value — cannot be undone.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Lock className="size-3" /> Already configured. Leave blank to keep it.
+                      </p>
+                    )
+                  )}
+                </>
               )}
             </div>
           ))}

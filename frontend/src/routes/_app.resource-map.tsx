@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -483,6 +483,7 @@ interface SyncProg { done: number; total: number; skipped: number; status: "idle
 
 function ResourceMapPage() {
   const { server: targetServerId } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [activeNode, setActiveNode] = useState<Node | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -655,7 +656,12 @@ function ResourceMapPage() {
                     sub={`${s.provider} · ${s.region ?? "—"}`}
                     status={s.status}
                     active={selectedServer?.id === s.id}
-                    onClick={() => { setSelectedServer(s); setActiveNode(null); setFlowData(null); }}
+                    onClick={() => {
+                      setSelectedServer(s);
+                      setActiveNode(null);
+                      setFlowData(null);
+                      navigate({ search: { server: s.id } });
+                    }}
                   />
                 ))}
               </div>

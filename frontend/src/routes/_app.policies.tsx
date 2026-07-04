@@ -100,16 +100,22 @@ function GroupCard({ group, catalog }: { group: Group; catalog?: PermissionCatal
   const features = catalog?.features ?? Object.keys(group.permissions);
   const grantCount = Object.values(group.permissions).reduce((n, acts) => n + acts.length, 0);
 
+  const grantedFeatures = features.filter(f => (group.permissions[f]?.length ?? 0) > 0);
+  const COMPACT_LIMIT = 6;
+  const [showAllChips, setShowAllChips] = useState(false);
+  const visibleFeatures = showAllChips ? grantedFeatures : grantedFeatures.slice(0, COMPACT_LIMIT);
+  const hiddenCount = grantedFeatures.length - visibleFeatures.length;
+
   return (
     <Card className="overflow-hidden">
-      <div className="px-4 py-3 border-b border-border bg-surface-muted flex items-center justify-between">
-        <div>
-          <div className="text-sm font-semibold">{group.name}</div>
+      <div className="px-3 py-2 border-b border-border bg-surface-muted flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold truncate">{group.name}</div>
           {group.description && (
             <div className="text-[11px] text-muted-foreground truncate">{group.description}</div>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {group.is_super_admin ? (
             <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/30 font-medium">
               Super admin
@@ -133,24 +139,29 @@ function GroupCard({ group, catalog }: { group: Group; catalog?: PermissionCatal
         </div>
       </div>
 
-      <div className="p-4 space-y-2">
+      <div className="p-3 space-y-1.5">
         {/* Feature chips */}
-        <div className="flex flex-wrap gap-1.5">
-          {features.filter(f => (group.permissions[f]?.length ?? 0) > 0).map(feat => (
-            <span key={feat} className="inline-flex items-center gap-1 text-[11px] bg-muted border border-border rounded px-1.5 py-0.5">
+        <div className="flex flex-wrap gap-1">
+          {visibleFeatures.map(feat => (
+            <span key={feat} className="inline-flex items-center gap-1 text-[10px] bg-muted border border-border rounded px-1.5 py-0.5">
               <span className="font-mono text-muted-foreground">{feat}:</span>
               <span className="text-foreground">{(group.permissions[feat] ?? []).join(" ")}</span>
             </span>
           ))}
-          {features.filter(f => (group.permissions[f]?.length ?? 0) > 0).length === 0 && (
+          {grantedFeatures.length === 0 && (
             <span className="text-[11px] text-muted-foreground">No permissions assigned</span>
+          )}
+          {hiddenCount > 0 && (
+            <button onClick={() => setShowAllChips(true)} className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 px-1">
+              +{hiddenCount} more
+            </button>
           )}
         </div>
 
         {/* Expandable matrix */}
         <button
           onClick={() => setOpen(o => !o)}
-          className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 mt-1"
+          className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
         >
           {open ? "Hide matrix" : "Show full matrix"}
         </button>
@@ -210,26 +221,35 @@ function UserCard({ user, catalog }: { user: UserRow; catalog?: PermissionCatalo
     read:  "bg-zinc-100 text-zinc-600 border-zinc-200",
   };
   const roleClass = ROLE_COLOR[user.role] ?? ROLE_COLOR.read;
+  const COMPACT_LIMIT = 6;
+  const [showAllChips, setShowAllChips] = useState(false);
+  const visibleFeatures = showAllChips ? features : features.slice(0, COMPACT_LIMIT);
+  const hiddenCount = features.length - visibleFeatures.length;
 
   return (
     <Card className="overflow-hidden">
-      <div className="px-4 py-3 border-b border-border bg-surface-muted flex items-center justify-between">
-        <span className="text-sm font-semibold">{user.username}</span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold uppercase ${roleClass}`}>
+      <div className="px-3 py-2 border-b border-border bg-surface-muted flex items-center justify-between">
+        <span className="text-sm font-semibold truncate">{user.username}</span>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold uppercase shrink-0 ${roleClass}`}>
           {user.role}
         </span>
       </div>
-      <div className="p-4">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="p-3">
+        <div className="flex flex-wrap gap-1">
           {features.length === 0 ? (
             <span className="text-[11px] text-muted-foreground">No permissions</span>
           ) : (
-            features.map(feat => (
-              <span key={feat} className="inline-flex items-center gap-1 text-[11px] bg-muted border border-border rounded px-1.5 py-0.5">
+            visibleFeatures.map(feat => (
+              <span key={feat} className="inline-flex items-center gap-1 text-[10px] bg-muted border border-border rounded px-1.5 py-0.5">
                 <span className="font-mono text-muted-foreground">{feat}:</span>
                 <span className="text-foreground">{merged[feat].join(" ")}</span>
               </span>
             ))
+          )}
+          {hiddenCount > 0 && (
+            <button onClick={() => setShowAllChips(true)} className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 px-1">
+              +{hiddenCount} more
+            </button>
           )}
         </div>
       </div>

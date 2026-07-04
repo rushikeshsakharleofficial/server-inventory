@@ -8,7 +8,7 @@ import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { toast } from "sonner";
 import {
   Copy, Eye, EyeOff, ExternalLink, Shield, KeyRound,
-  Search, Plus, X, Check, MoreHorizontal, History,
+  Search, Plus, X, Check, MoreHorizontal, History, Pencil,
   Lock, AlertTriangle, RefreshCw, Cloud,
 } from "lucide-react";
 
@@ -585,7 +585,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
           </a>
           {isAdmin && (
             <button onClick={() => setEditCred(cred)} title="Edit" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer" }}>
-              <History style={{ width: 12, height: 12 }} />
+              <Pencil style={{ width: 12, height: 12 }} />
             </button>
           )}
           {isAdmin && (
