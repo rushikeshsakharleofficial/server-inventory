@@ -239,8 +239,6 @@ class GCPProvider(CloudProvider):
                     attachments = list(users) if users else []
                     attachment = attachments[0].split("/")[-1] if attachments else None
                     
-                    status = "in-use" if attachments else "available"
-                    
                     result.append({
                         "cloud_id": str(disk.id) if hasattr(disk, "id") else disk.name,
                         "name": disk.name,

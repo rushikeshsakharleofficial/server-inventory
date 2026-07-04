@@ -15,11 +15,11 @@ function PermissionMatrix({
   catalog,
   value,
   onChange,
-}: {
+}: Readonly<{
   catalog: PermissionCatalog;
   value: Record<string, string[]>;
   onChange: (v: Record<string, string[]>) => void;
-}) {
+}>) {
   const toggle = useCallback(
     (feature: string, action: string) => {
       const current = value[feature] ?? [];
@@ -172,23 +172,26 @@ function PolicyEditPage() {
         </div>
         <div className="p-4 space-y-4 max-w-lg">
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Name</label>
+            <label htmlFor="policy-name" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Name</label>
             <input
+              id="policy-name"
               value={name}
               onChange={(e) => { setName(e.target.value); setDirty(true); }}
               className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
             />
           </div>
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Description</label>
+            <label htmlFor="policy-description" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Description</label>
             <input
+              id="policy-description"
               value={description}
               onChange={(e) => { setDescription(e.target.value); setDirty(true); }}
               className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
             />
           </div>
-          <label className="flex items-start gap-3 p-3 rounded-md border border-border bg-surface-muted cursor-pointer">
+          <label htmlFor="policy-super-admin" className="flex items-start gap-3 p-3 rounded-md border border-border bg-surface-muted cursor-pointer">
             <input
+              id="policy-super-admin"
               type="checkbox"
               checked={isSuperAdmin}
               onChange={(e) => { setIsSuperAdmin(e.target.checked); setDirty(true); }}

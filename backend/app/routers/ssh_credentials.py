@@ -76,7 +76,7 @@ def create_ssh_credential(
     return _mask(cred)
 
 
-@router.put("/{cred_id}")
+@router.put("/{cred_id}", responses={404: {"description": "SSH credential not found"}})
 def update_ssh_credential(
     cred_id: int,
     payload: schemas.SSHCredentialUpdate,
@@ -114,7 +114,7 @@ def update_ssh_credential(
     return _mask(cred)
 
 
-@router.delete("/{cred_id}", status_code=204)
+@router.delete("/{cred_id}", status_code=204, responses={404: {"description": "SSH credential not found"}})
 def delete_ssh_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -132,7 +132,7 @@ class RevealFieldRequest(BaseModel):
     field: str = "password"  # "password" or "private_key"
 
 
-@router.post("/{cred_id}/reveal-secret")
+@router.post("/{cred_id}/reveal-secret", responses={404: {"description": "SSH credential or field not found"}})
 def reveal_ssh_secret(
     cred_id: int,
     payload: RevealFieldRequest,
@@ -152,7 +152,7 @@ def reveal_ssh_secret(
     return {"field": payload.field, "value": decrypt_str(raw)}
 
 
-@router.patch("/{cred_id}/set-default")
+@router.patch("/{cred_id}/set-default", responses={404: {"description": "SSH credential not found"}})
 def set_default_ssh_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],

@@ -145,7 +145,7 @@ function SshPage() {
   );
 }
 
-function SshDialog({ onClose, credential }: { onClose: () => void; credential?: SshCredential }) {
+function SshDialog({ onClose, credential }: Readonly<{ onClose: () => void; credential?: SshCredential }>) {
   const qc = useQueryClient();
   const isEdit = !!credential;
   const [name, setName] = useState(credential?.name ?? "");
@@ -162,23 +162,37 @@ function SshDialog({ onClose, credential }: { onClose: () => void; credential?: 
   const [proxyPassword, setProxyPassword] = useState("");
   const [proxyKey, setProxyKey] = useState("");
 
-  const body = () => ({
-    name,
-    username,
-    auth_method: authMethod,
-    // Editing: blank secret = keep existing (omit field). Adding: blank = clear/unused method (send null).
-    password: authMethod === "password" ? (password || undefined) : (isEdit ? undefined : null),
-    private_key: authMethod === "key" ? (privateKey || undefined) : (isEdit ? undefined : null),
-    port,
-    ...(showProxy && proxyHost ? {
-      proxy_host: proxyHost,
-      proxy_port: proxyPort,
-      proxy_username: proxyUsername,
-      proxy_auth_method: proxyAuthMethod,
-      proxy_password: proxyAuthMethod === "password" ? (proxyPassword || undefined) : (isEdit ? undefined : null),
-      proxy_private_key: proxyAuthMethod === "key" ? (proxyKey || undefined) : (isEdit ? undefined : null),
-    } : (isEdit ? {} : { proxy_host: null })),
-  });
+  // Editing: blank secret = keep existing (omit field). Adding: blank = clear/unused method (send null).
+  const secretField = (isActive: boolean, val: string) => {
+    if (isActive) return val || undefined;
+    return isEdit ? undefined : null;
+  };
+
+  const body = () => {
+    let proxyFields: Record<string, unknown>;
+    if (showProxy && proxyHost) {
+      proxyFields = {
+        proxy_host: proxyHost,
+        proxy_port: proxyPort,
+        proxy_username: proxyUsername,
+        proxy_auth_method: proxyAuthMethod,
+        proxy_password: secretField(proxyAuthMethod === "password", proxyPassword),
+        proxy_private_key: secretField(proxyAuthMethod === "key", proxyKey),
+      };
+    } else {
+      proxyFields = isEdit ? {} : { proxy_host: null };
+    }
+
+    return {
+      name,
+      username,
+      auth_method: authMethod,
+      password: secretField(authMethod === "password", password),
+      private_key: secretField(authMethod === "key", privateKey),
+      port,
+      ...proxyFields,
+    };
+  };
 
   const save = useMutation({
     mutationFn: () => isEdit
@@ -193,8 +207,20 @@ function SshDialog({ onClose, credential }: { onClose: () => void; credential?: 
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
+      >
         <div className="p-4 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold">{isEdit ? "Edit SSH credential" : "New SSH credential"}</h3>
         </div>
@@ -270,10 +296,10 @@ function SshDialog({ onClose, credential }: { onClose: () => void; credential?: 
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+function Label({ children }: Readonly<{ children: React.ReactNode }>) {
   return <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{children}</label>;
 }
-function Input({ label, value, onChange, type = "text", required, placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string }) {
+function Input({ label, value, onChange, type = "text", required, placeholder }: Readonly<{ label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string }>) {
   return (
     <div>
       <Label>{label}</Label>

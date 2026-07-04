@@ -2,6 +2,8 @@
 IAM router — groups, per-user direct permissions, effective permission resolution.
 All write endpoints require admin permission; reads require an authenticated user.
 """
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -17,11 +19,14 @@ router = APIRouter(prefix="/api/iam", tags=["iam"])
 
 _require_admin = require_perm("users", "admin")
 
+GROUP_NOT_FOUND = "Group not found"
+USER_NOT_FOUND = "User not found"
+
 
 # ─── Permission catalog ────────────────────────────────────────────────────────
 
 @router.get("/catalog", response_model=schemas.PermissionCatalog)
-def get_catalog(_user=Depends(get_current_user)):
+def get_catalog(_user: Annotated[models.User, Depends(get_current_user)]):
     """Return the feature/action vocabulary so the UI can render the matrix."""
     return schemas.PermissionCatalog(
         features=FEATURES,
@@ -34,7 +39,10 @@ def get_catalog(_user=Depends(get_current_user)):
 # ─── Groups CRUD ──────────────────────────────────────────────────────────────
 
 @router.get("/groups", response_model=list[schemas.GroupResponse])
-def list_groups(db: Session = Depends(get_db), _user=Depends(get_current_user)):
+def list_groups(
+    db: Annotated[Session, Depends(get_db)],
+    _user: Annotated[models.User, Depends(get_current_user)],
+):
     groups = db.query(models.Group).order_by(models.Group.name).all()
     result = []
     for g in groups:
@@ -44,11 +52,16 @@ def list_groups(db: Session = Depends(get_db), _user=Depends(get_current_user)):
     return result
 
 
-@router.post("/groups", response_model=schemas.GroupResponse, status_code=201)
+@router.post(
+    "/groups",
+    response_model=schemas.GroupResponse,
+    status_code=201,
+    responses={400: {"description": "Group name already exists"}},
+)
 def create_group(
     body: schemas.GroupCreate,
-    db: Session = Depends(get_db),
-    user=Depends(_require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(_require_admin)],
 ):
     if db.query(models.Group).filter_by(name=body.name).first():
         raise HTTPException(400, detail="Group name already exists")
@@ -67,16 +80,23 @@ def create_group(
     return d
 
 
-@router.put("/groups/{group_id}", response_model=schemas.GroupResponse)
+@router.put(
+    "/groups/{group_id}",
+    response_model=schemas.GroupResponse,
+    responses={
+        400: {"description": "Group name already exists"},
+        404: {"description": GROUP_NOT_FOUND},
+    },
+)
 def update_group(
     group_id: int,
     body: schemas.GroupUpdate,
-    db: Session = Depends(get_db),
-    user=Depends(_require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(_require_admin)],
 ):
     g = db.get(models.Group, group_id)
     if not g:
-        raise HTTPException(404, detail="Group not found")
+        raise HTTPException(404, detail=GROUP_NOT_FOUND)
     if body.name is not None:
         existing = db.query(models.Group).filter(
             models.Group.name == body.name, models.Group.id != group_id
@@ -98,31 +118,39 @@ def update_group(
     return d
 
 
-@router.delete("/groups/{group_id}", status_code=204)
+@router.delete(
+    "/groups/{group_id}",
+    status_code=204,
+    responses={404: {"description": GROUP_NOT_FOUND}},
+)
 def delete_group(
     group_id: int,
-    db: Session = Depends(get_db),
-    user=Depends(_require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(_require_admin)],
 ):
     g = db.get(models.Group, group_id)
     if not g:
-        raise HTTPException(404, detail="Group not found")
+        raise HTTPException(404, detail=GROUP_NOT_FOUND)
     add_event_log(db, source="iam", resource=g.name, event="Group removed", owner=user.username)
     db.delete(g)
     db.commit()
 
 
-@router.put("/groups/{group_id}/members", response_model=schemas.GroupResponse)
+@router.put(
+    "/groups/{group_id}/members",
+    response_model=schemas.GroupResponse,
+    responses={404: {"description": GROUP_NOT_FOUND}},
+)
 def set_group_members(
     group_id: int,
     body: schemas.UserGroupsUpdate,
-    db: Session = Depends(get_db),
-    user=Depends(_require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(_require_admin)],
 ):
     """Replace group membership with the supplied user_id list."""
     g = db.get(models.Group, group_id)
     if not g:
-        raise HTTPException(404, detail="Group not found")
+        raise HTTPException(404, detail=GROUP_NOT_FOUND)
     users = db.query(models.User).filter(models.User.id.in_(body.group_ids)).all()
     g.members = users
     add_event_log(db, source="iam", resource=g.name, event="Group members updated",
@@ -136,16 +164,23 @@ def set_group_members(
 
 # ─── Per-user IAM ─────────────────────────────────────────────────────────────
 
-@router.put("/users/{user_id}/permissions", response_model=schemas.UserResponse)
+@router.put(
+    "/users/{user_id}/permissions",
+    response_model=schemas.UserResponse,
+    responses={
+        400: {"description": "Cannot change admin user's permissions"},
+        404: {"description": USER_NOT_FOUND},
+    },
+)
 def set_user_permissions(
     user_id: int,
     body: schemas.UserPermissionsUpdate,
-    db: Session = Depends(get_db),
-    user=Depends(_require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(_require_admin)],
 ):
     u = db.get(models.User, user_id)
     if not u:
-        raise HTTPException(404, detail="User not found")
+        raise HTTPException(404, detail=USER_NOT_FOUND)
     if u.role == "admin":
         raise HTTPException(status_code=400, detail="Cannot change admin user's permissions")
     u.permissions = body.permissions
@@ -157,16 +192,23 @@ def set_user_permissions(
     return resp
 
 
-@router.put("/users/{user_id}/groups", response_model=schemas.UserResponse)
+@router.put(
+    "/users/{user_id}/groups",
+    response_model=schemas.UserResponse,
+    responses={
+        400: {"description": "Cannot change admin user's groups"},
+        404: {"description": USER_NOT_FOUND},
+    },
+)
 def set_user_groups(
     user_id: int,
     body: schemas.UserGroupsUpdate,
-    db: Session = Depends(get_db),
-    user=Depends(_require_admin),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(_require_admin)],
 ):
     u = db.get(models.User, user_id)
     if not u:
-        raise HTTPException(404, detail="User not found")
+        raise HTTPException(404, detail=USER_NOT_FOUND)
     if u.role == "admin":
         raise HTTPException(status_code=400, detail="Cannot change admin user's groups")
     groups = db.query(models.Group).filter(models.Group.id.in_(body.group_ids)).all()
@@ -180,13 +222,16 @@ def set_user_groups(
     return resp
 
 
-@router.get("/users/{user_id}/effective")
+@router.get(
+    "/users/{user_id}/effective",
+    responses={404: {"description": USER_NOT_FOUND}},
+)
 def get_effective_permissions(
     user_id: int,
-    db: Session = Depends(get_db),
-    _user=Depends(get_current_user),
+    db: Annotated[Session, Depends(get_db)],
+    _user: Annotated[models.User, Depends(get_current_user)],
 ):
     u = db.get(models.User, user_id)
     if not u:
-        raise HTTPException(404, detail="User not found")
+        raise HTTPException(404, detail=USER_NOT_FOUND)
     return {f: sorted(acts) for f, acts in effective_permissions(u).items()}

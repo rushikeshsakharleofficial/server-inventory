@@ -24,6 +24,10 @@ export const Route = createFileRoute("/_app/domains")({
   component: DomainsPage,
 });
 
+function proxiedYesNo(proxied: boolean): string {
+  return proxied ? "Yes" : "No";
+}
+
 function buildFields(items: DnsRecord[]) {
   const uniq = (vals: (string | undefined | null)[]) =>
     [...new Set(vals.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
@@ -53,9 +57,9 @@ function buildFields(items: DnsRecord[]) {
 function DomainsPage() {
   const qc = useQueryClient();
   const [fs, setFs] = useState<FilterState>(() =>
-    typeof window === "undefined"
+    typeof globalThis.window === "undefined"
       ? emptyFilterState()
-      : searchParamsToFilterState(window.location.search, [
+      : searchParamsToFilterState(globalThis.location.search, [
           "provider",
           "status",
           "zone",
@@ -168,11 +172,11 @@ function DomainsPage() {
     {
       key: "proxied",
       header: "Proxied",
-      render: (v) => (
-        <span className="text-xs text-muted-foreground">
-          {v.proxied === null || v.proxied === undefined ? "—" : v.proxied ? "Yes" : "No"}
-        </span>
-      ),
+      render: (v) => {
+        const proxiedLabel =
+          v.proxied === null || v.proxied === undefined ? "—" : proxiedYesNo(v.proxied);
+        return <span className="text-xs text-muted-foreground">{proxiedLabel}</span>;
+      },
     },
     {
       key: "status",

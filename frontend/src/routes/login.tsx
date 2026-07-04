@@ -97,6 +97,8 @@ function LoginPage() {
     navigate({ to: "/dashboard" });
   }
 
+  const submitLabel = loading ? "Signing in…" : mfaToken ? "Verify" : "Sign in";
+
   if (checkingSetup) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 text-sm text-gray-500" style={{ background: "#f8fafc" }}>
@@ -178,8 +180,7 @@ function LoginPage() {
                 background: "#f0fdf4", border: "1px solid #bbf7d0",
                 borderRadius: 20, padding: "3px 8px",
               }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
-                Secure
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} /> Secure
               </span>
             </div>
             <p className="text-xs text-gray-500">
@@ -206,12 +207,13 @@ function LoginPage() {
               <>
                 {/* Username */}
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b7280", marginBottom: 6 }}>
+                  <label htmlFor="login-username" style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b7280", marginBottom: 6 }}>
                     Username
                   </label>
                   <div style={{ position: "relative" }}>
                     <User style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "#9ca3af", pointerEvents: "none" }} />
                     <input
+                      id="login-username"
                       style={{
                         width: "100%", height: 42, paddingLeft: 36, paddingRight: 12,
                         fontSize: 13, background: "#fff", color: "#111827",
@@ -231,12 +233,13 @@ function LoginPage() {
 
                 {/* Password */}
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b7280", marginBottom: 6 }}>
+                  <label htmlFor="login-password" style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b7280", marginBottom: 6 }}>
                     Password
                   </label>
                   <div style={{ position: "relative" }}>
                     <Lock style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "#9ca3af", pointerEvents: "none" }} />
                     <input
+                      id="login-password"
                       type={showPassword ? "text" : "password"}
                       style={{
                         width: "100%", height: 42, paddingLeft: 36, paddingRight: 40,
@@ -265,8 +268,9 @@ function LoginPage() {
 
                 {/* Remember me */}
                 <div>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                  <label htmlFor="login-remember" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
                     <input
+                      id="login-remember"
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
@@ -284,10 +288,11 @@ function LoginPage() {
             {/* MFA field */}
             {mfaToken && (
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b7280", marginBottom: 6 }}>
+                <label htmlFor="login-mfa-code" style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b7280", marginBottom: 6 }}>
                   Authenticator code
                 </label>
                 <input
+                  id="login-mfa-code"
                   inputMode="numeric"
                   pattern="[0-9]*"
                   maxLength={6}
@@ -333,7 +338,7 @@ function LoginPage() {
                   <path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
                 </svg>
               )}
-              {loading ? "Signing in…" : mfaToken ? "Verify" : "Sign in"}
+              {submitLabel}
             </button>
 
             {mfaToken && (

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type CronJob, type CronJobCreate, type Credential, type Page } from "@/lib/api";
-import { Card, PageHeader, StatusPill, EmptyState, CustomSelect } from "@/components/ui-bits";
+import { Card, PageHeader, StatusPill, EmptyState, CustomSelect, PROVIDER_LOGOS } from "@/components/ui-bits";
 import { Play, Power, Trash2, Plus, X, Pencil, CalendarClock, Terminal as TerminalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -10,7 +10,6 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
-import { PROVIDER_LOGOS } from "@/components/ui-bits";
 
 type RepeatMode = "once" | "daily" | "weekly";
 
@@ -30,7 +29,7 @@ export const Route = createFileRoute("/_app/crons")({
   component: CronsPage,
 });
 
-function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
+function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: CronJob }>) {
   const qc = useQueryClient();
   const [form, setForm] = useState<CronJobCreate>(
     job
@@ -78,6 +77,10 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
 
   const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
 
+  const saveLabel = save.isPending
+    ? (job ? "Saving…" : "Creating…")
+    : (job ? "Save" : "Create");
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
@@ -87,8 +90,9 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Name</label>
+            <label htmlFor="cron-name" className="text-xs text-muted-foreground font-medium block mb-1">Name</label>
             <input
+              id="cron-name"
               className={inp}
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -97,7 +101,7 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-muted-foreground font-medium">Schedule</label>
+              <label htmlFor="cron-expr" className="text-xs text-muted-foreground font-medium">Schedule</label>
               <div className="inline-flex rounded-md border border-border overflow-hidden text-xs">
                 <button
                   type="button"
@@ -119,6 +123,7 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
             {scheduleMode === "cron" ? (
               <>
                 <input
+                  id="cron-expr"
                   className={`${inp} font-mono`}
                   value={form.cron_expr}
                   onChange={e => setForm(f => ({ ...f, cron_expr: e.target.value }))}
@@ -134,7 +139,7 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
                       key={m}
                       type="button"
                       onClick={() => { setRepeatMode(m); applyPicker(pickedDate, pickedTime, m); }}
-                      className={`flex-1 px-2 py-1 capitalize ${repeatMode === m ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"} ${m !== "once" ? "border-l border-border" : ""}`}
+                      className={`flex-1 px-2 py-1 capitalize ${repeatMode === m ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"} ${m === "once" ? "" : "border-l border-border"}`}
                     >
                       {m}
                     </button>
@@ -149,7 +154,7 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground font-medium block mb-1">Time</label>
+                  <span className="text-xs text-muted-foreground font-medium block mb-1">Time</span>
                   <AnalogClockPicker
                     value={pickedTime}
                     onChange={(v) => { setPickedTime(v); applyPicker(pickedDate, v, repeatMode); }}
@@ -160,7 +165,7 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
             )}
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Provider</label>
+            <span className="text-xs text-muted-foreground font-medium block mb-1">Provider</span>
             <CustomSelect
               value={form.provider ?? ""}
               onChange={v => setForm(f => ({ ...f, provider: v || null }))}
@@ -176,7 +181,7 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
             disabled={!form.name || !form.cron_expr || save.isPending}
             className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
           >
-            {save.isPending ? (job ? "Saving…" : "Creating…") : (job ? "Save" : "Create")}
+            {saveLabel}
           </button>
         </div>
       </div>
@@ -283,7 +288,7 @@ function CronsPage() {
 // Analogue clock face for picking a time — native <input type="time"> can't
 // be restyled into a clock (the browser owns that widget entirely), so this
 // draws one from scratch: drag/click either hand around an SVG dial.
-function AnalogClockPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function AnalogClockPicker({ value, onChange }: Readonly<{ value: string; onChange: (v: string) => void }>) {
   const [h24, m] = value.split(":").map(Number);
   const isPM = h24 >= 12;
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
@@ -382,7 +387,7 @@ function AnalogClockPicker({ value, onChange }: { value: string; onChange: (v: s
 
 const LOGO_GRID_MAX = 4;
 
-function ProviderLogoGrid({ providers }: { providers: string[] }) {
+function ProviderLogoGrid({ providers }: Readonly<{ providers: string[] }>) {
   const [open, setOpen] = useState(false);
   // Only show providers with a real recognizable logo — custom/generic
   // credential names (e.g. a reseller account) have no logo asset and would

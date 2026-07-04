@@ -74,7 +74,7 @@ class CloudflareProvider(CloudProvider):
         items: list[dict[str, Any]] = []
         page = 1
         while True:
-            for attempt in range(4):
+            for _ in range(4):
                 resp = requests.get(url, headers=headers, params={"per_page": per_page, "page": page}, timeout=30)
                 if resp.status_code == 429:
                     wait = int(resp.headers.get("Retry-After", 5))

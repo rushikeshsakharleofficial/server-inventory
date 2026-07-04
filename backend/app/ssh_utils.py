@@ -8,6 +8,8 @@ from typing import Any, TYPE_CHECKING
 if TYPE_CHECKING:
     from . import models
 
+_DEFAULT_KNOWN_HOSTS = "~/.ssh/known_hosts"
+
 
 def probe_port(host: str, port: int = 22, timeout: float = 2.0) -> bool:
     """Fast TCP reachability check before attempting a full SSH handshake.
@@ -59,7 +61,7 @@ def _open_ssh_client(
 
     jump_client = None
     client = paramiko.SSHClient()
-    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
     if os.path.exists(known_hosts_path):
         client.load_host_keys(known_hosts_path)
     else:
@@ -85,7 +87,7 @@ def _open_ssh_client(
         _proxy_pass = decrypt_str(ssh_cred.proxy_password)    if ssh_cred.proxy_password    else None
         _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
         jump_client = paramiko.SSHClient()
-        known_hosts_path_j = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+        known_hosts_path_j = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
         if os.path.exists(known_hosts_path_j):
             jump_client.load_host_keys(known_hosts_path_j)
         else:
@@ -158,7 +160,7 @@ def fetch_ips_via_transport(
     import paramiko
 
     client = paramiko.SSHClient()
-    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
     if os.path.exists(known_hosts_path):
         client.load_host_keys(known_hosts_path)
     else:

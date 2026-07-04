@@ -12,10 +12,10 @@ export const Route = createFileRoute("/_app/server-groups")({
   component: ServerGroupsPage,
 });
 
-function Label({ children }: { children: React.ReactNode }) {
+function Label({ children }: Readonly<{ children: React.ReactNode }>) {
   return <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{children}</label>;
 }
-function Input({ label, value, onChange, required }: { label: string; value: string; onChange: (v: string) => void; required?: boolean }) {
+function Input({ label, value, onChange, required }: Readonly<{ label: string; value: string; onChange: (v: string) => void; required?: boolean }>) {
   return (
     <div>
       <Label>{label}</Label>
@@ -31,7 +31,7 @@ function Input({ label, value, onChange, required }: { label: string; value: str
 
 // ─── Create/Edit dialog ─────────────────────────────────────────────────────────
 
-function GroupDialog({ group, onClose }: { group?: ServerGroup; onClose: () => void }) {
+function GroupDialog({ group, onClose }: Readonly<{ group?: ServerGroup; onClose: () => void }>) {
   const qc = useQueryClient();
   const [name, setName] = useState(group?.name ?? "");
   const [description, setDescription] = useState(group?.description ?? "");
@@ -50,8 +50,20 @@ function GroupDialog({ group, onClose }: { group?: ServerGroup; onClose: () => v
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
+    <div
+      role="button"
+      tabIndex={0}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
+      onClick={onClose}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
+      >
         <div className="p-4 border-b border-border">
           <h3 className="text-sm font-semibold">{group ? `Edit group — ${group.name}` : "New server group"}</h3>
         </div>
@@ -72,7 +84,7 @@ function GroupDialog({ group, onClose }: { group?: ServerGroup; onClose: () => v
 
 // ─── Members dialog ─────────────────────────────────────────────────────────────
 
-function MembersDialog({ group, onClose }: { group: ServerGroup; onClose: () => void }) {
+function MembersDialog({ group, onClose }: Readonly<{ group: ServerGroup; onClose: () => void }>) {
   const qc = useQueryClient();
   const { data: serversPage } = useQuery({
     queryKey: ["servers", "all-for-group"],
@@ -103,8 +115,20 @@ function MembersDialog({ group, onClose }: { group: ServerGroup; onClose: () => 
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[85vh]">
+    <div
+      role="button"
+      tabIndex={0}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
+      onClick={onClose}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[85vh]"
+      >
         <div className="p-4 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold">Members — {group.name}</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Select every server that belongs to this group. Saving replaces the full membership list.</p>

@@ -37,7 +37,7 @@ export function SmartTable<T>({
   empty,
   rowClassName,
   onRowClick,
-}: {
+}: Readonly<{
   columns: SmartTableColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string | number;
@@ -51,7 +51,7 @@ export function SmartTable<T>({
   empty?: ReactNode;
   rowClassName?: (row: T) => string;
   onRowClick?: (row: T) => void;
-}) {
+}>) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const pageSize = useAdaptivePageSize({ bodyRef });
 

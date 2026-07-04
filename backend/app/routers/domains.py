@@ -16,7 +16,7 @@ def _sync_domains(provider_name: str | None, db_url: str) -> None:
     _sync_resources(provider_name, db_url, models.DnsRecord, "fetch_domains")
 
 
-@router.get("", response_model=schemas.Page[schemas.DnsRecordResponse])
+@router.get("")
 def list_domains(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],

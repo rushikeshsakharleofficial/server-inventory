@@ -134,7 +134,7 @@ def _ip(server_id, address, mac_address=None):
 
 class TestValidateCidr:
     def test_validate_cidr_accepts_valid_ipv4(self):
-        net = validate_cidr("10.10.10.0/24")
+        net = validate_cidr("10.10.10.0/24")  # NOSONAR
         assert net.num_addresses == 256
 
     def test_validate_cidr_rejects_invalid_string(self):
@@ -147,19 +147,19 @@ class TestValidateCidr:
 
     def test_validate_cidr_rejects_oversized_range(self):
         with pytest.raises(ValueError):
-            validate_cidr("10.0.0.0/8", max_ips=4096)
-        validate_cidr("10.0.0.0/8", max_ips=20_000_000)  # does not raise
+            validate_cidr("10.0.0.0/8", max_ips=4096)  # NOSONAR
+        validate_cidr("10.0.0.0/8", max_ips=20_000_000)  # does not raise  # NOSONAR
 
 
 # ─── expand_cidr ────────────────────────────────────────────────────────────
 
 class TestExpandCidr:
     def test_expand_cidr_host_count(self):
-        net = validate_cidr("10.10.10.0/30")
+        net = validate_cidr("10.10.10.0/30")  # NOSONAR
         ips = expand_cidr(net)
         assert len(ips) == 2
-        assert "10.10.10.0" not in ips  # network address excluded
-        assert "10.10.10.3" not in ips  # broadcast excluded
+        assert "10.10.10.0" not in ips  # network address excluded  # NOSONAR
+        assert "10.10.10.3" not in ips  # broadcast excluded  # NOSONAR
 
 
 # ─── _classify_ip_scope (ssh_utils) ─────────────────────────────────────────
@@ -167,11 +167,11 @@ class TestExpandCidr:
 class TestClassifyScope:
     def test_classify_scope(self):
         assert _classify_ip_scope("127.0.0.1") == "loopback"
-        assert _classify_ip_scope("169.254.1.1") == "link-local"
-        assert _classify_ip_scope("10.0.0.5") == "private"
-        assert _classify_ip_scope("192.168.1.1") == "private"
-        assert _classify_ip_scope("172.16.0.1") == "private"
-        assert _classify_ip_scope("8.8.8.8") == "public"
+        assert _classify_ip_scope("169.254.1.1") == "link-local"  # NOSONAR
+        assert _classify_ip_scope("10.0.0.5") == "private"  # NOSONAR
+        assert _classify_ip_scope("192.168.1.1") == "private"  # NOSONAR
+        assert _classify_ip_scope("172.16.0.1") == "private"  # NOSONAR
+        assert _classify_ip_scope("8.8.8.8") == "public"  # NOSONAR
 
 
 # ─── compute_identity_hash ──────────────────────────────────────────────────
@@ -197,7 +197,7 @@ class TestExtractIdentitySignals:
                 {
                     "name": "eth0",
                     "mac": "AA:BB:CC:DD:EE:FF",
-                    "addresses": [{"address": "10.0.0.5", "scope": "private"}],
+                    "addresses": [{"address": "10.0.0.5", "scope": "private"}],  # NOSONAR
                 }
             ],
         }
@@ -227,12 +227,12 @@ class TestExtractIdentitySignals:
                 {
                     "name": "eth0",
                     "mac": "11:11:11:11:11:11",
-                    "addresses": [{"address": "169.254.1.5", "scope": "link-local"}],
+                    "addresses": [{"address": "169.254.1.5", "scope": "link-local"}],  # NOSONAR
                 },
                 {
                     "name": "eth1",
                     "mac": "22:22:22:22:22:22",
-                    "addresses": [{"address": "10.0.0.9", "scope": "private"}],
+                    "addresses": [{"address": "10.0.0.9", "scope": "private"}],  # NOSONAR
                 },
             ],
         }
@@ -261,8 +261,8 @@ class TestResolveServer:
         db = _FakeSession(servers=[server_a])
 
         signals = {"machine_id": "mid-shared", "product_uuid": None, "hostname": None, "primary_mac": None}
-        s1, sig1 = resolve_server(db, signals, None, ["10.0.0.1"])
-        s2, sig2 = resolve_server(db, signals, None, ["10.0.0.2", "10.0.0.3"])
+        s1, sig1 = resolve_server(db, signals, None, ["10.0.0.1"])  # NOSONAR
+        s2, sig2 = resolve_server(db, signals, None, ["10.0.0.2", "10.0.0.3"])  # NOSONAR
 
         assert s1 is server_a
         assert s2 is server_a
@@ -289,11 +289,11 @@ class TestResolveServer:
         assert signal_name == "product_uuid"
 
     def test_existing_ip_match_via_legacy_columns(self):
-        server_a = _server(1, public_ip="8.8.8.8", private_ip=None)
+        server_a = _server(1, public_ip="8.8.8.8", private_ip=None)  # NOSONAR
         db = _FakeSession(servers=[server_a])
 
         signals = {"machine_id": None, "product_uuid": None, "hostname": None, "primary_mac": None}
-        server, signal_name = resolve_server(db, signals, None, ["8.8.8.8"])
+        server, signal_name = resolve_server(db, signals, None, ["8.8.8.8"])  # NOSONAR
         assert server is server_a
         assert signal_name == "existing_ip"
 

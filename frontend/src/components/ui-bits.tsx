@@ -13,13 +13,13 @@ export function CustomSelect({
   options,
   placeholder = "— select —",
   className = "",
-}: {
+}: Readonly<{
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label?: string }[];
   placeholder?: string;
   className?: string;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -108,11 +108,11 @@ export function PageHeader({
   title,
   description,
   actions,
-}: {
+}: Readonly<{
   title: string;
   description?: string;
   actions?: ReactNode;
-}) {
+}>) {
   return (
     <div className="flex items-start justify-between mb-6">
       <div>
@@ -136,11 +136,11 @@ export function Card({
   children,
   className = "",
   style,
-}: {
+}: Readonly<{
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
-}) {
+}>) {
   return (
     <div
       className={`bg-surface ring-1 ring-black/10 rounded-xl shadow-sm ${className}`}
@@ -192,7 +192,7 @@ const DOT_STYLES: Record<string, string> = {
   error: "bg-red-500",
 };
 
-export function StatusPill({ status }: { status: string }) {
+export function StatusPill({ status }: Readonly<{ status: string }>) {
   const key = (status || "unknown").toLowerCase();
   const cls = STATUS_STYLES[key] ?? "bg-zinc-100 text-zinc-600";
   const dot = DOT_STYLES[key] ?? "bg-zinc-400";
@@ -236,7 +236,7 @@ export const PROVIDER_LOGOS: Record<string, string> = {
   cloudflare: "/providers/cloudflare.svg",
 };
 
-export function ProviderBadge({ provider }: { provider: string }) {
+export function ProviderBadge({ provider }: Readonly<{ provider: string }>) {
   const p = (provider || "").toLowerCase();
   const logo = PROVIDER_LOGOS[p];
   const short =
@@ -359,7 +359,7 @@ function _osVersion(os: string): string {
   return m ? m[1] : "";
 }
 
-export function OsBadge({ os }: { os: string | null | undefined }) {
+export function OsBadge({ os }: Readonly<{ os: string | null | undefined }>) {
   if (!os) return <span className="text-muted-foreground text-xs">—</span>;
   const key = _osKey(os);
   const meta = key ? OS_META[key] : null;
@@ -383,11 +383,11 @@ export function EmptyState({
   title,
   description,
   action,
-}: {
+}: Readonly<{
   title: string;
   description?: string;
   action?: ReactNode;
-}) {
+}>) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center px-6">
       <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">

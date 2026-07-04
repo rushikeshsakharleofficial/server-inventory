@@ -82,6 +82,13 @@ function SetupPage() {
     }
   }
 
+  let statusMessage: string | null = null;
+  if (checking) {
+    statusMessage = "Checking setup status…";
+  } else if (!ready) {
+    statusMessage = "Setup is not available for this instance.";
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ background: "#f8fafc" }}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -122,10 +129,8 @@ function SetupPage() {
           boxShadow: "0 24px 60px rgba(15,23,42,0.08), 0 4px 16px rgba(15,23,42,0.05)",
           padding: "28px 32px 32px",
         }}>
-          {checking ? (
-            <div className="text-sm text-gray-500">Checking setup status…</div>
-          ) : !ready ? (
-            <div className="text-sm text-gray-500">Setup is not available for this instance.</div>
+          {statusMessage ? (
+            <div className="text-sm text-gray-500">{statusMessage}</div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               {error && (
@@ -210,7 +215,7 @@ function Field({
   type = "text",
   autoComplete,
   required = true,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -218,7 +223,7 @@ function Field({
   type?: string;
   autoComplete?: string;
   required?: boolean;
-}) {
+}>) {
   return (
     <div>
       <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b7280", marginBottom: 6 }}>

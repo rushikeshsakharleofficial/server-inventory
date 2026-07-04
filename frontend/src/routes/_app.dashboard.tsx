@@ -48,7 +48,7 @@ function useCountUp(target: number, duration = 800) {
   return val;
 }
 
-function AnimatedBar({ pct, color = "#6366f1" }: { pct: number; color?: string }) {
+function AnimatedBar({ pct, color = "#6366f1" }: Readonly<{ pct: number; color?: string }>) {
   const [width, setWidth] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setWidth(pct), 60);
@@ -80,10 +80,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // KPI card matching screenshot
 function KpiCard({
   label, value, hint, hintColor, icon: Icon, iconBg, iconColor,
-}: {
+}: Readonly<{
   label: string; value: number; hint?: string; hintColor?: string;
   icon: React.ElementType; iconBg: string; iconColor: string;
-}) {
+}>) {
   const animated = useCountUp(value);
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-5 flex items-center gap-4 shadow-sm">
@@ -102,11 +102,11 @@ function KpiCard({
 }
 
 // Card wrapper
-function DCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function DCard({ children, className = "" }: Readonly<{ children: React.ReactNode; className?: string }>) {
   return <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>{children}</div>;
 }
 
-function CardHeader({ title, right }: { title: string; right?: React.ReactNode }) {
+function CardHeader({ title, right }: Readonly<{ title: string; right?: React.ReactNode }>) {
   return (
     <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
       <h3 className="text-sm font-semibold text-gray-900">{title}</h3>

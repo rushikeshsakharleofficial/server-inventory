@@ -234,10 +234,10 @@ function DomainCredentialsPage() {
 function EditCredentialDialog({
   cred,
   onClose,
-}: {
+}: Readonly<{
   cred: Credential;
   onClose: () => void;
-}) {
+}>) {
   const qc = useQueryClient();
   const def = PROVIDERS.find((p) => p.id === cred.provider);
   const [name, setName] = useState(cred.name);
@@ -272,11 +272,16 @@ function EditCredentialDialog({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
       onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       <div
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
       >
         <div className="p-4 border-b border-border shrink-0">
@@ -292,10 +297,14 @@ function EditCredentialDialog({
           }}
         >
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <label
+              htmlFor="edit-cred-name"
+              className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+            >
               Name
             </label>
             <input
+              id="edit-cred-name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -304,10 +313,14 @@ function EditCredentialDialog({
           </div>
           {fields.map((f) => (
             <div key={f}>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                {f.replace(/_/g, " ")}
+              <label
+                htmlFor={`edit-cred-field-${f}`}
+                className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+              >
+                {f.replaceAll("_", " ")}
               </label>
               <input
+                id={`edit-cred-field-${f}`}
                 type={isSecret(f) ? "password" : "text"}
                 value={values[f] ?? ""}
                 onChange={(e) =>
@@ -340,7 +353,7 @@ function EditCredentialDialog({
   );
 }
 
-function NewCredentialDialog({ onClose }: { onClose: () => void }) {
+function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   const qc = useQueryClient();
   const [provider, setProvider] = useState(PROVIDERS[0].id);
   const [name, setName] = useState("");
@@ -363,11 +376,16 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
       onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       <div
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
       >
         <div className="p-4 border-b border-border">
@@ -381,10 +399,17 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
           }}
         >
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <span
+              id="new-cred-provider-label"
+              className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+            >
               Provider
-            </label>
-            <div className="mt-1 grid grid-cols-4 gap-2">
+            </span>
+            <div
+              role="group"
+              aria-labelledby="new-cred-provider-label"
+              className="mt-1 grid grid-cols-4 gap-2"
+            >
               {PROVIDERS.map((p) => (
                 <button
                   key={p.id}
@@ -410,10 +435,14 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <label
+              htmlFor="new-cred-name"
+              className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+            >
               Name
             </label>
             <input
+              id="new-cred-name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -423,10 +452,14 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
           </div>
           {def.fields.map((f) => (
             <div key={f}>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                {f.replace(/_/g, " ")}
+              <label
+                htmlFor={`new-cred-field-${f}`}
+                className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+              >
+                {f.replaceAll("_", " ")}
               </label>
               <input
+                id={`new-cred-field-${f}`}
                 required
                 type={isSecret(f) ? "password" : "text"}
                 value={values[f] ?? ""}
@@ -482,7 +515,7 @@ function parseBulkText(text: string): ParsedRow[] {
     );
 }
 
-function BulkImportDialog({ onClose }: { onClose: () => void }) {
+function BulkImportDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [importing, setImporting] = useState(false);
@@ -525,11 +558,18 @@ function BulkImportDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
       onClick={importing ? undefined : onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !importing) onClose();
+      }}
     >
       <div
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
       >
         <div className="p-4 border-b border-border shrink-0">

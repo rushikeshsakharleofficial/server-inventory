@@ -101,7 +101,7 @@ function UsersPage() {
   );
 }
 
-function NewUserDialog({ onClose }: { onClose: () => void }) {
+function NewUserDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -118,22 +118,33 @@ function NewUserDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      role="button"
+      tabIndex={0}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
+        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
+      >
         <div className="p-4 border-b border-border">
           <h3 className="text-sm font-semibold">New user</h3>
         </div>
         <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Username</label>
-            <input required value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
+            <label htmlFor="new-user-username" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Username</label>
+            <input id="new-user-username" required value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
           </div>
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Password (10+ chars)</label>
-            <input required minLength={10} type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
+            <label htmlFor="new-user-password" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Password (10+ chars)</label>
+            <input id="new-user-password" required minLength={10} type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
           </div>
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Role</label>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Role</span>
             <CustomSelect
               value={role}
               onChange={(v) => setRole(v as "read" | "write")}

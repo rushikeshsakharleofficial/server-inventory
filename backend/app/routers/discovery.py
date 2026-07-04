@@ -37,7 +37,7 @@ def list_networks(
     return db.query(models.DiscoveryNetwork).order_by(models.DiscoveryNetwork.name).all()
 
 
-@router.post("/networks", status_code=201)
+@router.post("/networks", status_code=201, responses={400: {"description": "Invalid CIDR"}})
 @limiter.limit("30/minute")
 def create_network(
     request: Request,
@@ -61,7 +61,7 @@ def create_network(
     return network
 
 
-@router.put("/networks/{network_id}")
+@router.put("/networks/{network_id}", responses={404: {"description": "Discovery network not found"}, 400: {"description": "Invalid CIDR"}})
 @limiter.limit("30/minute")
 def update_network(
     request: Request,
@@ -94,7 +94,7 @@ def update_network(
     return network
 
 
-@router.delete("/networks/{network_id}", status_code=204)
+@router.delete("/networks/{network_id}", status_code=204, responses={404: {"description": "Discovery network not found"}})
 @limiter.limit("30/minute")
 def delete_network(
     request: Request,
@@ -113,7 +113,7 @@ def delete_network(
     db.commit()
 
 
-@router.post("/networks/{network_id}/run")
+@router.post("/networks/{network_id}/run", responses={404: {"description": "Discovery network not found"}, 400: {"description": "Invalid CIDR"}})
 @limiter.limit("10/minute")
 def run_network(
     request: Request,
@@ -153,7 +153,7 @@ def run_network(
 
 # ─── Run-once (ad-hoc CIDR, not saved) ─────────────────────────────────────────
 
-@router.post("/run-once")
+@router.post("/run-once", responses={400: {"description": "Invalid CIDR"}})
 @limiter.limit("10/minute")
 def run_once(
     request: Request,
@@ -188,7 +188,7 @@ def run_once(
 
 # ─── Jobs ───────────────────────────────────────────────────────────────────────
 
-@router.post("/jobs/{job_id}/stop")
+@router.post("/jobs/{job_id}/stop", responses={404: {"description": "Discovery job not found"}})
 @limiter.limit("30/minute")
 def stop_job(
     request: Request,
@@ -231,7 +231,7 @@ def list_jobs(
     return q.order_by(models.DiscoveryJob.created_at.desc()).limit(limit).all()
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", responses={404: {"description": "Discovery job not found"}})
 @limiter.limit("100/minute")
 def get_job(
     request: Request,

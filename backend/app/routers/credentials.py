@@ -11,6 +11,8 @@ from ..event_log_utils import add_event_log
 
 router = APIRouter(prefix="/api/credentials", tags=["credentials"])
 
+CREDENTIAL_NOT_FOUND = "Credential not found"
+
 # Open-ended — any provider name accepted
 _KNOWN_PROVIDERS: frozenset[str] = frozenset()
 
@@ -49,7 +51,7 @@ def _build_response(c: models.Credential) -> dict:
     }
 
 
-@router.get("", response_model=schemas.Page[schemas.CredentialResponse])
+@router.get("")
 def list_credentials(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
@@ -82,7 +84,7 @@ def create_credential(
     return _build_response(db_cred)
 
 
-@router.delete("/{cred_id}", status_code=204)
+@router.delete("/{cred_id}", status_code=204, responses={404: {"description": CREDENTIAL_NOT_FOUND}})
 def delete_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -90,14 +92,14 @@ def delete_credential(
 ) -> None:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="Credential not found")
+        raise HTTPException(status_code=404, detail=CREDENTIAL_NOT_FOUND)
     add_event_log(db, source="credentials", resource=cred.name, event="Credential removed",
                   owner=user.username, message=f"provider={cred.provider}, type={cred.cred_type}")
     db.delete(cred)
     db.commit()
 
 
-@router.put("/{cred_id}", response_model=schemas.CredentialResponse)
+@router.put("/{cred_id}", response_model=schemas.CredentialResponse, responses={404: {"description": CREDENTIAL_NOT_FOUND}})
 def update_credential(
     cred_id: int,
     payload: schemas.CredentialUpdate,
@@ -106,7 +108,7 @@ def update_credential(
 ) -> dict:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="Credential not found")
+        raise HTTPException(status_code=404, detail=CREDENTIAL_NOT_FOUND)
     if payload.name is not None:
         cred.name = payload.name
     if payload.config is not None:
@@ -123,7 +125,7 @@ def update_credential(
     return _build_response(cred)
 
 
-@router.patch("/{cred_id}/toggle", response_model=schemas.CredentialResponse)
+@router.patch("/{cred_id}/toggle", response_model=schemas.CredentialResponse, responses={404: {"description": CREDENTIAL_NOT_FOUND}})
 def toggle_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -131,7 +133,7 @@ def toggle_credential(
 ) -> dict:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="Credential not found")
+        raise HTTPException(status_code=404, detail=CREDENTIAL_NOT_FOUND)
     cred.is_active = not cred.is_active
     add_event_log(db, source="credentials", resource=cred.name, event="Credential status changed",
                   owner=user.username, message=f"is_active={cred.is_active}")
@@ -144,7 +146,7 @@ class RevealRequest(BaseModel):
     field: str = "password"  # which secret field to reveal
 
 
-@router.post("/{cred_id}/reveal-secret")
+@router.post("/{cred_id}/reveal-secret", responses={404: {"description": CREDENTIAL_NOT_FOUND}})
 def reveal_secret(
     cred_id: int,
     payload: RevealRequest,
@@ -154,7 +156,7 @@ def reveal_secret(
     """Admin-only: returns a single decrypted secret field. Audit-logged."""
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="Credential not found")
+        raise HTTPException(status_code=404, detail=CREDENTIAL_NOT_FOUND)
     config = decrypt_config(cred.config or {})
     value = config.get(payload.field)
     if value is None:
@@ -176,7 +178,13 @@ def reveal_secret(
     return {"field": payload.field, "value": value}
 
 
-@router.post("/{cred_id}/copy-secret")
+@router.post(
+    "/{cred_id}/copy-secret",
+    responses={
+        403: {"description": "Admin role required to copy secrets"},
+        404: {"description": CREDENTIAL_NOT_FOUND},
+    },
+)
 def copy_secret(
     cred_id: int,
     payload: RevealRequest,
@@ -186,7 +194,7 @@ def copy_secret(
     """Any authenticated user can copy — returns masked value except for admins."""
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="Credential not found")
+        raise HTTPException(status_code=404, detail=CREDENTIAL_NOT_FOUND)
     config = decrypt_config(cred.config or {})
     value = config.get(payload.field)
     if value is None:

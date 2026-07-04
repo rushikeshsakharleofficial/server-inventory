@@ -603,7 +603,7 @@ def _azure_server_map(server: models.Server, config: dict) -> dict:
     root_id = f"server-{server.id}"
     nodes, edges = [], []
     try:
-        token, sub = _az_token(config)
+        token, _ = _az_token(config)
     except Exception:
         return {"nodes": [], "edges": []}
 
@@ -859,7 +859,6 @@ def _linode_server_map(server: models.Server, config: dict) -> dict:
         resp = requests.get(f"https://api.linode.com/v4/linode/instances/{server.cloud_id}", headers=headers, timeout=15)
         if not resp.ok:
             return {"nodes": [], "edges": []}
-        inst = resp.json()
 
         # Firewall
         fw_resp = requests.get(f"https://api.linode.com/v4/linode/instances/{server.cloud_id}/firewalls", headers=headers, timeout=15)
@@ -997,7 +996,7 @@ def _azure_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     root_id = f"db-{db_inst.id}"
     nodes, edges = [], []
     try:
-        token, sub = _az_token(config)
+        token, _ = _az_token(config)
     except Exception:
         return {"nodes": [], "edges": []}
 
@@ -1018,7 +1017,6 @@ def _azure_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
         srv_url = f"https://management.azure.com{db_inst.cloud_id}?api-version={api_ver}"
         srv = requests.get(srv_url, headers=headers, timeout=20).json()
         props = srv.get("properties", {})
-        rg = db_inst.cloud_id.split("/")[4] if db_inst.cloud_id else ""
 
         # Firewall rules
         fw_url = f"https://management.azure.com{db_inst.cloud_id}/firewallRules?api-version={api_ver}"
@@ -1104,7 +1102,7 @@ def _azure_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> di
     root_id = f"k8s-{cluster.id}"
     nodes, edges = [], []
     try:
-        token, sub = _az_token(config)
+        token, _ = _az_token(config)
     except Exception:
         return {"nodes": [], "edges": []}
 
@@ -1380,7 +1378,6 @@ def _ovh_server_map(server: models.Server, config: dict) -> dict:
         resp = ovh_get(resource_path)
         if not resp.ok:
             return {"nodes": [], "edges": []}
-        srv = resp.json()
 
         # IPs
         ip_resp = ovh_get(f"{resource_path}/ips")
@@ -1573,7 +1570,7 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("/server/{server_id}")
+@router.get("/server/{server_id}", responses={404: {"description": "Not found"}})
 def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
     key = f"server:{server_id}"
     if cached := _cache_get(key):
@@ -1589,7 +1586,7 @@ def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)],
     return payload
 
 
-@router.get("/database/{db_id}")
+@router.get("/database/{db_id}", responses={404: {"description": "Not found"}})
 def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
     key = f"database:{db_id}"
     if cached := _cache_get(key):
@@ -1605,7 +1602,7 @@ def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _
     return payload
 
 
-@router.get("/kubernetes/{cluster_id}")
+@router.get("/kubernetes/{cluster_id}", responses={404: {"description": "Not found"}})
 def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
     key = f"kubernetes:{cluster_id}"
     if cached := _cache_get(key):

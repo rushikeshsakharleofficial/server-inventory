@@ -29,7 +29,7 @@ export function SmartPagination({
   isLoading = false,
   showJumpInput = true,
   showFirstLast = true,
-}: {
+}: Readonly<{
   currentPage: number;
   pageSize: number;
   totalItems: number;
@@ -38,7 +38,7 @@ export function SmartPagination({
   isLoading?: boolean;
   showJumpInput?: boolean;
   showFirstLast?: boolean;
-}) {
+}>) {
   const [jump, setJump] = useState("");
   const clampedTotalPages = Math.max(1, totalPages);
   const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -50,8 +50,8 @@ export function SmartPagination({
   }
 
   function submitJump() {
-    const n = parseInt(jump, 10);
-    if (!isNaN(n)) go(n);
+    const n = Number.parseInt(jump, 10);
+    if (!Number.isNaN(n)) go(n);
     setJump("");
   }
 

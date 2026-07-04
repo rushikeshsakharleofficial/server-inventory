@@ -55,7 +55,12 @@ def list_server_groups(
     return [_to_response(g) for g in groups]
 
 
-@router.post("", response_model=schemas.ServerGroupResponse, status_code=201)
+@router.post(
+    "",
+    response_model=schemas.ServerGroupResponse,
+    status_code=201,
+    responses={400: {"description": "Group name already exists"}},
+)
 def create_server_group(
     body: schemas.ServerGroupCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -71,7 +76,14 @@ def create_server_group(
     return _to_response(g)
 
 
-@router.put("/{group_id}", response_model=schemas.ServerGroupResponse)
+@router.put(
+    "/{group_id}",
+    response_model=schemas.ServerGroupResponse,
+    responses={
+        404: {"description": "Server group not found"},
+        400: {"description": "Auto-group is read-only or name already exists"},
+    },
+)
 def update_server_group(
     group_id: int,
     body: schemas.ServerGroupUpdate,
@@ -98,7 +110,14 @@ def update_server_group(
     return _to_response(g)
 
 
-@router.delete("/{group_id}", status_code=204)
+@router.delete(
+    "/{group_id}",
+    status_code=204,
+    responses={
+        404: {"description": "Server group not found"},
+        400: {"description": "Auto-group is read-only"},
+    },
+)
 def delete_server_group(
     group_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -114,7 +133,10 @@ def delete_server_group(
     db.commit()
 
 
-@router.get("/{group_id}/members")
+@router.get(
+    "/{group_id}/members",
+    responses={404: {"description": "Server group not found"}},
+)
 def get_server_group_members(
     group_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -126,7 +148,14 @@ def get_server_group_members(
     return [m.id for m in g.members]
 
 
-@router.put("/{group_id}/members", response_model=schemas.ServerGroupResponse)
+@router.put(
+    "/{group_id}/members",
+    response_model=schemas.ServerGroupResponse,
+    responses={
+        404: {"description": "Server group not found"},
+        400: {"description": "Auto-group is read-only"},
+    },
+)
 def set_server_group_members(
     group_id: int,
     body: schemas.ServerMembersUpdate,
@@ -147,7 +176,10 @@ def set_server_group_members(
     return _to_response(g)
 
 
-@router.post("/{group_id}/assign-ssh")
+@router.post(
+    "/{group_id}/assign-ssh",
+    responses={404: {"description": "Server group not found"}},
+)
 def assign_ssh_to_group(
     group_id: int,
     body: schemas.GroupAssignSSHRequest,

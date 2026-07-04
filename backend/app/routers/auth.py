@@ -13,12 +13,14 @@ from ..auth import (
 
 router = APIRouter(tags=["auth & users"])
 
+USER_NOT_FOUND = "User not found"
+
 
 def _admin_exists(db: Session) -> bool:
     return db.query(models.User.id).filter(models.User.role == "admin").first() is not None
 
 
-@router.get("/api/setup/status", response_model=schemas.SetupStatusResponse)
+@router.get("/api/setup/status")
 def setup_status(
     db: Annotated[Session, Depends(get_db)],
 ) -> schemas.SetupStatusResponse:
@@ -26,7 +28,11 @@ def setup_status(
     return schemas.SetupStatusResponse(requires_setup=requires_setup)
 
 
-@router.post("/api/setup/bootstrap", response_model=schemas.LoginResponse, status_code=201)
+@router.post(
+    "/api/setup/bootstrap",
+    status_code=201,
+    responses={409: {"description": "Initial setup is already complete"}},
+)
 def bootstrap_admin(
     payload: schemas.InitialSetupRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -65,7 +71,10 @@ def bootstrap_admin(
     )
 
 
-@router.post("/api/auth/login", response_model=schemas.LoginResponse)
+@router.post(
+    "/api/auth/login",
+    responses={401: {"description": "Invalid username or password"}},
+)
 @limiter.limit("100/minute")
 def login(
     request: Request,
@@ -113,7 +122,7 @@ def me(current_user: Annotated[models.User, Depends(get_current_user)]) -> model
     return current_user
 
 
-@router.get("/api/users", response_model=list[schemas.UserResponse])
+@router.get("/api/users")
 def list_users(
     _: Annotated[models.User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
@@ -127,7 +136,12 @@ def list_users(
     return result
 
 
-@router.post("/api/users", response_model=schemas.UserResponse, status_code=201)
+@router.post(
+    "/api/users",
+    response_model=schemas.UserResponse,
+    status_code=201,
+    responses={400: {"description": "Username already exists"}},
+)
 def create_user(
     payload: schemas.UserCreate,
     current_user: Annotated[models.User, Depends(require_admin)],
@@ -150,7 +164,14 @@ def create_user(
     return db_user
 
 
-@router.delete("/api/users/{user_id}", status_code=204)
+@router.delete(
+    "/api/users/{user_id}",
+    status_code=204,
+    responses={
+        404: {"description": USER_NOT_FOUND},
+        400: {"description": "Cannot delete admin user"},
+    },
+)
 def delete_user(
     user_id: int,
     current_user: Annotated[models.User, Depends(require_admin)],
@@ -158,7 +179,7 @@ def delete_user(
 ) -> None:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
     if user.role == "admin":
         raise HTTPException(status_code=400, detail="Cannot delete admin user")
     username = user.username
@@ -168,7 +189,14 @@ def delete_user(
     db.commit()
 
 
-@router.patch("/api/users/{user_id}", response_model=schemas.UserResponse)
+@router.patch(
+    "/api/users/{user_id}",
+    response_model=schemas.UserResponse,
+    responses={
+        404: {"description": USER_NOT_FOUND},
+        400: {"description": "Username already exists"},
+    },
+)
 def update_user(
     user_id: int,
     payload: schemas.UserUpdate,
@@ -177,7 +205,7 @@ def update_user(
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
     if payload.full_name is not None:
         user.full_name = payload.full_name or None
     if payload.username:
@@ -191,7 +219,14 @@ def update_user(
     return user
 
 
-@router.patch("/api/users/{user_id}/toggle", response_model=schemas.UserResponse)
+@router.patch(
+    "/api/users/{user_id}/toggle",
+    response_model=schemas.UserResponse,
+    responses={
+        404: {"description": USER_NOT_FOUND},
+        400: {"description": "Cannot toggle admin user"},
+    },
+)
 def toggle_user(
     user_id: int,
     current_user: Annotated[models.User, Depends(require_admin)],
@@ -199,7 +234,7 @@ def toggle_user(
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
     if user.role == "admin":
         raise HTTPException(status_code=400, detail="Cannot toggle admin user")
     user.is_active = not user.is_active
@@ -210,7 +245,11 @@ def toggle_user(
     return user
 
 
-@router.put("/api/auth/change-password", status_code=204)
+@router.put(
+    "/api/auth/change-password",
+    status_code=204,
+    responses={400: {"description": "Current password is incorrect"}},
+)
 def change_password(
     payload: schemas.ChangePasswordRequest,
     current_user: Annotated[models.User, Depends(get_current_user)],

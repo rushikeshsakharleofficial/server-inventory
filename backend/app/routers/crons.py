@@ -27,7 +27,8 @@ def list_crons(
     return db.query(models.CronJob).order_by(models.CronJob.name).all()
 
 
-@router.post("", response_model=schemas.CronJobResponse, status_code=201)
+@router.post("", response_model=schemas.CronJobResponse, status_code=201,
+             responses={422: {"description": "Invalid cron expression"}})
 def create_cron(
     payload: schemas.CronJobCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -53,7 +54,8 @@ def create_cron(
     return job
 
 
-@router.put("/{job_id}", response_model=schemas.CronJobResponse)
+@router.put("/{job_id}", response_model=schemas.CronJobResponse,
+            responses={404: {"description": "Cron job not found"}})
 def update_cron(
     job_id: int,
     payload: schemas.CronJobUpdate,
@@ -85,7 +87,8 @@ def update_cron(
     return job
 
 
-@router.delete("/{job_id}", status_code=204)
+@router.delete("/{job_id}", status_code=204,
+               responses={404: {"description": "Cron job not found"}})
 def delete_cron(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -100,7 +103,8 @@ def delete_cron(
     db.commit()
 
 
-@router.patch("/{job_id}/toggle", response_model=schemas.CronJobResponse)
+@router.patch("/{job_id}/toggle", response_model=schemas.CronJobResponse,
+              responses={404: {"description": "Cron job not found"}})
 def toggle_cron(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -124,7 +128,8 @@ def toggle_cron(
     return job
 
 
-@router.post("/{job_id}/run-now", response_model=schemas.CronJobResponse)
+@router.post("/{job_id}/run-now", response_model=schemas.CronJobResponse,
+             responses={404: {"description": "Cron job not found"}})
 def run_cron_now(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],

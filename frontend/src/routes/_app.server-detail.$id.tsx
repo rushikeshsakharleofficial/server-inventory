@@ -1,13 +1,11 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, type Server, type SshCredential, type ServerIpAddress } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, StatusPill, OsBadge } from "@/components/ui-bits";
-import { ArrowLeft, RefreshCw, Trash2, Pencil, Network, ShieldCheck } from "lucide-react";
+import { Card, ProviderBadge, StatusPill, OsBadge, CustomSelect, confirmAsync } from "@/components/ui-bits";
+import { ArrowLeft, RefreshCw, Trash2, Pencil, Network, ShieldCheck, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
-import { X } from "lucide-react";
-import { CustomSelect, confirmAsync } from "@/components/ui-bits";
 
 export const Route = createFileRoute("/_app/server-detail/$id")({
   head: () => ({ meta: [{ title: "Server Detail — System Control" }] }),
@@ -15,7 +13,7 @@ export const Route = createFileRoute("/_app/server-detail/$id")({
 });
 
 // ── inline edit dialog (reused from servers list) ─────────────────────────────
-function EditDialog({ server, onClose }: { server: Server; onClose: () => void }) {
+function EditDialog({ server, onClose }: Readonly<{ server: Server; onClose: () => void }>) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: server.name,
@@ -49,27 +47,29 @@ function EditDialog({ server, onClose }: { server: Server; onClose: () => void }
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
-            <input className={inp} value={form.name} onChange={set("name")} required />
+            <label htmlFor="edit-server-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
+            <input id="edit-server-name" className={inp} value={form.name} onChange={set("name")} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
-              <CustomSelect value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
-                options={["unknown","running","stopped","pending"].map(s => ({ value: s }))} />
+              <label className="text-xs text-muted-foreground font-medium block mb-1">
+                Status
+                <CustomSelect value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
+                  options={["unknown","running","stopped","pending"].map(s => ({ value: s }))} />
+              </label>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
-              <input className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
+              <label htmlFor="edit-server-region" className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
+              <input id="edit-server-region" className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
-            <input className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" />
+            <label htmlFor="edit-server-public-ip" className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
+            <input id="edit-server-public-ip" className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" /> {/* NOSONAR */}
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
-            <textarea className={inp} rows={2} value={form.notes} onChange={set("notes")} />
+            <label htmlFor="edit-server-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
+            <textarea id="edit-server-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
@@ -86,12 +86,12 @@ function EditDialog({ server, onClose }: { server: Server; onClose: () => void }
 
 // ── SSH sync dialog ──────────────────────────────────────────────────────────
 
-function SshSyncDialog({ serverId, lastCredentialId, onClose, onDone }: {
+function SshSyncDialog({ serverId, lastCredentialId, onClose, onDone }: Readonly<{
   serverId: string;
   lastCredentialId?: number;
   onClose: () => void;
   onDone: () => void;
-}) {
+}>) {
   const { data: creds = [], isLoading } = useQuery<SshCredential[]>({
     queryKey: ["sshCredentials"],
     queryFn: () => api("/api/ssh-credentials"),
@@ -131,6 +131,26 @@ function SshSyncDialog({ serverId, lastCredentialId, onClose, onDone }: {
     label: `${c.name} (${c.username}${c.proxy_host ? " via proxy" : ""})`,
   }));
 
+  let credentialField: React.ReactNode;
+  if (isLoading) {
+    credentialField = <p className="text-xs text-muted-foreground">Loading credentials…</p>;
+  } else if (creds.length === 0) {
+    credentialField = <p className="text-xs text-muted-foreground">No SSH credentials found. Add one in <a href="/ssh-keys" className="underline">SSH Keys</a>.</p>;
+  } else {
+    credentialField = (
+      <div>
+        <label className="text-xs text-muted-foreground font-medium block mb-1">
+          SSH Credential
+          <CustomSelect
+            value={effectiveCredId}
+            onChange={setCredId}
+            options={credOptions}
+          />
+        </label>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-background border border-border rounded-lg p-6 w-full max-w-sm space-y-4 shadow-lg">
@@ -139,20 +159,7 @@ function SshSyncDialog({ serverId, lastCredentialId, onClose, onDone }: {
           <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
         </div>
 
-        {isLoading ? (
-          <p className="text-xs text-muted-foreground">Loading credentials…</p>
-        ) : creds.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No SSH credentials found. Add one in <a href="/ssh-keys" className="underline">SSH Keys</a>.</p>
-        ) : (
-          <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">SSH Credential</label>
-            <CustomSelect
-              value={effectiveCredId}
-              onChange={setCredId}
-              options={credOptions}
-            />
-          </div>
-        )}
+        {credentialField}
 
         {trusted && (
           <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded p-2 flex items-center gap-1.5">
@@ -193,7 +200,7 @@ function SshSyncDialog({ serverId, lastCredentialId, onClose, onDone }: {
 
 // ── detail section helpers ────────────────────────────────────────────────────
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
     <Card className="overflow-hidden">
       <div className="px-4 py-3 border-b border-border bg-surface-muted">
@@ -204,7 +211,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function FieldGrid({ entries }: { entries: [string, React.ReactNode][] }) {
+function FieldGrid({ entries }: Readonly<{ entries: [string, React.ReactNode][] }>) {
   // Drop fields with no real value (bare "—" placeholder), and use flex-wrap
   // instead of a fixed grid-cols-N track — a fixed column count still leaves
   // visible empty track space when only 1-2 fields are populated, since the
@@ -226,7 +233,7 @@ function FieldGrid({ entries }: { entries: [string, React.ReactNode][] }) {
   );
 }
 
-function KVTable({ data }: { data: Record<string, unknown> }) {
+function KVTable({ data }: Readonly<{ data: Record<string, unknown> }>) {
   const entries = Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== "");
   if (!entries.length) return <p className="text-xs text-muted-foreground">No entries.</p>;
   return (
@@ -256,7 +263,7 @@ function formatSshValue(k: string, v: unknown): string {
   return JSON.stringify(v);
 }
 
-function SshInfoSection({ sshInfo }: { sshInfo: Record<string, unknown> }) {
+function SshInfoSection({ sshInfo }: Readonly<{ sshInfo: Record<string, unknown> }>) {
   const allIps: string[] = Array.isArray(sshInfo.all_ips) ? (sshInfo.all_ips as string[]) : [];
   const scalarKeys = ["hostname","os_release","kernel","cpu_count","memory_mb","credential_name","last_ssh_sync"];
   const scalar = scalarKeys.filter(k => sshInfo[k] !== null && sshInfo[k] !== undefined);
@@ -298,18 +305,22 @@ function SshInfoSection({ sshInfo }: { sshInfo: Record<string, unknown> }) {
                   const isV6 = ip.includes(":");
                   const isLoopback = ip.startsWith("127.") || ip.startsWith("::1");
                   const isLink = ip.startsWith("fe80:");
-                  const type = isLoopback ? "loopback" : isLink ? "link-local" : isV6 ? "IPv6" : "IPv4";
+                  let type: string;
+                  if (isLoopback) type = "loopback";
+                  else if (isLink) type = "link-local";
+                  else if (isV6) type = "IPv6";
+                  else type = "IPv4";
+                  let badgeClass: string;
+                  if (isLoopback) badgeClass = "bg-zinc-100 text-zinc-500 border-zinc-200";
+                  else if (isLink) badgeClass = "bg-yellow-50 text-yellow-700 border-yellow-200";
+                  else if (isV6) badgeClass = "bg-blue-50 text-blue-700 border-blue-200";
+                  else badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
                   return (
                     <tr key={i} className="hover:bg-muted/30">
                       <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
                       <td className="px-3 py-1.5 font-mono">{ip}</td>
                       <td className="px-3 py-1.5">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
-                          isLoopback ? "bg-zinc-100 text-zinc-500 border-zinc-200" :
-                          isLink ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                          isV6 ? "bg-blue-50 text-blue-700 border-blue-200" :
-                          "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        }`}>{type}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${badgeClass}`}>{type}</span>
                       </td>
                     </tr>
                   );
@@ -329,7 +340,7 @@ function SshInfoSection({ sshInfo }: { sshInfo: Record<string, unknown> }) {
 // This queries it defensively — a 404 renders the empty state below instead
 // of an error, so this section is a no-op until that endpoint ships.
 
-function DiscoveredNetworksSection({ serverId, server }: { serverId: string; server: Server }) {
+function DiscoveredNetworksSection({ serverId, server }: Readonly<{ serverId: string; server: Server }>) {
   const { data: rawAddrs, isLoading, error } = useQuery({
     queryKey: ["serverIpAddresses", serverId],
     queryFn: () => api<ServerIpAddress[]>(`/api/servers/${serverId}/ip-addresses`),

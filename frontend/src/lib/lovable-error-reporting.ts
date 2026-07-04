@@ -13,18 +13,16 @@ type LovableEvents = {
 };
 
 declare global {
-  interface Window {
-    __lovableEvents?: LovableEvents;
-  }
+  var __lovableEvents: LovableEvents | undefined;
 }
 
 export function reportLovableError(error: unknown, context: Record<string, unknown> = {}) {
-  if (typeof window === "undefined") return;
-  window.__lovableEvents?.captureException?.(
+  if (typeof globalThis.window === "undefined") return;
+  globalThis.__lovableEvents?.captureException?.(
     error,
     {
       source: "react_error_boundary",
-      route: window.location.pathname,
+      route: globalThis.location.pathname,
       ...context,
     },
     {

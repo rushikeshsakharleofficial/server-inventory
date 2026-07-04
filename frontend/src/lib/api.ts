@@ -8,12 +8,12 @@ function resolveApiBase(): string {
     import.meta.env.VITE_API_URL as string | undefined
   )?.trim();
   if (configured) return configured.replace(/\/+$/, "");
-  if (typeof window !== "undefined") {
+  if (typeof globalThis.window !== "undefined") {
     // ponytail: HTTPS pages need the API's own TLS-terminated port (8444),
     // not the plain-HTTP backend port (8001) — calling the latter from an
     // HTTPS origin fails as mixed content / connection-refused.
-    const port = window.location.protocol === "https:" ? 8444 : 8001;
-    return `${window.location.protocol}//${window.location.hostname}:${port}`;
+    const port = globalThis.location.protocol === "https:" ? 8444 : 8001;
+    return `${globalThis.location.protocol}//${globalThis.location.hostname}:${port}`;
   }
   return "http://localhost:8001";
 }
@@ -31,7 +31,9 @@ export interface StoredUser {
 
 export const tokenStore = {
   get: () =>
-    typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY),
+    typeof globalThis.window === "undefined"
+      ? null
+      : localStorage.getItem(TOKEN_KEY),
   set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
   clear: () => {
     localStorage.removeItem(TOKEN_KEY);
@@ -41,7 +43,7 @@ export const tokenStore = {
 
 export const userStore = {
   get: (): StoredUser | null => {
-    if (typeof window === "undefined") return null;
+    if (typeof globalThis.window === "undefined") return null;
     const raw = localStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
   },
@@ -85,9 +87,9 @@ export async function api<T = unknown>(
     ...rest,
     headers: h,
     body:
-      json !== undefined
-        ? JSON.stringify(json)
-        : (rest.body as BodyInit | undefined),
+      json === undefined
+        ? (rest.body as BodyInit | undefined)
+        : JSON.stringify(json),
   });
 
   if (res.status === 204) return undefined as T;
@@ -101,10 +103,10 @@ export async function api<T = unknown>(
     if (res.status === 401) {
       tokenStore.clear();
       if (
-        typeof window !== "undefined" &&
-        !window.location.pathname.startsWith("/login")
+        typeof globalThis.window !== "undefined" &&
+        !globalThis.location.pathname.startsWith("/login")
       ) {
-        window.location.assign("/login");
+        globalThis.location.assign("/login");
       }
     }
     const msg =

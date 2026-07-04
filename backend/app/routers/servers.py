@@ -21,6 +21,7 @@ from .query_utils import escape_like
 router = APIRouter(prefix="/api/servers", tags=["servers"])
 
 _SERVER_NOT_FOUND = "Server not found"
+_SSH_CREDENTIAL_NOT_FOUND = "SSH credential not found"
 
 
 _SORT_COLS: dict[str, object] = {
@@ -35,7 +36,7 @@ _SORT_COLS: dict[str, object] = {
 }
 
 
-@router.get("", response_model=schemas.Page[schemas.ServerResponse])
+@router.get("")
 def list_servers(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
@@ -185,7 +186,11 @@ def ip_inventory(
     return {"total": len(rows), "items": rows}
 
 
-@router.get("/{server_id}", response_model=schemas.ServerResponse)
+@router.get(
+    "/{server_id}",
+    response_model=schemas.ServerResponse,
+    responses={404: {"description": "Server not found"}},
+)
 def get_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -212,7 +217,11 @@ def create_server(
     return db_server
 
 
-@router.put("/{server_id}", response_model=schemas.ServerResponse)
+@router.put(
+    "/{server_id}",
+    response_model=schemas.ServerResponse,
+    responses={404: {"description": "Server not found"}},
+)
 def update_server(
     server_id: int,
     update: schemas.ServerUpdate,
@@ -233,7 +242,15 @@ def update_server(
     return server
 
 
-@router.post("/{server_id}/ssh-sync", response_model=schemas.ServerResponse)
+@router.post(
+    "/{server_id}/ssh-sync",
+    response_model=schemas.ServerResponse,
+    responses={
+        404: {"description": "Server or SSH credential not found"},
+        400: {"description": "Server has no IP address configured"},
+        502: {"description": "SSH connection failed"},
+    },
+)
 async def ssh_sync_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -255,7 +272,7 @@ async def ssh_sync_server(
         .first()
     )
     if not ssh_cred:
-        raise HTTPException(status_code=404, detail="SSH credential not found")
+        raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
 
     def _do_ssh():
         import paramiko, socket, re
@@ -424,7 +441,15 @@ async def ssh_sync_server(
     return server
 
 
-@router.post("/{server_id}/trust-host-key", response_model=schemas.HostKeyTrustResponse)
+@router.post(
+    "/{server_id}/trust-host-key",
+    response_model=schemas.HostKeyTrustResponse,
+    responses={
+        404: {"description": "Server or SSH credential not found"},
+        400: {"description": "Server has no IP address configured"},
+        502: {"description": "Failed to trust host key"},
+    },
+)
 async def trust_host_key(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -446,7 +471,7 @@ async def trust_host_key(
         .first()
     )
     if not ssh_cred:
-        raise HTTPException(status_code=404, detail="SSH credential not found")
+        raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
 
     def _do_trust():
         import paramiko, socket as _socket
@@ -492,7 +517,13 @@ async def trust_host_key(
     return schemas.HostKeyTrustResponse(**result)
 
 
-@router.post("/ssh-fetch-all-ips")
+@router.post(
+    "/ssh-fetch-all-ips",
+    responses={
+        404: {"description": "SSH credential not found"},
+        400: {"description": "No SSH credential selected and no default configured"},
+    },
+)
 def ssh_fetch_all_ips(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
@@ -502,7 +533,7 @@ def ssh_fetch_all_ips(
     if ssh_credential_id:
         ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
         if not ssh_cred:
-            raise HTTPException(status_code=404, detail="SSH credential not found")
+            raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
     else:
         ssh_cred = (
             db.query(models.SSHCredential)
@@ -547,7 +578,13 @@ def ssh_fetch_all_ips(
     return results
 
 
-@router.post("/ssh-fetch-ips-stream")
+@router.post(
+    "/ssh-fetch-ips-stream",
+    responses={
+        404: {"description": "SSH credential not found"},
+        400: {"description": "No SSH credential selected and no default configured"},
+    },
+)
 def ssh_fetch_ips_stream(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
@@ -559,7 +596,7 @@ def ssh_fetch_ips_stream(
     if ssh_credential_id:
         ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
         if not ssh_cred:
-            raise HTTPException(status_code=404, detail="SSH credential not found")
+            raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
     else:
         ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.is_default.is_(True)).first()
     if not ssh_cred:
@@ -653,7 +690,11 @@ def ssh_fetch_ips_stream(
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
-@router.delete("/{server_id}", status_code=204)
+@router.delete(
+    "/{server_id}",
+    status_code=204,
+    responses={404: {"description": "Server not found"}},
+)
 def delete_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -692,7 +733,10 @@ def apply_ssh_assignment(db: Session, server_ids: list[int], ssh_credential_id: 
     return len(servers)
 
 
-@router.patch("/{server_id}/assign-ssh")
+@router.patch(
+    "/{server_id}/assign-ssh",
+    responses={404: {"description": "Server not found"}},
+)
 def assign_ssh_to_server(
     server_id: int,
     payload: AssignSSHRequest,

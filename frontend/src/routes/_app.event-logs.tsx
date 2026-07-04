@@ -76,10 +76,10 @@ function fmt(ts: string) {
 
 // ─── KPI card ─────────────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, icon: Icon, iconColor, iconBg }: {
+function KpiCard({ label, value, sub, icon: Icon, iconColor, iconBg }: Readonly<{
   label: string; value: number | string; sub: string;
   icon: typeof Info; iconColor: string; iconBg: string;
-}) {
+}>) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex items-center gap-4">
       <div className="size-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg }}>
@@ -96,7 +96,7 @@ function KpiCard({ label, value, sub, icon: Icon, iconColor, iconBg }: {
 
 // ─── Severity pill ────────────────────────────────────────────────────────────
 
-function SevPill({ severity }: { severity: string }) {
+function SevPill({ severity }: Readonly<{ severity: string }>) {
   const s = sev(severity);
   const { Icon } = s;
   return (
@@ -109,7 +109,7 @@ function SevPill({ severity }: { severity: string }) {
 
 // ─── Status pill ──────────────────────────────────────────────────────────────
 
-function StatusPillEl({ status }: { status: string }) {
+function StatusPillEl({ status }: Readonly<{ status: string }>) {
   const s = statusStyle(status);
   const label = status.charAt(0).toUpperCase() + status.slice(1);
   return (
@@ -119,10 +119,10 @@ function StatusPillEl({ status }: { status: string }) {
 
 // ─── Event details panel ──────────────────────────────────────────────────────
 
-function EventDetails({ event, onClose, onUpdate }: {
+function EventDetails({ event, onClose, onUpdate }: Readonly<{
   event: EventLog; onClose: () => void;
   onUpdate: (id: number, status: string) => void;
-}) {
+}>) {
   const s = sev(event.severity);
   const { Icon } = s;
   return (
@@ -202,7 +202,7 @@ function EventDetails({ event, onClose, onUpdate }: {
   );
 }
 
-function Row({ label, value, mono, children }: { label: string; value?: string; mono?: boolean; children?: React.ReactNode }) {
+function Row({ label, value, mono, children }: Readonly<{ label: string; value?: string; mono?: boolean; children?: React.ReactNode }>) {
   return (
     <div className="flex justify-between gap-2 items-start">
       <span className="text-gray-400 shrink-0">{label}</span>
@@ -218,6 +218,12 @@ const HOURS_OPTIONS = [
   { label: "Last 48 hours", value: 48 },
   { label: "Last 7 days",   value: 168 },
 ];
+
+const TAB_LABEL: Record<"all" | "alerts" | "audit", string> = {
+  all: "All Activity",
+  alerts: "Alerts",
+  audit: "Audit Trail",
+};
 
 function EventLogsPage() {
   const qc = useQueryClient();
@@ -326,7 +332,7 @@ function EventLogsPage() {
         {(["all","alerts","audit"] as const).map(t => (
           <button key={t} onClick={() => { setTab(t); setPage(1); }}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-            {t === "all" ? "All Activity" : t === "alerts" ? "Alerts" : "Audit Trail"}
+            {TAB_LABEL[t]}
           </button>
         ))}
       </div>

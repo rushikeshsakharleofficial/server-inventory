@@ -16,7 +16,7 @@ def _sync_databases(provider_name: str | None, db_url: str) -> None:
     _sync_resources(provider_name, db_url, models.DatabaseInstance, "fetch_databases")
 
 
-@router.get("", response_model=schemas.Page[schemas.DatabaseInstanceResponse])
+@router.get("")
 def list_databases(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],

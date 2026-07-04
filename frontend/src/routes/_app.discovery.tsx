@@ -52,7 +52,7 @@ function networkToForm(n: DiscoveryNetwork): NetworkForm {
   };
 }
 
-function NetworkDialog({ network, sshCreds, onClose }: { network: DiscoveryNetwork | null; sshCreds: SshCredential[]; onClose: () => void }) {
+function NetworkDialog({ network, sshCreds, onClose }: Readonly<{ network: DiscoveryNetwork | null; sshCreds: SshCredential[]; onClose: () => void }>) {
   const qc = useQueryClient();
   const [form, setForm] = useState<NetworkForm>(network ? networkToForm(network) : emptyNetworkForm());
   const set = (k: keyof NetworkForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -95,52 +95,52 @@ function NetworkDialog({ network, sshCreds, onClose }: { network: DiscoveryNetwo
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
-              <input className={inp} value={form.name} onChange={set("name")} placeholder="office-lan" required />
+              <label htmlFor="net-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
+              <input id="net-name" className={inp} value={form.name} onChange={set("name")} placeholder="office-lan" required />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">CIDR *</label>
-              <input className={inp} value={form.cidr} onChange={set("cidr")} placeholder="10.10.10.0/24" required />
+              <label htmlFor="net-cidr" className="text-xs text-muted-foreground font-medium block mb-1">CIDR *</label>
+              <input id="net-cidr" className={inp} value={form.cidr} onChange={set("cidr")} placeholder="10.10.10.0/24" required /> {/* NOSONAR */}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Datacenter</label>
-              <input className={inp} value={form.datacenter} onChange={set("datacenter")} placeholder="dc-1" />
+              <label htmlFor="net-dc" className="text-xs text-muted-foreground font-medium block mb-1">Datacenter</label>
+              <input id="net-dc" className={inp} value={form.datacenter} onChange={set("datacenter")} placeholder="dc-1" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Environment</label>
-              <input className={inp} value={form.environment} onChange={set("environment")} placeholder="prod" />
+              <label htmlFor="net-env" className="text-xs text-muted-foreground font-medium block mb-1">Environment</label>
+              <input id="net-env" className={inp} value={form.environment} onChange={set("environment")} placeholder="prod" />
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">SSH Credential</label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground font-medium block mb-1">SSH Credential</span>
             <CustomSelect
               value={form.ssh_credential_id}
               onChange={(v) => setForm(f => ({ ...f, ssh_credential_id: v }))}
               placeholder="None"
               options={sshCreds.map(c => ({ value: String(c.id), label: c.name }))}
             />
-          </div>
+          </label>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Max parallel</label>
-              <input type="number" min={1} className={inp} value={form.max_parallel} onChange={set("max_parallel")} />
+              <label htmlFor="net-max-parallel" className="text-xs text-muted-foreground font-medium block mb-1">Max parallel</label>
+              <input id="net-max-parallel" type="number" min={1} className={inp} value={form.max_parallel} onChange={set("max_parallel")} />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Timeout (s)</label>
-              <input type="number" min={1} className={inp} value={form.timeout_seconds} onChange={set("timeout_seconds")} />
+              <label htmlFor="net-timeout" className="text-xs text-muted-foreground font-medium block mb-1">Timeout (s)</label>
+              <input id="net-timeout" type="number" min={1} className={inp} value={form.timeout_seconds} onChange={set("timeout_seconds")} />
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium flex items-center gap-2">
-              <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="rounded" />
+            <label htmlFor="net-active" className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+              <input id="net-active" type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="rounded" />
               Active
             </label>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
-            <textarea className={inp} rows={2} value={form.notes} onChange={set("notes")} />
+            <label htmlFor="net-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
+            <textarea id="net-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
@@ -262,7 +262,13 @@ function DiscoveryPage() {
       header: "Actions",
       className: "text-right",
       render: (n) => (
-        <div className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+        <div
+          className="inline-flex items-center gap-0.5"
+          role="button"
+          tabIndex={0}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+        >
           <button onClick={() => runNetwork.mutate(n.id)} disabled={runNetwork.isPending || !n.is_active}
             className="icon-btn disabled:opacity-40" title="Run discovery">
             <Play className="size-3.5" />
@@ -301,7 +307,13 @@ function DiscoveryPage() {
       header: "Actions",
       className: "text-right",
       render: (j) => (
-        <div className="inline-flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <div
+          className="inline-flex items-center gap-1.5"
+          role="button"
+          tabIndex={0}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+        >
           <button
             onClick={() => { setSelectedJobId(j.id); setResultsPage(1); }}
             className="px-2 py-1 text-xs border border-border rounded hover:bg-muted"
@@ -415,26 +427,28 @@ function DiscoveryPage() {
         <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Run One-Time CIDR Scan</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
           <div className="col-span-2 sm:col-span-1">
-            <label className="text-xs text-muted-foreground font-medium block mb-1">CIDR *</label>
+            <label htmlFor="run-cidr" className="text-xs text-muted-foreground font-medium block mb-1">CIDR *</label>
             <input
+              id="run-cidr"
               className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
               value={runForm.cidr}
               onChange={(e) => setRunForm(f => ({ ...f, cidr: e.target.value }))}
-              placeholder="10.10.10.0/24"
+              placeholder="10.10.10.0/24" // NOSONAR
             />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">SSH Credential</label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground font-medium block mb-1">SSH Credential</span>
             <CustomSelect
               value={runForm.ssh_credential_id}
               onChange={(v) => setRunForm(f => ({ ...f, ssh_credential_id: v }))}
               placeholder="Default"
               options={sshCreds.map(c => ({ value: String(c.id), label: c.name }))}
             />
-          </div>
+          </label>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Max parallel</label>
+            <label htmlFor="run-max-parallel" className="text-xs text-muted-foreground font-medium block mb-1">Max parallel</label>
             <input
+              id="run-max-parallel"
               type="number" min={1}
               className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
               value={runForm.max_parallel}
@@ -442,8 +456,9 @@ function DiscoveryPage() {
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Timeout (s)</label>
+            <label htmlFor="run-timeout" className="text-xs text-muted-foreground font-medium block mb-1">Timeout (s)</label>
             <input
+              id="run-timeout"
               type="number" min={1}
               className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
               value={runForm.timeout_seconds}

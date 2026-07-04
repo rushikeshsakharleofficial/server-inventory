@@ -10,7 +10,6 @@ import {
   Clock,
   Cloud,
   Terminal,
-  Users as UsersIcon,
   Settings as SettingsIcon,
   LogOut,
   Search,
@@ -23,6 +22,8 @@ import {
   Layers,
   Globe,
   ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useCurrentUser, logout } from "@/lib/auth";
 import { ConfirmDialogHost } from "@/components/ui-bits";
@@ -32,7 +33,6 @@ import { useBrandingLogo } from "@/lib/branding";
 import { useAppWebSocket, onWsConnectChange } from "@/lib/ws";
 import { toast } from "sonner";
 import { useState, useEffect, type ReactNode } from "react";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 const SIDEBAR_EXPANDED = 264;
 const SIDEBAR_COLLAPSED = 72;
@@ -88,7 +88,7 @@ const NAV: Array<{
   },
 ];
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const user = useCurrentUser();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
@@ -157,7 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ) : (
             <div className="size-7 bg-primary rounded-lg flex items-center justify-center shadow-sm logo-pop shrink-0">
               <span
-                className={`size-2 bg-success rounded-full ${!wsLive ? "animate-pulse" : ""}`}
+                className={`size-2 bg-success rounded-full ${wsLive ? "" : "animate-pulse"}`}
               />
             </div>
           )}
@@ -250,16 +250,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               {(user?.full_name ?? user?.username)?.slice(0, 2) ?? "—"}
             </div>
             {!collapsed && (
-              <>
-                <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-xs font-medium truncate">
-                    {user?.full_name ?? user?.username ?? "guest"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                    {user?.role ?? "no role"}
-                  </span>
-                </div>
-              </>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-xs font-medium truncate">
+                  {user?.full_name ?? user?.username ?? "guest"}
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {user?.role ?? "no role"}
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -301,7 +299,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
             {syncing && (
               <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground bg-warning/10 px-2.5 py-1 rounded-full">
-                <span className="size-3 border-2 border-warning border-t-transparent rounded-full animate-spin" />
+                <span className="size-3 border-2 border-warning border-t-transparent rounded-full animate-spin" />{" "}
                 Syncing…
               </span>
             )}

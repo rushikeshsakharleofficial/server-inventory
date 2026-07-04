@@ -9,6 +9,11 @@ def _empty_json_dict() -> dict:
     return {}
 
 
+_ON_DELETE_SET_NULL = "SET NULL"
+_STATUS_RUNNING_FILTER = "status = 'running'"
+_SERVERS_ID_FK = "servers.id"
+
+
 # ─── IAM association table ─────────────────────────────────────────────────────
 user_groups = Table(
     "user_groups",
@@ -41,7 +46,7 @@ class Server(Base):
     hostname      = Column(String(255), nullable=True)
     notes         = Column(Text,        nullable=True)
     ssh_info          = Column(JSONB,    nullable=True)
-    ssh_credential_id = Column(Integer,  ForeignKey("ssh_credentials.id", ondelete="SET NULL"), nullable=True)
+    ssh_credential_id = Column(Integer,  ForeignKey("ssh_credentials.id", ondelete=_ON_DELETE_SET_NULL), nullable=True)
     ssh_group         = Column(String(128), nullable=True)
     # On-prem discovery identity signals — added via _migrate_discovery_server_columns
     # since `servers` is a pre-existing table. NOT unique: cloned VMs/images can
@@ -67,7 +72,7 @@ class Server(Base):
         Index(
             "ix_servers_status_running",
             "status",
-            postgresql_where="status = 'running'",
+            postgresql_where=_STATUS_RUNNING_FILTER,
         ),
         # Lookup existing server during sync (cloud_id + provider)
         Index("ix_servers_cloud_id_provider", "cloud_id", "provider"),
@@ -127,7 +132,7 @@ class Group(Base):
 server_group_members = Table(
     "server_group_members",
     Base.metadata,
-    Column("server_id",       Integer, ForeignKey("servers.id",       ondelete="CASCADE"), primary_key=True),
+    Column("server_id",       Integer, ForeignKey(_SERVERS_ID_FK,       ondelete="CASCADE"), primary_key=True),
     Column("server_group_id", Integer, ForeignKey("server_groups.id", ondelete="CASCADE"), primary_key=True),
 )
 
@@ -189,7 +194,7 @@ class SyncLog(Base):
         Index(
             "ix_sync_logs_status_running",
             "status",
-            postgresql_where="status = 'running'",
+            postgresql_where=_STATUS_RUNNING_FILTER,
         ),
     )
 
@@ -437,7 +442,7 @@ class ServerIpAddress(Base):
     __tablename__ = "server_ip_addresses"
 
     id                 = Column(Integer, primary_key=True)
-    server_id          = Column(Integer, ForeignKey("servers.id", ondelete="CASCADE"), nullable=False)
+    server_id          = Column(Integer, ForeignKey(_SERVERS_ID_FK, ondelete="CASCADE"), nullable=False)
     address            = Column(String(45),  nullable=False)   # IPv4 or IPv6, no prefix
     cidr               = Column(String(64),  nullable=True)    # e.g. "10.10.10.5/24"
     ip_version         = Column(Integer,     nullable=True)    # 4 or 6
@@ -469,7 +474,7 @@ class DiscoveryNetwork(Base):
     cidr              = Column(String(64),  nullable=False)
     datacenter        = Column(String(128), nullable=True)
     environment       = Column(String(64),  nullable=True)
-    ssh_credential_id = Column(Integer, ForeignKey("ssh_credentials.id", ondelete="SET NULL"), nullable=True)
+    ssh_credential_id = Column(Integer, ForeignKey("ssh_credentials.id", ondelete=_ON_DELETE_SET_NULL), nullable=True)
     max_parallel      = Column(Integer,  default=32)
     timeout_seconds   = Column(Integer,  default=8)
     is_active         = Column(Boolean,  default=True)
@@ -489,7 +494,7 @@ class DiscoveryJob(Base):
     __tablename__ = "discovery_jobs"
 
     id                = Column(Integer, primary_key=True)
-    network_id        = Column(Integer, ForeignKey("discovery_networks.id", ondelete="SET NULL"), nullable=True)
+    network_id        = Column(Integer, ForeignKey("discovery_networks.id", ondelete=_ON_DELETE_SET_NULL), nullable=True)
     cidr              = Column(String(64), nullable=False)
     status            = Column(String(16), nullable=False, default="queued")  # queued|running|success|failed|stopped
     total_ips         = Column(Integer, default=0)
@@ -511,7 +516,7 @@ class DiscoveryJob(Base):
         Index("ix_discovery_jobs_status", "status"),
         Index("ix_discovery_jobs_network_id", "network_id"),
         # Partial index: startup crash-recovery and stop endpoint both query status='running'
-        Index("ix_discovery_jobs_status_running", "status", postgresql_where="status = 'running'"),
+        Index("ix_discovery_jobs_status_running", "status", postgresql_where=_STATUS_RUNNING_FILTER),
     )
 
 
@@ -524,7 +529,7 @@ class DiscoveryResult(Base):
     ip            = Column(String(45), nullable=False)
     port          = Column(Integer, default=22)
     status        = Column(String(16), nullable=False)  # skipped|closed|open|auth_failed|success|duplicate|error
-    server_id     = Column(Integer, ForeignKey("servers.id", ondelete="SET NULL"), nullable=True)
+    server_id     = Column(Integer, ForeignKey(_SERVERS_ID_FK, ondelete=_ON_DELETE_SET_NULL), nullable=True)
     identity_hash = Column(String(64), nullable=True)    # audit trail only, never the join key
     hostname      = Column(String(255), nullable=True)
     error_message = Column(Text, nullable=True)

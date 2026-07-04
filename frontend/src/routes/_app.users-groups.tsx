@@ -19,12 +19,12 @@ function PermissionMatrix({
   value,
   onChange,
   readOnly,
-}: {
+}: Readonly<{
   catalog: PermissionCatalog;
   value: Record<string, string[]>;
   onChange: (v: Record<string, string[]>) => void;
   readOnly?: boolean;
-}) {
+}>) {
   const toggle = useCallback(
     (feature: string, action: string) => {
       const current = value[feature] ?? [];
@@ -80,10 +80,10 @@ function PermissionMatrix({
 
 // ─── Shared dialog primitives ─────────────────────────────────────────────────
 
-function Label({ children }: { children: React.ReactNode }) {
+function Label({ children }: Readonly<{ children: React.ReactNode }>) {
   return <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{children}</label>;
 }
-function Input({ label, value, onChange, required }: { label: string; value: string; onChange: (v: string) => void; required?: boolean }) {
+function Input({ label, value, onChange, required }: Readonly<{ label: string; value: string; onChange: (v: string) => void; required?: boolean }>) {
   return (
     <div>
       <Label>{label}</Label>
@@ -104,12 +104,12 @@ function PermissionDialog({
   catalog,
   groups,
   onClose,
-}: {
+}: Readonly<{
   user: UserRow;
   catalog: PermissionCatalog;
   groups: Group[];
   onClose: () => void;
-}) {
+}>) {
   const qc = useQueryClient();
   const [perms, setPerms] = useState<Record<string, string[]>>(user.permissions ?? {});
   const [groupIds, setGroupIds] = useState<number[]>(user.group_ids ?? []);
@@ -142,8 +142,20 @@ function PermissionDialog({
   const isPending = savePerms.isPending || saveGroups.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
+      >
         <div className="p-4 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold">Edit IAM — {user.username}</h3>
         </div>
@@ -190,11 +202,11 @@ function GroupDialog({
   group,
   catalog,
   onClose,
-}: {
+}: Readonly<{
   group?: Group;
   catalog: PermissionCatalog;
   onClose: () => void;
-}) {
+}>) {
   const qc = useQueryClient();
   const [name, setName] = useState(group?.name ?? "");
   const [description, setDescription] = useState(group?.description ?? "");
@@ -214,8 +226,20 @@ function GroupDialog({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
+      >
         <div className="p-4 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold">{group ? `Edit group — ${group.name}` : "New group"}</h3>
         </div>
@@ -469,7 +493,7 @@ function UsersGroupsPage() {
 
 // ─── EditProfileDialog ─────────────────────────────────────────────────────────
 
-function EditProfileDialog({ user, onClose }: { user: UserRow; onClose: () => void }) {
+function EditProfileDialog({ user, onClose }: Readonly<{ user: UserRow; onClose: () => void }>) {
   const qc = useQueryClient();
   const [username, setUsername] = useState(user.username);
   const [fullName, setFullName] = useState(user.full_name ?? "");
@@ -488,8 +512,20 @@ function EditProfileDialog({ user, onClose }: { user: UserRow; onClose: () => vo
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
+      >
         <div className="p-4 border-b border-border">
           <h3 className="text-sm font-semibold">Edit profile — {user.username}</h3>
         </div>
@@ -508,7 +544,7 @@ function EditProfileDialog({ user, onClose }: { user: UserRow; onClose: () => vo
 
 // ─── NewUserDialog ─────────────────────────────────────────────────────────────
 
-function NewUserDialog({ onClose }: { onClose: () => void }) {
+function NewUserDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
@@ -526,8 +562,20 @@ function NewUserDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
+      >
         <div className="p-4 border-b border-border">
           <h3 className="text-sm font-semibold">New user</h3>
         </div>

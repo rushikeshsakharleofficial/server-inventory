@@ -9,8 +9,8 @@ export function useCurrentUser(): StoredUser | null {
   useEffect(() => {
     setUser(userStore.get());
     const onStorage = () => setUser(userStore.get());
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    globalThis.addEventListener("storage", onStorage);
+    return () => globalThis.removeEventListener("storage", onStorage);
   }, []);
   return user;
 }
@@ -18,7 +18,7 @@ export function useCurrentUser(): StoredUser | null {
 export function useRequireAuth() {
   const router = useRouter();
   useEffect(() => {
-    if (typeof window !== "undefined" && !tokenStore.get()) {
+    if (typeof globalThis.window !== "undefined" && !tokenStore.get()) {
       router.navigate({ to: "/login" });
     }
   }, [router]);
@@ -26,5 +26,5 @@ export function useRequireAuth() {
 
 export function logout() {
   tokenStore.clear();
-  window.location.assign("/login");
+  globalThis.location.assign("/login");
 }

@@ -95,7 +95,7 @@ function PoliciesPage() {
   );
 }
 
-function GroupCard({ group, catalog }: { group: Group; catalog?: PermissionCatalog }) {
+function GroupCard({ group, catalog }: Readonly<{ group: Group; catalog?: PermissionCatalog }>) {
   const [open, setOpen] = useState(false);
   const features = catalog?.features ?? Object.keys(group.permissions);
   const grantCount = Object.values(group.permissions).reduce((n, acts) => n + acts.length, 0);
@@ -184,17 +184,21 @@ function GroupCard({ group, catalog }: { group: Group; catalog?: PermissionCatal
                   return (
                     <tr key={feat} className="text-xs">
                       <td className="py-1 px-2 font-mono text-[10px]">{feat}</td>
-                      {catalog.actions.map(a => (
-                        <td key={a} className="py-1 px-1.5 text-center">
-                          {!allowed.includes(a) ? (
-                            <span className="text-border text-[10px]">·</span>
-                          ) : granted.has(a) ? (
-                            <span className="text-emerald-600 font-bold">✓</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      ))}
+                      {catalog.actions.map(a => {
+                        let cell;
+                        if (!allowed.includes(a)) {
+                          cell = <span className="text-border text-[10px]">·</span>;
+                        } else if (granted.has(a)) {
+                          cell = <span className="text-emerald-600 font-bold">✓</span>;
+                        } else {
+                          cell = <span className="text-muted-foreground">—</span>;
+                        }
+                        return (
+                          <td key={a} className="py-1 px-1.5 text-center">
+                            {cell}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
@@ -207,7 +211,7 @@ function GroupCard({ group, catalog }: { group: Group; catalog?: PermissionCatal
   );
 }
 
-function UserCard({ user, catalog }: { user: UserRow; catalog?: PermissionCatalog }) {
+function UserCard({ user, catalog }: Readonly<{ user: UserRow; catalog?: PermissionCatalog }>) {
   const baseline: Record<string, string[]> = catalog?.role_baseline?.[user.role] ?? {};
   const merged: Record<string, string[]> = { ...baseline };
   for (const [feat, actions] of Object.entries(user.permissions ?? {})) {

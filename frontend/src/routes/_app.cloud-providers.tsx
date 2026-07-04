@@ -4,12 +4,11 @@ import { api, type Page, type Credential, DNS_PROVIDERS } from "@/lib/api";
 import {
   Card,
   PageHeader,
-  ProviderBadge,
   EmptyState,
   CustomSelect,
   confirmAsync,
 } from "@/components/ui-bits";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Plus, Trash2, Power, Pencil, Lock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -250,10 +249,10 @@ function CredentialsPage() {
 function EditCredentialDialog({
   cred,
   onClose,
-}: {
+}: Readonly<{
   cred: Credential;
   onClose: () => void;
-}) {
+}>) {
   const qc = useQueryClient();
   const def = PROVIDERS.find((p) => p.id === cred.provider);
   const [name, setName] = useState(cred.name);
@@ -279,7 +278,7 @@ function EditCredentialDialog({
       const config = Object.fromEntries(
         Object.entries(values).filter(([k, v]) => !(isSecret(k) && !v)),
       );
-      return api(`/api/credentials/${cred.id}`, {
+      return api(`/api/credentials/${String(cred.id)}`, {
         method: "PUT",
         json: { name, provider: cred.provider, config },
       });
@@ -296,10 +295,16 @@ function EditCredentialDialog({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" || e.key === "Enter") onClose();
+      }}
     >
       <div
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
       >
@@ -316,67 +321,76 @@ function EditCredentialDialog({
           }}
         >
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <label htmlFor="edit-cred-name" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               Name
             </label>
             <input
+              id="edit-cred-name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
             />
           </div>
-          {fields.map((f) => (
-            <div key={f}>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                {f.replace(/_/g, " ")}
-              </label>
-              {f.includes("json") ? (
-                <textarea
-                  rows={4}
-                  value={values[f] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f]: e.target.value }))
-                  }
-                  className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
-                />
-              ) : FIELD_OPTIONS[f] ? (
-                <CustomSelect
-                  value={values[f] ?? ""}
-                  onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
-                  options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
-                  placeholder="— select —"
-                />
+          {fields.map((f) => {
+            const fieldId = `edit-cred-field-${f}`;
+            const isReplacingSecret = isSecret(f) && configuredSecrets.has(f);
+            let secretHint: ReactNode = null;
+            if (isReplacingSecret) {
+              secretHint = values[f] ? (
+                <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
+                  <AlertTriangle className="size-3" /> This will replace the existing value — cannot be undone.
+                </p>
               ) : (
-                <>
-                  <input
-                    type={isSecret(f) ? "password" : "text"}
+                <p className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Lock className="size-3" /> Already configured. Leave blank to keep it.
+                </p>
+              );
+            }
+            return (
+              <div key={f}>
+                <label htmlFor={fieldId} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                  {f.replaceAll("_", " ")}
+                </label>
+                {f.includes("json") ? (
+                  <textarea
+                    id={fieldId}
+                    rows={4}
                     value={values[f] ?? ""}
                     onChange={(e) =>
                       setValues((v) => ({ ...v, [f]: e.target.value }))
                     }
-                    placeholder={
-                      isSecret(f) && configuredSecrets.has(f)
-                        ? "•••••••••••• (locked — type to replace)"
-                        : ""
-                    }
-                    className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+                    className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
                   />
-                  {isSecret(f) && configuredSecrets.has(f) && (
-                    values[f] ? (
-                      <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
-                        <AlertTriangle className="size-3" /> This will replace the existing value — cannot be undone.
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
-                        <Lock className="size-3" /> Already configured. Leave blank to keep it.
-                      </p>
-                    )
-                  )}
-                </>
-              )}
-            </div>
-          ))}
+                ) : FIELD_OPTIONS[f] ? (
+                  <CustomSelect
+                    value={values[f] ?? ""}
+                    onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
+                    options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
+                    placeholder="— select —"
+                  />
+                ) : (
+                  <>
+                    <input
+                      id={fieldId}
+                      type={isSecret(f) ? "password" : "text"}
+                      value={values[f] ?? ""}
+                      onChange={(e) =>
+                        setValues((v) => ({ ...v, [f]: e.target.value }))
+                      }
+                      placeholder={
+                        isReplacingSecret
+                          ? "•••••••••••• (locked — type to replace)"
+                          : ""
+                      }
+                      className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
+                    />
+                    {secretHint}
+                  </>
+                )}
+              </div>
+            );
+          })}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -399,7 +413,7 @@ function EditCredentialDialog({
   );
 }
 
-function NewCredentialDialog({ onClose }: { onClose: () => void }) {
+function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   const qc = useQueryClient();
   const [provider, setProvider] = useState(PROVIDERS[0].id);
   const [name, setName] = useState("");
@@ -422,10 +436,16 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" || e.key === "Enter") onClose();
+      }}
     >
       <div
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
       >
@@ -444,7 +464,11 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
               Provider
             </label>
             <div className="mt-1 grid grid-cols-4 gap-2">
-              {PROVIDERS.map((p) => (
+              {PROVIDERS.map((p) => {
+                let label = p.id.toUpperCase();
+                if (p.id === "digitalocean") label = "DO";
+                else if (p.id === "hivelocity") label = "HV";
+                return (
                 <button
                   key={p.id}
                   type="button"
@@ -474,21 +498,19 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
                     className="size-6 object-contain"
                   />
                   <span className="truncate w-full text-center leading-tight">
-                    {p.id === "digitalocean"
-                      ? "DO"
-                      : p.id === "hivelocity"
-                        ? "HV"
-                        : p.id.toUpperCase()}
+                    {label}
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <label htmlFor="new-cred-name" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               Name
             </label>
             <input
+              id="new-cred-name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -496,13 +518,16 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
               className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
             />
           </div>
-          {def.fields.map((f) => (
+          {def.fields.map((f) => {
+            const fieldId = `new-cred-field-${f}`;
+            return (
             <div key={f}>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                {f.replace(/_/g, " ")}
+              <label htmlFor={fieldId} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                {f.replaceAll("_", " ")}
               </label>
               {f.includes("json") ? (
                 <textarea
+                  id={fieldId}
                   required
                   rows={4}
                   value={values[f] ?? ""}
@@ -520,6 +545,7 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
                 />
               ) : (
                 <input
+                  id={fieldId}
                   required
                   type={isSecret(f) ? "password" : "text"}
                   value={values[f] ?? ""}
@@ -530,7 +556,8 @@ function NewCredentialDialog({ onClose }: { onClose: () => void }) {
                 />
               )}
             </div>
-          ))}
+            );
+          })}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"

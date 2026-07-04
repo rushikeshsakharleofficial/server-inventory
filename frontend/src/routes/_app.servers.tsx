@@ -1,9 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, type Page, type Server, type Stats } from "@/lib/api";
+import { api, type Page, type Server, type Stats, type SshCredential, type ServerGroup } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, OsBadge, CustomSelect, confirmAsync, EmptyState } from "@/components/ui-bits";
-import type { SshCredential, ServerGroup } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
 import { RefreshCw, Trash2, Plus, Pencil, X, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -24,7 +23,7 @@ function copyToClipboard(text: string): boolean {
   return ok;
 }
 
-function SshInfoDialog({ cred, isAdmin, onClose }: { cred: SshCredential; isAdmin: boolean; onClose: () => void }) {
+function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredential; isAdmin: boolean; onClose: () => void }>) {
   const [revealed, setRevealed] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,8 +47,14 @@ function SshInfoDialog({ cred, isAdmin, onClose }: { cred: SshCredential; isAdmi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onClose(); }}
+    >
+      <div onClick={e => e.stopPropagation()} role="presentation" className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-sm">{cred.name}</h2>
           <button onClick={onClose} className="icon-btn"><X className="size-4" /></button>
@@ -93,7 +98,7 @@ export const Route = createFileRoute("/_app/servers")({
 
 type AddForm = { name: string; provider: string; public_ip: string; region: string; status: string; notes: string };
 
-function AddServerDialog({ onClose }: { onClose: () => void }) {
+function AddServerDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   const qc = useQueryClient();
   const [form, setForm] = useState<AddForm>({ name: "", provider: "custom", public_ip: "", region: "", status: "unknown", notes: "" });
   const set = (k: keyof AddForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -113,8 +118,8 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
-            <input className={inp} value={form.name} onChange={set("name")} placeholder="my-server-01" required />
+            <label htmlFor="add-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
+            <input id="add-name" className={inp} value={form.name} onChange={set("name")} placeholder="my-server-01" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -136,17 +141,17 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
-              <input className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" />
+              <label htmlFor="add-public-ip" className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
+              <input id="add-public-ip" className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" /> {/* NOSONAR */}
             </div>
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
-              <input className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
+              <label htmlFor="add-region" className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
+              <input id="add-region" className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
-            <textarea className={inp} rows={2} value={form.notes} onChange={set("notes")} placeholder="Optional notes…" />
+            <label htmlFor="add-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
+            <textarea id="add-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} placeholder="Optional notes…" />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
@@ -161,7 +166,7 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function EditServerDialog({ server, onClose }: { server: Server; onClose: () => void }) {
+function EditServerDialog({ server, onClose }: Readonly<{ server: Server; onClose: () => void }>) {
   const qc = useQueryClient();
   const [form, setForm] = useState({ name: server.name, public_ip: server.public_ip ?? "", region: server.region ?? "", status: server.status, notes: server.notes ?? "" });
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -181,8 +186,8 @@ function EditServerDialog({ server, onClose }: { server: Server; onClose: () => 
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
-            <input className={inp} value={form.name} onChange={set("name")} required />
+            <label htmlFor="edit-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
+            <input id="edit-name" className={inp} value={form.name} onChange={set("name")} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -191,17 +196,17 @@ function EditServerDialog({ server, onClose }: { server: Server; onClose: () => 
                 options={["unknown","running","stopped","pending"].map(s => ({ value: s }))} />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
-              <input className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
+              <label htmlFor="edit-region" className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
+              <input id="edit-region" className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
-            <input className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" />
+            <label htmlFor="edit-public-ip" className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
+            <input id="edit-public-ip" className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" /> {/* NOSONAR */}
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
-            <textarea className={inp} rows={2} value={form.notes} onChange={set("notes")} />
+            <label htmlFor="edit-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
+            <textarea id="edit-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
@@ -369,7 +374,7 @@ function ServersPage() {
         />
       ),
       render: (s) => (
-        <div onClick={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()} role="presentation">
           <input type="checkbox"
             checked={selected.has(s.id)}
             onChange={e => setSelected(prev => {
@@ -409,7 +414,7 @@ function ServersPage() {
       key: "ssh_key",
       header: "SSH Key",
       render: (s) => (
-        <div onClick={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()} role="presentation">
           <select
             className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
             value={s.ssh_credential_id ?? ""}
@@ -433,7 +438,7 @@ function ServersPage() {
       header: "Actions",
       className: "text-right",
       render: (s) => (
-        <div className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+        <div className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()} role="presentation">
           {s.ssh_credential_id && (
             <button onClick={() => setSshInfoFor(s)} className="icon-btn" title="View SSH credential">
               <KeyRound className="size-3.5" />

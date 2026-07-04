@@ -51,10 +51,15 @@ function SyncPage() {
       key: "duration",
       header: "Duration",
       className: "font-mono text-xs",
-      render: (l) =>
-        l.started_at && l.completed_at
-          ? `${Math.round((new Date(l.completed_at).getTime() - new Date(l.started_at).getTime()) / 1000)}s`
-          : l.status === "running" ? "…" : "—",
+      render: (l) => {
+        if (l.started_at && l.completed_at) {
+          const seconds = Math.round(
+            (new Date(l.completed_at).getTime() - new Date(l.started_at).getTime()) / 1000,
+          );
+          return `${seconds}s`;
+        }
+        return l.status === "running" ? "…" : "—";
+      },
     },
     {
       key: "error",

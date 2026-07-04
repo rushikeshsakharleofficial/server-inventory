@@ -81,12 +81,12 @@ function MultiSelectDropdown({
   options,
   value,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   options: { value: string; label?: string }[];
   value: string[];
   onChange: (v: string[]) => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -206,12 +206,12 @@ function SingleSelectDropdown({
   options,
   value,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   options: { value: string; label?: string }[];
   value: string;
   onChange: (v: string) => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -321,11 +321,11 @@ function FilterChips({
   fields,
   state,
   onChange,
-}: {
+}: Readonly<{
   fields: FilterField[];
   state: FilterState;
   onChange: (s: FilterState) => void;
-}) {
+}>) {
   const chips: { key: string; label: string; value: string }[] = [];
 
   for (const [k, v] of Object.entries(state.filters)) {
@@ -383,7 +383,7 @@ export function AdvancedFilter({
   searchPlaceholder = "Search…",
   searchSuggestions,
   extra,
-}: {
+}: Readonly<{
   fields: FilterField[];
   state: FilterState;
   onChange: (s: FilterState) => void;
@@ -391,7 +391,7 @@ export function AdvancedFilter({
   /** Values (e.g. item names) to suggest as a dropdown while typing in the search box. */
   searchSuggestions?: string[];
   extra?: ReactNode;
-}) {
+}>) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const active = hasActiveFilters(state);
@@ -543,8 +543,14 @@ export function AdvancedFilter({
       {drawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
+            role="button"
+            tabIndex={0}
+            aria-label="Close filters"
             className="absolute inset-0 bg-black/50"
             onClick={() => setDrawerOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") setDrawerOpen(false);
+            }}
           />
           <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border rounded-t-xl p-4 space-y-3 max-h-[70vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-1">

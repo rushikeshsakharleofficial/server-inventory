@@ -19,7 +19,7 @@ def _keys(slot: str) -> tuple[str, str]:
     return f"branding_{slot}_data", f"branding_{slot}_type"
 
 
-@router.get("/{slot}")
+@router.get("/{slot}", responses={404: {"description": "Slot or asset not found"}})
 def get_branding_asset(slot: str, db: Annotated[Session, Depends(get_db)]) -> Response:
     """Public — no auth. Login page and sidebar need this before the user is authenticated."""
     if slot not in SLOTS:
@@ -34,7 +34,13 @@ def get_branding_asset(slot: str, db: Annotated[Session, Depends(get_db)]) -> Re
     return Response(content=base64.b64decode(rows[data_key]), media_type=rows.get(type_key) or "application/octet-stream")
 
 
-@router.post("/{slot}")
+@router.post(
+    "/{slot}",
+    responses={
+        404: {"description": "Slot not found"},
+        400: {"description": "Invalid or oversized image"},
+    },
+)
 async def upload_branding_asset(
     slot: str,
     db: Annotated[Session, Depends(get_db)],
@@ -60,7 +66,7 @@ async def upload_branding_asset(
     return {"ok": True}
 
 
-@router.delete("/{slot}")
+@router.delete("/{slot}", responses={404: {"description": "Slot not found"}})
 def reset_branding_asset(
     slot: str,
     db: Annotated[Session, Depends(get_db)],

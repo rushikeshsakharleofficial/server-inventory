@@ -95,7 +95,7 @@ def _purge_demo_events(db: Session) -> None:
 def event_stats(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    hours: int = Query(default=24, ge=1, le=720),
+    hours: Annotated[int, Query(ge=1, le=720)] = 24,
 ):
     _purge_demo_events(db)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -144,14 +144,14 @@ def event_stats(
 def list_events(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    severity: str | None = Query(default=None),
-    source:   str | None = Query(default=None),
-    resource: str | None = Query(default=None),
-    status:   str | None = Query(default=None),
-    q:        str | None = Query(default=None),
-    hours:    int        = Query(default=24, ge=1, le=720),
-    limit:    int        = Query(default=10, ge=1, le=200),
-    offset:   int        = Query(default=0, ge=0),
+    severity: Annotated[str | None, Query()] = None,
+    source:   Annotated[str | None, Query()] = None,
+    resource: Annotated[str | None, Query()] = None,
+    status:   Annotated[str | None, Query()] = None,
+    q:        Annotated[str | None, Query()] = None,
+    hours:    Annotated[int, Query(ge=1, le=720)] = 24,
+    limit:    Annotated[int, Query(ge=1, le=200)] = 10,
+    offset:   Annotated[int, Query(ge=0)] = 0,
 ):
     _purge_demo_events(db)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -178,7 +178,11 @@ def list_events(
     }
 
 
-@router.patch("/{event_id}", response_model=EventLogResponse)
+@router.patch(
+    "/{event_id}",
+    response_model=EventLogResponse,
+    responses={404: {"description": "Event not found"}},
+)
 def update_event(
     event_id: int,
     payload: EventLogUpdate,

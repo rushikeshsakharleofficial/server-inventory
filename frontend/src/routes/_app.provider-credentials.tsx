@@ -8,7 +8,7 @@ import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { toast } from "sonner";
 import {
   Copy, Eye, EyeOff, ExternalLink, Shield, KeyRound,
-  Search, Plus, X, Check, MoreHorizontal, History, Pencil,
+  Search, Plus, X, Check, History, Pencil,
   Lock, AlertTriangle, RefreshCw, Cloud,
 } from "lucide-react";
 
@@ -65,7 +65,7 @@ function relativeTime(ts: string | null): string {
   return `${Math.floor(d / 7)}w ago`;
 }
 
-function TagBadge({ tag }: { tag: string }) {
+function TagBadge({ tag }: Readonly<{ tag: string }>) {
   const colors: Record<string, string> = {
     production: "#16a34a", cloud: "#2563eb", vps: "#7c3aed", hosting: "#d97706",
     email: "#0891b2", "ip-provider": "#dc2626", dc: "#374151", us: "#1d4ed8",
@@ -80,7 +80,7 @@ function TagBadge({ tag }: { tag: string }) {
   );
 }
 
-function MfaBadge({ enabled }: { enabled: boolean }) {
+function MfaBadge({ enabled }: Readonly<{ enabled: boolean }>) {
   return (
     <span style={{ fontSize: 10, fontWeight: 700, color: enabled ? "#16a34a" : "#dc2626", background: enabled ? "#f0fdf4" : "#fef2f2", border: `1px solid ${enabled ? "#bbf7d0" : "#fecaca"}`, borderRadius: 5, padding: "2px 8px" }}>
       {enabled ? "Yes" : "No"}
@@ -90,10 +90,10 @@ function MfaBadge({ enabled }: { enabled: boolean }) {
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
-function CopyBtn({ value, label, title, isSecret = false, credId, field, isAdmin, small = false }: {
+function CopyBtn({ value, label, title, isSecret = false, credId, field, isAdmin, small = false }: Readonly<{
   value?: string; label?: string; title: string;
   isSecret?: boolean; credId?: number; field?: string; isAdmin?: boolean; small?: boolean;
-}) {
+}>) {
   const [copied, setCopied] = useState(false);
 
   function copyToClipboard(text: string): boolean {
@@ -144,9 +144,9 @@ function CopyBtn({ value, label, title, isSecret = false, credId, field, isAdmin
 
 // ─── Reveal button ────────────────────────────────────────────────────────────
 
-function RevealBtn({ credId, field = "password", onReveal }: {
+function RevealBtn({ credId, field = "password", onReveal }: Readonly<{
   credId: number; field?: string; onReveal: (val: string) => void;
-}) {
+}>) {
   const [loading, setLoading] = useState(false);
   async function handle() {
     if (!(await confirmAsync("Reveal password? This action will be audit logged."))) return;
@@ -168,7 +168,7 @@ function RevealBtn({ credId, field = "password", onReveal }: {
 
 // ─── Password cell ────────────────────────────────────────────────────────────
 
-function PasswordCell({ cred, isAdmin }: { cred: Cred; isAdmin: boolean }) {
+function PasswordCell({ cred, isAdmin }: Readonly<{ cred: Cred; isAdmin: boolean }>) {
   const [revealed, setRevealed] = useState<string | null>(null);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -190,9 +190,9 @@ function PasswordCell({ cred, isAdmin }: { cred: Cred; isAdmin: boolean }) {
 
 // ─── Details Drawer ───────────────────────────────────────────────────────────
 
-function DetailsDrawer({ cred, isAdmin, onClose, onEdit }: {
+function DetailsDrawer({ cred, isAdmin, onClose, onEdit }: Readonly<{
   cred: Cred; isAdmin: boolean; onClose: () => void; onEdit: (c: Cred) => void;
-}) {
+}>) {
   const [tab, setTab] = useState<"details" | "audit" | "notes">("details");
   const [revealed, setRevealed] = useState<string | null>(null);
   const m = provMeta(cred.provider);
@@ -320,7 +320,7 @@ function DetailsDrawer({ cred, isAdmin, onClose, onEdit }: {
   );
 }
 
-function DrawerRow({ label, children }: { label: string; children: React.ReactNode }) {
+function DrawerRow({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
   return (
     <div>
       <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{label}</div>
@@ -342,10 +342,10 @@ const EMPTY_FORM: CredForm = {
   provider_type: "Cloud", owner: "", tags: "", notes: "", mfa_enabled: "false", status: "active", logo_url: "", logo_data: "",
 };
 
-function CredModal({ initial, onClose, onSave }: {
+function CredModal({ initial, onClose, onSave }: Readonly<{
   initial?: Cred | null; onClose: () => void;
   onSave: (data: { name: string; provider: string; config: Record<string, string> }) => void;
-}) {
+}>) {
   const [form, setForm] = useState<CredForm>(() => {
     if (!initial) return EMPTY_FORM;
     const c = initial.config;
@@ -451,7 +451,7 @@ function CredModal({ initial, onClose, onSave }: {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
   return (
     <div>
       <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 5 }}>{label}</label>
@@ -504,7 +504,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
             <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: "#9ca3af", flexShrink: 0 }}>
               <ExternalLink style={{ width: 11, height: 11 }} />
             </a>
-            <div onClick={e => e.stopPropagation()}>
+            <div role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
               <CopyBtn value={cfg.login_url} title="Copy URL" small />
             </div>
           </div>
@@ -519,7 +519,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 12, color: "#374151", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cfg.username ?? "—"}</span>
-            <div onClick={e => e.stopPropagation()}>
+            <div role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
               <CopyBtn value={cfg.username} title="Copy Username" small />
             </div>
           </div>
@@ -530,7 +530,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       key: "password",
       header: "Password",
       render: (cred) => (
-        <div onClick={e => e.stopPropagation()}>
+        <div role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
           <PasswordCell cred={cred} isAdmin={isAdmin} />
         </div>
       ),
@@ -579,7 +579,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       key: "actions",
       header: "Actions",
       render: (cred) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }} role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
           <a href={cred.config.login_url} target="_blank" rel="noreferrer" title="Open login" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
             <ExternalLink style={{ width: 12, height: 12 }} />
           </a>
@@ -701,15 +701,21 @@ function ProviderCredentialsPage() {
 
         {/* Credential type tabs */}
         <div style={{ display: "flex", gap: 2, marginBottom: 14, background: "#f3f4f6", borderRadius: 10, padding: 3, width: "fit-content" }}>
-          {([["all", "All Credentials"], ["login", "Login Credentials"], ["api", "API Credentials"]] as [string, string][]).map(([v, l]) => (
-            <button key={v} onClick={() => setCredType(v as "all" | "login" | "api")}
-              style={{ padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: credType === v ? "#fff" : "transparent", color: credType === v ? "#111827" : "#6b7280", boxShadow: credType === v ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.15s" }}>
-              {l}
-              <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: credType === v ? "#3b82f6" : "#9ca3af", background: credType === v ? "#eff6ff" : "#e5e7eb", borderRadius: 10, padding: "1px 6px" }}>
-                {v === "all" ? items.length : v === "login" ? items.filter(isLoginCred).length : items.filter(isApiCred).length}
-              </span>
-            </button>
-          ))}
+          {([["all", "All Credentials"], ["login", "Login Credentials"], ["api", "API Credentials"]] as [string, string][]).map(([v, l]) => {
+            let count: number;
+            if (v === "all") count = items.length;
+            else if (v === "login") count = items.filter(isLoginCred).length;
+            else count = items.filter(isApiCred).length;
+            return (
+              <button key={v} onClick={() => setCredType(v as "all" | "login" | "api")}
+                style={{ padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: credType === v ? "#fff" : "transparent", color: credType === v ? "#111827" : "#6b7280", boxShadow: credType === v ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all 0.15s" }}>
+                {l}
+                <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: credType === v ? "#3b82f6" : "#9ca3af", background: credType === v ? "#eff6ff" : "#e5e7eb", borderRadius: 10, padding: "1px 6px" }}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Filters bar */}
@@ -770,7 +776,7 @@ function ProviderCredentialsPage() {
 
 // ─── Mini helpers ──────────────────────────────────────────────────────────────
 
-function KpiCard({ icon, iconBg, label, value, sub }: { icon: React.ReactNode; iconBg: string; label: string; value: number; sub: string }) {
+function KpiCard({ icon, iconBg, label, value, sub }: Readonly<{ icon: React.ReactNode; iconBg: string; label: string; value: number; sub: string }>) {
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #f1f5f9", boxShadow: "0 1px 4px rgba(15,23,42,0.05)", padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
       <div style={{ width: 40, height: 40, borderRadius: 10, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
@@ -783,7 +789,7 @@ function KpiCard({ icon, iconBg, label, value, sub }: { icon: React.ReactNode; i
   );
 }
 
-function Sel({ value, onChange, opts }: { value: string; onChange: (v: string) => void; opts: [string, string][] }) {
+function Sel({ value, onChange, opts }: Readonly<{ value: string; onChange: (v: string) => void; opts: [string, string][] }>) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
       style={{ padding: "8px 28px 8px 10px", border: "1px solid #e5e7eb", borderRadius: 9, fontSize: 13, background: "#fff", color: "#374151", outline: "none", cursor: "pointer", appearance: "auto" }}>

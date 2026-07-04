@@ -70,45 +70,56 @@ function SettingsPage() {
                 <div key={k} className="grid grid-cols-3 gap-4 items-center">
                   <label className="text-xs font-mono text-muted-foreground">{k}</label>
                   <div className="col-span-2">
-                    {k === "appearance_compact" ? (
-                      <CustomSelect
-                        value={v}
-                        onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
-                        options={[
-                          { value: "false", label: "Off (default)" },
-                          { value: "true",  label: "On" },
-                        ]}
-                      />
-                    ) : k === "ssh_default_port" ? (
-                      <CustomSelect
-                        value={v}
-                        onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
-                        options={[
-                          { value: "22",    label: "22 (standard)" },
-                          { value: "2222",  label: "2222" },
-                          { value: "2200",  label: "2200" },
-                          { value: "22222", label: "22222" },
-                        ]}
-                      />
-                    ) : k === "sync_timeout" ? (
-                      <CustomSelect
-                        value={v}
-                        onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
-                        options={[
-                          { value: "60",  label: "1 min" },
-                          { value: "120", label: "2 min" },
-                          { value: "300", label: "5 min (default)" },
-                          { value: "600", label: "10 min" },
-                          { value: "900", label: "15 min" },
-                        ]}
-                      />
-                    ) : (
-                      <input
-                        value={v}
-                        onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
-                        className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md font-mono"
-                      />
-                    )}
+                    {(() => {
+                      if (k === "appearance_compact") {
+                        return (
+                          <CustomSelect
+                            value={v}
+                            onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                            options={[
+                              { value: "false", label: "Off (default)" },
+                              { value: "true",  label: "On" },
+                            ]}
+                          />
+                        );
+                      }
+                      if (k === "ssh_default_port") {
+                        return (
+                          <CustomSelect
+                            value={v}
+                            onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                            options={[
+                              { value: "22",    label: "22 (standard)" },
+                              { value: "2222",  label: "2222" },
+                              { value: "2200",  label: "2200" },
+                              { value: "22222", label: "22222" },
+                            ]}
+                          />
+                        );
+                      }
+                      if (k === "sync_timeout") {
+                        return (
+                          <CustomSelect
+                            value={v}
+                            onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                            options={[
+                              { value: "60",  label: "1 min" },
+                              { value: "120", label: "2 min" },
+                              { value: "300", label: "5 min (default)" },
+                              { value: "600", label: "10 min" },
+                              { value: "900", label: "15 min" },
+                            ]}
+                          />
+                        );
+                      }
+                      return (
+                        <input
+                          value={v}
+                          onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
+                          className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md font-mono"
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -138,7 +149,7 @@ function brandingUrl(slot: "logo" | "favicon", version: number) {
   return `${API_BASE}/api/branding/${slot}?v=${version}`;
 }
 
-function BrandingSlot({ slot, label, hint }: { slot: "logo" | "favicon"; label: string; hint: string }) {
+function BrandingSlot({ slot, label, hint }: Readonly<{ slot: "logo" | "favicon"; label: string; hint: string }>) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [version, setVersion] = useState(0);
@@ -348,16 +359,16 @@ function ChangePasswordCard() {
       </div>
       <div className="p-3 space-y-3 max-w-sm">
         <div>
-          <label className="text-xs text-muted-foreground font-medium block mb-1">Current password</label>
-          <input type="password" className={inp} value={cur} onChange={e => setCur(e.target.value)} />
+          <label htmlFor="current-password" className="text-xs text-muted-foreground font-medium block mb-1">Current password</label>
+          <input id="current-password" type="password" className={inp} value={cur} onChange={e => setCur(e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground font-medium block mb-1">New password</label>
-          <input type="password" className={inp} value={next} onChange={e => setNext(e.target.value)} />
+          <label htmlFor="new-password" className="text-xs text-muted-foreground font-medium block mb-1">New password</label>
+          <input id="new-password" type="password" className={inp} value={next} onChange={e => setNext(e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground font-medium block mb-1">Confirm new password</label>
-          <input type="password" className={inp} value={confirm} onChange={e => setConfirm(e.target.value)} />
+          <label htmlFor="confirm-password" className="text-xs text-muted-foreground font-medium block mb-1">Confirm new password</label>
+          <input id="confirm-password" type="password" className={inp} value={confirm} onChange={e => setConfirm(e.target.value)} />
           {confirm && next !== confirm && <p className="text-xs text-red-500 mt-1">Passwords don't match</p>}
           {next && next.length < 8 && <p className="text-xs text-red-500 mt-1">Min 8 characters</p>}
         </div>

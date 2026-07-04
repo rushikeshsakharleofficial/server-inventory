@@ -10,6 +10,7 @@ from ..crypto import encrypt_str, decrypt_str
 router = APIRouter(prefix="/api/auth/mfa", tags=["mfa"])
 
 ISSUER = "ServerInventory"
+INVALID_TOTP_CODE = "Invalid TOTP code"
 
 
 def _get_totp_secret(user: models.User) -> str | None:
@@ -19,14 +20,14 @@ def _get_totp_secret(user: models.User) -> str | None:
     return decrypt_str(user.totp_secret)
 
 
-@router.get("/status", response_model=schemas.MfaStatusResponse)
+@router.get("/status")
 def mfa_status(
     current_user: Annotated[models.User, Depends(get_current_user)],
 ) -> schemas.MfaStatusResponse:
     return schemas.MfaStatusResponse(enabled=bool(current_user.totp_enabled))
 
 
-@router.post("/setup", response_model=schemas.MfaSetupResponse)
+@router.post("/setup", responses={400: {"description": "MFA is already enabled"}})
 def mfa_setup(
     current_user: Annotated[models.User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -42,7 +43,11 @@ def mfa_setup(
     return schemas.MfaSetupResponse(secret=secret, uri=uri)
 
 
-@router.post("/enable", status_code=204)
+@router.post(
+    "/enable",
+    status_code=204,
+    responses={400: {"description": "MFA already enabled, secret missing, or invalid TOTP code"}},
+)
 def mfa_enable(
     payload: schemas.MfaEnableRequest,
     current_user: Annotated[models.User, Depends(get_current_user)],
@@ -55,12 +60,16 @@ def mfa_enable(
         raise HTTPException(status_code=400, detail="Call /setup first to generate a secret")
     totp = pyotp.TOTP(secret)
     if not totp.verify(payload.code, valid_window=1):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+        raise HTTPException(status_code=400, detail=INVALID_TOTP_CODE)
     current_user.totp_enabled = True
     db.commit()
 
 
-@router.post("/disable", status_code=204)
+@router.post(
+    "/disable",
+    status_code=204,
+    responses={400: {"description": "MFA not enabled or invalid TOTP code"}},
+)
 def mfa_disable(
     payload: schemas.MfaDisableRequest,
     current_user: Annotated[models.User, Depends(get_current_user)],
@@ -73,13 +82,19 @@ def mfa_disable(
         raise HTTPException(status_code=400, detail="MFA is not enabled")
     totp = pyotp.TOTP(secret)
     if not totp.verify(payload.code, valid_window=1):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+        raise HTTPException(status_code=400, detail=INVALID_TOTP_CODE)
     current_user.totp_secret = None
     current_user.totp_enabled = False
     db.commit()
 
 
-@router.post("/verify", response_model=schemas.LoginResponse)
+@router.post(
+    "/verify",
+    responses={
+        400: {"description": "MFA not configured for this user or invalid TOTP code"},
+        401: {"description": "User not found or inactive"},
+    },
+)
 def mfa_verify(
     payload: schemas.MfaVerifyRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -95,7 +110,7 @@ def mfa_verify(
         raise HTTPException(status_code=400, detail="MFA is not configured for this user")
     totp = pyotp.TOTP(secret)
     if not totp.verify(payload.code, valid_window=1):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+        raise HTTPException(status_code=400, detail=INVALID_TOTP_CODE)
     token = create_access_token({"sub": user.username, "role": user.role})
     return schemas.LoginResponse(
         access_token=token,
