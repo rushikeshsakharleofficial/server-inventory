@@ -56,71 +56,78 @@ function SettingsPage() {
   const genericEntries = Object.entries(draft).filter(([k]) => !k.startsWith("branding_"));
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-4">
       <PageHeader title="Settings" description="Application preferences and defaults." />
 
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-surface-muted">
-          <h3 className="text-sm font-semibold">Application</h3>
-        </div>
-        <div className="p-4 space-y-4">
-          {genericEntries.map(([k, v]) => (
-            <div key={k} className="grid grid-cols-3 gap-4 items-center">
-              <label className="text-xs font-mono text-muted-foreground">{k}</label>
-              <div className="col-span-2">
-                {k === "appearance_compact" ? (
-                  <CustomSelect
-                    value={v}
-                    onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
-                    options={[
-                      { value: "false", label: "Off (default)" },
-                      { value: "true",  label: "On" },
-                    ]}
-                  />
-                ) : k === "ssh_default_port" ? (
-                  <CustomSelect
-                    value={v}
-                    onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
-                    options={[
-                      { value: "22",    label: "22 (standard)" },
-                      { value: "2222",  label: "2222" },
-                      { value: "2200",  label: "2200" },
-                      { value: "22222", label: "22222" },
-                    ]}
-                  />
-                ) : k === "sync_timeout" ? (
-                  <CustomSelect
-                    value={v}
-                    onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
-                    options={[
-                      { value: "60",  label: "1 min" },
-                      { value: "120", label: "2 min" },
-                      { value: "300", label: "5 min (default)" },
-                      { value: "600", label: "10 min" },
-                      { value: "900", label: "15 min" },
-                    ]}
-                  />
-                ) : (
-                  <input
-                    value={v}
-                    onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
-                    className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md font-mono"
-                  />
-                )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-4">
+          <Card className="overflow-hidden">
+            <div className="px-3 py-2 border-b border-border bg-surface-muted">
+              <h3 className="text-sm font-semibold">Application</h3>
+            </div>
+            <div className="p-3 space-y-3">
+              {genericEntries.map(([k, v]) => (
+                <div key={k} className="grid grid-cols-3 gap-4 items-center">
+                  <label className="text-xs font-mono text-muted-foreground">{k}</label>
+                  <div className="col-span-2">
+                    {k === "appearance_compact" ? (
+                      <CustomSelect
+                        value={v}
+                        onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                        options={[
+                          { value: "false", label: "Off (default)" },
+                          { value: "true",  label: "On" },
+                        ]}
+                      />
+                    ) : k === "ssh_default_port" ? (
+                      <CustomSelect
+                        value={v}
+                        onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                        options={[
+                          { value: "22",    label: "22 (standard)" },
+                          { value: "2222",  label: "2222" },
+                          { value: "2200",  label: "2200" },
+                          { value: "22222", label: "22222" },
+                        ]}
+                      />
+                    ) : k === "sync_timeout" ? (
+                      <CustomSelect
+                        value={v}
+                        onChange={(val) => setDraft((d) => ({ ...d, [k]: val }))}
+                        options={[
+                          { value: "60",  label: "1 min" },
+                          { value: "120", label: "2 min" },
+                          { value: "300", label: "5 min (default)" },
+                          { value: "600", label: "10 min" },
+                          { value: "900", label: "15 min" },
+                        ]}
+                      />
+                    ) : (
+                      <input
+                        value={v}
+                        onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
+                        className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md font-mono"
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="pt-1">
+                <button onClick={save} disabled={update.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+                  {update.isPending ? "Saving…" : "Save changes"}
+                </button>
               </div>
             </div>
-          ))}
-          <div className="pt-2">
-            <button onClick={save} disabled={update.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {update.isPending ? "Saving…" : "Save changes"}
-            </button>
-          </div>
-        </div>
-      </Card>
+          </Card>
 
-      <BrandingCard />
-      <MfaCard />
-      <ChangePasswordCard />
+          <BrandingCard />
+          <ChangePasswordCard />
+        </div>
+
+        <div className="space-y-4">
+          <MfaCard />
+        </div>
+      </div>
     </div>
   );
 }
@@ -170,8 +177,8 @@ function BrandingSlot({ slot, label, hint }: { slot: "logo" | "favicon"; label: 
   });
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="size-14 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+    <div className="flex items-center gap-3">
+      <div className="size-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
         {exists ? (
           <img src={brandingUrl(slot, version)} alt={label} className="max-w-full max-h-full object-contain" />
         ) : (
@@ -217,10 +224,10 @@ function BrandingSlot({ slot, label, hint }: { slot: "logo" | "favicon"; label: 
 function BrandingCard() {
   return (
     <Card className="overflow-hidden">
-      <div className="px-4 py-3 border-b border-border bg-surface-muted">
+      <div className="px-3 py-2 border-b border-border bg-surface-muted">
         <h3 className="text-sm font-semibold">Branding</h3>
       </div>
-      <div className="p-4 space-y-4">
+      <div className="p-3 space-y-3">
         <BrandingSlot slot="logo" label="Logo" hint="Shown in the sidebar. PNG, JPG, WEBP, or animated GIF." />
         <BrandingSlot slot="favicon" label="Favicon" hint="Shown in the browser tab. Animated GIFs display as a static frame in the tab." />
       </div>
@@ -257,11 +264,11 @@ function MfaCard() {
 
   return (
     <Card className="overflow-hidden">
-      <div className="px-4 py-3 border-b border-border bg-surface-muted">
+      <div className="px-3 py-2 border-b border-border bg-surface-muted">
         <h3 className="text-sm font-semibold">Two-factor authentication</h3>
       </div>
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="p-3 space-y-3">
+        <div className="flex flex-col gap-2">
           <div>
             <p className="text-sm font-medium">{enabled ? "Enabled" : "Disabled"}</p>
             <p className="text-xs text-muted-foreground">Authenticator app (1Password, Authy, Google Authenticator).</p>
@@ -336,10 +343,10 @@ function ChangePasswordCard() {
 
   return (
     <Card className="overflow-hidden">
-      <div className="px-4 py-3 border-b border-border bg-surface-muted">
+      <div className="px-3 py-2 border-b border-border bg-surface-muted">
         <h3 className="text-sm font-semibold">Change password</h3>
       </div>
-      <div className="p-4 space-y-3 max-w-sm">
+      <div className="p-3 space-y-3 max-w-sm">
         <div>
           <label className="text-xs text-muted-foreground font-medium block mb-1">Current password</label>
           <input type="password" className={inp} value={cur} onChange={e => setCur(e.target.value)} />
