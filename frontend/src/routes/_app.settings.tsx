@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 import { Card, PageHeader, CustomSelect } from "@/components/ui-bits";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+import { Upload, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — System Control" }] }),
@@ -113,9 +114,113 @@ function SettingsPage() {
         </div>
       </Card>
 
+      <BrandingCard />
       <MfaCard />
       <ChangePasswordCard />
     </div>
+  );
+}
+
+// Bust the browser's cached /api/branding/{slot} image after upload/reset —
+// query param forces a fresh fetch since the URL itself never changes.
+function brandingUrl(slot: "logo" | "favicon", version: number) {
+  return `${API_BASE}/api/branding/${slot}?v=${version}`;
+}
+
+function BrandingSlot({ slot, label, hint }: { slot: "logo" | "favicon"; label: string; hint: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [version, setVersion] = useState(0);
+  const [exists, setExists] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(brandingUrl(slot, version), { method: "HEAD" }).then((r) => {
+      if (!cancelled) setExists(r.ok);
+    });
+    return () => { cancelled = true; };
+  }, [slot, version]);
+
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      await api(`/api/branding/${slot}`, { method: "POST", body: form });
+    },
+    onSuccess: () => {
+      toast.success(`${label} updated`);
+      setVersion((v) => v + 1);
+      qc.invalidateQueries({ queryKey: ["branding"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const reset = useMutation({
+    mutationFn: () => api(`/api/branding/${slot}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success(`${label} reset to default`);
+      setVersion((v) => v + 1);
+      qc.invalidateQueries({ queryKey: ["branding"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="size-14 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+        {exists ? (
+          <img src={brandingUrl(slot, version)} alt={label} className="max-w-full max-h-full object-contain" />
+        ) : (
+          <span className="text-[10px] text-muted-foreground">Default</span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) upload.mutate(file);
+          e.target.value = "";
+        }}
+      />
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={upload.isPending}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted disabled:opacity-50"
+      >
+        <Upload className="size-3.5" /> {upload.isPending ? "Uploading…" : "Upload"}
+      </button>
+      {exists && (
+        <button
+          onClick={() => reset.mutate()}
+          disabled={reset.isPending}
+          title="Reset to default"
+          className="p-1.5 border border-border rounded-md hover:bg-muted text-muted-foreground disabled:opacity-50"
+        >
+          <RotateCcw className="size-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function BrandingCard() {
+  return (
+    <Card className="overflow-hidden">
+      <div className="px-4 py-3 border-b border-border bg-surface-muted">
+        <h3 className="text-sm font-semibold">Branding</h3>
+      </div>
+      <div className="p-4 space-y-4">
+        <BrandingSlot slot="logo" label="Logo" hint="Shown in the sidebar. PNG, JPG, WEBP, or animated GIF." />
+        <BrandingSlot slot="favicon" label="Favicon" hint="Shown in the browser tab. Animated GIFs display as a static frame in the tab." />
+      </div>
+    </Card>
   );
 }
 

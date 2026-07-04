@@ -11,6 +11,7 @@ import { Agentation } from "agentation";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { useBrandingFavicon } from "../lib/branding";
 
 function NotFoundComponent() {
   return (
@@ -105,6 +106,12 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const faviconUrl = useBrandingFavicon();
+  useEffect(() => {
+    if (!faviconUrl) return;
+    const link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+    if (link) link.href = faviconUrl;
+  }, [faviconUrl]);
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />

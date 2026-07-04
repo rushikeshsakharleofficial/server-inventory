@@ -27,6 +27,7 @@ import { useCurrentUser, logout } from "@/lib/auth";
 import { ConfirmDialogHost } from "@/components/ui-bits";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useBrandingLogo } from "@/lib/branding";
 import { useAppWebSocket, onWsConnectChange } from "@/lib/ws";
 import { toast } from "sonner";
 import { useState, useEffect, type ReactNode } from "react";
@@ -90,6 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = useCurrentUser();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
+  const logoUrl = useBrandingLogo();
   const [wsLive, setWsLive] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
@@ -134,11 +136,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div
           className={`h-16 border-b border-border flex items-center shrink-0 transition-all duration-300 ${collapsed ? "justify-center px-0" : "gap-2.5 px-4"}`}
         >
-          <div className="size-7 bg-primary rounded-lg flex items-center justify-center shadow-sm logo-pop shrink-0">
-            <span
-              className={`size-2 bg-success rounded-full ${!wsLive ? "animate-pulse" : ""}`}
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Logo"
+              className="size-7 rounded-lg object-contain shadow-sm logo-pop shrink-0"
             />
-          </div>
+          ) : (
+            <div className="size-7 bg-primary rounded-lg flex items-center justify-center shadow-sm logo-pop shrink-0">
+              <span
+                className={`size-2 bg-success rounded-full ${!wsLive ? "animate-pulse" : ""}`}
+              />
+            </div>
+          )}
           {!collapsed && (
             <span className="font-semibold text-sm tracking-tight whitespace-nowrap">
               System Control

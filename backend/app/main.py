@@ -24,6 +24,7 @@ from .routers.iam import router as iam_router
 from .routers.server_groups import router as server_groups_router
 from .routers.event_logs import router as event_logs_router
 from .routers.discovery import router as discovery_router
+from .routers.branding import router as branding_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -237,6 +238,7 @@ app.include_router(iam_router)
 app.include_router(event_logs_router)
 app.include_router(server_groups_router)
 app.include_router(discovery_router)
+app.include_router(branding_router)
 
 
 def _apply_db_optimizations() -> None:
