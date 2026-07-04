@@ -10,6 +10,11 @@ ENV VITE_API_URL=${VITE_API_URL}
 RUN bun run build
 
 FROM node:22-alpine AS runner
+
+LABEL org.opencontainers.image.source="https://github.com/rushikeshsakharleofficial/server-inventory"
+LABEL org.opencontainers.image.description="ServerInventory frontend — self-hosted multi-cloud server inventory UI"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/.output ./output

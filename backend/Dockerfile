@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+LABEL org.opencontainers.image.source="https://github.com/rushikeshsakharleofficial/server-inventory"
+LABEL org.opencontainers.image.description="ServerInventory backend — self-hosted multi-cloud server inventory API"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 COPY requirements.txt .
