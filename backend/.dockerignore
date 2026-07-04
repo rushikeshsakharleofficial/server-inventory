@@ -1,4 +1,5 @@
 .env
+.env.*
 .dev_cred_key
 .dev_secret_key
 __pycache__/
@@ -11,4 +12,8 @@ __pycache__/
 dist/
 build/
 .git/
+.gitignore
 tests/
+.dockerignore
+Dockerfile
+*.md
