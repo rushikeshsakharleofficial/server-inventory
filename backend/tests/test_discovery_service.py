@@ -28,13 +28,13 @@ import pytest
 from app import models
 from app.discovery_service import (
     check_identity_conflict,
-    classify_scope,
     compute_identity_hash,
     expand_cidr,
     extract_identity_signals,
     resolve_server,
     validate_cidr,
 )
+from app.ssh_utils import _classify_ip_scope
 
 
 # ─── Fake session: generic clause evaluator, seeded with real model objects ──
@@ -162,16 +162,16 @@ class TestExpandCidr:
         assert "10.10.10.3" not in ips  # broadcast excluded
 
 
-# ─── classify_scope ─────────────────────────────────────────────────────────
+# ─── _classify_ip_scope (ssh_utils) ─────────────────────────────────────────
 
 class TestClassifyScope:
     def test_classify_scope(self):
-        assert classify_scope("127.0.0.1") == "loopback"
-        assert classify_scope("169.254.1.1") == "link-local"
-        assert classify_scope("10.0.0.5") == "private"
-        assert classify_scope("192.168.1.1") == "private"
-        assert classify_scope("172.16.0.1") == "private"
-        assert classify_scope("8.8.8.8") == "public"
+        assert _classify_ip_scope("127.0.0.1") == "loopback"
+        assert _classify_ip_scope("169.254.1.1") == "link-local"
+        assert _classify_ip_scope("10.0.0.5") == "private"
+        assert _classify_ip_scope("192.168.1.1") == "private"
+        assert _classify_ip_scope("172.16.0.1") == "private"
+        assert _classify_ip_scope("8.8.8.8") == "public"
 
 
 # ─── compute_identity_hash ──────────────────────────────────────────────────

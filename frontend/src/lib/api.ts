@@ -187,7 +187,6 @@ export interface DiscoveryNetwork {
   datacenter?: string | null;
   environment?: string | null;
   ssh_credential_id?: number | null;
-  ssh_group?: string | null;
   max_parallel: number;
   timeout_seconds: number;
   is_active: boolean;

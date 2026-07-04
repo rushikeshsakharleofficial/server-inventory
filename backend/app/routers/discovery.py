@@ -21,14 +21,6 @@ _JOB_NOT_FOUND = "Discovery job not found"
 class RunOnceRequest(BaseModel):
     cidr: str
     ssh_credential_id: int | None = None
-    # ponytail: no ssh_group->credential mapping exists anywhere in this codebase
-    # (ssh_group is a free-text tag on Server rows, used to filter which *existing*
-    # servers to SSH into during sync — there's no server yet during discovery, so
-    # there's nothing to resolve against). Accepted for forward-compatibility only;
-    # silently ignored if ssh_credential_id is also absent — falls through to the
-    # default credential in discovery_service._get_ssh_credential. Add real
-    # resolution if/when SSHCredential gains a group/tag field of its own.
-    ssh_group: str | None = None
     max_parallel: int = 32
     timeout_seconds: int = 8
 

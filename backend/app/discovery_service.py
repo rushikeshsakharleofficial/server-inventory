@@ -27,7 +27,6 @@ from . import models
 from .event_log_utils import add_event_log
 from .ssh_utils import (
     _clean_identity_value,
-    _classify_ip_scope,
     _open_ssh_client,
     collect_host_facts,
     probe_port,
@@ -76,14 +75,6 @@ def validate_cidr(cidr: str, max_ips: int = 4096) -> ipaddress.IPv4Network:
 def expand_cidr(net: ipaddress.IPv4Network) -> list[str]:
     """Host addresses only — excludes network/broadcast addresses."""
     return [str(ip) for ip in net.hosts()]
-
-
-def classify_scope(addr: str) -> str:
-    """loopback | link-local | private | public. Reuses ssh_utils' logic
-    (no circular import — ssh_utils only imports models under TYPE_CHECKING).
-    Invalid input is treated as "public" (matches _classify_ip_scope).
-    """
-    return _classify_ip_scope(addr)
 
 
 def compute_identity_hash(signal_name: str, value: str) -> str:

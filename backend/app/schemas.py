@@ -473,7 +473,6 @@ class DiscoveryNetworkCreate(BaseModel):
     datacenter: str | None = None
     environment: str | None = None
     ssh_credential_id: int | None = None
-    ssh_group: str | None = None
     max_parallel: int = 32
     timeout_seconds: int = 8
     is_active: bool = True
@@ -486,7 +485,6 @@ class DiscoveryNetworkUpdate(BaseModel):
     datacenter: str | None = None
     environment: str | None = None
     ssh_credential_id: int | None = None
-    ssh_group: str | None = None
     max_parallel: int | None = None
     timeout_seconds: int | None = None
     is_active: bool | None = None
@@ -500,7 +498,6 @@ class DiscoveryNetworkResponse(BaseModel):
     datacenter: str | None = None
     environment: str | None = None
     ssh_credential_id: int | None = None  # FK only — never the credential itself
-    ssh_group: str | None = None
     max_parallel: int = 32
     timeout_seconds: int = 8
     is_active: bool = True

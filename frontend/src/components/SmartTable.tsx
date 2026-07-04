@@ -37,7 +37,6 @@ export function SmartTable<T>({
   empty,
   rowClassName,
   onRowClick,
-  bodyMaxHeight,
 }: {
   columns: SmartTableColumn<T>[];
   rows: T[];
@@ -52,7 +51,6 @@ export function SmartTable<T>({
   empty?: ReactNode;
   rowClassName?: (row: T) => string;
   onRowClick?: (row: T) => void;
-  bodyMaxHeight?: number | string;
 }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const pageSize = useAdaptivePageSize({ bodyRef });
@@ -69,7 +67,7 @@ export function SmartTable<T>({
       <div
         ref={bodyRef}
         className="overflow-y-auto"
-        style={{ height: bodyMaxHeight ?? "calc(100vh - 320px)" }}
+        style={{ height: "calc(100vh - 320px)" }}
       >
         <table className="w-full text-left">
           <thead className="sticky top-0 z-10 bg-surface border-b border-border">

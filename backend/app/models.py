@@ -470,7 +470,6 @@ class DiscoveryNetwork(Base):
     datacenter        = Column(String(128), nullable=True)
     environment       = Column(String(64),  nullable=True)
     ssh_credential_id = Column(Integer, ForeignKey("ssh_credentials.id", ondelete="SET NULL"), nullable=True)
-    ssh_group         = Column(String(128), nullable=True)
     max_parallel      = Column(Integer,  default=32)
     timeout_seconds   = Column(Integer,  default=8)
     is_active         = Column(Boolean,  default=True)

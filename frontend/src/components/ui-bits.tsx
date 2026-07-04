@@ -416,41 +416,6 @@ export function EmptyState({
   );
 }
 
-export function KpiTile({
-  label,
-  value,
-  hint,
-  tone = "muted",
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  tone?: "muted" | "success" | "warning" | "danger";
-}) {
-  const toneClass =
-    tone === "success"
-      ? "text-emerald-600"
-      : tone === "warning"
-        ? "text-amber-600"
-        : tone === "danger"
-          ? "text-red-600"
-          : "text-muted-foreground";
-  return (
-    <div className="bg-surface p-5 ring-1 ring-black/10 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
-      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-        {label}
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold tracking-tight tabular-nums">
-          {value}
-        </span>
-        {hint && (
-          <span className={`text-xs font-medium ${toneClass}`}>{hint}</span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 type ConfirmRequest = { message: string; resolve: (ok: boolean) => void };
 let _confirmRequest: ((req: ConfirmRequest) => void) | null = null;
