@@ -38,6 +38,68 @@ def _load_pkey(key_str: str):
     raise ValueError("Unsupported SSH private key type")
 
 
+def _new_client_with_host_keys():
+    import paramiko
+    client = paramiko.SSHClient()
+    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
+    if os.path.exists(known_hosts_path):
+        client.load_host_keys(known_hosts_path)
+    else:
+        client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    return client
+
+
+def _build_target_connect_kwargs(host: str, ssh_cred: "models.SSHCredential", timeout: int, private_key: str | None, password: str | None) -> dict[str, Any]:
+    connect_kwargs: dict[str, Any] = {
+        "hostname":       host,
+        "port":           ssh_cred.port or 22,
+        "username":       ssh_cred.username,
+        "timeout":        timeout,
+        "banner_timeout": timeout,
+    }
+    if ssh_cred.auth_method == "key" and private_key:
+        connect_kwargs["pkey"] = _load_pkey(private_key)
+    elif password:
+        connect_kwargs["password"]      = password
+        connect_kwargs["look_for_keys"] = False
+        connect_kwargs["allow_agent"]   = False
+    return connect_kwargs
+
+
+def _open_jump_client_and_channel(host: str, port: int, ssh_cred: "models.SSHCredential"):
+    from .crypto import decrypt_str
+
+    _proxy_pass = decrypt_str(ssh_cred.proxy_password)    if ssh_cred.proxy_password    else None
+    _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
+
+    jump_client = _new_client_with_host_keys()
+    jump_kwargs: dict[str, Any] = {
+        "hostname": ssh_cred.proxy_host,
+        "port":     ssh_cred.proxy_port or 22,
+        "username": ssh_cred.proxy_username or "root",
+        "timeout":  10,
+    }
+    if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
+        jump_kwargs["pkey"] = _load_pkey(_proxy_key)
+    elif _proxy_pass:
+        jump_kwargs["password"]      = _proxy_pass
+        jump_kwargs["look_for_keys"] = False
+        jump_kwargs["allow_agent"]   = False
+    jump_client.connect(**jump_kwargs)
+    channel = jump_client.get_transport().open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
+    return jump_client, channel
+
+
+def _capture_host_key_fingerprint(client) -> str | None:
+    import hashlib
+    try:
+        remote_key = client.get_transport().get_remote_server_key()
+        return hashlib.sha256(remote_key.asbytes()).hexdigest()
+    except Exception:  # noqa: BLE001 — fingerprint capture is best-effort
+        return None
+
+
 def _open_ssh_client(
     host: str, ssh_cred: "models.SSHCredential", timeout: int = 8
 ) -> tuple[Any, Any, str | None]:
@@ -49,8 +111,6 @@ def _open_ssh_client(
     Raises on any failure — caller decides how to classify/report it
     (unlike fetch_ssh_ips, which historically swallows and returns []).
     """
-    import hashlib
-    import paramiko
     from .crypto import decrypt_str
 
     _private_key = decrypt_str(ssh_cred.private_key) if ssh_cred.private_key else None
@@ -60,66 +120,16 @@ def _open_ssh_client(
         raise ValueError("SSH credential has no usable password or private key")
 
     jump_client = None
-    client = paramiko.SSHClient()
-    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
-    if os.path.exists(known_hosts_path):
-        client.load_host_keys(known_hosts_path)
-    else:
-        client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    connect_kwargs: dict[str, Any] = {
-        "hostname":       host,
-        "port":           ssh_cred.port or 22,
-        "username":       ssh_cred.username,
-        "timeout":        timeout,
-        "banner_timeout": timeout,
-    }
-
-    if ssh_cred.auth_method == "key" and _private_key:
-        connect_kwargs["pkey"] = _load_pkey(_private_key)
-    elif _password:
-        connect_kwargs["password"]      = _password
-        connect_kwargs["look_for_keys"] = False
-        connect_kwargs["allow_agent"]   = False
+    client = _new_client_with_host_keys()
+    connect_kwargs = _build_target_connect_kwargs(host, ssh_cred, timeout, _private_key, _password)
 
     if getattr(ssh_cred, "proxy_host", None):
-        _proxy_pass = decrypt_str(ssh_cred.proxy_password)    if ssh_cred.proxy_password    else None
-        _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
-        jump_client = paramiko.SSHClient()
-        known_hosts_path_j = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
-        if os.path.exists(known_hosts_path_j):
-            jump_client.load_host_keys(known_hosts_path_j)
-        else:
-            jump_client.load_system_host_keys()
-        jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        jump_kwargs: dict[str, Any] = {
-            "hostname": ssh_cred.proxy_host,
-            "port":     ssh_cred.proxy_port or 22,
-            "username": ssh_cred.proxy_username or "root",
-            "timeout":  10,
-        }
-        if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
-            jump_kwargs["pkey"] = _load_pkey(_proxy_key)
-        elif _proxy_pass:
-            jump_kwargs["password"]      = _proxy_pass
-            jump_kwargs["look_for_keys"] = False
-            jump_kwargs["allow_agent"]   = False
-        jump_client.connect(**jump_kwargs)
-        connect_kwargs["sock"] = jump_client.get_transport().open_channel(
-            "direct-tcpip",
-            (host, ssh_cred.port or 22),
-            ("127.0.0.1", 0),
-        )
+        jump_client, channel = _open_jump_client_and_channel(host, ssh_cred.port or 22, ssh_cred)
+        connect_kwargs["sock"] = channel
 
     client.connect(**connect_kwargs)
 
-    host_key_fp = None
-    try:
-        remote_key = client.get_transport().get_remote_server_key()
-        host_key_fp = hashlib.sha256(remote_key.asbytes()).hexdigest()
-    except Exception:  # noqa: BLE001 — fingerprint capture is best-effort
-        pass
+    host_key_fp = _capture_host_key_fingerprint(client)
 
     return client, jump_client, host_key_fp
 
