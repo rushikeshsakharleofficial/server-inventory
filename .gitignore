@@ -18,7 +18,13 @@ dist/
 .gemini/
 .mcp.json
 AGENTS.md
+AGENTS.md.bak*
 GEMINI.md
+GEMINI.md.bak*
+CLAUDE.md
+CLAUDE.md.bak*
+QODER.md
+QODER.md.bak*
 *.local.json
 # Added by code-review-graph
 .code-review-graph/
