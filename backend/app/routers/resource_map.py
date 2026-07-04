@@ -1216,6 +1216,76 @@ def _azure_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
 
 # ── Azure Kubernetes (AKS) ────────────────────────────────────────────────────
 
+def _azaks_append_agent_pools(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    for pool in props.get("agentPoolProfiles", []):
+        pool_name = pool["name"]
+        nodes.append(_node(f"pool-{pool_name}", "node_group", "compute", pool_name, {
+            "vm_size": pool.get("vmSize"), "count": pool.get("count"),
+            "os_type": pool.get("osType"), "mode": pool.get("mode"),
+            "min": pool.get("minCount"), "max": pool.get("maxCount"),
+            "auto_scale": pool.get("enableAutoScaling"),
+        }))
+        edges.append(_edge(root_id, f"pool-{pool_name}", _NODE_POOL))
+
+        subnet_id = pool.get("vnetSubnetID", "")
+        if subnet_id:
+            sub_name = subnet_id.split("/")[-1]
+            vnet_name = subnet_id.split("/")[-3] if len(subnet_id.split("/")) > 3 else "VNet"
+            vnet_id = "/".join(subnet_id.split("/")[:-2])
+            nodes.append(_node(subnet_id, "subnet", "network", sub_name, {"vnet": vnet_name}))
+            edges.append(_edge(root_id, subnet_id, "subnet"))
+            nodes.append(_node(vnet_id, "vnet", "network", vnet_name, {}))
+            edges.append(_edge(root_id, vnet_id, "VNet"))
+
+
+def _azaks_append_identity(root_id: str, c: dict, nodes: list, edges: list) -> None:
+    identity = c.get("identity", {})
+    if identity:
+        nodes.append(_node("cluster-identity", "managed_identity", "iam",
+                           f"Managed Identity ({identity.get('type', '')})",
+                           {"type": identity.get("type"), "principal_id": identity.get("principalId", "")}))
+        edges.append(_edge(root_id, "cluster-identity", "cluster identity"))
+
+
+def _azaks_append_aad_and_oidc(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    aad = props.get("aadProfile", {})
+    if aad:
+        nodes.append(_node("aad-integration", "oidc_provider", "iam", "Azure AD Integration",
+                           {"managed": aad.get("managed"), "azure_rbac": aad.get("enableAzureRBAC"),
+                            "tenant_id": aad.get("tenantID")}))
+        edges.append(_edge(root_id, "aad-integration", "AAD integration"))
+
+    oidc_url = props.get("oidcIssuerProfile", {}).get("issuerURL")
+    if oidc_url:
+        nodes.append(_node("oidc-issuer", "oidc_provider", "iam", "OIDC Issuer", {"url": oidc_url}))
+        edges.append(_edge(root_id, "oidc-issuer", "OIDC"))
+
+
+def _azaks_append_network(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    net_profile = props.get("networkProfile", {})
+    lb_profile = net_profile.get("loadBalancerProfile", {})
+    for ip_ref in lb_profile.get("effectiveOutboundIPs", []):
+        ip_id = ip_ref.get("id", "")
+        ip_name = ip_id.split("/")[-1] if ip_id else "LB Public IP"
+        nodes.append(_node(ip_id, "public_ip", "network", ip_name, {}))
+        edges.append(_edge(root_id, ip_id, "outbound IP"))
+
+    if net_profile:
+        nodes.append(_node("network-profile", "network_interface", "network",
+                           f"Network: {net_profile.get('networkPlugin', 'kubenet')}",
+                           {"plugin": net_profile.get("networkPlugin"), "policy": net_profile.get("networkPolicy"),
+                            "pod_cidr": net_profile.get("podCidr"), "service_cidr": net_profile.get("serviceCidr")}))
+        edges.append(_edge(root_id, "network-profile", "network config"))
+
+
+def _azaks_append_addons(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    addon_profiles = props.get("addonProfiles", {})
+    for addon_name, addon_val in addon_profiles.items():
+        if addon_val.get("enabled"):
+            nodes.append(_node(f"addon-{addon_name}", "addon", "config", addon_name, {"enabled": True}))
+            edges.append(_edge(root_id, f"addon-{addon_name}", "addon"))
+
+
 def _azure_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict:
     import requests
     root_id = f"k8s-{cluster.id}"
@@ -1234,74 +1304,11 @@ def _azure_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> di
         c = requests.get(url, headers=headers, timeout=20).json()
         props = c.get("properties", {})
 
-        # VNet / Subnet from agent pool profiles
-        for pool in props.get("agentPoolProfiles", []):
-            pool_name = pool["name"]
-            nodes.append(_node(f"pool-{pool_name}", "node_group", "compute", pool_name, {
-                "vm_size": pool.get("vmSize"), "count": pool.get("count"),
-                "os_type": pool.get("osType"), "mode": pool.get("mode"),
-                "min": pool.get("minCount"), "max": pool.get("maxCount"),
-                "auto_scale": pool.get("enableAutoScaling"),
-            }))
-            edges.append(_edge(root_id, f"pool-{pool_name}", _NODE_POOL))
-
-            # Subnet from pool
-            subnet_id = pool.get("vnetSubnetID", "")
-            if subnet_id:
-                sub_name = subnet_id.split("/")[-1]
-                vnet_name = subnet_id.split("/")[-3] if len(subnet_id.split("/")) > 3 else "VNet"
-                vnet_id = "/".join(subnet_id.split("/")[:-2])
-                nodes.append(_node(subnet_id, "subnet", "network", sub_name, {"vnet": vnet_name}))
-                edges.append(_edge(root_id, subnet_id, "subnet"))
-                nodes.append(_node(vnet_id, "vnet", "network", vnet_name, {}))
-                edges.append(_edge(root_id, vnet_id, "VNet"))
-
-        # Managed identity
-        identity = c.get("identity", {})
-        if identity:
-            nodes.append(_node("cluster-identity", "managed_identity", "iam",
-                               f"Managed Identity ({identity.get('type', '')})",
-                               {"type": identity.get("type"), "principal_id": identity.get("principalId", "")}))
-            edges.append(_edge(root_id, "cluster-identity", "cluster identity"))
-
-        # AAD / RBAC
-        aad = props.get("aadProfile", {})
-        if aad:
-            nodes.append(_node("aad-integration", "oidc_provider", "iam", "Azure AD Integration",
-                               {"managed": aad.get("managed"), "azure_rbac": aad.get("enableAzureRBAC"),
-                                "tenant_id": aad.get("tenantID")}))
-            edges.append(_edge(root_id, "aad-integration", "AAD integration"))
-
-        # OIDC issuer
-        oidc_url = props.get("oidcIssuerProfile", {}).get("issuerURL")
-        if oidc_url:
-            nodes.append(_node("oidc-issuer", "oidc_provider", "iam", "OIDC Issuer", {"url": oidc_url}))
-            edges.append(_edge(root_id, "oidc-issuer", "OIDC"))
-
-        # Load balancer public IPs
-        lb_profile = props.get("networkProfile", {}).get("loadBalancerProfile", {})
-        for ip_ref in lb_profile.get("effectiveOutboundIPs", []):
-            ip_id = ip_ref.get("id", "")
-            ip_name = ip_id.split("/")[-1] if ip_id else "LB Public IP"
-            nodes.append(_node(ip_id, "public_ip", "network", ip_name, {}))
-            edges.append(_edge(root_id, ip_id, "outbound IP"))
-
-        # Network plugin
-        net_profile = props.get("networkProfile", {})
-        if net_profile:
-            nodes.append(_node("network-profile", "network_interface", "network",
-                               f"Network: {net_profile.get('networkPlugin', 'kubenet')}",
-                               {"plugin": net_profile.get("networkPlugin"), "policy": net_profile.get("networkPolicy"),
-                                "pod_cidr": net_profile.get("podCidr"), "service_cidr": net_profile.get("serviceCidr")}))
-            edges.append(_edge(root_id, "network-profile", "network config"))
-
-        # Addons
-        addon_profiles = props.get("addonProfiles", {})
-        for addon_name, addon_val in addon_profiles.items():
-            if addon_val.get("enabled"):
-                nodes.append(_node(f"addon-{addon_name}", "addon", "config", addon_name,
-                                   {"enabled": True}))
-                edges.append(_edge(root_id, f"addon-{addon_name}", "addon"))
+        _azaks_append_agent_pools(root_id, props, nodes, edges)
+        _azaks_append_identity(root_id, c, nodes, edges)
+        _azaks_append_aad_and_oidc(root_id, props, nodes, edges)
+        _azaks_append_network(root_id, props, nodes, edges)
+        _azaks_append_addons(root_id, props, nodes, edges)
 
     except Exception:
         pass
