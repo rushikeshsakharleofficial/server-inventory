@@ -58,28 +58,61 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T = unknown>(
-  path: string,
-  init: RequestInit & { json?: unknown; query?: Record<string, unknown> } = {},
-): Promise<T> {
-  const { json, query, headers, ...rest } = init;
+function buildUrl(path: string, query?: Record<string, unknown>): string {
   let url = `${API_BASE}${path}`;
-  if (query) {
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(query)) {
-      if (v === undefined || v === null || v === "") continue;
-      qs.append(k, `${v}`);
-    }
-    const s = qs.toString();
-    if (s) url += `?${s}`;
+  if (!query) return url;
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(query)) {
+    if (v === undefined || v === null || v === "") continue;
+    qs.append(k, `${v}`);
   }
+  const s = qs.toString();
+  if (s) url += `?${s}`;
+  return url;
+}
+
+function buildHeaders(headers: HeadersInit | undefined, hasJson: boolean): Record<string, string> {
   const token = tokenStore.get();
   const h: Record<string, string> = {
     Accept: "application/json",
     ...(headers as Record<string, string> | undefined),
   };
-  if (json !== undefined) h["Content-Type"] = "application/json";
+  if (hasJson) h["Content-Type"] = "application/json";
   if (token) h["Authorization"] = `Bearer ${token}`;
+  return h;
+}
+
+async function parseResponseBody(res: Response): Promise<unknown> {
+  const contentType = res.headers.get("content-type") ?? "";
+  return contentType.includes("application/json") ? res.json() : res.text();
+}
+
+function redirectToLoginOn401(status: number): void {
+  if (status !== 401) return;
+  tokenStore.clear();
+  if (
+    globalThis.window !== undefined &&
+    !globalThis.location.pathname.startsWith("/login")
+  ) {
+    globalThis.location.assign("/login");
+  }
+}
+
+function errorMessageFromBody(data: unknown, statusText: string): string {
+  if (typeof data === "object" && data && "detail" in data) {
+    return String((data as { detail: unknown }).detail);
+  }
+  if (typeof data === "string") return data;
+  return statusText;
+}
+
+export async function api<T = unknown>(
+  path: string,
+  init: RequestInit & { json?: unknown; query?: Record<string, unknown> } = {},
+): Promise<T> {
+  const { json, query, headers, ...rest } = init;
+  const url = buildUrl(path, query);
+  const h = buildHeaders(headers, json !== undefined);
 
   const res = await fetch(url, {
     ...rest,
@@ -92,29 +125,11 @@ export async function api<T = unknown>(
 
   if (res.status === 204) return undefined as T;
 
-  const contentType = res.headers.get("content-type") ?? "";
-  const data = contentType.includes("application/json")
-    ? await res.json()
-    : await res.text();
+  const data = await parseResponseBody(res);
 
   if (!res.ok) {
-    if (res.status === 401) {
-      tokenStore.clear();
-      if (
-        globalThis.window !== undefined &&
-        !globalThis.location.pathname.startsWith("/login")
-      ) {
-        globalThis.location.assign("/login");
-      }
-    }
-    let msg: string;
-    if (typeof data === "object" && data && "detail" in data) {
-      msg = String((data as { detail: unknown }).detail);
-    } else if (typeof data === "string") {
-      msg = data;
-    } else {
-      msg = res.statusText;
-    }
+    redirectToLoginOn401(res.status);
+    const msg = errorMessageFromBody(data, res.statusText);
     throw new ApiError(res.status, msg || "Request failed", data);
   }
   return data as T;
