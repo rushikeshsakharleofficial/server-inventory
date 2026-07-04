@@ -102,22 +102,18 @@ def _aws_append_security_groups(ec2, root_id: str, instance: dict, nodes: list, 
         edges.append(_edge(root_id, sg_id, "member of"))
 
 
-def _aws_append_one_eni(ec2, root_id: str, eni: dict, seen_subnets: set, nodes: list, edges: list) -> None:
-    eni_id = eni["NetworkInterfaceId"]
-    primary_ip = eni.get("PrivateIpAddress", "")
-    all_private_ips = [a["PrivateIpAddress"] for a in eni.get("PrivateIpAddresses", []) if a.get("PrivateIpAddress")]
-    all_public_ips = [a["Association"]["PublicIp"] for a in eni.get("PrivateIpAddresses", []) if a.get("Association", {}).get("PublicIp")]
-
-    nodes.append(_node(eni_id, "network_interface", "network", f"ENI {primary_ip}", {
+def _aws_eni_node(eni: dict, eni_id: str, primary_ip: str, all_private_ips: list, all_public_ips: list) -> dict:
+    return _node(eni_id, "network_interface", "network", f"ENI {primary_ip}", {
         "mac": eni.get("MacAddress", ""),
         "primary_ip": primary_ip,
         "all_private_ips": all_private_ips,
         "public_ips": all_public_ips,
         "status": eni.get("Status", ""),
         "id": eni_id,
-    }))
-    edges.append(_edge(root_id, eni_id, "has NIC"))
+    })
 
+
+def _aws_append_eni_secondary_ips(eni_id: str, primary_ip: str, all_private_ips: list, all_public_ips: list, nodes: list, edges: list) -> None:
     for ip in all_private_ips:
         if ip != primary_ip:
             nodes.append(_node(f"sip-{ip}", "elastic_ip", "network", f"Secondary IP {ip}", {"type": "secondary private IP"}))
@@ -127,18 +123,33 @@ def _aws_append_one_eni(ec2, root_id: str, eni: dict, seen_subnets: set, nodes: 
         nodes.append(_node(f"pub-{pub_ip}", "elastic_ip", "network", pub_ip, {"type": "public IP via ENI"}))
         edges.append(_edge(eni_id, f"pub-{pub_ip}", "public IP"))
 
-    eni_subnet = eni.get("SubnetId", "")
-    if eni_subnet and eni_subnet not in seen_subnets:
-        seen_subnets.add(eni_subnet)
-        try:
-            sub_data = ec2.describe_subnets(SubnetIds=[eni_subnet])["Subnets"][0]
-            sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), eni_subnet)
-            nodes.append(_node(eni_subnet, "subnet", "network", sub_name, {
-                "cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": eni_subnet
-            }))
-            edges.append(_edge(eni_id, eni_subnet, "in subnet"))
-        except Exception:
-            pass
+
+def _aws_append_eni_subnet(ec2, eni_id: str, eni_subnet: str, seen_subnets: set, nodes: list, edges: list) -> None:
+    if not eni_subnet or eni_subnet in seen_subnets:
+        return
+    seen_subnets.add(eni_subnet)
+    try:
+        sub_data = ec2.describe_subnets(SubnetIds=[eni_subnet])["Subnets"][0]
+        sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), eni_subnet)
+        nodes.append(_node(eni_subnet, "subnet", "network", sub_name, {
+            "cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": eni_subnet
+        }))
+        edges.append(_edge(eni_id, eni_subnet, "in subnet"))
+    except Exception:
+        pass
+
+
+def _aws_append_one_eni(ec2, root_id: str, eni: dict, seen_subnets: set, nodes: list, edges: list) -> None:
+    eni_id = eni["NetworkInterfaceId"]
+    primary_ip = eni.get("PrivateIpAddress", "")
+    all_private_ips = [a["PrivateIpAddress"] for a in eni.get("PrivateIpAddresses", []) if a.get("PrivateIpAddress")]
+    all_public_ips = [a["Association"]["PublicIp"] for a in eni.get("PrivateIpAddresses", []) if a.get("Association", {}).get("PublicIp")]
+
+    nodes.append(_aws_eni_node(eni, eni_id, primary_ip, all_private_ips, all_public_ips))
+    edges.append(_edge(root_id, eni_id, "has NIC"))
+
+    _aws_append_eni_secondary_ips(eni_id, primary_ip, all_private_ips, all_public_ips, nodes, edges)
+    _aws_append_eni_subnet(ec2, eni_id, eni.get("SubnetId", ""), seen_subnets, nodes, edges)
 
 
 def _aws_append_network_interfaces(ec2, root_id: str, instance: dict, subnet_id: str | None, nodes: list, edges: list) -> None:
