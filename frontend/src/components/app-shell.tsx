@@ -227,13 +227,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                     {user?.role ?? "no role"}
                   </span>
                 </div>
-                <button
-                  onClick={logout}
-                  className="p-1.5 rounded-md hover:bg-border text-muted-foreground hover:text-foreground transition-colors"
-                  title="Sign out"
-                >
-                  <LogOut className="size-3.5" />
-                </button>
               </>
             )}
           </div>
@@ -287,6 +280,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={`size-3.5 ${sync.isPending ? "animate-spin" : ""}`}
               />
               Force Sync
+            </button>
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="size-4" />
             </button>
           </div>
         </header>
