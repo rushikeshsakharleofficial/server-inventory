@@ -2,11 +2,9 @@
 
 # ServerInventory
 
-### Free, Open-Source Multi-Cloud Server Inventory & Infrastructure Management Dashboard
+### Self-hosted multi-cloud server inventory and infrastructure operations console
 
-**Self-hosted · Zero vendor lock-in · 100% free forever**
-
-Track servers, databases, Kubernetes clusters, and block storage across AWS, GCP, Azure, DigitalOcean, Linode, OVH, and on-premise — all from one unified dashboard.
+Track servers, databases, Kubernetes clusters, block storage, and DNS records across AWS, GCP, Azure, DigitalOcean, Linode, OVH, and on-premise hosts — from one dashboard, with no vendor lock-in.
 
 [![License](https://img.shields.io/github/license/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/stargazers)
@@ -16,23 +14,34 @@ Track servers, databases, Kubernetes clusters, and block storage across AWS, GCP
 
 </div>
 
----
+<p align="center">
+  <img src="docs/screenshots/dashboard-light.png" alt="ServerInventory fleet dashboard" width="100%" />
+</p>
 
-> **Looking for a free, self-hosted alternative to paid cloud inventory tools?** ServerInventory gives you full visibility across every cloud provider and on-premise datacenter — no SaaS fees, no data leaving your infrastructure, no artificial limits.
+<p align="center">
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#security">Security</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
 
 ---
 
 ## Table of Contents
 
 - [Why ServerInventory](#why-serverinventory)
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [Stack](#stack)
 - [Quick Start](#quick-start)
+- [First-Run Setup](#first-run-setup)
 - [Environment Variables](#environment-variables)
 - [Cloud Provider Setup](#cloud-provider-setup)
 - [Development](#development)
 - [Testing](#testing)
 - [Architecture](#architecture)
+- [Credential Security](#credential-security)
 - [Contributing](#contributing)
 - [Security](#security)
 - [License](#license)
@@ -41,74 +50,62 @@ Track servers, databases, Kubernetes clusters, and block storage across AWS, GCP
 
 ## Why ServerInventory
 
-Most server inventory and cloud asset management tools are either expensive SaaS products or require complex enterprise setups. ServerInventory is different:
+Most cloud asset inventory tools are paid SaaS products that require sending your credentials and topology to a third party. ServerInventory runs entirely on infrastructure you control:
 
-- **100% free and open source** — MIT license, fork it, modify it, deploy it anywhere
-- **Self-hosted** — your credentials and server data never leave your infrastructure
-- **Multi-cloud from day one** — AWS, GCP, Azure, DigitalOcean, Linode, OVH, and custom datacenters
-- **No agent required** — syncs via cloud APIs; SSH data collection available for on-premise servers
-- **Production-ready** — JWT auth, MFA/TOTP, role-based access, WebSocket real-time sync, cron scheduling, E2E tested
+- **Self-hosted** — credentials and server data never leave your own PostgreSQL instance
+- **Multi-cloud from day one** — AWS, GCP, Azure, DigitalOcean, Linode, OVH, plus manually-registered on-prem hosts
+- **No agent required** — cloud resources sync via provider APIs; on-prem hosts are discovered and enriched over SSH
+- **RBAC built in** — per-user and per-group permissions across every feature, JWT auth, optional TOTP MFA
+- **Free and open source** — MIT licensed, fork it, self-host it, modify it
+
+---
+
+## Screenshots
+
+### Fleet Dashboard
+![Fleet Dashboard](docs/screenshots/dashboard-light.png)
+
+### Settings — Branding
+![Settings Branding](docs/screenshots/settings-branding.png)
+
+### Collapsed Sidebar
+![Collapsed Sidebar](docs/screenshots/collapsed-sidebar.png)
+
+> Screenshots are taken against a real running instance. Views that would expose real server names, IP addresses, or credential metadata are intentionally left out — see [Screenshot Maintenance](#screenshot-maintenance) if you want to regenerate the full set against your own sanitized data.
 
 ---
 
 ## Features
 
-### Multi-Cloud Server Sync
+### Multi-Cloud Inventory
 
-Automatically pull and track all VM instances from:
+- **Servers** — AWS EC2, GCP Compute Engine, Azure VMs, DigitalOcean Droplets, Linode instances, OVH bare metal/VPS/Public Cloud, plus manually-registered on-prem hosts
+- **Managed Databases** — AWS RDS, GCP Cloud SQL, Azure Database, DigitalOcean Managed DBs, Linode Database Clusters
+- **Kubernetes Clusters** — AWS EKS, GCP GKE, Azure AKS, DigitalOcean DOKS, Linode LKE
+- **Block Storage** — AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes
+- **DNS / Domain Inventory** — Cloudflare DNS record sync plus generic DNS resolution, kept separate from cloud provider credentials
 
-- **AWS** — EC2 instances across all regions
-- **GCP** — Compute Engine VMs via service account
-- **Azure** — Virtual Machines across subscription
-- **DigitalOcean** — Droplets
-- **Linode / Akamai** — Linode instances
-- **OVH Cloud** — Bare metal, VPS, Public Cloud
-- **Custom DC** — Manually registered on-premise servers
+### On-Prem Network Discovery
 
-### Managed Databases
-
-Auto-fetch managed database instances from:
-
-- AWS RDS (PostgreSQL, MySQL, Aurora, MariaDB)
-- GCP Cloud SQL
-- Azure Database for PostgreSQL / MySQL
-- DigitalOcean Managed Databases
-- Linode Database Clusters
-
-### Kubernetes Clusters
-
-Auto-fetch managed cluster fleets from:
-- AWS EKS, GCP GKE, Azure AKS, DigitalOcean DOKS, Linode LKE
-
-### Block Storage Volumes
-
-Auto-fetch managed block storage from:
-- AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes
+Scan an IPv4 CIDR range over SSH, authenticate with a saved credential, and register live hosts as inventory — deduplicating multi-homed servers into a single record via a priority-ordered identity chain (machine-id, DMI product UUID, SSH host key fingerprint, hostname+MAC).
 
 ### Resource Topology Map
 
-Per-resource network topology viewer showing connected cloud resources:
+Per-server network topology viewer showing connected cloud resources (VPCs, security groups, NICs, firewalls, load balancers) with click-to-navigate deep links.
 
-| Provider | Resources Mapped |
-|:---------|:----------------|
-| **AWS** | VPC, Subnets, Security Groups, ENIs, IAM Profile, Elastic IPs, NAT Gateways, Auto Scaling Groups, ALB/NLB, Route Tables |
-| **GCP** | VPC Network, Subnetworks, Alias IP ranges, Firewall Rules, Service Accounts, Disks |
-| **Azure** | NICs, NSGs, VNets, Subnets, Public IPs, Managed Identity, Availability Sets |
-| **DigitalOcean** | VPC, Floating IPs, Firewalls, Load Balancers, Tags |
-| **Linode** | Firewalls, NodeBalancers, VLANs, Disks |
-| **OVH** | IPs, Failover IPs, vRack, OVH Firewall, Backup Cloud, IPMI |
+### IAM / Access Control
 
-### Core Platform Capabilities
+- Per-user and per-group permissions across every feature area, with a live-computed super-admin bypass
+- JWT auth with 90-day remember-me tokens, TOTP-based MFA
+- First-run `/setup` wizard creates the initial administrator — no hardcoded default credentials
 
-- **Live sync via WebSocket** — real-time batch progress with ability to stop mid-sync
-- **Throttled DB writes** — assets written in 25-item batches with pacing to prevent write bursts
-- **SSH data collection** — pulls CPU, RAM, kernel, OS, IPs from on-premise servers via paramiko
-- **Cron scheduler** — APScheduler-backed cron jobs with standard 5-field expressions
-- **Role-based access control** — Admin, Write, and Read roles with JWT auth and 90-day remember-me tokens
-- **MFA / TOTP** — per-user two-factor authentication using authenticator apps
-- **Light / Dark / AMOLED theme** — CSS variable system with AMOLED-optimized dark mode
-- **Server snapshots** — daily history powering dashboard growth charts
-- **Auto housekeeping** — prunes logs and snapshots older than 365 days
+### Operational Tooling
+
+- **Live sync via WebSocket** — real-time batch progress, cancellable mid-run
+- **Cron scheduler** — APScheduler-backed jobs with a calendar+time picker or raw cron expression, run-now/disable/delete
+- **Event log** — structured audit trail across settings, credentials, sync, and discovery
+- **Custom branding** — upload a logo and favicon (PNG/JPEG/WEBP/animated GIF), served publicly so the login page picks it up before auth
+- **Smart tables** — adaptive rows-per-page based on viewport height, consistent pagination across every list page
 
 ---
 
@@ -117,16 +114,18 @@ Per-resource network topology viewer showing connected cloud resources:
 | Layer | Technology |
 |:------|:-----------|
 | Backend | FastAPI, SQLAlchemy 2.x, PostgreSQL 16 |
-| Auth | JWT (python-jose), bcrypt, TOTP MFA (pyotp), role-based access |
-| Scheduling | APScheduler BackgroundScheduler |
+| Auth | JWT (python-jose), bcrypt/passlib, TOTP MFA (pyotp) |
+| Scheduling | APScheduler, croniter |
 | SSH | paramiko |
+| Rate limiting | slowapi |
 | WebSockets | FastAPI native + asyncio broadcast |
-| Frontend | React 19 + TypeScript + Vite |
-| Styling | Stitches CSS-in-JS + Tailwind CSS 4 + CSS custom properties |
-| Data fetching | TanStack Query v5 |
+| Frontend | React 19 + TypeScript |
+| Routing / data | TanStack Start, TanStack Router, TanStack Query |
+| Styling | Tailwind CSS 4 (CSS-first config) |
 | Charts | Recharts |
+| Date picker | react-day-picker |
 | Icons | Lucide React |
-| E2E Testing | Playwright |
+| Package manager | Bun (`bun.lock`) |
 | Container | Docker Compose (postgres + backend + frontend) |
 
 ---
@@ -138,106 +137,73 @@ Per-resource network topology viewer showing connected cloud resources:
 ```bash
 git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
 cd server-inventory
+cp backend/.env.example .env   # edit POSTGRES_PASSWORD, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY
 docker compose up -d
 ```
 
 | URL | Purpose |
 |:----|:--------|
-| http://localhost:5173 | Frontend dashboard |
-| http://localhost:8000/docs | Backend API (Swagger UI) |
+| http://localhost:3001 | Frontend dashboard |
+| http://localhost:8001/docs | Backend API (Swagger UI) |
 
-Default credentials:
+No default admin account is seeded. On first load, the app detects that no admin exists and redirects to `/setup` to create one — see [First-Run Setup](#first-run-setup).
 
-```
-Username: admin
-Password: Admin@1234
-```
-
-> **Security:** Change `ADMIN_PASSWORD` and `SECRET_KEY` before any production or internet-facing deployment.
+> **Security:** Set a strong, unique `SECRET_KEY` and `CREDENTIAL_ENCRYPTION_KEY` before any production or internet-facing deployment. The backend refuses to start in production with a weak or placeholder `SECRET_KEY`.
 
 ### Local (no Docker)
-
-Use `start.sh` to launch both services in one step (requires local PostgreSQL):
-
-```bash
-cp backend/.env.example backend/.env   # edit DATABASE_URL and SECRET_KEY
-./start.sh
-```
-
-Or manually in two terminals:
 
 ```bash
 # Terminal 1 — Backend
 cd backend
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env   # edit DATABASE_URL, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY
 uvicorn app.main:app --reload --port 8000
 ```
 
 ```bash
 # Terminal 2 — Frontend
 cd frontend
-npm install
-npm run dev
+bun install
+bun run dev
 ```
+
+---
+
+## First-Run Setup
+
+This app has no default username/password. The first time it starts with no admin user in the database:
+
+1. Visiting `/login` automatically redirects to `/setup`.
+2. `/setup` lets you create the first administrator account (username, full name, password).
+3. Once that account exists, `/setup` becomes permanently unreachable — both the UI (redirects to `/login`) and the API (`POST /api/setup/bootstrap` returns `409` if an admin already exists).
 
 ---
 
 ## Environment Variables
 
-Create `backend/.env` from the example:
+Docker Compose reads `.env` from the project root. Create it from the backend's example:
 
 ```bash
-cp backend/.env.example backend/.env
+cp backend/.env.example .env
 ```
 
-| Variable | Default | Required | Description |
-|:---------|:--------|:--------:|:------------|
-| `DATABASE_URL` | `postgresql://inventory:inventory@localhost:5432/server_inventory` | Yes | PostgreSQL connection string |
-| `ADMIN_USERNAME` | `admin` | No | Initial admin username (seeded once on first run) |
-| `ADMIN_PASSWORD` | `Admin@1234` | **Yes in prod** | Initial admin password — change before deploying |
-| `SECRET_KEY` | `change-this-secret-key-in-production` | **Yes in prod** | JWT signing secret — generate with `openssl rand -hex 32` |
+| Variable | Required | Description |
+|:---------|:--------:|:------------|
+| `POSTGRES_PASSWORD` | Yes | PostgreSQL password — read at container boot, before the app can start |
+| `DATABASE_URL` | Yes (local/no-Docker only) | Full PostgreSQL connection string |
+| `SECRET_KEY` | **Yes in prod** | JWT signing secret — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `CREDENTIAL_ENCRYPTION_KEY` | **Yes in prod** | Fernet key encrypting stored provider/SSH credentials at rest — generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | No | Optional non-interactive admin seed — the normal path is the `/setup` wizard above |
+| `ALLOWED_ORIGINS` | No | Comma-separated CORS origins for the frontend |
+| `VITE_API_URL` | No | Leave empty in most deployments — the frontend derives the backend host/port from the page it's served from |
+
+> `SECRET_KEY` and `CREDENTIAL_ENCRYPTION_KEY` cannot be set from within the app itself — both are read once at process startup, before any HTTP route (including `/setup`) can be served.
 
 ---
 
 ## Cloud Provider Setup
 
-Add credentials via **Cloud Providers → Add Credential** in the UI.
-
-### AWS
-
-Fields: `access_key_id`, `secret_access_key`, `regions` (comma-separated, e.g. `us-east-1,eu-west-1`)
-
-Minimum IAM permissions:
-```
-ec2:Describe*
-rds:Describe*
-eks:List*, eks:Describe*
-autoscaling:Describe*
-elasticloadbalancing:Describe*
-```
-
-### GCP
-
-Fields: `service_account_json` (full JSON content), `project_id`
-
-APIs to enable: Compute Engine API, Cloud SQL Admin API, Kubernetes Engine API
-
-### Azure
-
-Fields: `subscription_id`, `tenant_id`, `client_id`, `client_secret`
-
-### DigitalOcean
-
-Fields: `api_token`
-
-### Linode
-
-Fields: `api_token`
-
-### OVH Cloud
-
-Fields: `application_key`, `application_secret`, `consumer_key`, `endpoint` (`ovh-eu` / `ovh-ca` / `ovh-us`)
+Add credentials via **Cloud Providers → Add Credential** in the UI. Fields vary per provider; see the in-app form for the exact set required (access keys, service account JSON, subscription IDs, API tokens, etc.) for AWS, GCP, Azure, DigitalOcean, Linode, and OVH Cloud. DNS providers (currently Cloudflare) are configured separately under **DNS Providers**, keeping DNS credentials isolated from compute-sync credentials.
 
 ---
 
@@ -249,34 +215,41 @@ Fields: `application_key`, `application_secret`, `consumer_key`, `endpoint` (`ov
 server-inventory/
 ├── backend/
 │   ├── app/
-│   │   ├── providers/        # Cloud provider sync implementations (aws, gcp, azure, …)
-│   │   ├── routers/          # FastAPI routers (servers, sync, databases, kubernetes, …)
-│   │   ├── auth.py           # JWT auth, password hashing, MFA/TOTP, role guards
-│   │   ├── database.py       # SQLAlchemy engine + session factory
-│   │   ├── main.py           # FastAPI app, lifespan, WebSocket endpoint
-│   │   ├── models.py         # SQLAlchemy ORM models
-│   │   ├── scheduler.py      # APScheduler setup
-│   │   ├── schemas.py        # Pydantic request/response schemas
-│   │   ├── stats_utils.py    # Shared stats aggregation (SQL GROUP BY)
-│   │   └── ws_manager.py     # WebSocket connection manager
-│   ├── Dockerfile
-│   └── requirements.txt
+│   │   ├── providers/           # Cloud provider sync implementations
+│   │   ├── routers/             # FastAPI routers — servers, sync, databases,
+│   │   │                        #   kubernetes, discovery, domains, iam, branding, ...
+│   │   ├── auth.py              # JWT auth, password hashing, role guards
+│   │   ├── database.py          # SQLAlchemy engine + session factory
+│   │   ├── discovery_service.py # On-prem SSH discovery + identity resolution
+│   │   ├── main.py              # FastAPI app, lifespan, WebSocket endpoint
+│   │   ├── models.py            # SQLAlchemy ORM models
+│   │   ├── permissions.py       # IAM feature/action catalog
+│   │   ├── schemas.py           # Pydantic request/response schemas
+│   │   └── ssh_utils.py         # SSH connection + host fact collection
+│   ├── tests/                   # pytest suite
+│   └── Dockerfile
 ├── frontend/
-│   ├── e2e/                  # Playwright E2E tests
-│   ├── public/
 │   ├── src/
-│   │   ├── components/       # Page and UI components
-│   │   ├── hooks/            # useAuth, useTheme, useToast, useWebSocket
-│   │   ├── App.tsx           # Root: routing, auth, modal state
-│   │   ├── api.ts            # Axios client + API helpers
-│   │   └── types.ts          # Shared TypeScript types
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── playwright.config.ts
-│   └── vite.config.ts
+│   │   ├── components/
+│   │   │   ├── app-shell.tsx        # Sidebar + header layout
+│   │   │   ├── SmartTable.tsx       # Adaptive-height paginated table
+│   │   │   ├── SmartPagination.tsx
+│   │   │   └── advanced-filter.tsx  # Shared search + filter bar
+│   │   ├── hooks/
+│   │   │   └── useAdaptivePageSize.ts
+│   │   ├── lib/
+│   │   │   ├── api.ts            # Fetch client, protocol-aware API base
+│   │   │   ├── auth.ts
+│   │   │   ├── branding.ts       # Logo/favicon fetch hooks
+│   │   │   └── ws.ts             # WebSocket client + message routing
+│   │   └── routes/               # TanStack Router file-based routes
+│   │       ├── _app.servers.tsx
+│   │       ├── _app.discovery.tsx
+│   │       ├── _app.domains.tsx
+│   │       ├── _app.policies.tsx
+│   │       └── ...
+│   └── Dockerfile
 ├── docker-compose.yml
-├── install-docker.sh         # Docker installation helper
-├── start.sh                  # Local dev launcher (requires local Postgres)
 └── LICENSE
 ```
 
@@ -286,63 +259,39 @@ Run from `frontend/`:
 
 | Command | Purpose |
 |:--------|:--------|
-| `npm run dev` | Start Vite dev server on port 5173 |
-| `npm run build` | TypeScript check + production build |
-| `npm run preview` | Serve production build locally |
-| `npm run test:e2e` | Run Playwright E2E tests (headless) |
-| `npm run test:e2e:ui` | Open Playwright interactive UI mode |
+| `bun run dev` | Start the Vite dev server |
+| `bun run build` | TypeScript check + production build |
+| `bun run preview` | Serve the production build locally |
+| `bun run lint` | ESLint |
+| `bun run format` | Prettier |
 
 ### Backend Commands
 
 Run from `backend/`:
 
 ```bash
-uvicorn app.main:app --reload --port 8000   # dev server with hot reload
+uvicorn app.main:app --reload --port 8000
 ```
 
 ---
 
 ## Testing
 
-Playwright E2E tests cover auth flows, navigation, and visual regression across dark and light themes.
-
-Backend must be running on `http://localhost:8000`. The Vite dev server is started automatically by Playwright's `webServer` config.
+Backend tests are pytest-based, covering auth policy, credential encryption/masking, TOTP, schemas, and the on-prem discovery identity-resolution logic:
 
 ```bash
-cd frontend
-
-# Run all tests
-E2E_PASSWORD='Admin@1234' npm run test:e2e
-
-# Update visual regression snapshots after UI changes
-E2E_PASSWORD='Admin@1234' npx playwright test e2e/visual.spec.ts --update-snapshots
-
-# Open interactive Playwright UI
-npm run test:e2e:ui
+cd backend
+pytest
 ```
 
-| Variable | Default | Description |
-|:---------|:--------|:------------|
-| `E2E_USERNAME` | `admin` | Admin username for test login |
-| `E2E_PASSWORD` | `Admin@1234` | Admin password — match `ADMIN_PASSWORD` |
-| `VITE_BACKEND_URL` | `http://localhost:8000` | Backend URL for Vite proxy during tests |
-
-| Suite | Tests | Description |
-|:------|:-----:|:------------|
-| `auth.spec.ts` | 7 | Login, bad credentials, logout, MFA challenge |
-| `navigation.spec.ts` | 10 | Navigate to all 10 views |
-| `servers.spec.ts` | 11 | Server table, search, detail panel |
-| `users.spec.ts` | 8 | User management CRUD |
-| `data-leak.spec.ts` | 10 | Auth data leak and role isolation |
-| `providers.spec.ts` | 5 | Cloud provider credential management |
-| `block-storage.spec.ts` | 7 | Block storage list |
-| `crons.spec.ts` | 8 | Cron scheduler |
-| `databases.spec.ts` | 7 | Managed databases list |
-| `kubernetes.spec.ts` | 7 | Kubernetes clusters list |
-| `sync-logs.spec.ts` | 8 | Sync log history |
-| `ssh.spec.ts` | 6 | SSH credentials |
-| `settings.spec.ts` | 4 | App settings |
-| `visual.spec.ts` | 2 | Screenshot per theme (dark + light) |
+| Suite | Covers |
+|:------|:-------|
+| `test_auth_policy.py` | Role/permission enforcement |
+| `test_credential_masking.py` | Credentials never leak in API responses |
+| `test_crypto.py` | Fernet encryption/decryption of stored config |
+| `test_discovery_service.py` | CIDR validation, identity-signal priority, host dedup |
+| `test_schemas.py` | Pydantic schema validation |
+| `test_totp_encryption.py` | MFA secret storage |
 
 ---
 
@@ -355,53 +304,65 @@ graph LR
     API --> Scheduler[APScheduler]
     API --> DB[(PostgreSQL 16)]
     Scheduler --> API
-    API -- fetch_servers / fetch_databases / ... --> Cloud[Cloud Provider APIs]
+    API -- cloud provider APIs --> Cloud[AWS / GCP / Azure / DO / Linode / OVH]
+    API -- SSH --> OnPrem[On-Prem Hosts]
 ```
 
-### Data Models
+### Key Data Models
 
 | Model | Purpose |
 |:------|:--------|
-| `Server` | Multi-cloud VM inventory with SSH info |
-| `DatabaseInstance` | Managed database instances |
-| `KubernetesCluster` | Managed K8s clusters |
-| `BlockStorage` | Managed block storage volumes |
-| `Credential` | Provider credentials (per-provider config JSON) |
-| `SSHCredential` | SSH key/password credentials for Custom DC servers |
-| `SyncLog` | Sync run history with duration and result |
-| `ServerSnapshot` | Daily server count snapshots for trend charts |
+| `Server` | Multi-cloud + on-prem VM inventory |
+| `ServerIpAddress` | Per-interface IP addresses, deduped across discovery + legacy sync paths |
+| `DatabaseInstance` / `KubernetesCluster` / `BlockStorage` | Managed cloud resources |
+| `Credential` | Provider credentials (encrypted config JSON) |
+| `SSHCredential` | SSH key/password credentials for on-prem hosts |
+| `DiscoveryNetwork` / `DiscoveryJob` / `DiscoveryResult` | On-prem CIDR scan definitions and run history |
+| `User` / `Group` | Auth users and groups with per-feature/action permissions |
 | `CronJob` | Scheduled sync jobs |
-| `User` | Auth users with roles (admin / write / read) and optional MFA secret |
-| `AppSetting` | Key-value settings (sync timeout, SSH port, etc.) |
+| `AppSetting` | Key-value app settings (SSH port, sync timeout, branding assets) |
 
-### Database Performance
+---
 
-On startup the backend automatically applies:
-- `pg_trgm` extension — enables trigram GIN indexes for efficient `ILIKE` search on `name`, `public_ip`, `hostname`
-- Composite index `(provider, status)` for filtered server list queries
-- Stats endpoints use SQL `GROUP BY` aggregation — no full table scans
+## Credential Security
+
+- Provider credential secrets (passwords, API keys, tokens) are encrypted at rest with a Fernet key (`CREDENTIAL_ENCRYPTION_KEY`) separate from the database itself — a DB dump alone does not expose them
+- Credential values are masked by default in the UI; reveal/copy actions are permission-gated
+- Uploaded branding assets accept raster images and GIF only — SVG is rejected to avoid stored XSS via inline script execution
+- Enable MFA on admin accounts via **Settings → Two-factor authentication**
+- Production deployments must terminate TLS in front of the app — do not expose the backend's plain HTTP port directly to the internet
+- Never commit `.env` files, real credentials, or screenshots containing real server names, IP addresses, or account emails
+
+---
+
+## Screenshot Maintenance
+
+Screenshots live in `docs/screenshots/` and should be captured against demo or sanitized data only.
+
+Recommended viewport: `1600x1000`, light theme (the app currently ships one theme).
+
+```bash
+cd frontend
+bun run dev
+```
+
+Then use Playwright MCP (or a manual browser) to capture the running app. Never capture pages that list real server names, public IPs, DNS records, or credential metadata unless the underlying data is fully synthetic — several views (Servers, Domain Inventory, Provider Credentials, Resource Map at a zoomed-in level) were intentionally excluded from this repo's own screenshots for that reason.
 
 ---
 
 ## Contributing
 
-ServerInventory is **100% open source and welcomes all contributions** — from small typo fixes to major new features.
-
-**What we'd love help with:**
-
-- **UI / Frontend** — redesign pages, add themes, improve accessibility, new visualizations
-- **Backend / API** — new cloud providers (Hetzner, Vultr, Scaleway, Cloudflare, etc.), new resource types, performance improvements
-- **Everything else** — integrations, alerting, export/import, CLI tools, documentation, translations
+ServerInventory is open source and welcomes contributions — from small fixes to new cloud providers.
 
 **How to contribute:**
 
 1. **Fork** the repository
 2. **Create a branch**: `git checkout -b feat/your-feature-name`
 3. **Set up** using Docker or the local path above
-4. **Build check**: `cd frontend && npm run build`
-5. **Open a PR** against `main` with a clear description of what you changed and why
+4. **Build check**: `cd frontend && bun run build`
+5. **Open a PR** against `main` with a clear description of what changed and why
 
-No contribution is too small. [Open an issue](https://github.com/rushikeshsakharleofficial/server-inventory/issues) first if you want feedback before writing code.
+[Open an issue](https://github.com/rushikeshsakharleofficial/server-inventory/issues) first if you want feedback before writing code.
 
 <a href="https://github.com/rushikeshsakharleofficial/server-inventory/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=rushikeshsakharleofficial/server-inventory" />
@@ -414,11 +375,12 @@ No contribution is too small. [Open an issue](https://github.com/rushikeshsakhar
 To report a security vulnerability, use [GitHub Security Advisories](https://github.com/rushikeshsakharleofficial/server-inventory/security/advisories/new) rather than opening a public issue.
 
 **Production hardening checklist:**
-- Set a strong, unique `SECRET_KEY` (`openssl rand -hex 32`)
-- Set a strong `ADMIN_PASSWORD` before first run
-- Enable MFA on the admin account via **Admin Setup → Two-Factor Authentication**
-- Do not expose `http://localhost:8000` directly — place behind a reverse proxy with TLS
-- Restrict PostgreSQL access to the backend container only
+
+- Set a strong, unique `SECRET_KEY` and `CREDENTIAL_ENCRYPTION_KEY`
+- Complete `/setup` immediately after first deploy — the instance has no functioning login until an admin exists
+- Enable MFA on the admin account
+- Place the app behind a reverse proxy with TLS — do not expose the backend's plain HTTP port directly
+- Restrict PostgreSQL access to the backend container/network only
 
 ---
 
@@ -430,7 +392,7 @@ MIT — free to use, modify, distribute, and build on, including for commercial 
 
 <div align="center">
 
-[⭐ Star on GitHub](https://github.com/rushikeshsakharleofficial/server-inventory) · [🐛 Report a Bug](https://github.com/rushikeshsakharleofficial/server-inventory/issues/new?template=bug_report) · [💡 Request a Feature](https://github.com/rushikeshsakharleofficial/server-inventory/issues/new?template=feature_request) · [🤝 Contribute](https://github.com/rushikeshsakharleofficial/server-inventory/fork)
+[⭐ Star on GitHub](https://github.com/rushikeshsakharleofficial/server-inventory) · [🐛 Report a Bug](https://github.com/rushikeshsakharleofficial/server-inventory/issues/new) · [🤝 Contribute](https://github.com/rushikeshsakharleofficial/server-inventory/fork)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=rushikeshsakharleofficial/server-inventory&type=Date)](https://star-history.com/#rushikeshsakharleofficial/server-inventory&Date)
 
