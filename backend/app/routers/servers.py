@@ -113,6 +113,73 @@ def get_stats(
     )
 
 
+def _classify_ip_kind(addr: str) -> str:
+    is_v6 = ":" in addr
+    is_loopback = addr.startswith("127.") or addr == "::1"
+    is_link = addr.startswith("fe80:")
+    if is_loopback:
+        return "loopback"
+    if is_link:
+        return "link-local"
+    return "ipv6" if is_v6 else "ipv4"
+
+
+def _server_all_ips(srv) -> list[str]:
+    """All known IPs/CIDRs for one server row: ssh_info.all_ips plus the
+    legacy public_ip/private_ip columns if not already present."""
+    ssh_info = srv.ssh_info or {}
+    all_ips: list[str] = list(ssh_info.get("all_ips") or [])
+    seen_addrs = {ip.split("/")[0] for ip in all_ips}
+    for col_ip in (srv.public_ip, srv.private_ip):
+        if col_ip and col_ip not in seen_addrs:
+            all_ips.append(col_ip)
+            seen_addrs.add(col_ip)
+    return all_ips
+
+
+def _build_ip_rows(servers) -> list[dict]:
+    rows = []
+    for srv in servers:
+        for cidr in _server_all_ips(srv):
+            addr = cidr.split("/")[0]
+            rows.append({
+                "server_id": srv.id,
+                "server_name": srv.name,
+                "provider": srv.provider,
+                "cidr": cidr,
+                "address": addr,
+                "type": _classify_ip_kind(addr),
+            })
+    return rows
+
+
+def _rdns_lookup(addr: str) -> tuple[str, str | None]:
+    try:
+        return addr, socket.gethostbyaddr(addr)[0]
+    except Exception:  # noqa: BLE001 — no PTR record is the normal case
+        return addr, None
+
+
+def _resolve_rdns_concurrent(addrs: set[str]) -> dict[str, str | None]:
+    """Reverse-DNS lookups, concurrent, one per unique address (same pattern
+    as the ThreadPoolExecutor SSH fan-out elsewhere in this router)."""
+    rdns_map: dict[str, str | None] = {}
+    prev_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(2)
+    try:
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futures = {ex.submit(_rdns_lookup, addr): addr for addr in addrs}
+            for fut in as_completed(futures):
+                try:
+                    addr, hostname = fut.result()
+                    rdns_map[addr] = hostname
+                except Exception:  # noqa: BLE001
+                    pass
+    finally:
+        socket.setdefaulttimeout(prev_timeout)
+    return rdns_map
+
+
 @router.get("/ip-inventory")
 def ip_inventory(
     db: Annotated[Session, Depends(get_db)],
@@ -126,54 +193,9 @@ def ip_inventory(
         models.Server.public_ip, models.Server.private_ip, models.Server.ssh_info,
     ).all()
 
-    rows = []
-    for srv in servers:
-        ssh_info = srv.ssh_info or {}
-        all_ips: list[str] = list(ssh_info.get("all_ips") or [])
-        seen_addrs = {ip.split("/")[0] for ip in all_ips}
-        for col_ip in (srv.public_ip, srv.private_ip):
-            if col_ip and col_ip not in seen_addrs:
-                all_ips.append(col_ip)
-                seen_addrs.add(col_ip)
-        for cidr in all_ips:
-            addr = cidr.split("/")[0]
-            is_v6 = ":" in addr
-            is_loopback = addr.startswith("127.") or addr == "::1"
-            is_link = addr.startswith("fe80:")
-            kind = "loopback" if is_loopback else "link-local" if is_link else "ipv6" if is_v6 else "ipv4"
-            rows.append({
-                "server_id":   srv.id,
-                "server_name": srv.name,
-                "provider":    srv.provider,
-                "cidr":        cidr,
-                "address":     addr,
-                "type":        kind,
-            })
+    rows = _build_ip_rows(servers)
 
-    # Reverse-DNS lookups, concurrent, one per unique address (same pattern as
-    # the ThreadPoolExecutor SSH fan-out above).
-    def _rdns(addr: str) -> tuple[str, str | None]:
-        try:
-            return addr, socket.gethostbyaddr(addr)[0]
-        except Exception:  # noqa: BLE001 — no PTR record is the normal case
-            return addr, None
-
-    unique_addrs = {r["address"] for r in rows}
-    rdns_map: dict[str, str | None] = {}
-    _prev_timeout = socket.getdefaulttimeout()
-    socket.setdefaulttimeout(2)
-    try:
-        with ThreadPoolExecutor(max_workers=10) as ex:
-            futures = {ex.submit(_rdns, addr): addr for addr in unique_addrs}
-            for fut in as_completed(futures):
-                try:
-                    addr, hostname = fut.result()
-                    rdns_map[addr] = hostname
-                except Exception:  # noqa: BLE001
-                    pass
-    finally:
-        socket.setdefaulttimeout(_prev_timeout)
-
+    rdns_map = _resolve_rdns_concurrent({r["address"] for r in rows})
     for row in rows:
         row["rdns"] = rdns_map.get(row["address"])
 
