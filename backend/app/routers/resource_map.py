@@ -1342,6 +1342,60 @@ def _azure_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> di
 
 # ── Linode Database ───────────────────────────────────────────────────────────
 
+def _linodedb_append_hosts(root_id: str, db: dict, nodes: list, edges: list) -> None:
+    hosts = db.get("hosts", {})
+    if hosts.get("primary"):
+        nodes.append(_node("host-primary", "public_ip", "network", hosts["primary"],
+                           {"type": "primary", "port": db.get("port")}))
+        edges.append(_edge(root_id, "host-primary", "primary endpoint"))
+    if hosts.get("secondary"):
+        nodes.append(_node("host-secondary", "read_replica", "compute", hosts["secondary"],
+                           {"type": "secondary"}))
+        edges.append(_edge(root_id, "host-secondary", "secondary endpoint"))
+
+
+def _linodedb_append_ssl(headers: dict, root_id: str, engine: str, db_id: str, nodes: list, edges: list) -> None:
+    import requests
+    fw_resp = requests.get(f"https://api.linode.com/v4/databases/{engine}/instances/{db_id}/ssl", headers=headers, timeout=15)
+    if fw_resp.ok:
+        ssl = fw_resp.json()
+        nodes.append(_node("ssl-config", "firewall_rule", "security", "SSL Certificate",
+                           {"ca_certificate": bool(ssl.get("ca_certificate"))}))
+        edges.append(_edge(root_id, "ssl-config", "SSL/TLS"))
+
+
+def _linodedb_append_allow_list(root_id: str, db: dict, nodes: list, edges: list) -> None:
+    allow_list = db.get("allow_list", [])
+    if allow_list:
+        nodes.append(_node("allow-list", "firewall_rule", "security",
+                           f"Allow List ({len(allow_list)} CIDRs)", {"cidrs": allow_list[:10]}))
+        edges.append(_edge(root_id, "allow-list", "IP allowlist"))
+
+
+def _linodedb_append_members(root_id: str, db: dict, nodes: list, edges: list) -> None:
+    members = db.get("members", {})
+    for i, member in enumerate(members.values() if isinstance(members, dict) else []):
+        nodes.append(_node(f"member-{i}", "read_replica", "compute", f"Member {i+1}", {"host": member}))
+        edges.append(_edge(root_id, f"member-{i}", "cluster member"))
+
+
+def _linodedb_append_backup(root_id: str, db: dict, nodes: list, edges: list) -> None:
+    if db.get("backups", {}).get("enabled"):
+        backup = db["backups"]
+        nodes.append(_node("backup", "backup", "config", "Automated Backups",
+                           {"hour": backup.get("schedule", {}).get("hour"),
+                            "day_of_week": backup.get("schedule", {}).get("day_of_week")}))
+        edges.append(_edge(root_id, "backup", "backup schedule"))
+
+
+def _linodedb_append_instance_type(root_id: str, db: dict, nodes: list, edges: list) -> None:
+    inst_type = db.get("type")
+    if inst_type:
+        nodes.append(_node(f"type-{inst_type}", "parameter_group", "config", inst_type,
+                           {"cluster_size": db.get("cluster_size"), "replication_type": db.get("replication_type")}))
+        edges.append(_edge(root_id, f"type-{inst_type}", "instance type"))
+
+
 def _linode_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     import requests
     root_id = f"db-{db_inst.id}"
@@ -1358,53 +1412,12 @@ def _linode_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict
             return {"nodes": [], "edges": []}
         db = resp.json()
 
-        # Hosts
-        hosts = db.get("hosts", {})
-        if hosts.get("primary"):
-            nodes.append(_node("host-primary", "public_ip", "network", hosts["primary"],
-                               {"type": "primary", "port": db.get("port")}))
-            edges.append(_edge(root_id, "host-primary", "primary endpoint"))
-        if hosts.get("secondary"):
-            nodes.append(_node("host-secondary", "read_replica", "compute", hosts["secondary"],
-                               {"type": "secondary"}))
-            edges.append(_edge(root_id, "host-secondary", "secondary endpoint"))
-
-        # Firewall
-        fw_resp = requests.get(f"https://api.linode.com/v4/databases/{engine}/instances/{db_id}/ssl", headers=headers, timeout=15)
-        if fw_resp.ok:
-            ssl = fw_resp.json()
-            nodes.append(_node("ssl-config", "firewall_rule", "security", "SSL Certificate",
-                               {"ca_certificate": bool(ssl.get("ca_certificate"))}))
-            edges.append(_edge(root_id, "ssl-config", "SSL/TLS"))
-
-        # Allow list
-        allow_list = db.get("allow_list", [])
-        if allow_list:
-            nodes.append(_node("allow-list", "firewall_rule", "security",
-                               f"Allow List ({len(allow_list)} CIDRs)",
-                               {"cidrs": allow_list[:10]}))
-            edges.append(_edge(root_id, "allow-list", "IP allowlist"))
-
-        # Replicas
-        for i, member in enumerate(db.get("members", {}).values() if isinstance(db.get("members"), dict) else []):
-            nodes.append(_node(f"member-{i}", "read_replica", "compute", f"Member {i+1}",
-                               {"host": member}))
-            edges.append(_edge(root_id, f"member-{i}", "cluster member"))
-
-        # Backup
-        if db.get("backups", {}).get("enabled"):
-            backup = db["backups"]
-            nodes.append(_node("backup", "backup", "config", "Automated Backups",
-                               {"hour": backup.get("schedule", {}).get("hour"),
-                                "day_of_week": backup.get("schedule", {}).get("day_of_week")}))
-            edges.append(_edge(root_id, "backup", "backup schedule"))
-
-        # Instance type
-        inst_type = db.get("type")
-        if inst_type:
-            nodes.append(_node(f"type-{inst_type}", "parameter_group", "config", inst_type,
-                               {"cluster_size": db.get("cluster_size"), "replication_type": db.get("replication_type")}))
-            edges.append(_edge(root_id, f"type-{inst_type}", "instance type"))
+        _linodedb_append_hosts(root_id, db, nodes, edges)
+        _linodedb_append_ssl(headers, root_id, engine, db_id, nodes, edges)
+        _linodedb_append_allow_list(root_id, db, nodes, edges)
+        _linodedb_append_members(root_id, db, nodes, edges)
+        _linodedb_append_backup(root_id, db, nodes, edges)
+        _linodedb_append_instance_type(root_id, db, nodes, edges)
 
     except Exception:
         pass
