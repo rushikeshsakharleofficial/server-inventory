@@ -440,10 +440,80 @@ def _gcp_token(config: dict[str, Any]) -> tuple[str, str]:
     return token, project_id
 
 
+def _gcp_append_network_interfaces(root_id: str, inst: dict, nodes: list, edges: list) -> None:
+    for nic_idx, nic in enumerate(inst.get("networkInterfaces", [])):
+        net_url = nic.get("network", "")
+        net_name = net_url.split("/")[-1] if net_url else "unknown"
+        sub_url = nic.get("subnetwork", "")
+        sub_name = sub_url.split("/")[-1] if sub_url else "unknown"
+        nic_internal_ip = nic.get("networkIP", "")
+
+        nodes.append(_node(net_name, "vpc_network", "network", net_name, {"network": net_url}))
+        edges.append(_edge(root_id, net_name, "VPC network"))
+        nodes.append(_node(f"{sub_name}-{nic_idx}", "subnetwork", "network", sub_name,
+                           {"subnetwork": sub_url, "internal_ip": nic_internal_ip}))
+        edges.append(_edge(root_id, f"{sub_name}-{nic_idx}", "subnetwork"))
+
+        if nic_internal_ip:
+            nodes.append(_node(f"int-ip-{nic_internal_ip}", "elastic_ip", "network",
+                               f"Internal {nic_internal_ip}", {"type": "internal IP", "nic": nic_idx}))
+            edges.append(_edge(f"{sub_name}-{nic_idx}", f"int-ip-{nic_internal_ip}", "internal IP"))
+
+        for alias in nic.get("aliasIpRanges", []):
+            alias_ip = alias.get("ipCidrRange", "")
+            nodes.append(_node(f"alias-{alias_ip}", "subnet", "network",
+                               f"Alias {alias_ip}", {"cidr": alias_ip, "subnetwork_range": alias.get("subnetworkRangeName", "")}))
+            edges.append(_edge(f"{sub_name}-{nic_idx}", f"alias-{alias_ip}", "alias IP range"))
+
+        for ac in nic.get("accessConfigs", []):
+            if ac.get("natIP"):
+                nodes.append(_node(f"ext-ip-{ac['natIP']}", "external_ip", "network",
+                                   ac["natIP"], {"type": ac.get("type"), "name": ac.get("name"), "nic": nic_idx}))
+                edges.append(_edge(root_id, f"ext-ip-{ac['natIP']}", "external IP"))
+
+
+def _gcp_append_service_accounts(root_id: str, inst: dict, nodes: list, edges: list) -> None:
+    for sa_entry in inst.get("serviceAccounts", []):
+        sa_email = sa_entry.get("email", "")
+        nodes.append(_node(sa_email, "service_account", "iam", sa_email, {"scopes": sa_entry.get("scopes", [])}))
+        edges.append(_edge(root_id, sa_email, _SERVICE_ACCOUNT))
+
+
+def _gcp_append_matching_firewalls(root_id: str, inst: dict, project_id: str, headers: dict, nodes: list, edges: list) -> None:
+    import requests
+    tags_list = inst.get("tags", {}).get("items", [])
+    if not tags_list:
+        return
+    fw_url = f"https://compute.googleapis.com/compute/v1/projects/{project_id}/global/firewalls"
+    fw_resp = requests.get(fw_url, headers=headers, timeout=15)
+    if not fw_resp.ok:
+        return
+    for fw in fw_resp.json().get("items", []):
+        target_tags = fw.get("targetTags", [])
+        if any(t in tags_list for t in target_tags):
+            fw_name = fw["name"]
+            nodes.append(_node(fw_name, "firewall_rule", "security", fw_name, {
+                "direction": fw.get("direction"),
+                "priority": fw.get("priority"),
+                "description": fw.get("description", ""),
+            }))
+            edges.append(_edge(root_id, fw_name, "firewall rule"))
+
+
+def _gcp_append_disks(root_id: str, inst: dict, nodes: list, edges: list) -> None:
+    for disk in inst.get("disks", [])[:3]:
+        disk_url = disk.get("source", "")
+        disk_name = disk_url.split("/")[-1] if disk_url else "disk"
+        nodes.append(_node(disk_name, "disk", "storage", disk_name,
+                           {"boot": disk.get("boot"), "type": disk.get("type"), "mode": disk.get("mode")}))
+        edges.append(_edge(root_id, disk_name, "disk"))
+
+
 def _gcp_server_map(server: models.Server, config: dict) -> dict:
     import requests
     root_id = f"server-{server.id}"
-    nodes, edges = [], []
+    nodes: list = []
+    edges: list = []
     try:
         token, project_id = _gcp_token(config)
     except Exception:
@@ -452,76 +522,22 @@ def _gcp_server_map(server: models.Server, config: dict) -> dict:
     headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
     zone = server.zone or server.region or ""
 
-    # Get instance details
-    if server.cloud_id and zone:
-        try:
-            instance_name = server.cloud_id
-            url = f"https://compute.googleapis.com/compute/v1/projects/{project_id}/zones/{zone}/instances/{instance_name}"
-            resp = requests.get(url, headers=headers, timeout=20)
-            if resp.ok:
-                inst = resp.json()
-                # Network interfaces — all IPs and subnets
-                for nic_idx, nic in enumerate(inst.get("networkInterfaces", [])):
-                    net_url = nic.get("network", "")
-                    net_name = net_url.split("/")[-1] if net_url else "unknown"
-                    sub_url = nic.get("subnetwork", "")
-                    sub_name = sub_url.split("/")[-1] if sub_url else "unknown"
-                    nic_internal_ip = nic.get("networkIP", "")
-                    nodes.append(_node(net_name, "vpc_network", "network", net_name, {"network": net_url}))
-                    edges.append(_edge(root_id, net_name, "VPC network"))
-                    nodes.append(_node(f"{sub_name}-{nic_idx}", "subnetwork", "network", sub_name,
-                                       {"subnetwork": sub_url, "internal_ip": nic_internal_ip}))
-                    edges.append(_edge(root_id, f"{sub_name}-{nic_idx}", "subnetwork"))
-                    # Primary internal IP
-                    if nic_internal_ip:
-                        nodes.append(_node(f"int-ip-{nic_internal_ip}", "elastic_ip", "network",
-                                           f"Internal {nic_internal_ip}", {"type": "internal IP", "nic": nic_idx}))
-                        edges.append(_edge(f"{sub_name}-{nic_idx}", f"int-ip-{nic_internal_ip}", "internal IP"))
-                    # Alias IPs (additional subnets/IPs on this NIC)
-                    for alias in nic.get("aliasIpRanges", []):
-                        alias_ip = alias.get("ipCidrRange", "")
-                        nodes.append(_node(f"alias-{alias_ip}", "subnet", "network",
-                                           f"Alias {alias_ip}", {"cidr": alias_ip, "subnetwork_range": alias.get("subnetworkRangeName", "")}))
-                        edges.append(_edge(f"{sub_name}-{nic_idx}", f"alias-{alias_ip}", "alias IP range"))
-                    # Access configs (external IPs)
-                    for ac in nic.get("accessConfigs", []):
-                        if ac.get("natIP"):
-                            nodes.append(_node(f"ext-ip-{ac['natIP']}", "external_ip", "network",
-                                               ac["natIP"], {"type": ac.get("type"), "name": ac.get("name"), "nic": nic_idx}))
-                            edges.append(_edge(root_id, f"ext-ip-{ac['natIP']}", "external IP"))
+    if not (server.cloud_id and zone):
+        return {"nodes": [], "edges": []}
 
-                # Service Account
-                for sa_entry in inst.get("serviceAccounts", []):
-                    sa_email = sa_entry.get("email", "")
-                    nodes.append(_node(sa_email, "service_account", "iam", sa_email, {"scopes": sa_entry.get("scopes", [])}))
-                    edges.append(_edge(root_id, sa_email, _SERVICE_ACCOUNT))
+    try:
+        url = f"https://compute.googleapis.com/compute/v1/projects/{project_id}/zones/{zone}/instances/{server.cloud_id}"
+        resp = requests.get(url, headers=headers, timeout=20)
+        if not resp.ok:
+            return {"nodes": [], "edges": []}
 
-                # Tags (used for firewall rules)
-                tags_list = inst.get("tags", {}).get("items", [])
-                if tags_list:
-                    # Fetch firewall rules matching any tag
-                    fw_url = f"https://compute.googleapis.com/compute/v1/projects/{project_id}/global/firewalls"
-                    fw_resp = requests.get(fw_url, headers=headers, timeout=15)
-                    if fw_resp.ok:
-                        for fw in fw_resp.json().get("items", []):
-                            target_tags = fw.get("targetTags", [])
-                            if any(t in tags_list for t in target_tags):
-                                fw_name = fw["name"]
-                                nodes.append(_node(fw_name, "firewall_rule", "security", fw_name, {
-                                    "direction": fw.get("direction"),
-                                    "priority": fw.get("priority"),
-                                    "description": fw.get("description", ""),
-                                }))
-                                edges.append(_edge(root_id, fw_name, "firewall rule"))
-
-                # Disk info
-                for disk in inst.get("disks", [])[:3]:
-                    disk_url = disk.get("source", "")
-                    disk_name = disk_url.split("/")[-1] if disk_url else "disk"
-                    nodes.append(_node(disk_name, "disk", "storage", disk_name, {"boot": disk.get("boot"), "type": disk.get("type"), "mode": disk.get("mode")}))
-                    edges.append(_edge(root_id, disk_name, "disk"))
-        except Exception:
-            pass
+        inst = resp.json()
+        _gcp_append_network_interfaces(root_id, inst, nodes, edges)
+        _gcp_append_service_accounts(root_id, inst, nodes, edges)
+        _gcp_append_matching_firewalls(root_id, inst, project_id, headers, nodes, edges)
+        _gcp_append_disks(root_id, inst, nodes, edges)
+    except Exception:
+        pass
 
     return {"nodes": nodes, "edges": edges}
 
