@@ -242,6 +242,174 @@ def update_server(
     return server
 
 
+def _ssh_load_pkey(key_str: str):
+    import paramiko
+    key_classes = [paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey]
+    if hasattr(paramiko, "DSSKey"):
+        key_classes.append(paramiko.DSSKey)  # type: ignore[attr-defined]
+    for cls in key_classes:
+        try:
+            return cls.from_private_key(io.StringIO(key_str))
+        except Exception:
+            continue
+    raise ValueError("Unsupported SSH private key type")
+
+
+def _ssh_build_connect_kwargs(host: str, ssh_cred) -> dict | str:
+    """Returns connect() kwargs, or an error message string if the credential
+    is missing the secret its auth_method requires."""
+    connect_kwargs: dict = {
+        "hostname": host,
+        "port": ssh_cred.port or 22,
+        "username": ssh_cred.username,
+        "timeout": 10,
+        "banner_timeout": 10,
+    }
+    if ssh_cred.auth_method == "key":
+        if not ssh_cred.private_key:
+            return "Selected SSH credential has no private key"
+        connect_kwargs["pkey"] = _ssh_load_pkey(decrypt_str(ssh_cred.private_key))
+    elif ssh_cred.password:
+        connect_kwargs["password"] = decrypt_str(ssh_cred.password)
+        connect_kwargs["look_for_keys"] = False
+        connect_kwargs["allow_agent"] = False
+    else:
+        return "Selected SSH credential has no password"
+    return connect_kwargs
+
+
+def _ssh_open_jump_channel(host: str, port: int, ssh_cred):
+    """Connects to the configured jump/proxy host and opens a direct-tcpip
+    channel to the real target through it. Returns (jump_client, channel)."""
+    import paramiko
+    proxy_key = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
+    proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
+
+    jump_client = paramiko.SSHClient()
+    jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    jump_kwargs: dict = {
+        "hostname": ssh_cred.proxy_host,
+        "port": ssh_cred.proxy_port or 22,
+        "username": ssh_cred.proxy_username or "root",
+        "timeout": 10,
+    }
+    if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and proxy_key:
+        jump_kwargs["pkey"] = _ssh_load_pkey(proxy_key)
+    elif proxy_pass:
+        jump_kwargs["password"] = proxy_pass
+        jump_kwargs["look_for_keys"] = False
+        jump_kwargs["allow_agent"] = False
+    jump_client.connect(**jump_kwargs)
+    channel = jump_client.get_transport().open_channel(
+        "direct-tcpip", (host, port), ("127.0.0.1", 0)
+    )
+    return jump_client, channel
+
+
+def _ssh_run(client, cmd: str) -> str:
+    _, stdout, _ = client.exec_command(cmd, timeout=10)
+    return stdout.read().decode("utf-8", errors="replace").strip()
+
+
+def _ssh_parse_facts(client, ssh_cred) -> dict:
+    """Runs the fact-gathering commands over an already-connected client and
+    parses their output into a plain dict."""
+    import re
+    ip_a = _ssh_run(client, "ip a 2>/dev/null || ip addr 2>/dev/null")
+    nproc = _ssh_run(client, "nproc 2>/dev/null")
+    free_m = _ssh_run(client, "free -m 2>/dev/null")
+    uname_r = _ssh_run(client, "uname -r 2>/dev/null")
+    hostname_f = _ssh_run(client, "hostname -f 2>/dev/null")
+    os_release = _ssh_run(client, "cat /etc/os-release 2>/dev/null")
+
+    all_ips = re.findall(r'inet6?\s+([\da-f:.]+/\d+)', ip_a)
+    all_ips = [ip for ip in all_ips if not ip.startswith('127.') and ip != '::1/128']
+
+    mem_mb = None
+    for line in free_m.splitlines():
+        if line.startswith("Mem:"):
+            parts = line.split()
+            if len(parts) > 1:
+                mem_mb = int(parts[1])
+            break
+
+    os_info: dict = {}
+    for line in os_release.splitlines():
+        if "=" in line:
+            k, _, v = line.partition("=")
+            os_info[k.strip()] = v.strip().strip('"')
+
+    return {
+        "all_ips": all_ips,
+        "cpu_count": int(nproc) if nproc.isdigit() else None,
+        "memory_mb": mem_mb,
+        "kernel": uname_r or None,
+        "hostname": hostname_f or None,
+        "os_release": os_info.get("PRETTY_NAME") or os_info.get("NAME"),
+        "credential_id": ssh_cred.id,
+        "credential_name": ssh_cred.name,
+        "last_ssh_sync": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _ssh_map_exception(exc: Exception) -> str:
+    """Translates a raw paramiko/socket exception into a user-facing message."""
+    import paramiko
+    if isinstance(exc, paramiko.AuthenticationException):
+        return "Authentication failed — check username and credentials"
+    if isinstance(exc, (paramiko.SSHException, OSError)):
+        msg = str(exc)
+        if "not found in known_hosts" in msg or "not in known_hosts" in msg:
+            return "Host key verification failed — server not in trusted hosts"
+        if "timed out" in msg.lower() or "timeout" in msg.lower():
+            return "Connection timed out — check host address and firewall rules"
+        if "Connection refused" in msg:
+            return "Connection refused — check SSH port and firewall"
+        if "No existing session" in msg or "not open" in msg:
+            return "SSH session error — please try again"
+        return "SSH connection failed — check host address and network"
+    return "SSH connection failed — unexpected error"
+
+
+def _ssh_sync_gather_facts(host: str, ssh_cred) -> tuple[dict | None, str | None]:
+    """Connects over SSH (optionally through a jump host), gathers OS/hardware
+    facts, and returns (facts, None) on success or (None, error_message) on
+    any failure. Runs on a worker thread via run_in_executor — never touches
+    the DB session directly."""
+    import paramiko
+
+    client = paramiko.SSHClient()
+    jump_client = None
+    try:
+        known_hosts = os.getenv("SSH_KNOWN_HOSTS")
+        if known_hosts:
+            client.load_host_keys(os.path.expanduser(known_hosts))
+        else:
+            client.load_system_host_keys()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        connect_kwargs = _ssh_build_connect_kwargs(host, ssh_cred)
+        if isinstance(connect_kwargs, str):
+            return None, connect_kwargs
+
+        if getattr(ssh_cred, "proxy_host", None):
+            jump_client, channel = _ssh_open_jump_channel(
+                host, ssh_cred.port or 22, ssh_cred
+            )
+            connect_kwargs["sock"] = channel
+
+        client.connect(**connect_kwargs)
+        facts = _ssh_parse_facts(client, ssh_cred)
+        return facts, None
+
+    except Exception as exc:  # noqa: BLE001 — mapped to a friendly message below
+        return None, _ssh_map_exception(exc)
+    finally:
+        client.close()
+        if jump_client:
+            jump_client.close()
+
+
 @router.post(
     "/{server_id}/ssh-sync",
     response_model=schemas.ServerResponse,
@@ -275,149 +443,7 @@ async def ssh_sync_server(
         raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
 
     def _do_ssh():
-        import paramiko, socket, re
-        client = paramiko.SSHClient()
-        try:
-            known_hosts = os.getenv("SSH_KNOWN_HOSTS")
-            if known_hosts:
-                client.load_host_keys(os.path.expanduser(known_hosts))
-            else:
-                client.load_system_host_keys()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-            connect_kwargs: dict = {
-                "hostname": host,
-                "port": ssh_cred.port or 22,
-                "username": ssh_cred.username,
-                "timeout": 10,
-                "banner_timeout": 10,
-            }
-            _private_key = decrypt_str(ssh_cred.private_key) if ssh_cred.private_key else None
-            _password = decrypt_str(ssh_cred.password) if ssh_cred.password else None
-
-            def _load_pkey(key_str: str):
-                key_classes = [paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey]
-                if hasattr(paramiko, "DSSKey"):
-                    key_classes.append(paramiko.DSSKey)  # type: ignore[attr-defined]
-                for cls in key_classes:
-                    try:
-                        return cls.from_private_key(io.StringIO(key_str))
-                    except Exception:
-                        continue
-                raise ValueError("Unsupported SSH private key type")
-
-            if ssh_cred.auth_method == "key":
-                if not _private_key:
-                    return None, "Selected SSH credential has no private key"
-                connect_kwargs["pkey"] = _load_pkey(_private_key)
-            elif _password:
-                connect_kwargs["password"] = _password
-                connect_kwargs["look_for_keys"] = False
-                connect_kwargs["allow_agent"] = False
-            else:
-                return None, "Selected SSH credential has no password"
-
-            # Jump/proxy server — open channel through jump host if configured
-            # Initialized before the proxy block so except handlers can always close it
-            jump_client = None
-            if getattr(ssh_cred, "proxy_host", None):
-                _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
-                _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
-                jump_client = paramiko.SSHClient()
-                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                jump_kwargs: dict = {
-                    "hostname": ssh_cred.proxy_host,
-                    "port":     ssh_cred.proxy_port or 22,
-                    "username": ssh_cred.proxy_username or "root",
-                    "timeout":  10,
-                }
-                if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
-                    jump_kwargs["pkey"] = _load_pkey(_proxy_key)
-                elif _proxy_pass:
-                    jump_kwargs["password"]      = _proxy_pass
-                    jump_kwargs["look_for_keys"] = False
-                    jump_kwargs["allow_agent"]   = False
-                jump_client.connect(**jump_kwargs)
-                connect_kwargs["sock"] = jump_client.get_transport().open_channel(
-                    "direct-tcpip",
-                    (host, ssh_cred.port or 22),
-                    ("127.0.0.1", 0),
-                )
-
-            client.connect(**connect_kwargs)
-
-            def run(cmd):
-                _, stdout, _ = client.exec_command(cmd, timeout=10)
-                return stdout.read().decode("utf-8", errors="replace").strip()
-
-            # Gather data
-            ip_a        = run("ip a 2>/dev/null || ip addr 2>/dev/null")
-            nproc       = run("nproc 2>/dev/null")
-            free_m      = run("free -m 2>/dev/null")
-            uname_r     = run("uname -r 2>/dev/null")
-            hostname_f  = run("hostname -f 2>/dev/null")
-            os_release  = run("cat /etc/os-release 2>/dev/null")
-
-            # Parse IPs from `ip a`
-            all_ips = re.findall(r'inet6?\s+([\da-f:.]+/\d+)', ip_a)
-            all_ips = [ip for ip in all_ips if not ip.startswith('127.') and ip != '::1/128']
-
-            # Parse memory (MemTotal from free -m)
-            mem_mb = None
-            for line in free_m.splitlines():
-                if line.startswith("Mem:"):
-                    parts = line.split()
-                    if len(parts) > 1:
-                        mem_mb = int(parts[1])
-                    break
-
-            # Parse OS from /etc/os-release
-            os_info: dict = {}
-            for line in os_release.splitlines():
-                if "=" in line:
-                    k, _, v = line.partition("=")
-                    os_info[k.strip()] = v.strip().strip('"')
-
-            ssh_info = {
-                "all_ips":      all_ips,
-                "cpu_count":    int(nproc) if nproc.isdigit() else None,
-                "memory_mb":    mem_mb,
-                "kernel":       uname_r or None,
-                "hostname":     hostname_f or None,
-                "os_release":   os_info.get("PRETTY_NAME") or os_info.get("NAME"),
-                "credential_id": ssh_cred.id,
-                "credential_name": ssh_cred.name,
-                "last_ssh_sync": datetime.now(timezone.utc).isoformat(),
-            }
-            client.close()
-            if jump_client:
-                jump_client.close()
-            return ssh_info, None
-
-        except paramiko.AuthenticationException:
-            client.close()
-            if jump_client:
-                jump_client.close()
-            return None, "Authentication failed — check username and credentials"
-        except (paramiko.SSHException, OSError) as e:
-            client.close()
-            if jump_client:
-                jump_client.close()
-            msg = str(e)
-            if "not found in known_hosts" in msg or "not in known_hosts" in msg:
-                return None, "Host key verification failed — server not in trusted hosts"
-            if "timed out" in msg.lower() or "timeout" in msg.lower():
-                return None, "Connection timed out — check host address and firewall rules"
-            if "Connection refused" in msg:
-                return None, "Connection refused — check SSH port and firewall"
-            if "No existing session" in msg or "not open" in msg:
-                return None, "SSH session error — please try again"
-            return None, "SSH connection failed — check host address and network"
-        except Exception:  # noqa: BLE001 — catch-all for unexpected SSH errors
-            client.close()
-            if jump_client:
-                jump_client.close()
-            return None, "SSH connection failed — unexpected error"
+        return _ssh_sync_gather_facts(host, ssh_cred)
 
     ssh_info, err = await asyncio.get_running_loop().run_in_executor(None, _do_ssh)
     if err and not ssh_info:
