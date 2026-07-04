@@ -10,62 +10,89 @@ STATUS_MAP = {
     "stopping": "stopped",
 }
 
+VOLUME_STATUS_MAP = {
+    "in-use": "running",
+    "available": "available",
+    "creating": "pending",
+    "deleting": "terminated",
+    "error": "stopped",
+}
+
+
+def _aws_tags_and_name(tag_list: list[dict[str, str]]) -> tuple[dict[str, str], str]:
+    """Flatten an AWS Tags list into a dict, also returning the 'Name' tag value (or "")."""
+    name = ""
+    tags: dict[str, str] = {}
+    for tag in tag_list:
+        tags[tag["Key"]] = tag["Value"]
+        if tag["Key"] == "Name":
+            name = tag["Value"]
+    return tags, name
+
 
 class AWSProvider(CloudProvider):
     @property
     def provider_name(self) -> str:
         return "aws"
 
-    def fetch_servers(self) -> list[dict[str, Any]]:
-        try:
-            import boto3
-        except ImportError:
-            raise RuntimeError("boto3 not installed. Run: pip install boto3")
-
-        access_key = self.config.get("access_key_id")
-        secret_key = self.config.get("secret_access_key")
+    def _aws_regions(self) -> list[str]:
         regions = self.config.get("regions", ["us-east-1"])
         if isinstance(regions, str):
             regions = [r.strip() for r in regions.split(",") if r.strip()]
+        return regions
+
+    def _aws_client(self, service_name: str, region: str):
+        import boto3
+
+        return boto3.client(
+            service_name,
+            region_name=region,
+            aws_access_key_id=self.config.get("access_key_id"),
+            aws_secret_access_key=self.config.get("secret_access_key"),
+        )
+
+    @staticmethod
+    def _aws_instance_to_server(instance: dict, region: str) -> dict[str, Any]:
+        tags, name = _aws_tags_and_name(instance.get("Tags", []))
+        state = instance.get("State", {}).get("Name", "unknown")
+        return {
+            "cloud_id": instance["InstanceId"],
+            "name": name or instance["InstanceId"],
+            "provider": "aws",
+            "region": region,
+            "instance_type": instance.get("InstanceType"),
+            "status": STATUS_MAP.get(state, "unknown"),
+            "public_ip": instance.get("PublicIpAddress"),
+            "private_ip": instance.get("PrivateIpAddress"),
+            "os": instance.get("Platform", "linux"),
+            "tags": tags,
+            "extra": {
+                "ami_id": instance.get("ImageId"),
+                "vpc_id": instance.get("VpcId"),
+                "key_name": instance.get("KeyName"),
+                "launch_time": str(instance.get("LaunchTime", "")),
+            },
+        }
+
+    def _aws_fetch_region_servers(self, ec2, region: str) -> list[dict[str, Any]]:
+        servers = []
+        paginator = ec2.get_paginator("describe_instances")
+        for page in paginator.paginate():
+            for reservation in page["Reservations"]:
+                for instance in reservation["Instances"]:
+                    servers.append(self._aws_instance_to_server(instance, region))
+        return servers
+
+    def fetch_servers(self) -> list[dict[str, Any]]:
+        try:
+            import boto3  # noqa: F401
+        except ImportError:
+            raise RuntimeError("boto3 not installed. Run: pip install boto3")
 
         servers = []
-        for region in regions:
-            ec2 = boto3.client(
-                "ec2",
-                region_name=region,
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-            )
-            paginator = ec2.get_paginator("describe_instances")
-            for page in paginator.paginate():
-                for reservation in page["Reservations"]:
-                    for instance in reservation["Instances"]:
-                        name = ""
-                        tags: dict[str, str] = {}
-                        for tag in instance.get("Tags", []):
-                            tags[tag["Key"]] = tag["Value"]
-                            if tag["Key"] == "Name":
-                                name = tag["Value"]
-
-                        state = instance.get("State", {}).get("Name", "unknown")
-                        servers.append({
-                            "cloud_id": instance["InstanceId"],
-                            "name": name or instance["InstanceId"],
-                            "provider": "aws",
-                            "region": region,
-                            "instance_type": instance.get("InstanceType"),
-                            "status": STATUS_MAP.get(state, "unknown"),
-                            "public_ip": instance.get("PublicIpAddress"),
-                            "private_ip": instance.get("PrivateIpAddress"),
-                            "os": instance.get("Platform", "linux"),
-                            "tags": tags,
-                            "extra": {
-                                "ami_id": instance.get("ImageId"),
-                                "vpc_id": instance.get("VpcId"),
-                                "key_name": instance.get("KeyName"),
-                                "launch_time": str(instance.get("LaunchTime", "")),
-                            },
-                        })
+        for region in self._aws_regions():
+            ec2 = self._aws_client("ec2", region)
+            servers.extend(self._aws_fetch_region_servers(ec2, region))
         return servers
 
     def fetch_databases(self) -> list[dict[str, Any]]:
@@ -182,64 +209,44 @@ class AWSProvider(CloudProvider):
                 })
         return result
 
-    def fetch_block_storages(self) -> list[dict[str, Any]]:
-        import boto3
-
-        access_key = self.config.get("access_key_id")
-        secret_key = self.config.get("secret_access_key")
-        regions = self.config.get("regions", ["us-east-1"])
-        if isinstance(regions, str):
-            regions = [r.strip() for r in regions.split(",") if r.strip()]
-
-        result = []
-        status_map = {
-            "in-use": "running",
-            "available": "available",
-            "creating": "pending",
-            "deleting": "terminated",
-            "error": "stopped",
+    @staticmethod
+    def _aws_volume_to_dict(vol: dict, region: str) -> dict[str, Any]:
+        tags, name = _aws_tags_and_name(vol.get("Tags", []))
+        attachments = vol.get("Attachments", [])
+        attachment = attachments[0].get("InstanceId") if attachments else None
+        return {
+            "cloud_id": vol["VolumeId"],
+            "name": name or vol["VolumeId"],
+            "provider": "aws",
+            "region": region,
+            "size_gb": float(vol.get("Size", 0)),
+            "status": VOLUME_STATUS_MAP.get(vol.get("State", ""), "unknown"),
+            "attachment": attachment,
+            "volume_type": vol.get("VolumeType"),
+            "tags": tags,
+            "extra": {
+                "availability_zone": vol.get("AvailabilityZone"),
+                "created_at": str(vol.get("CreateTime", "")),
+                "encrypted": vol.get("Encrypted"),
+                "iops": vol.get("Iops"),
+                "throughput": vol.get("Throughput"),
+            },
         }
 
-        for region in regions:
-            ec2 = boto3.client(
-                "ec2",
-                region_name=region,
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-            )
+    def _aws_fetch_region_volumes(self, ec2, region: str) -> list[dict[str, Any]]:
+        volumes = []
+        paginator = ec2.get_paginator("describe_volumes")
+        for page in paginator.paginate():
+            for vol in page.get("Volumes", []):
+                volumes.append(self._aws_volume_to_dict(vol, region))
+        return volumes
+
+    def fetch_block_storages(self) -> list[dict[str, Any]]:
+        result = []
+        for region in self._aws_regions():
+            ec2 = self._aws_client("ec2", region)
             try:
-                paginator = ec2.get_paginator("describe_volumes")
-                for page in paginator.paginate():
-                    for vol in page.get("Volumes", []):
-                        name = ""
-                        tags = {}
-                        for tag in vol.get("Tags", []):
-                            tags[tag["Key"]] = tag["Value"]
-                            if tag["Key"] == "Name":
-                                name = tag["Value"]
-
-                        attachments = vol.get("Attachments", [])
-                        attachment = attachments[0].get("InstanceId") if attachments else None
-
-                        result.append({
-                            "cloud_id": vol["VolumeId"],
-                            "name": name or vol["VolumeId"],
-                            "provider": "aws",
-                            "region": region,
-                            "size_gb": float(vol.get("Size", 0)),
-                            "status": status_map.get(vol.get("State", ""), "unknown"),
-                            "attachment": attachment,
-                            "volume_type": vol.get("VolumeType"),
-                            "tags": tags,
-                            "extra": {
-                                "availability_zone": vol.get("AvailabilityZone"),
-                                "created_at": str(vol.get("CreateTime", "")),
-                                "encrypted": vol.get("Encrypted"),
-                                "iops": vol.get("Iops"),
-                                "throughput": vol.get("Throughput"),
-                            },
-                        })
+                result.extend(self._aws_fetch_region_volumes(ec2, region))
             except Exception:
                 continue
-
         return result
