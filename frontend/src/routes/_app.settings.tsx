@@ -135,7 +135,7 @@ function BrandingSlot({ slot, label, hint }: { slot: "logo" | "favicon"; label: 
 
   useEffect(() => {
     let cancelled = false;
-    fetch(brandingUrl(slot, version), { method: "HEAD" }).then((r) => {
+    fetch(brandingUrl(slot, version)).then((r) => {
       if (!cancelled) setExists(r.ok);
     });
     return () => { cancelled = true; };
