@@ -1762,25 +1762,27 @@ def _hivelocity_server_map(server: models.Server, config: dict) -> dict:
 
 # ── dispatch ──────────────────────────────────────────────────────────────────
 
-def _append_ip_nodes(server: models.Server, result: dict) -> dict:
-    """Add IP address nodes from ssh_info.all_ips for any provider's server map."""
+def _ipnodes_collect_all_ips(server: models.Server) -> list[str]:
     ssh_info = server.ssh_info or {}
-    all_ips: list[str] = []
     if isinstance(ssh_info.get("all_ips"), list):
-        all_ips = ssh_info["all_ips"]
-    elif server.public_ip:
+        return ssh_info["all_ips"]
+    if server.public_ip:
         all_ips = [server.public_ip]
         if server.private_ip and server.private_ip != server.public_ip:
             all_ips.append(server.private_ip)
+        return all_ips
+    return []
 
-    # Collect IPs already in nodes to avoid duplicates
+
+def _ipnodes_find_root_id(nodes: list) -> str | None:
+    return next((n["id"] for n in nodes if n.get("category") == "compute"), None)
+
+
+def _append_ip_nodes(server: models.Server, result: dict) -> dict:
+    """Add IP address nodes from ssh_info.all_ips for any provider's server map."""
+    all_ips = _ipnodes_collect_all_ips(server)
     existing_labels = {n.get("label", "") for n in result.get("nodes", [])}
-
-    # Find the compute/server root node id
-    root_id = next(
-        (n["id"] for n in result.get("nodes", []) if n.get("category") == "compute"),
-        None,
-    )
+    root_id = _ipnodes_find_root_id(result.get("nodes", []))
     if root_id is None or not all_ips:
         return result
 
@@ -1791,9 +1793,8 @@ def _append_ip_nodes(server: models.Server, result: dict) -> dict:
         if ip in existing_labels:
             continue
         ip_node_id = f"ip-{server.id}-{idx}"
-        label = ip
         is_primary = ip == server.public_ip
-        nodes.append(_node(ip_node_id, "ip", "network", label, {
+        nodes.append(_node(ip_node_id, "ip", "network", ip, {
             "type": "primary" if is_primary else "additional",
         }))
         edges.append(_edge(root_id, ip_node_id, "primary IP" if is_primary else "IP"))
