@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server, type ServerGroup, type ServerGroupCreate, type SshCredential } from "@/lib/api";
-import { PageHeader, EmptyState, confirmAsync } from "@/components/ui-bits";
+import { PageHeader, EmptyState, confirmAsync, Modal } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Trash2, Pencil, Users, KeyRound, Cloud } from "lucide-react";
 import { toast } from "sonner";
@@ -50,33 +50,21 @@ function GroupDialog({ group, onClose }: Readonly<{ group?: ServerGroup; onClose
   });
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
-      >
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold">{group ? `Edit group — ${group.name}` : "New server group"}</h3>
-        </div>
-        <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-          <Input label="Name" value={name} onChange={setName} required />
-          <Input label="Description" value={description} onChange={setDescription} />
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {save.isPending ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
+    <Modal onClose={onClose} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
+      <div className="p-4 border-b border-border">
+        <h3 className="text-sm font-semibold">{group ? `Edit group — ${group.name}` : "New server group"}</h3>
       </div>
-    </div>
+      <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <Input label="Name" value={name} onChange={setName} required />
+        <Input label="Description" value={description} onChange={setDescription} />
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+            {save.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -113,60 +101,48 @@ function MembersDialog({ group, onClose }: Readonly<{ group: ServerGroup; onClos
   });
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[85vh]"
-      >
-        <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-sm font-semibold">Members — {group.name}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Select every server that belongs to this group. Saving replaces the full membership list.</p>
-        </div>
-        <div className="p-3 border-b border-border shrink-0">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search servers…"
-            className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md"
-          />
-        </div>
-        <div className="overflow-y-auto flex-1 p-2">
-          {filtered.map(s => (
-            <label key={s.id} className="flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-muted cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selected.has(s.id)}
-                onChange={e => {
-                  const next = new Set(selected);
-                  e.target.checked ? next.add(s.id) : next.delete(s.id);
-                  setActive(next);
-                }}
-              />
-              <span className="truncate">{s.name}</span>
-              <span className="text-xs text-muted-foreground ml-auto shrink-0">{s.provider}</span>
-            </label>
-          ))}
-          {filtered.length === 0 && <div className="text-sm text-muted-foreground p-4 text-center">No servers match.</div>}
-        </div>
-        <div className="flex justify-end gap-2 p-3 border-t border-border shrink-0">
-          <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-          <button
-            onClick={() => save.mutate(Array.from(selected))}
-            disabled={save.isPending}
-            className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
-          >
-            {save.isPending ? "Saving…" : "Save members"}
-          </button>
-        </div>
+    <Modal onClose={onClose} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[85vh]">
+      <div className="p-4 border-b border-border shrink-0">
+        <h3 className="text-sm font-semibold">Members — {group.name}</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">Select every server that belongs to this group. Saving replaces the full membership list.</p>
       </div>
-    </div>
+      <div className="p-3 border-b border-border shrink-0">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search servers…"
+          className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md"
+        />
+      </div>
+      <div className="overflow-y-auto flex-1 p-2">
+        {filtered.map(s => (
+          <label key={s.id} className="flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selected.has(s.id)}
+              onChange={e => {
+                const next = new Set(selected);
+                e.target.checked ? next.add(s.id) : next.delete(s.id);
+                setActive(next);
+              }}
+            />
+            <span className="truncate">{s.name}</span>
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">{s.provider}</span>
+          </label>
+        ))}
+        {filtered.length === 0 && <div className="text-sm text-muted-foreground p-4 text-center">No servers match.</div>}
+      </div>
+      <div className="flex justify-end gap-2 p-3 border-t border-border shrink-0">
+        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+        <button
+          onClick={() => save.mutate(Array.from(selected))}
+          disabled={save.isPending}
+          className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
+        >
+          {save.isPending ? "Saving…" : "Save members"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

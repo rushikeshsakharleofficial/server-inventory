@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Page, type Server, type Stats, type SshCredential, type ServerGroup } from "@/lib/api";
-import { Card, PageHeader, ProviderBadge, StatusPill, OsBadge, CustomSelect, confirmAsync, EmptyState } from "@/components/ui-bits";
+import { Card, PageHeader, ProviderBadge, StatusPill, OsBadge, CustomSelect, confirmAsync, EmptyState, Modal } from "@/components/ui-bits";
 import { useCurrentUser } from "@/lib/auth";
 import { RefreshCw, Trash2, Plus, Pencil, X, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -47,47 +47,39 @@ function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredentia
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onClose(); }}
-    >
-      <div className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm">{cred.name}</h2>
-          <button onClick={onClose} className="icon-btn"><X className="size-4" /></button>
-        </div>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <div className="text-xs text-muted-foreground">Username</div>
-              <div className="font-mono">{cred.username}</div>
-            </div>
-            <button onClick={() => copy("Username", cred.username)} className="icon-btn" title="Copy username"><Copy className="size-3.5" /></button>
+    <Modal onClose={onClose} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-sm">{cred.name}</h2>
+        <button onClick={onClose} className="icon-btn"><X className="size-4" /></button>
+      </div>
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="text-xs text-muted-foreground">Username</div>
+            <div className="font-mono">{cred.username}</div>
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-xs text-muted-foreground">{cred.auth_method === "key" ? "Private key" : "Password"}</div>
-              <div className="font-mono truncate">{revealed ?? "••••••••••••"}</div>
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <button onClick={reveal} disabled={loading} className="icon-btn disabled:opacity-40" title="Reveal">
-                {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </button>
-              <button
-                onClick={async () => {
-                  const value = revealed ?? (await reveal());
-                  if (value) copy(cred.auth_method === "key" ? "Private key" : "Password", value);
-                }}
-                className="icon-btn" title="Copy"
-              ><Copy className="size-3.5" /></button>
-            </div>
+          <button onClick={() => copy("Username", cred.username)} className="icon-btn" title="Copy username"><Copy className="size-3.5" /></button>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs text-muted-foreground">{cred.auth_method === "key" ? "Private key" : "Password"}</div>
+            <div className="font-mono truncate">{revealed ?? "••••••••••••"}</div>
+          </div>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button onClick={reveal} disabled={loading} className="icon-btn disabled:opacity-40" title="Reveal">
+              {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            </button>
+            <button
+              onClick={async () => {
+                const value = revealed ?? (await reveal());
+                if (value) copy(cred.auth_method === "key" ? "Private key" : "Password", value);
+              }}
+              className="icon-btn" title="Copy"
+            ><Copy className="size-3.5" /></button>
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -110,59 +102,57 @@ function AddServerDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   });
   const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm">Add custom server</h2>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
+    <Modal onClose={onClose} closeOnOutsideClick={false} className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-sm">Add custom server</h2>
+        <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label htmlFor="add-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
+          <input id="add-name" className={inp} value={form.name} onChange={set("name")} placeholder="my-server-01" required />
         </div>
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="add-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
-            <input id="add-name" className={inp} value={form.name} onChange={set("name")} placeholder="my-server-01" required />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Provider</label>
-              <CustomSelect
-                value={form.provider}
-                onChange={(v) => setForm(f => ({ ...f, provider: v }))}
-                options={["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(p => ({ value: p }))}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
-              <CustomSelect
-                value={form.status}
-                onChange={(v) => setForm(f => ({ ...f, status: v }))}
-                options={["unknown","running","stopped","pending"].map(s => ({ value: s }))}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="add-public-ip" className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
-              <input id="add-public-ip" className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" /> {/* NOSONAR */}
-            </div>
-            <div>
-              <label htmlFor="add-region" className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
-              <input id="add-region" className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
-            </div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Provider</label>
+            <CustomSelect
+              value={form.provider}
+              onChange={(v) => setForm(f => ({ ...f, provider: v }))}
+              options={["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(p => ({ value: p }))}
+            />
           </div>
           <div>
-            <label htmlFor="add-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
-            <textarea id="add-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} placeholder="Optional notes…" />
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
+            <CustomSelect
+              value={form.status}
+              onChange={(v) => setForm(f => ({ ...f, status: v }))}
+              options={["unknown","running","stopped","pending"].map(s => ({ value: s }))}
+            />
           </div>
         </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
-          <button onClick={() => create.mutate()} disabled={!form.name || create.isPending}
-            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50">
-            {create.isPending ? "Adding…" : "Add server"}
-          </button>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="add-public-ip" className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
+            <input id="add-public-ip" className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" /> {/* NOSONAR */}
+          </div>
+          <div>
+            <label htmlFor="add-region" className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
+            <input id="add-region" className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="add-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
+          <textarea id="add-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} placeholder="Optional notes…" />
         </div>
       </div>
-    </div>
+      <div className="flex justify-end gap-2 pt-1">
+        <button onClick={onClose} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
+        <button onClick={() => create.mutate()} disabled={!form.name || create.isPending}
+          className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50">
+          {create.isPending ? "Adding…" : "Add server"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -178,46 +168,44 @@ function EditServerDialog({ server, onClose }: Readonly<{ server: Server; onClos
   });
   const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm">Edit server</h2>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
+    <Modal onClose={onClose} closeOnOutsideClick={false} className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-sm">Edit server</h2>
+        <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label htmlFor="edit-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
+          <input id="edit-name" className={inp} value={form.name} onChange={set("name")} required />
         </div>
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="edit-name" className="text-xs text-muted-foreground font-medium block mb-1">Name *</label>
-            <input id="edit-name" className={inp} value={form.name} onChange={set("name")} required />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
-              <CustomSelect value={form.status} onChange={(v) => setForm(f => ({ ...f, status: v }))}
-                options={["unknown","running","stopped","pending"].map(s => ({ value: s }))} />
-            </div>
-            <div>
-              <label htmlFor="edit-region" className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
-              <input id="edit-region" className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
-            </div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
+            <CustomSelect value={form.status} onChange={(v) => setForm(f => ({ ...f, status: v }))}
+              options={["unknown","running","stopped","pending"].map(s => ({ value: s }))} />
           </div>
           <div>
-            <label htmlFor="edit-public-ip" className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
-            <input id="edit-public-ip" className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" /> {/* NOSONAR */}
-          </div>
-          <div>
-            <label htmlFor="edit-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
-            <textarea id="edit-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} />
+            <label htmlFor="edit-region" className="text-xs text-muted-foreground font-medium block mb-1">Region</label>
+            <input id="edit-region" className={inp} value={form.region} onChange={set("region")} placeholder="us-east-1" />
           </div>
         </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
-          <button onClick={() => update.mutate()} disabled={!form.name || update.isPending}
-            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50">
-            {update.isPending ? "Saving…" : "Save"}
-          </button>
+        <div>
+          <label htmlFor="edit-public-ip" className="text-xs text-muted-foreground font-medium block mb-1">Public IP</label>
+          <input id="edit-public-ip" className={inp} value={form.public_ip} onChange={set("public_ip")} placeholder="1.2.3.4" /> {/* NOSONAR */}
+        </div>
+        <div>
+          <label htmlFor="edit-notes" className="text-xs text-muted-foreground font-medium block mb-1">Notes</label>
+          <textarea id="edit-notes" className={inp} rows={2} value={form.notes} onChange={set("notes")} />
         </div>
       </div>
-    </div>
+      <div className="flex justify-end gap-2 pt-1">
+        <button onClick={onClose} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted">Cancel</button>
+        <button onClick={() => update.mutate()} disabled={!form.name || update.isPending}
+          className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50">
+          {update.isPending ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

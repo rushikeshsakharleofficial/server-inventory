@@ -7,6 +7,7 @@ import {
   EmptyState,
   CustomSelect,
   confirmAsync,
+  Modal,
 } from "@/components/ui-bits";
 import { useState, type ReactNode } from "react";
 import { Plus, Trash2, Power, Pencil, Lock, AlertTriangle } from "lucide-react";
@@ -294,18 +295,10 @@ function EditCredentialDialog({
   const fields = def?.fields ?? Object.keys(cred.config ?? {});
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape" || e.key === "Enter") onClose();
-      }}
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
     >
-      <div
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
-      >
         <div className="p-4 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold">
             Edit credential — {cred.provider}
@@ -406,8 +399,7 @@ function EditCredentialDialog({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -433,18 +425,10 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   });
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape" || e.key === "Enter") onClose();
-      }}
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
     >
-      <div
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
-      >
         <div className="p-4 border-b border-border">
           <h3 className="text-sm font-semibold">Add cloud credential</h3>
         </div>
@@ -571,7 +555,6 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

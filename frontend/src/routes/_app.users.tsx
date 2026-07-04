@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type UserRow } from "@/lib/api";
-import { PageHeader, StatusPill, CustomSelect, confirmAsync } from "@/components/ui-bits";
+import { PageHeader, StatusPill, CustomSelect, confirmAsync, Modal } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -118,46 +118,37 @@ function NewUserDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   });
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
-      role="button"
-      tabIndex={0}
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
-      >
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold">New user</h3>
-        </div>
-        <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
-          <div>
-            <label htmlFor="new-user-username" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Username</label>
-            <input id="new-user-username" required value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
-          </div>
-          <div>
-            <label htmlFor="new-user-password" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Password (10+ chars)</label>
-            <input id="new-user-password" required minLength={10} type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
-          </div>
-          <div>
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Role</span>
-            <CustomSelect
-              value={role}
-              onChange={(v) => setRole(v as "read" | "write")}
-              options={[{ value: "read" }, { value: "write" }]}
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={create.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {create.isPending ? "Saving…" : "Create"}
-            </button>
-          </div>
-        </form>
+      <div className="p-4 border-b border-border">
+        <h3 className="text-sm font-semibold">New user</h3>
       </div>
-    </div>
+      <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
+        <div>
+          <label htmlFor="new-user-username" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Username</label>
+          <input id="new-user-username" required value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
+        </div>
+        <div>
+          <label htmlFor="new-user-password" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Password (10+ chars)</label>
+          <input id="new-user-password" required minLength={10} type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md" />
+        </div>
+        <div>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Role</span>
+          <CustomSelect
+            value={role}
+            onChange={(v) => setRole(v as "read" | "write")}
+            options={[{ value: "read" }, { value: "write" }]}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={create.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+            {create.isPending ? "Saving…" : "Create"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

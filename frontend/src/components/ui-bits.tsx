@@ -417,6 +417,70 @@ export function EmptyState({
 }
 
 
+/**
+ * Shared modal overlay. The backdrop carries NO interaction attributes
+ * (no onClick/role/tabIndex/onKeyDown) — a div can't satisfy both
+ * "non-native interactive element needs a role" and "don't use ARIA role
+ * instead of a native element" at once, so dismissal lives entirely in
+ * document-level listeners instead, mirroring CustomSelect's own
+ * outside-click pattern above. This is deliberate: don't add onClick back
+ * onto the backdrop or its content panel.
+ */
+export function Modal({
+  onClose,
+  children,
+  closeOnOutsideClick = true,
+  dismissible = true,
+  className = "bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg",
+  backdropClassName = "fixed inset-0 z-50 flex items-center justify-center bg-black/50",
+}: Readonly<{
+  onClose: () => void;
+  children: ReactNode;
+  /** Set false for dialogs that should only close via an explicit action (e.g. Cancel button), not backdrop/Escape. */
+  closeOnOutsideClick?: boolean;
+  /** Set false to disable all dismissal (e.g. while a mutation is in flight). */
+  dismissible?: boolean;
+  className?: string;
+  /** Override the backdrop's own classes (e.g. to add backdrop-blur-sm) — must keep "fixed inset-0" positioning. */
+  backdropClassName?: string;
+}>) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!dismissible) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    function onMouseDown(e: MouseEvent) {
+      if (
+        closeOnOutsideClick &&
+        contentRef.current &&
+        !contentRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onMouseDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onMouseDown);
+    };
+  }, [onClose, closeOnOutsideClick, dismissible]);
+
+  useEffect(() => {
+    contentRef.current?.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
+  }, []);
+
+  return (
+    <div className={backdropClassName}>
+      <div ref={contentRef} className={className}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 type ConfirmRequest = { message: string; resolve: (ok: boolean) => void };
 let _confirmRequest: ((req: ConfirmRequest) => void) | null = null;
 
@@ -445,36 +509,25 @@ export function ConfirmDialogHost() {
     setReq(null);
   };
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
-      onClick={() => close(false)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") close(false);
-      }}
-      role="button"
-      tabIndex={0}
+    <Modal
+      onClose={() => close(false)}
+      className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-4"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-4"
-      >
-        <p className="text-sm">{req.message}</p>
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => close(false)}
-            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => close(true)}
-            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90"
-          >
-            Confirm
-          </button>
-        </div>
+      <p className="text-sm">{req.message}</p>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => close(false)}
+          className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => close(true)}
+          className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90"
+        >
+          Confirm
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -7,6 +7,7 @@ import {
   PageHeader,
   EmptyState,
   confirmAsync,
+  Modal,
 } from "@/components/ui-bits";
 import { Plus, Trash2, Power, Pencil, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -271,84 +272,75 @@ function EditCredentialDialog({
   const fields = def?.fields ?? Object.keys(cred.config ?? {});
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
+      <div className="p-4 border-b border-border shrink-0">
+        <h3 className="text-sm font-semibold">
+          Edit credential — {cred.provider}
+        </h3>
+      </div>
+      <form
+        className="p-4 space-y-3 overflow-y-auto flex-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          update.mutate();
+        }}
       >
-        <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-sm font-semibold">
-            Edit credential — {cred.provider}
-          </h3>
+        <div>
+          <label
+            htmlFor="edit-cred-name"
+            className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+          >
+            Name
+          </label>
+          <input
+            id="edit-cred-name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
+          />
         </div>
-        <form
-          className="p-4 space-y-3 overflow-y-auto flex-1"
-          onSubmit={(e) => {
-            e.preventDefault();
-            update.mutate();
-          }}
-        >
-          <div>
+        {fields.map((f) => (
+          <div key={f}>
             <label
-              htmlFor="edit-cred-name"
+              htmlFor={`edit-cred-field-${f}`}
               className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
             >
-              Name
+              {f.replaceAll("_", " ")}
             </label>
             <input
-              id="edit-cred-name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
+              id={`edit-cred-field-${f}`}
+              type={isSecret(f) ? "password" : "text"}
+              value={values[f] ?? ""}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, [f]: e.target.value }))
+              }
+              placeholder={isSecret(f) ? "leave blank to keep current" : ""}
+              className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
             />
           </div>
-          {fields.map((f) => (
-            <div key={f}>
-              <label
-                htmlFor={`edit-cred-field-${f}`}
-                className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
-              >
-                {f.replaceAll("_", " ")}
-              </label>
-              <input
-                id={`edit-cred-field-${f}`}
-                type={isSecret(f) ? "password" : "text"}
-                value={values[f] ?? ""}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, [f]: e.target.value }))
-                }
-                placeholder={isSecret(f) ? "leave blank to keep current" : ""}
-                className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-              />
-            </div>
-          ))}
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 text-sm rounded-md hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={update.isPending}
-              className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
-            >
-              {update.isPending ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        ))}
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded-md hover:bg-muted"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={update.isPending}
+            className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
+          >
+            {update.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -374,119 +366,110 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   });
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
+      <div className="p-4 border-b border-border">
+        <h3 className="text-sm font-semibold">Add DNS credential</h3>
+      </div>
+      <form
+        className="p-4 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          create.mutate();
+        }}
       >
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold">Add DNS credential</h3>
-        </div>
-        <form
-          className="p-4 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate();
-          }}
-        >
-          <div>
-            <span
-              id="new-cred-provider-label"
-              className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
-            >
-              Provider
-            </span>
-            <div
-              role="group"
-              aria-labelledby="new-cred-provider-label"
-              className="mt-1 grid grid-cols-4 gap-2"
-            >
-              {PROVIDERS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setProvider(p.id);
-                    setValues({});
-                  }}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] transition-colors ${
-                    provider === p.id
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border hover:border-muted-foreground/40 text-muted-foreground"
-                  }`}
-                >
-                  <img
-                    src={`/providers/${p.id}.svg`}
-                    alt={p.name}
-                    className="size-6 object-contain"
-                  />
-                  {p.name}
-                </button>
-              ))}
-            </div>
+        <div>
+          <span
+            id="new-cred-provider-label"
+            className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+          >
+            Provider
+          </span>
+          <div
+            role="group"
+            aria-labelledby="new-cred-provider-label"
+            className="mt-1 grid grid-cols-4 gap-2"
+          >
+            {PROVIDERS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setProvider(p.id);
+                  setValues({});
+                }}
+                className={`flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] transition-colors ${
+                  provider === p.id
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border hover:border-muted-foreground/40 text-muted-foreground"
+                }`}
+              >
+                <img
+                  src={`/providers/${p.id}.svg`}
+                  alt={p.name}
+                  className="size-6 object-contain"
+                />
+                {p.name}
+              </button>
+            ))}
           </div>
-          <div>
+        </div>
+        <div>
+          <label
+            htmlFor="new-cred-name"
+            className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+          >
+            Name
+          </label>
+          <input
+            id="new-cred-name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. example.com"
+            className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
+          />
+        </div>
+        {def.fields.map((f) => (
+          <div key={f}>
             <label
-              htmlFor="new-cred-name"
+              htmlFor={`new-cred-field-${f}`}
               className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
             >
-              Name
+              {f.replaceAll("_", " ")}
             </label>
             <input
-              id="new-cred-name"
+              id={`new-cred-field-${f}`}
               required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. example.com"
-              className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
+              type={isSecret(f) ? "password" : "text"}
+              value={values[f] ?? ""}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, [f]: e.target.value }))
+              }
+              className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
             />
           </div>
-          {def.fields.map((f) => (
-            <div key={f}>
-              <label
-                htmlFor={`new-cred-field-${f}`}
-                className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
-              >
-                {f.replaceAll("_", " ")}
-              </label>
-              <input
-                id={`new-cred-field-${f}`}
-                required
-                type={isSecret(f) ? "password" : "text"}
-                value={values[f] ?? ""}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, [f]: e.target.value }))
-                }
-                className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
-              />
-            </div>
-          ))}
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 text-sm rounded-md hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={create.isPending}
-              className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
-            >
-              {create.isPending ? "Adding…" : "Add"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        ))}
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded-md hover:bg-muted"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={create.isPending}
+            className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
+          >
+            {create.isPending ? "Adding…" : "Add"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -555,71 +538,61 @@ function BulkImportDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={importing ? undefined : onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && !importing) onClose();
-      }}
+    <Modal
+      onClose={onClose}
+      dismissible={!importing}
+      className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
-      >
-        <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-sm font-semibold">Bulk import DNS credentials</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            One domain per line. Use{" "}
-            <code className="font-mono">domain email api_token</code> (space or
-            tab separated) for a Cloudflare credential, or just{" "}
-            <code className="font-mono">domain</code> alone to auto-resolve its
-            DNS with no API key.
-          </p>
-        </div>
-        <div className="p-4 space-y-3 overflow-y-auto flex-1">
-          <textarea
-            rows={10}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={importing}
-            placeholder={
-              "example.com    user@example.com    <api_token>\nexample-noapi.com"
-            }
-            className="w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
-          />
-          <div className="text-xs text-muted-foreground">
-            {rows.length} valid row{rows.length === 1 ? "" : "s"} detected
-            {text.trim() && rows.length === 0 && " — check the format"}
-          </div>
-          {importing && (
-            <div className="text-xs text-muted-foreground">
-              Importing {progress.done} / {progress.total}
-              {progress.failed > 0 && ` (${progress.failed} failed)`}
-            </div>
-          )}
-        </div>
-        <div className="p-4 border-t border-border flex justify-end gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={importing}
-            className="px-3 py-1.5 text-sm rounded-md hover:bg-muted disabled:opacity-60"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={runImport}
-            disabled={importing || rows.length === 0}
-            className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
-          >
-            {importing ? "Importing…" : `Import ${rows.length || ""}`}
-          </button>
-        </div>
+      <div className="p-4 border-b border-border shrink-0">
+        <h3 className="text-sm font-semibold">Bulk import DNS credentials</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          One domain per line. Use{" "}
+          <code className="font-mono">domain email api_token</code> (space or
+          tab separated) for a Cloudflare credential, or just{" "}
+          <code className="font-mono">domain</code> alone to auto-resolve its
+          DNS with no API key.
+        </p>
       </div>
-    </div>
+      <div className="p-4 space-y-3 overflow-y-auto flex-1">
+        <textarea
+          rows={10}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          disabled={importing}
+          placeholder={
+            "example.com    user@example.com    <api_token>\nexample-noapi.com"
+          }
+          className="w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
+        />
+        <div className="text-xs text-muted-foreground">
+          {rows.length} valid row{rows.length === 1 ? "" : "s"} detected
+          {text.trim() && rows.length === 0 && " — check the format"}
+        </div>
+        {importing && (
+          <div className="text-xs text-muted-foreground">
+            Importing {progress.done} / {progress.total}
+            {progress.failed > 0 && ` (${progress.failed} failed)`}
+          </div>
+        )}
+      </div>
+      <div className="p-4 border-t border-border flex justify-end gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={importing}
+          className="px-3 py-1.5 text-sm rounded-md hover:bg-muted disabled:opacity-60"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={runImport}
+          disabled={importing || rows.length === 0}
+          className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60"
+        >
+          {importing ? "Importing…" : `Import ${rows.length || ""}`}
+        </button>
+      </div>
+    </Modal>
   );
 }

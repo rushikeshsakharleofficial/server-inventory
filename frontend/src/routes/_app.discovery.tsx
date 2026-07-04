@@ -9,7 +9,7 @@ import {
   type DiscoveryResult,
   type SshCredential,
 } from "@/lib/api";
-import { Card, PageHeader, StatusPill, CustomSelect, confirmAsync, EmptyState } from "@/components/ui-bits";
+import { Card, PageHeader, StatusPill, CustomSelect, confirmAsync, EmptyState, Modal } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { formatDistanceToNow } from "date-fns";
 import { Plus, Pencil, Trash2, Play, Square, X } from "lucide-react";
@@ -86,8 +86,7 @@ function NetworkDialog({ network, sshCreds, onClose }: Readonly<{ network: Disco
   const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
+    <Modal onClose={onClose} closeOnOutsideClick={false} className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-sm">{network ? "Edit discovery network" : "Add discovery network"}</h2>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
@@ -150,8 +149,7 @@ function NetworkDialog({ network, sshCreds, onClose }: Readonly<{ network: Disco
             {save.isPending ? "Saving…" : "Save"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

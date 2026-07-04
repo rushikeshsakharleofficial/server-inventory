@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type UserRow, type Group, type GroupCreate, type PermissionCatalog } from "@/lib/api";
-import { Card, PageHeader, StatusPill, CustomSelect, EmptyState, confirmAsync } from "@/components/ui-bits";
+import { Card, PageHeader, StatusPill, CustomSelect, EmptyState, confirmAsync, Modal } from "@/components/ui-bits";
 import { Plus, Trash2, Pencil, Power } from "lucide-react";
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
@@ -142,55 +142,43 @@ function PermissionDialog({
   const isPending = savePerms.isPending || saveGroups.isPending;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
-      >
-        <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-sm font-semibold">Edit IAM — {user.username}</h3>
-        </div>
-        <form className="p-4 space-y-4 overflow-y-auto flex-1" onSubmit={handleSave}>
-          {groups.length > 0 && (
-            <div>
-              <Label>Groups</Label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {groups.map((g) => (
-                  <label key={g.id} className="inline-flex items-center gap-1.5 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={groupIds.includes(g.id)}
-                      onChange={() => toggleGroup(g.id)}
-                      className="accent-primary"
-                    />
-                    {g.name}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-          <div>
-            <Label>Direct permissions</Label>
-            <div className="mt-2 border border-border rounded-md overflow-hidden">
-              <PermissionMatrix catalog={catalog} value={perms} onChange={setPerms} />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {isPending ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
+    <Modal onClose={onClose} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="p-4 border-b border-border shrink-0">
+        <h3 className="text-sm font-semibold">Edit IAM — {user.username}</h3>
       </div>
-    </div>
+      <form className="p-4 space-y-4 overflow-y-auto flex-1" onSubmit={handleSave}>
+        {groups.length > 0 && (
+          <div>
+            <Label>Groups</Label>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {groups.map((g) => (
+                <label key={g.id} className="inline-flex items-center gap-1.5 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={groupIds.includes(g.id)}
+                    onChange={() => toggleGroup(g.id)}
+                    className="accent-primary"
+                  />
+                  {g.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        <div>
+          <Label>Direct permissions</Label>
+          <div className="mt-2 border border-border rounded-md overflow-hidden">
+            <PermissionMatrix catalog={catalog} value={perms} onChange={setPerms} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+            {isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -224,39 +212,27 @@ function GroupDialog({
   });
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
-      >
-        <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-sm font-semibold">{group ? `Edit group — ${group.name}` : "New group"}</h3>
-        </div>
-        <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-          <Input label="Name" value={name} onChange={setName} required />
-          <Input label="Description" value={description} onChange={setDescription} />
-          <div>
-            <Label>Permissions</Label>
-            <div className="mt-2 border border-border rounded-md overflow-hidden">
-              <PermissionMatrix catalog={catalog} value={perms} onChange={setPerms} />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {save.isPending ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
+    <Modal onClose={onClose} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="p-4 border-b border-border shrink-0">
+        <h3 className="text-sm font-semibold">{group ? `Edit group — ${group.name}` : "New group"}</h3>
       </div>
-    </div>
+      <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <Input label="Name" value={name} onChange={setName} required />
+        <Input label="Description" value={description} onChange={setDescription} />
+        <div>
+          <Label>Permissions</Label>
+          <div className="mt-2 border border-border rounded-md overflow-hidden">
+            <PermissionMatrix catalog={catalog} value={perms} onChange={setPerms} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+            {save.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -508,31 +484,23 @@ function EditProfileDialog({ user, onClose }: Readonly<{ user: UserRow; onClose:
   });
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
+      backdropClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
-      >
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold">Edit profile — {user.username}</h3>
-        </div>
-        <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-          <Input label="Username" value={username} onChange={setUsername} required />
-          <Input label="Full Name (optional)" value={fullName} onChange={setFullName} />
-          <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
-          </div>
-        </form>
+      <div className="p-4 border-b border-border">
+        <h3 className="text-sm font-semibold">Edit profile — {user.username}</h3>
       </div>
-    </div>
+      <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <Input label="Username" value={username} onChange={setUsername} required />
+        <Input label="Full Name (optional)" value={fullName} onChange={setFullName} />
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -556,51 +524,39 @@ function NewUserDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   });
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
-      >
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold">New user</h3>
-        </div>
-        <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
-          <Input label="Username" value={username} onChange={setUsername} required />
-          <Input label="Full Name (optional)" value={fullName} onChange={setFullName} />
-          <div>
-            <Label>Password (10+ chars)</Label>
-            <input
-              required
-              minLength={10}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-            />
-          </div>
-          <div>
-            <Label>Role</Label>
-            <CustomSelect
-              value={role}
-              onChange={(v) => setRole(v as "read" | "write")}
-              options={[{ value: "read" }, { value: "write" }]}
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={create.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {create.isPending ? "Saving…" : "Create"}
-            </button>
-          </div>
-        </form>
+    <Modal onClose={onClose} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl">
+      <div className="p-4 border-b border-border">
+        <h3 className="text-sm font-semibold">New user</h3>
       </div>
-    </div>
+      <form className="p-4 space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
+        <Input label="Username" value={username} onChange={setUsername} required />
+        <Input label="Full Name (optional)" value={fullName} onChange={setFullName} />
+        <div>
+          <Label>Password (10+ chars)</Label>
+          <input
+            required
+            minLength={10}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
+          />
+        </div>
+        <div>
+          <Label>Role</Label>
+          <CustomSelect
+            value={role}
+            onChange={(v) => setRole(v as "read" | "write")}
+            options={[{ value: "read" }, { value: "write" }]}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={create.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+            {create.isPending ? "Saving…" : "Create"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

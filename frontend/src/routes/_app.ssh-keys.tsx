@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type SshCredential } from "@/lib/api";
-import { Card, PageHeader, EmptyState, CustomSelect, confirmAsync } from "@/components/ui-bits";
+import { Card, PageHeader, EmptyState, CustomSelect, confirmAsync, Modal } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Star, Trash2, Pencil } from "lucide-react";
 import { useState } from "react";
@@ -207,90 +207,81 @@ function SshDialog({ onClose, credential }: Readonly<{ onClose: () => void; cred
   });
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    <Modal
+      onClose={onClose}
+      className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
-      >
-        <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-sm font-semibold">{isEdit ? "Edit SSH credential" : "New SSH credential"}</h3>
+      <div className="p-4 border-b border-border shrink-0">
+        <h3 className="text-sm font-semibold">{isEdit ? "Edit SSH credential" : "New SSH credential"}</h3>
+      </div>
+      <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <Input label="Name" value={name} onChange={setName} required />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Username" value={username} onChange={setUsername} required />
+          <Input label="Port" value={String(port)} onChange={(v) => setPort(Number(v) || 22)} />
         </div>
-        <form className="p-4 space-y-3 overflow-y-auto flex-1" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-          <Input label="Name" value={name} onChange={setName} required />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Username" value={username} onChange={setUsername} required />
-            <Input label="Port" value={String(port)} onChange={(v) => setPort(Number(v) || 22)} />
-          </div>
+        <div>
+          <Label>Auth method</Label>
+          <CustomSelect
+            value={authMethod}
+            onChange={(v) => setAuthMethod(v as "password" | "key")}
+            options={[{ value: "key", label: "Private key" }, { value: "password", label: "Password" }]}
+          />
+        </div>
+        {authMethod === "password" ? (
+          <Input label="Password" value={password} onChange={setPassword} type="password" required={!isEdit}
+            placeholder={isEdit ? "Leave blank to keep existing" : undefined} />
+        ) : (
           <div>
-            <Label>Auth method</Label>
-            <CustomSelect
-              value={authMethod}
-              onChange={(v) => setAuthMethod(v as "password" | "key")}
-              options={[{ value: "key", label: "Private key" }, { value: "password", label: "Password" }]}
+            <Label>Private key</Label>
+            <textarea
+              required={!isEdit}
+              rows={5}
+              value={privateKey}
+              onChange={(e) => setPrivateKey(e.target.value)}
+              placeholder={isEdit ? "Leave blank to keep existing" : "-----BEGIN OPENSSH PRIVATE KEY-----"}
+              className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
             />
           </div>
-          {authMethod === "password" ? (
-            <Input label="Password" value={password} onChange={setPassword} type="password" required={!isEdit}
-              placeholder={isEdit ? "Leave blank to keep existing" : undefined} />
-          ) : (
+        )}
+        <button type="button" onClick={() => setShowProxy(v => !v)} className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 underline">
+          {showProxy ? "− Hide proxy" : "+ Add jump host / proxy"}
+        </button>
+        {showProxy && (
+          <div className="border border-border rounded-md p-3 space-y-3 bg-muted/30">
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Jump host / proxy</div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Proxy host" value={proxyHost} onChange={setProxyHost} />
+              <Input label="Proxy port" value={String(proxyPort)} onChange={(v) => setProxyPort(Number(v) || 22)} />
+            </div>
+            <Input label="Proxy username" value={proxyUsername} onChange={setProxyUsername} />
             <div>
-              <Label>Private key</Label>
-              <textarea
-                required={!isEdit}
-                rows={5}
-                value={privateKey}
-                onChange={(e) => setPrivateKey(e.target.value)}
-                placeholder={isEdit ? "Leave blank to keep existing" : "-----BEGIN OPENSSH PRIVATE KEY-----"}
-                className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
+              <Label>Proxy auth</Label>
+              <CustomSelect
+                value={proxyAuthMethod}
+                onChange={(v) => setProxyAuthMethod(v as "password" | "key")}
+                options={[{ value: "password", label: "Password" }, { value: "key", label: "Private key" }]}
               />
             </div>
-          )}
-          <button type="button" onClick={() => setShowProxy(v => !v)} className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 underline">
-            {showProxy ? "− Hide proxy" : "+ Add jump host / proxy"}
-          </button>
-          {showProxy && (
-            <div className="border border-border rounded-md p-3 space-y-3 bg-muted/30">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Jump host / proxy</div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Proxy host" value={proxyHost} onChange={setProxyHost} />
-                <Input label="Proxy port" value={String(proxyPort)} onChange={(v) => setProxyPort(Number(v) || 22)} />
-              </div>
-              <Input label="Proxy username" value={proxyUsername} onChange={setProxyUsername} />
-              <div>
-                <Label>Proxy auth</Label>
-                <CustomSelect
-                  value={proxyAuthMethod}
-                  onChange={(v) => setProxyAuthMethod(v as "password" | "key")}
-                  options={[{ value: "password", label: "Password" }, { value: "key", label: "Private key" }]}
-                />
-              </div>
-              {proxyAuthMethod === "password"
-                ? <Input label="Proxy password" value={proxyPassword} onChange={setProxyPassword} type="password" />
-                : <div>
-                    <Label>Proxy private key</Label>
-                    <textarea rows={3} value={proxyKey} onChange={e => setProxyKey(e.target.value)}
-                      placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-                      className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
-                  </div>
-              }
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
-              {save.isPending ? "Saving…" : "Save"}
-            </button>
+            {proxyAuthMethod === "password"
+              ? <Input label="Proxy password" value={proxyPassword} onChange={setProxyPassword} type="password" />
+              : <div>
+                  <Label>Proxy private key</Label>
+                  <textarea rows={3} value={proxyKey} onChange={e => setProxyKey(e.target.value)}
+                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                    className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md" />
+                </div>
+            }
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={save.isPending} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-60">
+            {save.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

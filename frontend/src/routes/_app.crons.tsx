@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type CronJob, type CronJobCreate, type Credential, type Page } from "@/lib/api";
-import { Card, PageHeader, StatusPill, EmptyState, CustomSelect, PROVIDER_LOGOS } from "@/components/ui-bits";
+import { Card, PageHeader, StatusPill, EmptyState, CustomSelect, PROVIDER_LOGOS, Modal } from "@/components/ui-bits";
 import { Play, Power, Trash2, Plus, X, Pencil, CalendarClock, Terminal as TerminalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -82,8 +82,7 @@ function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: Cron
     : (job ? "Save" : "Create");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
+    <Modal onClose={onClose} closeOnOutsideClick={false} className="bg-background border border-border rounded-lg p-6 w-full max-w-md space-y-4 shadow-lg">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-sm">{job ? "Edit cron job" : "Add cron job"}</h2>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="size-4" /></button>
@@ -184,8 +183,7 @@ function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: Cron
             {saveLabel}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

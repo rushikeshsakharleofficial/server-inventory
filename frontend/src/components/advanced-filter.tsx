@@ -7,6 +7,7 @@ import {
   Check,
   SlidersHorizontal,
 } from "lucide-react";
+import { Modal } from "@/components/ui-bits";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -541,53 +542,44 @@ export function AdvancedFilter({
 
       {/* Mobile drawer */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Close filters"
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setDrawerOpen(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setDrawerOpen(false);
-            }}
-          />
-          <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border rounded-t-xl p-4 space-y-3 max-h-[70vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-semibold flex items-center gap-1.5">
-                <Filter className="size-4" />
-                Filters
-              </span>
-              <button onClick={() => setDrawerOpen(false)}>
-                <X className="size-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {fields.map((f) => (
-                <div key={f.key} className="flex flex-col gap-1">
-                  <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
-                    {f.label}
-                  </label>
-                  {renderField(f)}
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={reset}
-                className="flex-1 py-2 text-sm border border-border rounded-md hover:bg-muted"
-              >
-                Reset all
-              </button>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                className="flex-1 py-2 text-sm bg-primary text-primary-foreground rounded-md"
-              >
-                Done
-              </button>
-            </div>
+        <Modal
+          onClose={() => setDrawerOpen(false)}
+          className="absolute bottom-0 left-0 right-0 bg-background border-t border-border rounded-t-xl p-4 space-y-3 max-h-[70vh] overflow-y-auto"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-semibold flex items-center gap-1.5">
+              <Filter className="size-4" />
+              Filters
+            </span>
+            <button onClick={() => setDrawerOpen(false)}>
+              <X className="size-4" />
+            </button>
           </div>
-        </div>
+          <div className="grid grid-cols-2 gap-2">
+            {fields.map((f) => (
+              <div key={f.key} className="flex flex-col gap-1">
+                <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
+                  {f.label}
+                </label>
+                {renderField(f)}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={reset}
+              className="flex-1 py-2 text-sm border border-border rounded-md hover:bg-muted"
+            >
+              Reset all
+            </button>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="flex-1 py-2 text-sm bg-primary text-primary-foreground rounded-md"
+            >
+              Done
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
