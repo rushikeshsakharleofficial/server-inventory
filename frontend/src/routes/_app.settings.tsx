@@ -43,13 +43,17 @@ function SettingsPage() {
 
   function save() {
     if (!data) return;
-    const changed = Object.entries(draft).filter(([k, v]) => data[k] !== v);
+    const changed = Object.entries(draft).filter(([k, v]) => !k.startsWith("branding_") && data[k] !== v);
     if (changed.length === 0) {
       toast.info("Nothing to save");
       return;
     }
     update.mutate(changed);
   }
+
+  // branding_* keys hold base64 image blobs — internal to the Branding card's
+  // own upload endpoint, not generic user-editable preferences.
+  const genericEntries = Object.entries(draft).filter(([k]) => !k.startsWith("branding_"));
 
   return (
     <div className="p-6 space-y-6">
@@ -60,7 +64,7 @@ function SettingsPage() {
           <h3 className="text-sm font-semibold">Application</h3>
         </div>
         <div className="p-4 space-y-4">
-          {Object.entries(draft).map(([k, v]) => (
+          {genericEntries.map(([k, v]) => (
             <div key={k} className="grid grid-cols-3 gap-4 items-center">
               <label className="text-xs font-mono text-muted-foreground">{k}</label>
               <div className="col-span-2">
