@@ -413,56 +413,38 @@ def _seed_admin() -> None:
         db.close()
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> None:
-    origin = ws.headers.get("origin", "")
-    if origin and origin not in _cors_origins:
-        await ws.close(code=4003)
-        return
-    await ws.accept()
+async def _ws_receive_token_from_first_message(ws: WebSocket) -> str | None:
+    try:
+        raw = await asyncio.wait_for(ws.receive_text(), timeout=10.0)
+        data = json.loads(raw)
+        return data.get("token") if isinstance(data, dict) else None
+    except Exception:
+        return None
 
-    # If token not in URL, expect {"type":"auth","token":"<jwt>"} as first message
-    if not token:
-        try:
-            raw = await asyncio.wait_for(ws.receive_text(), timeout=10.0)
-            data = json.loads(raw)
-            token = data.get("token") if isinstance(data, dict) else None
-        except Exception:
-            await ws.close(code=4001)
-            return
 
-    username: str = ""
-    token_exp: float = float("inf")
+def _ws_decode_token(token: str | None) -> tuple[str, float]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         username = payload.get("sub", "")
         token_exp = float(payload.get("exp", float("inf")))
+        return username, token_exp
     except JWTError:
-        pass
+        return "", float("inf")
 
-    if not username:
-        await ws.close(code=4001)
-        return
 
+def _ws_user_is_active(username: str) -> bool:
     db_check = SessionLocal()
     try:
         ws_user = db_check.query(models.User).filter(models.User.username == username).first()
-        if not ws_user or not ws_user.is_active:
-            await ws.close(code=4001)
-            return
+        return bool(ws_user and ws_user.is_active)
     finally:
         db_check.close()
 
-    await manager.connect(ws, username=username, token_exp=token_exp)
 
-    # On connect: send any currently running syncs so the client can recover state
+async def _ws_send_active_syncs(ws: WebSocket) -> None:
     db = SessionLocal()
     try:
-        running = (
-            db.query(models.SyncLog)
-            .filter(models.SyncLog.status == "running")
-            .all()
-        )
+        running = db.query(models.SyncLog).filter(models.SyncLog.status == "running").all()
         await ws.send_json({
             "type": "active_syncs",
             "syncs": [
@@ -478,25 +460,55 @@ async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> 
     finally:
         db.close()
 
+
+async def _ws_message_loop(ws: WebSocket) -> None:
+    while True:
+        data = await ws.receive_text()
+
+        if manager.is_rate_limited(ws):
+            # Drop the message silently; client will self-regulate via backoff
+            continue
+
+        if data == "ping":
+            await ws.send_text("pong")
+        elif data == "pong":
+            # Reply to a server-initiated ping — reset the dead-connection timer
+            manager.record_pong(ws)
+        # Unknown / malformed text messages are silently dropped; structured
+        # messages arrive as JSON via broadcast() from the backend, not from
+        # the client, so there is no JSON parse step needed here.
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> None:
+    origin = ws.headers.get("origin", "")
+    if origin and origin not in _cors_origins:
+        await ws.close(code=4003)
+        return
+    await ws.accept()
+
+    if not token:
+        token = await _ws_receive_token_from_first_message(ws)
+        if token is None:
+            await ws.close(code=4001)
+            return
+
+    username, token_exp = _ws_decode_token(token)
+    if not username:
+        await ws.close(code=4001)
+        return
+
+    if not _ws_user_is_active(username):
+        await ws.close(code=4001)
+        return
+
+    await manager.connect(ws, username=username, token_exp=token_exp)
+
+    # On connect: send any currently running syncs so the client can recover state
+    await _ws_send_active_syncs(ws)
+
     try:
-        while True:
-            data = await ws.receive_text()
-
-            # ── Rate limiting ────────────────────────────────────────────────
-            if manager.is_rate_limited(ws):
-                # Drop the message silently; client will self-regulate via backoff
-                continue
-
-            # ── Application-level ping/pong ──────────────────────────────────
-            if data == "ping":
-                await ws.send_text("pong")
-            elif data == "pong":
-                # Reply to a server-initiated ping — reset the dead-connection timer
-                manager.record_pong(ws)
-            # Unknown / malformed text messages are silently dropped; structured
-            # messages arrive as JSON via broadcast() from the backend, not from
-            # the client, so there is no JSON parse step needed here.
-
+        await _ws_message_loop(ws)
     except WebSocketDisconnect:
         manager.disconnect(ws)
     except Exception:  # noqa: BLE001 — catch-all to ensure cleanup on transport errors
