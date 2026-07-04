@@ -463,3 +463,86 @@ class HostKeyTrustResponse(BaseModel):
     key_type: str
     added: bool
     message: str = "Host key added to trusted hosts"
+
+
+# ─── On-prem network discovery ──────────────────────────────────────────────────
+
+class DiscoveryNetworkCreate(BaseModel):
+    name: str
+    cidr: str
+    datacenter: str | None = None
+    environment: str | None = None
+    ssh_credential_id: int | None = None
+    ssh_group: str | None = None
+    max_parallel: int = 32
+    timeout_seconds: int = 8
+    is_active: bool = True
+    notes: str | None = None
+
+
+class DiscoveryNetworkUpdate(BaseModel):
+    name: str | None = None
+    cidr: str | None = None
+    datacenter: str | None = None
+    environment: str | None = None
+    ssh_credential_id: int | None = None
+    ssh_group: str | None = None
+    max_parallel: int | None = None
+    timeout_seconds: int | None = None
+    is_active: bool | None = None
+    notes: str | None = None
+
+
+class DiscoveryNetworkResponse(BaseModel):
+    id: int
+    name: str
+    cidr: str
+    datacenter: str | None = None
+    environment: str | None = None
+    ssh_credential_id: int | None = None  # FK only — never the credential itself
+    ssh_group: str | None = None
+    max_parallel: int = 32
+    timeout_seconds: int = 8
+    is_active: bool = True
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class DiscoveryJobResponse(BaseModel):
+    id: int
+    network_id: int | None = None
+    cidr: str
+    status: str
+    total_ips: int = 0
+    scanned_ips: int = 0
+    reachable_ssh: int = 0
+    authenticated: int = 0
+    servers_added: int = 0
+    servers_updated: int = 0
+    duplicates_merged: int = 0
+    failed: int = 0
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_message: str | None = None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class DiscoveryResultResponse(BaseModel):
+    id: int
+    job_id: int
+    ip: str
+    port: int = 22
+    status: str
+    server_id: int | None = None
+    identity_hash: str | None = None
+    hostname: str | None = None
+    error_message: str | None = None
+    raw_summary: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Server, type SshCredential } from "@/lib/api";
+import { api, ApiError, type Server, type SshCredential, type ServerIpAddress } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, OsBadge } from "@/components/ui-bits";
 import { ArrowLeft, RefreshCw, Terminal, Trash2, Pencil, Network, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -314,6 +314,72 @@ function SshInfoSection({ sshInfo }: { sshInfo: Record<string, unknown> }) {
   );
 }
 
+// ── discovered networks section (server_ip_addresses, best-effort) ─────────────
+// NOTE: no `GET /api/servers/{id}/ip-addresses` endpoint exists yet on the
+// backend at time of writing (not in the discovery router's 10 endpoints).
+// This queries it defensively — a 404 renders the empty state below instead
+// of an error, so this section is a no-op until that endpoint ships.
+
+function DiscoveredNetworksSection({ serverId }: { serverId: string }) {
+  const { data: addrs, isLoading, error } = useQuery({
+    queryKey: ["serverIpAddresses", serverId],
+    queryFn: () => api<ServerIpAddress[]>(`/api/servers/${serverId}/ip-addresses`),
+    retry: false,
+  });
+
+  const notFound = error instanceof ApiError && error.status === 404;
+
+  if (isLoading) return <p className="text-xs text-muted-foreground">Loading…</p>;
+  if ((error && !notFound) || !addrs || addrs.length === 0) {
+    return <p className="text-xs text-muted-foreground">No discovered IP aliases yet.</p>;
+  }
+
+  const groups = new Map<string, ServerIpAddress[]>();
+  for (const a of addrs) {
+    const key = a.interface_name ?? "unknown";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(a);
+  }
+
+  return (
+    <div className="space-y-4">
+      {[...groups.entries()].map(([iface, rows]) => (
+        <div key={iface}>
+          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+            {iface} ({rows.length})
+          </div>
+          <div className="max-h-48 overflow-y-auto rounded-lg ring-1 ring-border">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-800 border-b border-border">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Address</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Scope</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">MAC</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Primary</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((a) => (
+                  <tr key={a.id} className="hover:bg-muted/30">
+                    <td className="px-3 py-1.5 font-mono">{a.address}</td>
+                    <td className="px-3 py-1.5">{a.scope}</td>
+                    <td className="px-3 py-1.5 font-mono">{a.mac_address ?? "—"}</td>
+                    <td className="px-3 py-1.5">{a.is_primary ? "yes" : "—"}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">
+                      {a.last_seen_at ? formatDistanceToNow(new Date(a.last_seen_at), { addSuffix: true }) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── main page ─────────────────────────────────────────────────────────────────
 
 function ServerDetailPage() {
@@ -442,6 +508,11 @@ function ServerDetailPage() {
           <SshInfoSection sshInfo={sshInfo} />
         </Section>
       )}
+
+      {/* Discovered Networks (server_ip_addresses, best-effort — see component note) */}
+      <Section title="Discovered Networks">
+        <DiscoveredNetworksSection serverId={id} />
+      </Section>
 
       {/* Tags */}
       {Object.keys(tags).length > 0 && (

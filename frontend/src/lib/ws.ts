@@ -29,6 +29,10 @@ const WsMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("sync_complete"), log_id: z.number(), provider: z.string(), status: z.string(), servers_added: z.number(), servers_updated: z.number(), error_message: z.string().nullable() }),
   z.object({ type: z.literal("sync_stopped"), log_id: z.number(), provider: z.string() }),
   z.object({ type: z.literal("server_status_changed"), server_id: z.number(), server_name: z.string(), provider: z.string(), old_status: z.string(), new_status: z.string() }),
+  z.object({ type: z.literal("discovery_started"), job_id: z.number(), total_ips: z.number() }),
+  z.object({ type: z.literal("discovery_progress"), job_id: z.number(), scanned_ips: z.number(), reachable_ssh: z.number(), authenticated: z.number(), servers_added: z.number(), servers_updated: z.number(), duplicates_merged: z.number(), failed: z.number() }),
+  z.object({ type: z.literal("discovery_complete"), job_id: z.number(), status: z.string(), scanned_ips: z.number(), reachable_ssh: z.number(), authenticated: z.number(), servers_added: z.number(), servers_updated: z.number(), duplicates_merged: z.number(), failed: z.number(), error_message: z.string().nullable().optional() }),
+  z.object({ type: z.literal("discovery_stopped"), job_id: z.number() }),
 ]);
 type WsMessage = z.infer<typeof WsMessage>;
 
@@ -89,6 +93,20 @@ export function useAppWebSocket() {
             qc.invalidateQueries({ queryKey: ["crons"] });
             break;
           case "server_status_changed":
+            qc.invalidateQueries({ queryKey: ["servers"] });
+            qc.invalidateQueries({ queryKey: ["stats"] });
+            break;
+          case "discovery_started":
+          case "discovery_stopped":
+            qc.invalidateQueries({ queryKey: ["discoveryJobs"] });
+            break;
+          case "discovery_progress": // debounced — mirrors sync_progress
+            debInvalidate(qc, ["discoveryJobs"]);
+            debInvalidate(qc, ["discoveryResults"]);
+            break;
+          case "discovery_complete":
+            qc.invalidateQueries({ queryKey: ["discoveryJobs"] });
+            qc.invalidateQueries({ queryKey: ["discoveryResults"] });
             qc.invalidateQueries({ queryKey: ["servers"] });
             qc.invalidateQueries({ queryKey: ["stats"] });
             break;

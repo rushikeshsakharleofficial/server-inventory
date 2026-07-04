@@ -180,6 +180,71 @@ export interface SyncLog {
   completed_at?: string | null;
 }
 
+export interface DiscoveryNetwork {
+  id: number;
+  name: string;
+  cidr: string;
+  datacenter?: string | null;
+  environment?: string | null;
+  ssh_credential_id?: number | null;
+  ssh_group?: string | null;
+  max_parallel: number;
+  timeout_seconds: number;
+  is_active: boolean;
+  notes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface DiscoveryJob {
+  id: number;
+  network_id?: number | null;
+  cidr: string;
+  status: "queued" | "running" | "success" | "failed" | "stopped";
+  total_ips: number;
+  scanned_ips: number;
+  reachable_ssh: number;
+  authenticated: number;
+  servers_added: number;
+  servers_updated: number;
+  duplicates_merged: number;
+  failed: number;
+  started_at?: string | null;
+  completed_at?: string | null;
+  error_message?: string | null;
+  created_at?: string | null;
+}
+
+export interface DiscoveryResult {
+  id: number;
+  job_id: number;
+  ip: string;
+  port: number;
+  status: "skipped" | "closed" | "open" | "auth_failed" | "success" | "duplicate" | "error";
+  server_id?: number | null;
+  identity_hash?: string | null;
+  hostname?: string | null;
+  error_message?: string | null;
+  raw_summary: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface ServerIpAddress {
+  id: number;
+  server_id: number;
+  address: string;
+  cidr?: string | null;
+  ip_version?: number | null;
+  interface_name?: string | null;
+  mac_address?: string | null;
+  scope: string;
+  is_primary: boolean;
+  discovered_from_ip?: string | null;
+  source: string;
+  first_seen_at?: string | null;
+  last_seen_at?: string | null;
+}
+
 export interface SshCredential {
   id: number;
   name: string;

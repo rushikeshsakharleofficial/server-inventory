@@ -43,6 +43,13 @@ class Server(Base):
     ssh_info          = Column(JSONB,    nullable=True)
     ssh_credential_id = Column(Integer,  ForeignKey("ssh_credentials.id", ondelete="SET NULL"), nullable=True)
     ssh_group         = Column(String(128), nullable=True)
+    # On-prem discovery identity signals — added via _migrate_discovery_server_columns
+    # since `servers` is a pre-existing table. NOT unique: cloned VMs/images can
+    # legitimately share a machine-id/product_uuid; discovery_service.resolve_server
+    # falls through to the next-priority signal when a query returns >1 match.
+    machine_id        = Column(String(64),  nullable=True)   # /etc/machine-id
+    product_uuid      = Column(String(64),  nullable=True)   # /sys/class/dmi/id/product_uuid
+    ssh_host_key_fp   = Column(String(128), nullable=True)   # sha256 SSH host key fingerprint
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_synced   = Column(DateTime(timezone=True), nullable=True)
@@ -70,6 +77,10 @@ class Server(Base):
         Index("ix_servers_tags_gin", "tags", postgresql_using="gin"),
         # Region filter/group-by (stats endpoint groups by region)
         Index("ix_servers_region", "region"),
+        # Discovery identity lookups — resolve_server queries these directly
+        Index("ix_servers_machine_id", "machine_id"),
+        Index("ix_servers_product_uuid", "product_uuid"),
+        Index("ix_servers_ssh_host_key_fp", "ssh_host_key_fp"),
     )
 
 
@@ -408,5 +419,123 @@ class EventLog(Base):
         Index("ix_evlog_status",    "status"),
         Index("ix_evlog_source",    "source"),
         Index("ix_evlog_resource",  "resource"),
+    )
+
+
+# ─── On-prem network discovery ──────────────────────────────────────────────────
+
+class ServerIpAddress(Base):
+    """Normalized IP alias per server, discovered via SSH scan (or cloud/manual).
+
+    One server can have many rows here (multi-homed hosts) — this table is what
+    lets discovery merge many scanned IPs into a single Server instead of creating
+    one server per address. Loopback/link-local addresses are deliberately never
+    stored here (see discovery_service.classify_scope) so the global unique
+    constraint on `address` holds — those scopes repeat identically across every
+    host and would collide.
+    """
+    __tablename__ = "server_ip_addresses"
+
+    id                 = Column(Integer, primary_key=True)
+    server_id          = Column(Integer, ForeignKey("servers.id", ondelete="CASCADE"), nullable=False)
+    address            = Column(String(45),  nullable=False)   # IPv4 or IPv6, no prefix
+    cidr               = Column(String(64),  nullable=True)    # e.g. "10.10.10.5/24"
+    ip_version         = Column(Integer,     nullable=True)    # 4 or 6
+    interface_name     = Column(String(64),  nullable=True)
+    mac_address        = Column(String(32),  nullable=True)
+    scope              = Column(String(16),  nullable=True)    # public|private|link-local|loopback
+    is_primary         = Column(Boolean,      default=False)
+    discovered_from_ip = Column(String(45),  nullable=True)    # which scanned IP reached this host
+    source             = Column(String(32),  default="ssh_discovery")  # ssh_discovery|cloud|manual
+    first_seen_at      = Column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at       = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    server = relationship("Server", foreign_keys=[server_id])
+
+    __table_args__ = (
+        # Global uniqueness: an address belongs to exactly one server at a time.
+        # Re-discovery reassigns via ON CONFLICT DO UPDATE, not insert-fails.
+        Index("uq_server_ip_addresses_address", "address", unique=True),
+        Index("ix_server_ip_addresses_server_id", "server_id"),
+    )
+
+
+class DiscoveryNetwork(Base):
+    """A saved CIDR range + scan settings an admin can re-run discovery against."""
+    __tablename__ = "discovery_networks"
+
+    id                = Column(Integer, primary_key=True)
+    name              = Column(String(255), nullable=False)
+    cidr              = Column(String(64),  nullable=False)
+    datacenter        = Column(String(128), nullable=True)
+    environment       = Column(String(64),  nullable=True)
+    ssh_credential_id = Column(Integer, ForeignKey("ssh_credentials.id", ondelete="SET NULL"), nullable=True)
+    ssh_group         = Column(String(128), nullable=True)
+    max_parallel      = Column(Integer,  default=32)
+    timeout_seconds   = Column(Integer,  default=8)
+    is_active         = Column(Boolean,  default=True)
+    notes             = Column(Text,     nullable=True)
+    created_at        = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at        = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    ssh_credential = relationship("SSHCredential", foreign_keys=[ssh_credential_id])
+
+    __table_args__ = (
+        Index("ix_discovery_networks_is_active", "is_active"),
+    )
+
+
+class DiscoveryJob(Base):
+    """One scan run — either against a saved DiscoveryNetwork or a one-time CIDR."""
+    __tablename__ = "discovery_jobs"
+
+    id                = Column(Integer, primary_key=True)
+    network_id        = Column(Integer, ForeignKey("discovery_networks.id", ondelete="SET NULL"), nullable=True)
+    cidr              = Column(String(64), nullable=False)
+    status            = Column(String(16), nullable=False, default="queued")  # queued|running|success|failed|stopped
+    total_ips         = Column(Integer, default=0)
+    scanned_ips       = Column(Integer, default=0)
+    reachable_ssh     = Column(Integer, default=0)
+    authenticated     = Column(Integer, default=0)
+    servers_added     = Column(Integer, default=0)
+    servers_updated   = Column(Integer, default=0)
+    duplicates_merged = Column(Integer, default=0)
+    failed            = Column(Integer, default=0)
+    started_at        = Column(DateTime(timezone=True), nullable=True)
+    completed_at      = Column(DateTime(timezone=True), nullable=True)
+    error_message     = Column(Text, nullable=True)
+    created_at        = Column(DateTime(timezone=True), server_default=func.now())
+
+    network = relationship("DiscoveryNetwork", foreign_keys=[network_id])
+
+    __table_args__ = (
+        Index("ix_discovery_jobs_status", "status"),
+        Index("ix_discovery_jobs_network_id", "network_id"),
+        # Partial index: startup crash-recovery and stop endpoint both query status='running'
+        Index("ix_discovery_jobs_status_running", "status", postgresql_where="status = 'running'"),
+    )
+
+
+class DiscoveryResult(Base):
+    """Per-IP outcome of a discovery job — the audit trail for every scanned address."""
+    __tablename__ = "discovery_results"
+
+    id            = Column(Integer, primary_key=True)
+    job_id        = Column(Integer, ForeignKey("discovery_jobs.id", ondelete="CASCADE"), nullable=False)
+    ip            = Column(String(45), nullable=False)
+    port          = Column(Integer, default=22)
+    status        = Column(String(16), nullable=False)  # skipped|closed|open|auth_failed|success|duplicate|error
+    server_id     = Column(Integer, ForeignKey("servers.id", ondelete="SET NULL"), nullable=True)
+    identity_hash = Column(String(64), nullable=True)    # audit trail only, never the join key
+    hostname      = Column(String(255), nullable=True)
+    error_message = Column(Text, nullable=True)
+    raw_summary   = Column(JSONB, default=_empty_json_dict)  # non-secret facts only — never credentials
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+    job    = relationship("DiscoveryJob", foreign_keys=[job_id])
+    server = relationship("Server", foreign_keys=[server_id])
+
+    __table_args__ = (
+        Index("ix_discovery_results_job_id", "job_id"),
     )
 

@@ -23,6 +23,7 @@ from .routers.mfa import router as mfa_router
 from .routers.iam import router as iam_router
 from .routers.server_groups import router as server_groups_router
 from .routers.event_logs import router as event_logs_router
+from .routers.discovery import router as discovery_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -133,6 +134,34 @@ def _migrate_group_super_admin() -> None:
         conn.commit()
 
 
+def _migrate_discovery_server_columns() -> None:
+    """Add on-prem-discovery identity columns to servers if they don't exist yet.
+
+    The 4 brand-new discovery_* / server_ip_addresses tables need no migration
+    (Base.metadata.create_all above already creates them) — this is only for the
+    identity columns added to the pre-existing `servers` table.
+    """
+    with engine.connect() as conn:
+        for col, definition in [
+            ("machine_id",      "VARCHAR(64)"),
+            ("product_uuid",    "VARCHAR(64)"),
+            ("ssh_host_key_fp", "VARCHAR(128)"),
+        ]:
+            conn.execute(text(
+                f"ALTER TABLE servers ADD COLUMN IF NOT EXISTS {col} {definition}"
+            ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_servers_machine_id ON servers (machine_id)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_servers_product_uuid ON servers (product_uuid)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_servers_ssh_host_key_fp ON servers (ssh_host_key_fp)"
+        ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
@@ -143,10 +172,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_credential_type()
     _migrate_server_ssh_assignment()
     _migrate_group_super_admin()
+    _migrate_discovery_server_columns()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
     _cleanup_stale_syncs()
+    _cleanup_stale_discovery_jobs()
     _seed_default_settings()
     _seed_admin_group()
     _seed_default_server_groups()
@@ -205,6 +236,7 @@ app.include_router(mfa_router)
 app.include_router(iam_router)
 app.include_router(event_logs_router)
 app.include_router(server_groups_router)
+app.include_router(discovery_router)
 
 
 def _apply_db_optimizations() -> None:
@@ -269,6 +301,22 @@ def _cleanup_stale_syncs() -> None:
             log.status = "failed"
             log.error_message = "Server restarted — sync orphaned"
             log.completed_at = datetime.now(timezone.utc)
+        if stale:
+            db.commit()
+    finally:
+        db.close()
+
+
+def _cleanup_stale_discovery_jobs() -> None:
+    """Mark any 'running' discovery jobs as failed — orphaned by a restart."""
+    from datetime import datetime, timezone
+    db = SessionLocal()
+    try:
+        stale = db.query(models.DiscoveryJob).filter(models.DiscoveryJob.status == "running").all()
+        for job in stale:
+            job.status = "failed"
+            job.error_message = "Server restarted — discovery orphaned"
+            job.completed_at = datetime.now(timezone.utc)
         if stale:
             db.commit()
     finally:

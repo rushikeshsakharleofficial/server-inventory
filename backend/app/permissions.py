@@ -29,6 +29,7 @@ FEATURES: list[str] = [
     "domains",
     "resource-map",
     "users",
+    "discovery",
 ]
 
 ACTIONS: list[str] = ["read", "write", "delete", "sync", "admin"]
@@ -48,6 +49,7 @@ FEATURE_ACTIONS: dict[str, list[str]] = {
     "domains":         ["read", "sync"],
     "resource-map":    ["read"],
     "users":           ["read", "admin"],
+    "discovery":       ["read", "write", "delete", "sync"],
 }
 
 # ─── Role baseline ─────────────────────────────────────────────────────────────
