@@ -993,6 +993,71 @@ def _linode_server_map(server: models.Server, config: dict) -> dict:
 
 # ── GCP Database (Cloud SQL) ──────────────────────────────────────────────────
 
+def _gcpdb_append_vpc(root_id: str, settings: dict, nodes: list, edges: list) -> None:
+    private_network = settings.get("ipConfiguration", {}).get("privateNetwork", "")
+    if private_network:
+        net_name = private_network.split("/")[-1]
+        nodes.append(_node(net_name, "vpc_network", "network", net_name, {"private_network": private_network}))
+        edges.append(_edge(root_id, net_name, "private network"))
+
+
+def _gcpdb_append_ip_addresses(root_id: str, ip_addrs: list, nodes: list, edges: list) -> None:
+    for ip in ip_addrs:
+        ip_type = ip.get("type", "")
+        ip_addr = ip.get("ipAddress", "")
+        node_id = f"ip-{ip_addr}"
+        nodes.append(_node(node_id, "public_ip" if ip_type == "PRIMARY" else "private_ip", "network",
+                           f"{ip_addr} ({ip_type})", {"type": ip_type}))
+        edges.append(_edge(root_id, node_id, ip_type.lower()))
+
+
+def _gcpdb_append_authorized_networks(root_id: str, settings: dict, nodes: list, edges: list) -> None:
+    for net in settings.get("ipConfiguration", {}).get("authorizedNetworks", []):
+        net_id = f"authnet-{net.get('value', '')}"
+        nodes.append(_node(net_id, "firewall_rule", "security", net.get("name") or net.get("value", "allowed network"),
+                           {"cidr": net.get("value"), "expiry": net.get("expirationTime")}))
+        edges.append(_edge(root_id, net_id, "authorized network"))
+
+
+def _gcpdb_append_backup(root_id: str, settings: dict, nodes: list, edges: list) -> None:
+    backup_cfg = settings.get("backupConfiguration", {})
+    if backup_cfg.get("enabled"):
+        nodes.append(_node("backup-config", "backup", "config", "Automated Backups",
+                           {"start_time": backup_cfg.get("startTime"), "retention_days": backup_cfg.get("transactionLogRetentionDays"),
+                            "point_in_time": backup_cfg.get("pointInTimeRecoveryEnabled")}))
+        edges.append(_edge(root_id, "backup-config", "backup policy"))
+
+
+def _gcpdb_append_maintenance_window(root_id: str, settings: dict, nodes: list, edges: list) -> None:
+    maint = settings.get("maintenanceWindow", {})
+    if maint:
+        nodes.append(_node("maintenance-window", "maintenance_policy", "config",
+                           f"Maintenance: day {maint.get('day')} hour {maint.get('hour')}",
+                           {"day": maint.get("day"), "hour": maint.get("hour"), "update_track": maint.get("updateTrack")}))
+        edges.append(_edge(root_id, "maintenance-window", "maintenance window"))
+
+
+def _gcpdb_append_read_replicas(root_id: str, inst: dict, nodes: list, edges: list) -> None:
+    for replica_name in inst.get("replicaNames", []):
+        nodes.append(_node(f"replica-{replica_name}", "read_replica", "compute", replica_name, {}))
+        edges.append(_edge(root_id, f"replica-{replica_name}", _READ_REPLICA))
+
+
+def _gcpdb_append_database_flags(root_id: str, settings: dict, nodes: list, edges: list) -> None:
+    flags = settings.get("databaseFlags", [])
+    if flags:
+        nodes.append(_node("db-flags", "parameter_group", "config", f"{len(flags)} DB flags",
+                           {f["name"]: f["value"] for f in flags[:10]}))
+        edges.append(_edge(root_id, "db-flags", "database flags"))
+
+
+def _gcpdb_append_service_account(root_id: str, inst: dict, nodes: list, edges: list) -> None:
+    sa_email = inst.get("serviceAccountEmailAddress")
+    if sa_email:
+        nodes.append(_node(sa_email, "service_account", "iam", sa_email, {}))
+        edges.append(_edge(root_id, sa_email, _SERVICE_ACCOUNT))
+
+
 def _gcp_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     import requests
     root_id = f"db-{db_inst.id}"
@@ -1010,64 +1075,15 @@ def _gcp_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
             return {"nodes": [], "edges": []}
         inst = resp.json()
         settings = inst.get("settings", {})
-        ip_addrs = inst.get("ipAddresses", [])
 
-        # VPC (private network)
-        private_network = settings.get("ipConfiguration", {}).get("privateNetwork", "")
-        if private_network:
-            net_name = private_network.split("/")[-1]
-            nodes.append(_node(net_name, "vpc_network", "network", net_name, {"private_network": private_network}))
-            edges.append(_edge(root_id, net_name, "private network"))
-
-        # IP addresses
-        for ip in ip_addrs:
-            ip_type = ip.get("type", "")
-            ip_addr = ip.get("ipAddress", "")
-            node_id = f"ip-{ip_addr}"
-            nodes.append(_node(node_id, "public_ip" if ip_type == "PRIMARY" else "private_ip", "network",
-                               f"{ip_addr} ({ip_type})", {"type": ip_type}))
-            edges.append(_edge(root_id, node_id, ip_type.lower()))
-
-        # Authorized networks
-        for net in settings.get("ipConfiguration", {}).get("authorizedNetworks", []):
-            net_id = f"authnet-{net.get('value', '')}"
-            nodes.append(_node(net_id, "firewall_rule", "security", net.get("name") or net.get("value", "allowed network"),
-                               {"cidr": net.get("value"), "expiry": net.get("expirationTime")}))
-            edges.append(_edge(root_id, net_id, "authorized network"))
-
-        # Backups
-        backup_cfg = settings.get("backupConfiguration", {})
-        if backup_cfg.get("enabled"):
-            nodes.append(_node("backup-config", "backup", "config", "Automated Backups",
-                               {"start_time": backup_cfg.get("startTime"), "retention_days": backup_cfg.get("transactionLogRetentionDays"),
-                                "point_in_time": backup_cfg.get("pointInTimeRecoveryEnabled")}))
-            edges.append(_edge(root_id, "backup-config", "backup policy"))
-
-        # Maintenance window
-        maint = settings.get("maintenanceWindow", {})
-        if maint:
-            nodes.append(_node("maintenance-window", "maintenance_policy", "config",
-                               f"Maintenance: day {maint.get('day')} hour {maint.get('hour')}",
-                               {"day": maint.get("day"), "hour": maint.get("hour"), "update_track": maint.get("updateTrack")}))
-            edges.append(_edge(root_id, "maintenance-window", "maintenance window"))
-
-        # Read replicas
-        for replica_name in inst.get("replicaNames", []):
-            nodes.append(_node(f"replica-{replica_name}", "read_replica", "compute", replica_name, {}))
-            edges.append(_edge(root_id, f"replica-{replica_name}", _READ_REPLICA))
-
-        # Database flags
-        flags = settings.get("databaseFlags", [])
-        if flags:
-            nodes.append(_node("db-flags", "parameter_group", "config", f"{len(flags)} DB flags",
-                               {f["name"]: f["value"] for f in flags[:10]}))
-            edges.append(_edge(root_id, "db-flags", "database flags"))
-
-        # Service account (for import/export)
-        sa_email = inst.get("serviceAccountEmailAddress")
-        if sa_email:
-            nodes.append(_node(sa_email, "service_account", "iam", sa_email, {}))
-            edges.append(_edge(root_id, sa_email, _SERVICE_ACCOUNT))
+        _gcpdb_append_vpc(root_id, settings, nodes, edges)
+        _gcpdb_append_ip_addresses(root_id, inst.get("ipAddresses", []), nodes, edges)
+        _gcpdb_append_authorized_networks(root_id, settings, nodes, edges)
+        _gcpdb_append_backup(root_id, settings, nodes, edges)
+        _gcpdb_append_maintenance_window(root_id, settings, nodes, edges)
+        _gcpdb_append_read_replicas(root_id, inst, nodes, edges)
+        _gcpdb_append_database_flags(root_id, settings, nodes, edges)
+        _gcpdb_append_service_account(root_id, inst, nodes, edges)
 
     except Exception:
         pass
