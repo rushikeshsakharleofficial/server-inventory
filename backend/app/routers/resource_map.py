@@ -658,6 +658,93 @@ def _az_token(config: dict) -> tuple:
     return resp.json()["access_token"], config["subscription_id"]
 
 
+def _azure_append_nsg(headers: dict, root_id: str, nsg_ref: dict, nodes: list, edges: list) -> None:
+    import requests
+    nsg_id = nsg_ref["id"]
+    nsg_url = f"https://management.azure.com{nsg_id}?api-version=2023-05-01"
+    try:
+        nsg = requests.get(nsg_url, headers=headers, timeout=15).json()
+        nsg_name = nsg.get("name", nsg_id.split("/")[-1])
+        inbound = len(nsg.get("properties", {}).get("securityRules", []))
+        nodes.append(_node(nsg_id, "nsg", "security", nsg_name, {"rules": inbound}))
+        edges.append(_edge(root_id, nsg_id, "NSG"))
+    except Exception:
+        pass
+
+
+def _azure_append_subnet_and_vnet(root_id: str, sub_ref: str, nodes: list, edges: list) -> None:
+    sub_name = sub_ref.split("/")[-1]
+    vnet_name = sub_ref.split("/")[-3] if len(sub_ref.split("/")) > 3 else "VNet"
+    nodes.append(_node(sub_ref, "subnet", "network", sub_name, {"vnet": vnet_name}))
+    edges.append(_edge(root_id, sub_ref, "subnet"))
+    vnet_id = "/".join(sub_ref.split("/")[:-2])
+    nodes.append(_node(vnet_id, "vnet", "network", vnet_name, {}))
+    edges.append(_edge(root_id, vnet_id, "VNet"))
+
+
+def _azure_append_public_ip(headers: dict, root_id: str, pub_ref: str, nodes: list, edges: list) -> None:
+    import requests
+    pip_url = f"https://management.azure.com{pub_ref}?api-version=2023-05-01"
+    try:
+        pip = requests.get(pip_url, headers=headers, timeout=15).json()
+        pub_ip = pip.get("properties", {}).get("ipAddress", "")
+        nodes.append(_node(pub_ref, "public_ip", "network", pub_ip or "Public IP", {"ip": pub_ip, "allocation": pip.get("properties", {}).get("publicIPAllocationMethod")}))
+        edges.append(_edge(root_id, pub_ref, "public IP"))
+    except Exception:
+        pass
+
+
+def _azure_append_ip_configs(headers: dict, root_id: str, nic_props: dict, nodes: list, edges: list) -> None:
+    for ip_cfg in nic_props.get("ipConfigurations", []):
+        ip_props = ip_cfg.get("properties", {})
+        sub_ref = ip_props.get("subnet", {}).get("id", "")
+        if sub_ref:
+            _azure_append_subnet_and_vnet(root_id, sub_ref, nodes, edges)
+        pub_ref = ip_props.get("publicIPAddress", {}).get("id", "")
+        if pub_ref:
+            _azure_append_public_ip(headers, root_id, pub_ref, nodes, edges)
+
+
+def _azure_append_one_nic(headers: dict, root_id: str, nic_ref: dict, nodes: list, edges: list) -> None:
+    import requests
+    nic_id = nic_ref["id"]
+    nic_url = f"https://management.azure.com{nic_id}?api-version=2023-05-01"
+    try:
+        nic = requests.get(nic_url, headers=headers, timeout=15).json()
+        nic_name = nic.get("name", nic_id.split("/")[-1])
+        nic_props = nic.get("properties", {})
+        nodes.append(_node(nic_id, "network_interface", "network", nic_name, {}))
+        edges.append(_edge(root_id, nic_id, "NIC"))
+
+        nsg_ref = nic_props.get("networkSecurityGroup")
+        if nsg_ref:
+            _azure_append_nsg(headers, root_id, nsg_ref, nodes, edges)
+
+        _azure_append_ip_configs(headers, root_id, nic_props, nodes, edges)
+    except Exception:
+        pass
+
+
+def _azure_append_network_interfaces(headers: dict, root_id: str, props: dict, nodes: list, edges: list) -> None:
+    for nic_ref in props.get("networkProfile", {}).get("networkInterfaces", []):
+        _azure_append_one_nic(headers, root_id, nic_ref, nodes, edges)
+
+
+def _azure_append_identity(root_id: str, vm: dict, nodes: list, edges: list) -> None:
+    identity = vm.get("identity", {})
+    if identity:
+        id_type = identity.get("type", "")
+        nodes.append(_node("identity", "managed_identity", "iam", f"Managed Identity ({id_type})", {"type": id_type}))
+        edges.append(_edge(root_id, "identity", "identity"))
+
+
+def _azure_append_availability_set(root_id: str, props: dict, nodes: list, edges: list) -> None:
+    avset = props.get("availabilitySet", {}).get("id", "")
+    if avset:
+        nodes.append(_node(avset, "availability_set", "compute", avset.split("/")[-1], {}))
+        edges.append(_edge(root_id, avset, "availability set"))
+
+
 def _azure_server_map(server: models.Server, config: dict) -> dict:
     import requests
     root_id = f"server-{server.id}"
@@ -676,71 +763,9 @@ def _azure_server_map(server: models.Server, config: dict) -> dict:
         vm = requests.get(vm_url, headers=headers, timeout=20).json()
         props = vm.get("properties", {})
 
-        # Network interfaces
-        for nic_ref in props.get("networkProfile", {}).get("networkInterfaces", []):
-            nic_id = nic_ref["id"]
-            nic_url = f"https://management.azure.com{nic_id}?api-version=2023-05-01"
-            try:
-                nic = requests.get(nic_url, headers=headers, timeout=15).json()
-                nic_name = nic.get("name", nic_id.split("/")[-1])
-                nic_props = nic.get("properties", {})
-                nodes.append(_node(nic_id, "network_interface", "network", nic_name, {}))
-                edges.append(_edge(root_id, nic_id, "NIC"))
-
-                # NSG
-                nsg_ref = nic_props.get("networkSecurityGroup")
-                if nsg_ref:
-                    nsg_id = nsg_ref["id"]
-                    nsg_url = f"https://management.azure.com{nsg_id}?api-version=2023-05-01"
-                    try:
-                        nsg = requests.get(nsg_url, headers=headers, timeout=15).json()
-                        nsg_name = nsg.get("name", nsg_id.split("/")[-1])
-                        inbound = len(nsg.get("properties", {}).get("securityRules", []))
-                        nodes.append(_node(nsg_id, "nsg", "security", nsg_name, {"rules": inbound}))
-                        edges.append(_edge(root_id, nsg_id, "NSG"))
-                    except Exception:
-                        pass
-
-                # IP Configs → VNet, Subnet, Public IP
-                for ip_cfg in nic_props.get("ipConfigurations", []):
-                    ip_props = ip_cfg.get("properties", {})
-                    # Subnet / VNet
-                    sub_ref = ip_props.get("subnet", {}).get("id", "")
-                    if sub_ref:
-                        sub_name = sub_ref.split("/")[-1]
-                        vnet_name = sub_ref.split("/")[-3] if len(sub_ref.split("/")) > 3 else "VNet"
-                        nodes.append(_node(sub_ref, "subnet", "network", sub_name, {"vnet": vnet_name}))
-                        edges.append(_edge(root_id, sub_ref, "subnet"))
-                        vnet_id = "/".join(sub_ref.split("/")[:-2])
-                        nodes.append(_node(vnet_id, "vnet", "network", vnet_name, {}))
-                        edges.append(_edge(root_id, vnet_id, "VNet"))
-                    # Public IP
-                    pub_ref = ip_props.get("publicIPAddress", {}).get("id", "")
-                    if pub_ref:
-                        pip_url = f"https://management.azure.com{pub_ref}?api-version=2023-05-01"
-                        try:
-                            pip = requests.get(pip_url, headers=headers, timeout=15).json()
-                            pub_ip = pip.get("properties", {}).get("ipAddress", "")
-                            nodes.append(_node(pub_ref, "public_ip", "network", pub_ip or "Public IP", {"ip": pub_ip, "allocation": pip.get("properties", {}).get("publicIPAllocationMethod")}))
-                            edges.append(_edge(root_id, pub_ref, "public IP"))
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-
-        # Identity
-        identity = vm.get("identity", {})
-        if identity:
-            id_type = identity.get("type", "")
-            nodes.append(_node("identity", "managed_identity", "iam", f"Managed Identity ({id_type})", {"type": id_type}))
-            edges.append(_edge(root_id, "identity", "identity"))
-
-        # Availability Set / VMSS
-        avset = props.get("availabilitySet", {}).get("id", "")
-        if avset:
-            nodes.append(_node(avset, "availability_set", "compute", avset.split("/")[-1], {}))
-            edges.append(_edge(root_id, avset, "availability set"))
-
+        _azure_append_network_interfaces(headers, root_id, props, nodes, edges)
+        _azure_append_identity(root_id, vm, nodes, edges)
+        _azure_append_availability_set(root_id, props, nodes, edges)
     except Exception:
         pass
 
