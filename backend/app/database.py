@@ -8,11 +8,16 @@ from .config import _is_production
 
 load_dotenv()
 
+_DEV_DB_USER = "inventory"
+_DEV_DB_NAME = "server_inventory"
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     if _is_production():
         raise RuntimeError("DATABASE_URL must be set in production")
-    DATABASE_URL = "postgresql://inventory:inventory@localhost:5432/server_inventory"
+    DATABASE_URL = (
+        f"postgresql://{_DEV_DB_USER}:{_DEV_DB_USER}@localhost:5432/{_DEV_DB_NAME}"
+    )
 
 engine = create_engine(
     DATABASE_URL,
