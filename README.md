@@ -15,11 +15,6 @@ Track servers, databases, Kubernetes clusters, block storage, and DNS records ac
 </div>
 
 <p align="center">
-  <img src="docs/screenshots/dashboard-light.png" alt="ServerInventory fleet dashboard" width="100%" />
-</p>
-
-<p align="center">
-  <a href="#screenshots">Screenshots</a> ·
   <a href="#features">Features</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="#security">Security</a> ·
@@ -31,7 +26,6 @@ Track servers, databases, Kubernetes clusters, block storage, and DNS records ac
 ## Table of Contents
 
 - [Why ServerInventory](#why-serverinventory)
-- [Screenshots](#screenshots)
 - [Features](#features)
 - [Stack](#stack)
 - [Quick Start](#quick-start)
@@ -57,21 +51,6 @@ Most cloud asset inventory tools are paid SaaS products that require sending you
 - **No agent required** — cloud resources sync via provider APIs; on-prem hosts are discovered and enriched over SSH
 - **RBAC built in** — per-user and per-group permissions across every feature, JWT auth, optional TOTP MFA
 - **Free and open source** — MIT licensed, fork it, self-host it, modify it
-
----
-
-## Screenshots
-
-### Fleet Dashboard
-![Fleet Dashboard](docs/screenshots/dashboard-light.png)
-
-### Settings — Branding
-![Settings Branding](docs/screenshots/settings-branding.png)
-
-### Collapsed Sidebar
-![Collapsed Sidebar](docs/screenshots/collapsed-sidebar.png)
-
-> Screenshots are taken against a real running instance. Views that would expose real server names, IP addresses, or credential metadata are intentionally left out — see [Screenshot Maintenance](#screenshot-maintenance) if you want to regenerate the full set against your own sanitized data.
 
 ---
 
@@ -331,22 +310,7 @@ graph LR
 - Uploaded branding assets accept raster images and GIF only — SVG is rejected to avoid stored XSS via inline script execution
 - Enable MFA on admin accounts via **Settings → Two-factor authentication**
 - Production deployments must terminate TLS in front of the app — do not expose the backend's plain HTTP port directly to the internet
-- Never commit `.env` files, real credentials, or screenshots containing real server names, IP addresses, or account emails
-
----
-
-## Screenshot Maintenance
-
-Screenshots live in `docs/screenshots/` and should be captured against demo or sanitized data only.
-
-Recommended viewport: `1600x1000`, light theme (the app currently ships one theme).
-
-```bash
-cd frontend
-bun run dev
-```
-
-Then use Playwright MCP (or a manual browser) to capture the running app. Never capture pages that list real server names, public IPs, DNS records, or credential metadata unless the underlying data is fully synthetic — several views (Servers, Domain Inventory, Provider Credentials, Resource Map at a zoomed-in level) were intentionally excluded from this repo's own screenshots for that reason.
+- Never commit `.env` files or real credentials
 
 ---
 
