@@ -448,9 +448,16 @@ export function ConfirmDialogHost() {
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
       onClick={() => close(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") close(false);
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
         className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-4"
       >
         <p className="text-sm">{req.message}</p>
