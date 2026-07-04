@@ -118,6 +118,71 @@ def extract_identity_signals(facts: dict[str, Any]) -> dict[str, str | None]:
 
 # ─── Identity resolution (DB reads — single consumer thread ONLY) ─────────
 
+def _match_by_machine_id(db: Session, signals: dict[str, Any]) -> models.Server | None:
+    machine_id = signals.get("machine_id")
+    if not machine_id:
+        return None
+    hits = db.query(models.Server).filter(models.Server.machine_id == machine_id).all()
+    return hits[0] if len(hits) == 1 else None
+
+
+def _match_by_product_uuid(db: Session, signals: dict[str, Any]) -> models.Server | None:
+    product_uuid = signals.get("product_uuid")
+    if not product_uuid:
+        return None
+    hits = db.query(models.Server).filter(models.Server.product_uuid == product_uuid).all()
+    return hits[0] if len(hits) == 1 else None
+
+
+def _match_by_ssh_host_key_fp(db: Session, ssh_host_key_fp: str | None) -> models.Server | None:
+    if not ssh_host_key_fp:
+        return None
+    hits = db.query(models.Server).filter(models.Server.ssh_host_key_fp == ssh_host_key_fp).all()
+    return hits[0] if len(hits) == 1 else None
+
+
+def _match_by_hostname_and_mac(db: Session, signals: dict[str, Any]) -> models.Server | None:
+    hostname = signals.get("hostname")
+    primary_mac = signals.get("primary_mac")
+    if not (hostname and primary_mac):
+        return None
+    hits = (
+        db.query(models.Server)
+        .join(models.ServerIpAddress, models.ServerIpAddress.server_id == models.Server.id)
+        .filter(
+            models.Server.hostname == hostname,
+            models.ServerIpAddress.mac_address == primary_mac,
+        )
+        .distinct()
+        .all()
+    )
+    return hits[0] if len(hits) == 1 else None
+
+
+def _match_by_existing_ip(db: Session, discovered_ips: list[str]) -> models.Server | None:
+    if not discovered_ips:
+        return None
+    by_alias = (
+        db.query(models.Server)
+        .join(models.ServerIpAddress, models.ServerIpAddress.server_id == models.Server.id)
+        .filter(models.ServerIpAddress.address.in_(discovered_ips))
+        .all()
+    )
+    by_legacy = (
+        db.query(models.Server)
+        .filter(
+            models.Server.public_ip.in_(discovered_ips)
+            | models.Server.private_ip.in_(discovered_ips)
+        )
+        .all()
+    )
+    dedup: dict[int, models.Server] = {s.id: s for s in by_alias}
+    for s in by_legacy:
+        dedup[s.id] = s
+    hits = list(dedup.values())
+    return hits[0] if len(hits) == 1 else None
+
+
 def resolve_server(
     db: Session,
     signals: dict[str, Any],
@@ -135,60 +200,16 @@ def resolve_server(
     fall through to next signal without treating it as a match. No match
     after all signals -> (None, None), caller creates a new Server.
     """
-    machine_id = signals.get("machine_id")
-    if machine_id:
-        hits = db.query(models.Server).filter(models.Server.machine_id == machine_id).all()
-        if len(hits) == 1:
-            return hits[0], "machine_id"
-
-    product_uuid = signals.get("product_uuid")
-    if product_uuid:
-        hits = db.query(models.Server).filter(models.Server.product_uuid == product_uuid).all()
-        if len(hits) == 1:
-            return hits[0], "product_uuid"
-
-    if ssh_host_key_fp:
-        hits = db.query(models.Server).filter(models.Server.ssh_host_key_fp == ssh_host_key_fp).all()
-        if len(hits) == 1:
-            return hits[0], "ssh_host_key_fp"
-
-    hostname = signals.get("hostname")
-    primary_mac = signals.get("primary_mac")
-    if hostname and primary_mac:
-        hits = (
-            db.query(models.Server)
-            .join(models.ServerIpAddress, models.ServerIpAddress.server_id == models.Server.id)
-            .filter(
-                models.Server.hostname == hostname,
-                models.ServerIpAddress.mac_address == primary_mac,
-            )
-            .distinct()
-            .all()
-        )
-        if len(hits) == 1:
-            return hits[0], "hostname_mac"
-
-    if discovered_ips:
-        by_alias = (
-            db.query(models.Server)
-            .join(models.ServerIpAddress, models.ServerIpAddress.server_id == models.Server.id)
-            .filter(models.ServerIpAddress.address.in_(discovered_ips))
-            .all()
-        )
-        by_legacy = (
-            db.query(models.Server)
-            .filter(
-                models.Server.public_ip.in_(discovered_ips)
-                | models.Server.private_ip.in_(discovered_ips)
-            )
-            .all()
-        )
-        dedup: dict[int, models.Server] = {s.id: s for s in by_alias}
-        for s in by_legacy:
-            dedup[s.id] = s
-        hits = list(dedup.values())
-        if len(hits) == 1:
-            return hits[0], "existing_ip"
+    for reason, matcher in (
+        ("machine_id", lambda: _match_by_machine_id(db, signals)),
+        ("product_uuid", lambda: _match_by_product_uuid(db, signals)),
+        ("ssh_host_key_fp", lambda: _match_by_ssh_host_key_fp(db, ssh_host_key_fp)),
+        ("hostname_mac", lambda: _match_by_hostname_and_mac(db, signals)),
+        ("existing_ip", lambda: _match_by_existing_ip(db, discovered_ips)),
+    ):
+        match = matcher()
+        if match:
+            return match, reason
 
     return None, None
 
