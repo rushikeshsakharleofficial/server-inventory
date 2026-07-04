@@ -61,10 +61,171 @@ def _get_active_providers(db: Session) -> list[str]:
     return [provider for (provider,) in rows if provider]
 
 
+def _fetch_provider_servers(cred, stop_event) -> list:
+    """Fetches the provider's server list with a 300s timeout, raising
+    RuntimeError on a stop request or timeout."""
+    if stop_event.is_set():
+        raise RuntimeError(_SYNC_STOPPED_MSG)
+
+    provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        future = ex.submit(provider.fetch_servers)
+        try:
+            return future.result(timeout=300)
+        except concurrent.futures.TimeoutError:
+            raise RuntimeError("Provider fetch timed out after 300 seconds")
+
+
+def _load_existing_servers_by_cloud_id(db, srv_list: list, provider_name: str) -> dict:
+    cloud_ids = [s.get("cloud_id") for s in srv_list if s.get("cloud_id")]
+    existing_map: dict[str, models.Server] = {}
+    if not cloud_ids:
+        return existing_map
+    for obj in (
+        db.query(models.Server)
+        .filter(models.Server.cloud_id.in_(cloud_ids), models.Server.provider == provider_name)
+        .all()
+    ):
+        if obj.cloud_id:
+            existing_map[obj.cloud_id] = obj
+    return existing_map
+
+
+def _upsert_one_server(db, srv: dict, existing_map: dict, allowed_cols: set) -> tuple[bool, models.Server | None]:
+    """Updates an existing Server row or creates a new one from a provider's
+    raw server dict. Returns (was_update, newly_created_server_or_None)."""
+    cloud_id = srv.get("cloud_id")
+    existing = existing_map.get(cloud_id) if cloud_id else None
+
+    if existing:
+        old_status = existing.status
+        for k, v in srv.items():
+            if hasattr(existing, k):
+                setattr(existing, k, v)
+        existing.last_synced = datetime.now(timezone.utc)
+        if old_status != existing.status:
+            manager.broadcast({
+                "type": "server_status_changed",
+                "server_id": existing.id,
+                "server_name": existing.name,
+                "provider": existing.provider,
+                "old_status": old_status,
+                "new_status": existing.status,
+            })
+        return True, None
+
+    new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
+    new_srv.last_synced = datetime.now(timezone.utc)
+    db.add(new_srv)
+    return False, new_srv
+
+
+def _upsert_servers_in_batches(db, log, cred, srv_list: list, existing_map: dict, stop_event) -> tuple[int, int, list]:
+    """Upserts srv_list in SYNC_BATCH_SIZE chunks, committing and
+    broadcasting progress after each batch. Returns (added, updated, new_servers)."""
+    allowed_cols = {c.key for c in models.Server.__table__.columns}
+    new_servers: list[models.Server] = []
+    added = updated = 0
+    total = len(srv_list)
+
+    for batch_start in range(0, total, SYNC_BATCH_SIZE):
+        if stop_event.is_set():
+            raise RuntimeError(_SYNC_STOPPED_MSG)
+
+        for srv in srv_list[batch_start : batch_start + SYNC_BATCH_SIZE]:
+            was_update, new_srv = _upsert_one_server(db, srv, existing_map, allowed_cols)
+            if was_update:
+                updated += 1
+            else:
+                added += 1
+                new_servers.append(new_srv)
+
+        db.commit()
+        manager.broadcast({
+            "type": "sync_progress",
+            "log_id": log.id,
+            "provider": cred.provider,
+            "processed": min(batch_start + SYNC_BATCH_SIZE, total),
+            "total": total,
+            "added": added,
+            "updated": updated,
+        })
+        if batch_start + SYNC_BATCH_SIZE < total:
+            time.sleep(SYNC_BATCH_DELAY_S)
+
+    return added, updated, new_servers
+
+
+def _sync_one_credential(db, cred) -> None:
+    from ..stats_utils import take_snapshot
+
+    log = models.SyncLog(provider=cred.provider, status="running")
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+
+    stop_event = threading.Event()
+    _stop_events[log.id] = stop_event
+    manager.broadcast({"type": "sync_started", "log_id": log.id, "provider": cred.provider})
+
+    added = updated = 0
+    error = None
+    try:
+        srv_list = _fetch_provider_servers(cred, stop_event)
+        if stop_event.is_set():
+            raise RuntimeError(_SYNC_STOPPED_MSG)
+
+        existing_map = _load_existing_servers_by_cloud_id(db, srv_list, cred.provider)
+        added, updated, new_servers = _upsert_servers_in_batches(
+            db, log, cred, srv_list, existing_map, stop_event
+        )
+
+        # SSH IP fetch — best-effort, runs after provider sync
+        _ssh_fetch_ips(db, list(existing_map.values()) + new_servers)
+
+        try:
+            take_snapshot(db)
+        except Exception:  # noqa: BLE001 — snapshot failure must not abort the sync
+            pass
+
+    except Exception as exc:
+        error = str(exc)
+        db.rollback()
+    finally:
+        _stop_events.pop(log.id, None)
+
+    log.status = "failed" if error else "success"
+    log.servers_added = added
+    log.servers_updated = updated
+    log.error_message = error
+    log.completed_at = datetime.now(timezone.utc)
+    add_event_log(
+        db,
+        severity="error" if error else "info",
+        source="sync",
+        resource=cred.provider,
+        event="Provider sync failed" if error else "Provider sync completed",
+        status="open" if error else "resolved",
+        owner="system",
+        message=error or f"servers_added={added}, servers_updated={updated}",
+        tags=[cred.provider],
+    )
+    db.commit()
+
+    manager.broadcast({
+        "type": "sync_complete",
+        "log_id": log.id,
+        "provider": cred.provider,
+        "status": log.status,
+        "servers_added": log.servers_added,
+        "servers_updated": log.servers_updated,
+        "error_message": log.error_message,
+    })
+
+
 def _run_sync(provider_name: str | None, db_url: str) -> None:
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    from ..stats_utils import take_snapshot
 
     engine = create_engine(db_url, pool_pre_ping=True)
     db = sessionmaker(bind=engine)()
@@ -75,146 +236,7 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
             q = q.filter(models.Credential.provider == provider_name)
 
         for cred in q.all():
-            log = models.SyncLog(provider=cred.provider, status="running")
-            db.add(log)
-            db.commit()
-            db.refresh(log)
-
-            stop_event = threading.Event()
-            _stop_events[log.id] = stop_event
-
-            manager.broadcast({
-                "type": "sync_started",
-                "log_id": log.id,
-                "provider": cred.provider,
-            })
-
-            added   = 0
-            updated = 0
-            error   = None
-
-            try:
-                if stop_event.is_set():
-                    raise RuntimeError(_SYNC_STOPPED_MSG)
-
-                provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
-
-                # 300s timeout on the provider fetch
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                    future = ex.submit(provider.fetch_servers)
-                    try:
-                        srv_list = future.result(timeout=300)
-                    except concurrent.futures.TimeoutError:
-                        raise RuntimeError("Provider fetch timed out after 300 seconds")
-
-                if stop_event.is_set():
-                    raise RuntimeError(_SYNC_STOPPED_MSG)
-
-                # Pre-fetch all existing servers for this provider in one query
-                cloud_ids = [s.get("cloud_id") for s in srv_list if s.get("cloud_id")]
-                existing_map: dict[str, models.Server] = {}
-                if cloud_ids:
-                    for obj in (
-                        db.query(models.Server)
-                        .filter(
-                            models.Server.cloud_id.in_(cloud_ids),
-                            models.Server.provider == cred.provider,
-                        )
-                        .all()
-                    ):
-                        if obj.cloud_id:
-                            existing_map[obj.cloud_id] = obj
-
-                allowed_cols = {c.key for c in models.Server.__table__.columns}
-                new_servers: list[models.Server] = []
-                total = len(srv_list)
-                for batch_start in range(0, total, SYNC_BATCH_SIZE):
-                    if stop_event.is_set():
-                        raise RuntimeError(_SYNC_STOPPED_MSG)
-
-                    for srv in srv_list[batch_start : batch_start + SYNC_BATCH_SIZE]:
-                        cloud_id = srv.get("cloud_id")
-                        existing = existing_map.get(cloud_id) if cloud_id else None
-
-                        if existing:
-                            old_status = existing.status
-                            for k, v in srv.items():
-                                if hasattr(existing, k):
-                                    setattr(existing, k, v)
-                            existing.last_synced = datetime.now(timezone.utc)
-                            updated += 1
-                            if old_status != existing.status:
-                                manager.broadcast({
-                                    "type":        "server_status_changed",
-                                    "server_id":   existing.id,
-                                    "server_name": existing.name,
-                                    "provider":    existing.provider,
-                                    "old_status":  old_status,
-                                    "new_status":  existing.status,
-                                })
-                        else:
-                            new_srv = models.Server(**{k: v for k, v in srv.items() if k in allowed_cols})
-                            new_srv.last_synced = datetime.now(timezone.utc)
-                            db.add(new_srv)
-                            new_servers.append(new_srv)
-                            added += 1
-
-                    db.commit()
-                    manager.broadcast({
-                        "type":      "sync_progress",
-                        "log_id":    log.id,
-                        "provider":  cred.provider,
-                        "processed": min(batch_start + SYNC_BATCH_SIZE, total),
-                        "total":     total,
-                        "added":     added,
-                        "updated":   updated,
-                    })
-                    if batch_start + SYNC_BATCH_SIZE < total:
-                        time.sleep(SYNC_BATCH_DELAY_S)
-
-                # SSH IP fetch — best-effort, runs after provider sync
-                _ssh_fetch_ips(db, list(existing_map.values()) + new_servers)
-
-                # Take a snapshot after successful sync
-                try:
-                    take_snapshot(db)
-                except Exception:  # noqa: BLE001 — snapshot failure must not abort the sync
-                    pass
-
-            except Exception as exc:
-                error = str(exc)
-                db.rollback()
-            finally:
-                _stop_events.pop(log.id, None)
-
-            log.status        = "failed" if error else "success"
-            log.servers_added = added
-            log.servers_updated = updated
-            log.error_message = error
-            log.completed_at  = datetime.now(timezone.utc)
-            add_event_log(
-                db,
-                severity="error" if error else "info",
-                source="sync",
-                resource=cred.provider,
-                event="Provider sync failed" if error else "Provider sync completed",
-                status="open" if error else "resolved",
-                owner="system",
-                message=error or f"servers_added={added}, servers_updated={updated}",
-                tags=[cred.provider],
-            )
-            db.commit()
-
-            manager.broadcast({
-                "type":            "sync_complete",
-                "log_id":          log.id,
-                "provider":        cred.provider,
-                "status":          log.status,
-                "servers_added":   log.servers_added,
-                "servers_updated": log.servers_updated,
-                "error_message":   log.error_message,
-            })
-
+            _sync_one_credential(db, cred)
     finally:
         db.close()
 
