@@ -370,6 +370,81 @@ def _aws_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+def _awseks_append_vpc(ec2, root_id: str, vpc_id: str | None, nodes: list, edges: list) -> None:
+    if not vpc_id:
+        return
+    try:
+        vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
+        vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
+        nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
+        edges.append(_edge(root_id, vpc_id, _IN_VPC))
+    except Exception:
+        pass
+
+
+def _awseks_append_subnets(ec2, root_id: str, subnet_ids: list, nodes: list, edges: list) -> None:
+    for subnet_id in subnet_ids[:5]:
+        try:
+            sub_data = ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]
+            sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), subnet_id)
+            nodes.append(_node(subnet_id, "subnet", "network", sub_name, {"cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": subnet_id}))
+        except Exception:
+            nodes.append(_node(subnet_id, "subnet", "network", subnet_id, {}))
+        edges.append(_edge(root_id, subnet_id, "subnet"))
+
+
+def _awseks_append_security_groups(ec2, root_id: str, sg_ids: list, nodes: list, edges: list) -> None:
+    for sg_id in sg_ids:
+        try:
+            sg_detail = ec2.describe_security_groups(GroupIds=[sg_id])["SecurityGroups"][0]
+            nodes.append(_node(sg_id, "security_group", "security", sg_detail.get("GroupName", sg_id), {"id": sg_id}))
+        except Exception:
+            nodes.append(_node(sg_id, "security_group", "security", sg_id, {}))
+        edges.append(_edge(root_id, sg_id, "security group"))
+
+
+def _awseks_append_iam_role(root_id: str, c: dict, nodes: list, edges: list) -> None:
+    role_arn = c.get("roleArn")
+    if role_arn:
+        role_name = role_arn.split("/")[-1]
+        nodes.append(_node(role_arn, "iam_role", "iam", role_name, {"arn": role_arn}))
+        edges.append(_edge(root_id, role_arn, "cluster role"))
+
+
+def _awseks_append_nodegroups(eks, root_id: str, cluster_name: str, nodes: list, edges: list) -> None:
+    try:
+        ng_names = eks.list_nodegroups(clusterName=cluster_name).get("nodegroups", [])
+        for ng_name in ng_names[:8]:
+            ng = eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=ng_name)["nodegroup"]
+            nodes.append(_node(f"ng-{ng_name}", "node_group", "compute", ng_name, {
+                "instance_types": ng.get("instanceTypes", []),
+                "desired": ng.get("scalingConfig", {}).get("desiredSize"),
+                "min": ng.get("scalingConfig", {}).get("minSize"),
+                "max": ng.get("scalingConfig", {}).get("maxSize"),
+                "status": ng.get("status"),
+            }))
+            edges.append(_edge(root_id, f"ng-{ng_name}", "node group"))
+    except Exception:
+        pass
+
+
+def _awseks_append_oidc(root_id: str, c: dict, nodes: list, edges: list) -> None:
+    oidc = c.get("identity", {}).get("oidc", {}).get("issuer")
+    if oidc:
+        nodes.append(_node("oidc", "oidc_provider", "iam", "OIDC Provider", {"issuer": oidc}))
+        edges.append(_edge(root_id, "oidc", "OIDC"))
+
+
+def _awseks_append_addons(eks, root_id: str, cluster_name: str, nodes: list, edges: list) -> None:
+    try:
+        addons = eks.list_addons(clusterName=cluster_name).get("addons", [])
+        for addon in addons:
+            nodes.append(_node(f"addon-{addon}", "addon", "config", addon, {}))
+            edges.append(_edge(root_id, f"addon-{addon}", "addon"))
+    except Exception:
+        pass
+
+
 def _aws_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict:
     try:
         import boto3
@@ -393,74 +468,13 @@ def _aws_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict
 
     resources_vpc = c.get("resourcesVpcConfig", {})
 
-    # VPC
-    vpc_id = resources_vpc.get("vpcId")
-    if vpc_id:
-        try:
-            vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
-            vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
-            nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
-            edges.append(_edge(root_id, vpc_id, _IN_VPC))
-        except Exception:
-            pass
-
-    # Subnets
-    for subnet_id in resources_vpc.get("subnetIds", [])[:5]:
-        try:
-            sub_data = ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]
-            sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), subnet_id)
-            nodes.append(_node(subnet_id, "subnet", "network", sub_name, {"cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": subnet_id}))
-            edges.append(_edge(root_id, subnet_id, "subnet"))
-        except Exception:
-            nodes.append(_node(subnet_id, "subnet", "network", subnet_id, {}))
-            edges.append(_edge(root_id, subnet_id, "subnet"))
-
-    # Security Groups
-    for sg_id in resources_vpc.get("securityGroupIds", []):
-        try:
-            sg_detail = ec2.describe_security_groups(GroupIds=[sg_id])["SecurityGroups"][0]
-            nodes.append(_node(sg_id, "security_group", "security", sg_detail.get("GroupName", sg_id), {"id": sg_id}))
-        except Exception:
-            nodes.append(_node(sg_id, "security_group", "security", sg_id, {}))
-        edges.append(_edge(root_id, sg_id, "security group"))
-
-    # IAM Role
-    role_arn = c.get("roleArn")
-    if role_arn:
-        role_name = role_arn.split("/")[-1]
-        nodes.append(_node(role_arn, "iam_role", "iam", role_name, {"arn": role_arn}))
-        edges.append(_edge(root_id, role_arn, "cluster role"))
-
-    # Nodegroups
-    try:
-        ng_names = eks.list_nodegroups(clusterName=c["name"]).get("nodegroups", [])
-        for ng_name in ng_names[:8]:
-            ng = eks.describe_nodegroup(clusterName=c["name"], nodegroupName=ng_name)["nodegroup"]
-            nodes.append(_node(f"ng-{ng_name}", "node_group", "compute", ng_name, {
-                "instance_types": ng.get("instanceTypes", []),
-                "desired": ng.get("scalingConfig", {}).get("desiredSize"),
-                "min": ng.get("scalingConfig", {}).get("minSize"),
-                "max": ng.get("scalingConfig", {}).get("maxSize"),
-                "status": ng.get("status"),
-            }))
-            edges.append(_edge(root_id, f"ng-{ng_name}", "node group"))
-    except Exception:
-        pass
-
-    # OIDC
-    oidc = c.get("identity", {}).get("oidc", {}).get("issuer")
-    if oidc:
-        nodes.append(_node("oidc", "oidc_provider", "iam", "OIDC Provider", {"issuer": oidc}))
-        edges.append(_edge(root_id, "oidc", "OIDC"))
-
-    # Add-ons
-    try:
-        addons = eks.list_addons(clusterName=c["name"]).get("addons", [])
-        for addon in addons:
-            nodes.append(_node(f"addon-{addon}", "addon", "config", addon, {}))
-            edges.append(_edge(root_id, f"addon-{addon}", "addon"))
-    except Exception:
-        pass
+    _awseks_append_vpc(ec2, root_id, resources_vpc.get("vpcId"), nodes, edges)
+    _awseks_append_subnets(ec2, root_id, resources_vpc.get("subnetIds", []), nodes, edges)
+    _awseks_append_security_groups(ec2, root_id, resources_vpc.get("securityGroupIds", []), nodes, edges)
+    _awseks_append_iam_role(root_id, c, nodes, edges)
+    _awseks_append_nodegroups(eks, root_id, c["name"], nodes, edges)
+    _awseks_append_oidc(root_id, c, nodes, edges)
+    _awseks_append_addons(eks, root_id, c["name"], nodes, edges)
 
     return {"nodes": nodes, "edges": edges}
 
