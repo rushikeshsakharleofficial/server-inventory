@@ -1,4 +1,4 @@
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Card, EmptyState } from "@/components/ui-bits";
 import { SmartPagination } from "@/components/SmartPagination";
 import { useAdaptivePageSize } from "@/hooks/useAdaptivePageSize";
@@ -55,7 +55,9 @@ export function SmartTable<T>({
   const bodyRef = useRef<HTMLDivElement>(null);
   const pageSize = useAdaptivePageSize({ bodyRef });
 
-  if (onPageSizeChange) onPageSizeChange(pageSize);
+  useEffect(() => {
+    onPageSizeChange?.(pageSize);
+  }, [pageSize, onPageSizeChange]);
 
   const visibleRows =
     mode === "client" ? rows.slice((page - 1) * pageSize, page * pageSize) : rows;
