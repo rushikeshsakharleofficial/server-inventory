@@ -150,11 +150,9 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground font-medium block mb-1">Time</label>
-                  <input
-                    type="time"
-                    className={inp}
+                  <AnalogClockPicker
                     value={pickedTime}
-                    onChange={(e) => { setPickedTime(e.target.value); applyPicker(pickedDate, e.target.value, repeatMode); }}
+                    onChange={(v) => { setPickedTime(v); applyPicker(pickedDate, v, repeatMode); }}
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-mono">{form.cron_expr}</p>
@@ -282,13 +280,118 @@ function CronsPage() {
   );
 }
 
+// Analogue clock face for picking a time — native <input type="time"> can't
+// be restyled into a clock (the browser owns that widget entirely), so this
+// draws one from scratch: drag/click either hand around an SVG dial.
+function AnalogClockPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [h24, m] = value.split(":").map(Number);
+  const isPM = h24 >= 12;
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const [dragging, setDragging] = useState<"hour" | "minute" | null>(null);
+
+  const R = 80, CX = 90, CY = 90;
+
+  function angleFromEvent(e: { clientX: number; clientY: number }, svg: SVGSVGElement) {
+    const rect = svg.getBoundingClientRect();
+    const x = e.clientX - rect.left - CX;
+    const y = e.clientY - rect.top - CY;
+    let deg = (Math.atan2(y, x) * 180) / Math.PI + 90;
+    if (deg < 0) deg += 360;
+    return deg;
+  }
+
+  function setFromAngle(deg: number, hand: "hour" | "minute") {
+    if (hand === "minute") {
+      const minute = Math.round(deg / 6) % 60;
+      onChange(`${String(h24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+    } else {
+      const hour12 = Math.round(deg / 30) % 12 || 12;
+      const nextH24 = isPM ? (hour12 % 12) + 12 : hour12 % 12;
+      onChange(`${String(nextH24).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+
+  function handlePointer(e: React.PointerEvent<SVGSVGElement>) {
+    if (!dragging) return;
+    setFromAngle(angleFromEvent(e, e.currentTarget), dragging);
+  }
+
+  const hourAngle = (h12 % 12) * 30 + m * 0.5;
+  const minuteAngle = m * 6;
+
+  function hand(angle: number, length: number, width: number, testId: "hour" | "minute") {
+    const rad = ((angle - 90) * Math.PI) / 180;
+    const x2 = CX + length * Math.cos(rad);
+    const y2 = CY + length * Math.sin(rad);
+    return (
+      <line
+        x1={CX} y1={CY} x2={x2} y2={y2}
+        stroke="var(--color-primary)" strokeWidth={width} strokeLinecap="round"
+        onPointerDown={() => setDragging(testId)}
+        style={{ cursor: "grab" }}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg
+        width={180} height={180} viewBox="0 0 180 180"
+        onPointerMove={handlePointer}
+        onPointerUp={() => setDragging(null)}
+        onPointerLeave={() => setDragging(null)}
+        className="select-none"
+      >
+        <circle cx={CX} cy={CY} r={R} fill="var(--color-background)" stroke="var(--color-border)" strokeWidth={1.5} />
+        {Array.from({ length: 12 }, (_, i) => {
+          const angle = ((i * 30 - 90) * Math.PI) / 180;
+          const x = CX + (R - 12) * Math.cos(angle);
+          const y = CY + (R - 12) * Math.sin(angle);
+          return (
+            <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={10} fill="var(--color-muted-foreground)">
+              {i === 0 ? 12 : i}
+            </text>
+          );
+        })}
+        {hand(hourAngle, 40, 4, "hour")}
+        {hand(minuteAngle, 62, 2.5, "minute")}
+        <circle cx={CX} cy={CY} r={3} fill="var(--color-primary)" />
+      </svg>
+      <div className="flex items-center gap-2 text-xs font-mono">
+        <span>{String(h12).padStart(2, "0")}:{String(m).padStart(2, "0")}</span>
+        <div className="inline-flex rounded-md border border-border overflow-hidden">
+          {(["AM", "PM"] as const).map((suffix) => (
+            <button
+              key={suffix}
+              type="button"
+              onClick={() => {
+                const wantPM = suffix === "PM";
+                const nextH24 = wantPM ? (h12 % 12) + 12 : h12 % 12;
+                onChange(`${String(nextH24).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+              }}
+              className={`px-2 py-0.5 ${(suffix === "PM") === isPM ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+            >
+              {suffix}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const LOGO_GRID_MAX = 4;
 
 function ProviderLogoGrid({ providers }: { providers: string[] }) {
   const [open, setOpen] = useState(false);
-  if (!providers.length) return <span className="text-xs text-muted-foreground">—</span>;
-  const shown = providers.slice(0, LOGO_GRID_MAX);
-  const hidden = providers.length - shown.length;
+  // Only show providers with a real recognizable logo — custom/generic
+  // credential names (e.g. a reseller account) have no logo asset and would
+  // otherwise render as broken images or pad the overflow count with
+  // entries nobody can visually identify.
+  const known = providers.filter((p) => PROVIDER_LOGOS[p]);
+  if (!known.length) return <span className="text-xs text-muted-foreground">—</span>;
+  const shown = known.slice(0, LOGO_GRID_MAX);
+  const hidden = known.length - shown.length;
   return (
     <div className="relative inline-block">
       <button
@@ -314,7 +417,7 @@ function ProviderLogoGrid({ providers }: { providers: string[] }) {
       </button>
       {open && (
         <div className="absolute z-30 top-full left-0 mt-1 bg-surface border border-border rounded-md shadow-lg p-2 flex flex-wrap gap-2 w-max max-w-[200px]">
-          {providers.map((p) => (
+          {known.map((p) => (
             <div key={p} className="flex items-center gap-1.5 text-xs">
               <img src={PROVIDER_LOGOS[p]} alt={p} className="size-4 object-contain rounded-sm" />
               <span className="capitalize">{p}</span>

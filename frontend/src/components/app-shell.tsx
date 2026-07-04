@@ -178,7 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => toggleGroup(group.group)}
-                className={`w-full flex items-center justify-between px-2 pb-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest whitespace-nowrap transition-all duration-300 ${collapsed ? "opacity-0 -translate-x-2 h-0 overflow-hidden pointer-events-none" : "opacity-100 translate-x-0"}`}
+                className={`w-full flex items-center justify-between px-2 pb-1.5 text-xs font-bold text-foreground/80 uppercase tracking-wide whitespace-nowrap transition-all duration-300 ${collapsed ? "opacity-0 -translate-x-2 h-0 overflow-hidden pointer-events-none" : "opacity-100 translate-x-0"}`}
               >
                 <span>{group.group}</span>
                 <ChevronDown
