@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, type Server, type SshCredential, type ServerIpAddress } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, OsBadge } from "@/components/ui-bits";
-import { ArrowLeft, RefreshCw, Terminal, Trash2, Pencil, Network, ShieldCheck } from "lucide-react";
+import { ArrowLeft, RefreshCw, Trash2, Pencil, Network, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -205,12 +205,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function FieldGrid({ entries }: { entries: [string, React.ReactNode][] }) {
+  // Drop fields with no real value (bare "—" placeholder) so the grid sizes
+  // itself to the fields that actually have data instead of always rendering
+  // a fixed number of mostly-empty cells.
+  const populated = entries.filter(([, value]) => value !== "—" && value !== null && value !== undefined);
+  if (!populated.length) return <p className="text-xs text-muted-foreground">No data.</p>;
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px bg-border ring-1 ring-border rounded-lg overflow-hidden">
-      {entries.map(([label, value]) => (
+      {populated.map(([label, value]) => (
         <div key={label} className="bg-surface p-3">
           <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">{label}</div>
-          <div className="text-sm font-mono break-all">{value ?? "—"}</div>
+          <div className="text-sm font-mono break-all">{value}</div>
         </div>
       ))}
     </div>
@@ -453,13 +458,6 @@ function ServerDetailPage() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90"
           >
             <RefreshCw className="size-3.5" /> SSH Sync
-          </button>
-          <button
-            disabled
-            title="SSH terminal — coming soon"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-md opacity-40 cursor-not-allowed"
-          >
-            <Terminal className="size-3.5" /> Connect
           </button>
           <button
             onClick={async () => { if (await confirmAsync(`Delete ${server.name}?`)) del.mutate(); }}
