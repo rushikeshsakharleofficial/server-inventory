@@ -298,6 +298,58 @@ def _aws_server_map(server: models.Server, config: dict) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+def _awsrds_append_vpc(ec2, root_id: str, vpc_id: str | None, nodes: list, edges: list) -> None:
+    if not vpc_id:
+        return
+    try:
+        vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
+        vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
+        nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
+        edges.append(_edge(root_id, vpc_id, _IN_VPC))
+    except Exception:
+        pass
+
+
+def _awsrds_append_security_groups(ec2, root_id: str, sgs: list, nodes: list, edges: list) -> None:
+    for sg in sgs:
+        sg_id = sg["VpcSecurityGroupId"]
+        try:
+            sg_detail = ec2.describe_security_groups(GroupIds=[sg_id])["SecurityGroups"][0]
+            nodes.append(_node(sg_id, "security_group", "security", sg_detail.get("GroupName", sg_id), {
+                "description": sg_detail.get("Description", ""), "inbound_rules": len(sg_detail.get("IpPermissions", [])), "id": sg_id
+            }))
+        except Exception:
+            nodes.append(_node(sg_id, "security_group", "security", sg_id, {"id": sg_id}))
+        edges.append(_edge(root_id, sg_id, "member of"))
+
+
+def _awsrds_append_subnet_group(root_id: str, sg_group: dict, nodes: list, edges: list) -> None:
+    if not sg_group:
+        return
+    sg_name = sg_group.get("DBSubnetGroupName", "")
+    nodes.append(_node(f"subnet-group-{sg_name}", "subnet_group", "network", sg_name, {
+        "description": sg_group.get("DBSubnetGroupDescription", ""), "subnets": len(sg_group.get("Subnets", []))
+    }))
+    edges.append(_edge(root_id, f"subnet-group-{sg_name}", "subnet group"))
+
+
+def _awsrds_append_parameter_groups(root_id: str, param_groups: list, nodes: list, edges: list) -> None:
+    for pg in param_groups:
+        pg_name = pg.get("DBParameterGroupName", "")
+        nodes.append(_node(f"pg-{pg_name}", "parameter_group", "config", pg_name, {"status": pg.get("ParameterApplyStatus")}))
+        edges.append(_edge(root_id, f"pg-{pg_name}", "parameter group"))
+
+
+def _awsrds_append_multi_az_and_replicas(root_id: str, inst: dict, nodes: list, edges: list) -> None:
+    if inst.get("MultiAZ"):
+        nodes.append(_node("multi-az", "availability_zone", "compute", "Multi-AZ Standby", {"enabled": True}))
+        edges.append(_edge(root_id, "multi-az", "standby replica"))
+
+    for replica_id in inst.get("ReadReplicaDBInstanceIdentifiers", []):
+        nodes.append(_node(f"replica-{replica_id}", "read_replica", "compute", replica_id, {}))
+        edges.append(_edge(root_id, f"replica-{replica_id}", _READ_REPLICA))
+
+
 def _aws_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     try:
         import boto3
@@ -320,52 +372,11 @@ def _aws_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict:
     except Exception:
         return {"nodes": [], "edges": []}
 
-    # VPC
-    vpc_id = inst.get("DBSubnetGroup", {}).get("VpcId")
-    if vpc_id:
-        try:
-            vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
-            vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
-            nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
-            edges.append(_edge(root_id, vpc_id, _IN_VPC))
-        except Exception:
-            pass
-
-    # Security Groups
-    for sg in inst.get("VpcSecurityGroups", []):
-        sg_id = sg["VpcSecurityGroupId"]
-        try:
-            sg_detail = ec2.describe_security_groups(GroupIds=[sg_id])["SecurityGroups"][0]
-            nodes.append(_node(sg_id, "security_group", "security", sg_detail.get("GroupName", sg_id), {
-                "description": sg_detail.get("Description", ""), "inbound_rules": len(sg_detail.get("IpPermissions", [])), "id": sg_id
-            }))
-        except Exception:
-            nodes.append(_node(sg_id, "security_group", "security", sg_id, {"id": sg_id}))
-        edges.append(_edge(root_id, sg_id, "member of"))
-
-    # Subnet Group
-    sg_group = inst.get("DBSubnetGroup", {})
-    if sg_group:
-        sg_name = sg_group.get("DBSubnetGroupName", "")
-        nodes.append(_node(f"subnet-group-{sg_name}", "subnet_group", "network", sg_name, {
-            "description": sg_group.get("DBSubnetGroupDescription", ""), "subnets": len(sg_group.get("Subnets", []))
-        }))
-        edges.append(_edge(root_id, f"subnet-group-{sg_name}", "subnet group"))
-
-    # Parameter Group
-    for pg in inst.get("DBParameterGroups", []):
-        pg_name = pg.get("DBParameterGroupName", "")
-        nodes.append(_node(f"pg-{pg_name}", "parameter_group", "config", pg_name, {"status": pg.get("ParameterApplyStatus")}))
-        edges.append(_edge(root_id, f"pg-{pg_name}", "parameter group"))
-
-    # Multi-AZ / Read Replicas
-    if inst.get("MultiAZ"):
-        nodes.append(_node("multi-az", "availability_zone", "compute", "Multi-AZ Standby", {"enabled": True}))
-        edges.append(_edge(root_id, "multi-az", "standby replica"))
-
-    for replica_id in inst.get("ReadReplicaDBInstanceIdentifiers", []):
-        nodes.append(_node(f"replica-{replica_id}", "read_replica", "compute", replica_id, {}))
-        edges.append(_edge(root_id, f"replica-{replica_id}", _READ_REPLICA))
+    _awsrds_append_vpc(ec2, root_id, inst.get("DBSubnetGroup", {}).get("VpcId"), nodes, edges)
+    _awsrds_append_security_groups(ec2, root_id, inst.get("VpcSecurityGroups", []), nodes, edges)
+    _awsrds_append_subnet_group(root_id, inst.get("DBSubnetGroup", {}), nodes, edges)
+    _awsrds_append_parameter_groups(root_id, inst.get("DBParameterGroups", []), nodes, edges)
+    _awsrds_append_multi_az_and_replicas(root_id, inst, nodes, edges)
 
     return {"nodes": nodes, "edges": edges}
 
