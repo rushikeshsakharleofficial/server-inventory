@@ -304,7 +304,6 @@ function EditCredentialDialog({
       }}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
       >
         <div className="p-4 border-b border-border shrink-0">
