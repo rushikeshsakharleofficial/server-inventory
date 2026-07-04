@@ -162,7 +162,7 @@ class OVHProvider(CloudProvider):
     def provider_name(self) -> str:
         return "ovh"
 
-    def fetch_servers(self) -> list[dict[str, Any]]:
+    def _ovh_connect(self):
         try:
             import ovh as ovh_sdk
         except ImportError:
@@ -177,7 +177,6 @@ class OVHProvider(CloudProvider):
             "3. Update this credential's endpoint to ovh-eu (not ovh-us)\n"
             "Then update the credential with all three new values."
         )
-
         try:
             client = ovh_sdk.Client(
                 endpoint=self.config.get("endpoint", "ovh-eu"),
@@ -193,203 +192,220 @@ class OVHProvider(CloudProvider):
             if any(k in _msg for k in ("invalid", "unauthorized", "forbidden", "application key", "consumer key", "credentials")):
                 raise RuntimeError(_OVH_AUTH_MSG) from _auth_err
             raise
+        return client
 
+    @staticmethod
+    def _ovh_dedicated_status(state: str, power_state: str) -> str:
+        # "ok" + powerState determines running vs stopped
+        if state == "ok":
+            return "running" if power_state == "poweron" else "stopped"
+        return DEDICATED_STATUS.get(state, "unknown")
+
+    def _ovh_dedicated_detect_os(self, client, name: str, s: dict) -> str | None:
+        # OS: dedicated API rarely exposes 'os' directly; bootScript may encode it.
+        # install/status persists templateName from the last completed install.
+        raw_os = s.get("os") or s.get("bootScript") or None
+        if raw_os:
+            return raw_os
+        try:
+            install = client.get(f"/dedicated/server/{name}/install/status")
+            return (install.get("templateName")
+                    or install.get("template")
+                    or (install.get("userMetadata") or {}).get("os"))
+        except Exception:
+            return None
+
+    def _ovh_fetch_one_dedicated(self, client, name: str, errors: list[str]) -> dict[str, Any] | None:
+        try:
+            s = client.get(f"/dedicated/server/{name}")
+            status = self._ovh_dedicated_status(s.get("state", "unknown"), s.get("powerState", ""))
+            public_ip = s.get("ip")
+            os_name = _prettify_os(self._ovh_dedicated_detect_os(client, name, s))
+
+            return {
+                "cloud_id":      name,
+                "name":          s.get("name", name),
+                "provider":      "ovh",
+                "region":        s.get("region") or s.get("datacenter"),
+                "instance_type": s.get("commercialRange") or s.get("rack"),
+                "status":        status,
+                "public_ip":     public_ip,
+                "private_ip":    None,
+                "os":            os_name,
+                "tags":          {},
+                "extra": {
+                    "type":           "dedicated",
+                    "datacenter":     s.get("datacenter"),
+                    "support_level":  s.get("supportLevel"),
+                    "availability_zone": s.get("availabilityZone"),
+                    "link_speed_mbps":   s.get("linkSpeed"),
+                },
+            }
+        except Exception as e:
+            errors.append(f"dedicated/{name}: {e}")
+            return None
+
+    def _ovh_fetch_dedicated_servers(self, client, errors: list[str]) -> list[dict[str, Any]]:
         servers: list[dict[str, Any]] = []
-        errors: list[str] = []
-
-        # ── Dedicated servers ──────────────────────────────────────────────
         try:
             names: list[str] = client.get("/dedicated/server")
-
-            def fetch_dedicated(name: str) -> dict[str, Any] | None:
-                try:
-                    s = client.get(f"/dedicated/server/{name}")
-                    state       = s.get("state", "unknown")
-                    power_state = s.get("powerState", "")
-                    # "ok" + powerState determines running vs stopped
-                    if state == "ok":
-                        status = "running" if power_state == "poweron" else "stopped"
-                    else:
-                        status = DEDICATED_STATUS.get(state, "unknown")
-
-                    # IP is directly in the response — no extra API call
-                    public_ip = s.get("ip")
-
-                    # OS: dedicated API rarely exposes 'os' directly; bootScript may encode it.
-                    # install/status persists templateName from the last completed install.
-                    raw_os = s.get("os") or s.get("bootScript") or None
-                    if not raw_os:
-                        try:
-                            install = client.get(f"/dedicated/server/{name}/install/status")
-                            raw_os = (install.get("templateName")
-                                      or install.get("template")
-                                      or (install.get("userMetadata") or {}).get("os"))
-                        except Exception:
-                            pass
-                    os_name = _prettify_os(raw_os)
-
-                    return {
-                        "cloud_id":      name,
-                        "name":          s.get("name", name),
-                        "provider":      "ovh",
-                        "region":        s.get("region") or s.get("datacenter"),
-                        "instance_type": s.get("commercialRange") or s.get("rack"),
-                        "status":        status,
-                        "public_ip":     public_ip,
-                        "private_ip":    None,
-                        "os":            os_name,
-                        "tags":          {},
-                        "extra": {
-                            "type":           "dedicated",
-                            "datacenter":     s.get("datacenter"),
-                            "support_level":  s.get("supportLevel"),
-                            "availability_zone": s.get("availabilityZone"),
-                            "link_speed_mbps":   s.get("linkSpeed"),
-                        },
-                    }
-                except Exception as e:
-                    errors.append(f"dedicated/{name}: {e}")
-                    return None
-
             with ThreadPoolExecutor(max_workers=8) as pool:
                 for fut in as_completed(
-                    {pool.submit(fetch_dedicated, n): n for n in names}, timeout=120
+                    {pool.submit(self._ovh_fetch_one_dedicated, client, n, errors): n for n in names}, timeout=120
                 ):
                     r = fut.result()
                     if r:
                         servers.append(r)
-
         except Exception as e:
             errors.append(f"dedicated list: {e}")
+        return servers
 
-        # ── VPS ───────────────────────────────────────────────────────────
+    @staticmethod
+    def _ovh_vps_parse_ips(ips) -> tuple[str | None, str | None]:
+        # IPs come back as plain strings on US endpoint
+        public_ip  = _first_ipv4(ips if isinstance(ips, list) else [])
+        private_ip = None
+        for ip in (ips or []):
+            val = ip.get("ip") if isinstance(ip, dict) else str(ip)
+            if val and ":" not in val and val != public_ip:
+                private_ip = val
+                break
+        return public_ip, private_ip
+
+    def _ovh_vps_detect_os(self, client, vps_name: str) -> str | None:
+        try:
+            dist = client.get(f"/vps/{vps_name}/distribution")
+            if isinstance(dist, dict):
+                return dist.get("name") or dist.get("id")
+            if isinstance(dist, str):
+                return dist
+            return None
+        except Exception:
+            # SDK routing fails for some endpoints — fall back to raw HTTP
+            return _ovh_get_distribution(
+                self.config.get("endpoint", "ovh-eu"),
+                self.config["application_key"],
+                self.config["application_secret"],
+                self.config["consumer_key"],
+                vps_name,
+            )
+
+    def _ovh_fetch_one_vps(self, client, vps_name: str, errors: list[str]) -> dict[str, Any] | None:
+        try:
+            v   = client.get(f"/vps/{vps_name}")
+            ips = client.get(f"/vps/{vps_name}/ips")
+            public_ip, private_ip = self._ovh_vps_parse_ips(ips)
+
+            # vcpu + memory at TOP LEVEL (not nested in model)
+            vcpu   = v.get("vcore")
+            ram_mb = v.get("memoryLimit")
+
+            # model.name is the cleanest type label
+            model = v.get("model") or {}
+            if not isinstance(model, dict):
+                model = {}
+            instance_type = model.get("offer") or model.get("name")
+
+            os_name = _prettify_os(self._ovh_vps_detect_os(client, vps_name))
+
+            return {
+                "cloud_id":      vps_name,
+                "name":          v.get("displayName") or v.get("name", vps_name),
+                "provider":      "ovh",
+                "region":        _clean_zone(v.get("zone")),
+                "instance_type": instance_type,
+                "status":        VPS_STATUS.get(v.get("state", "unknown"), "unknown"),
+                "public_ip":     public_ip,
+                "private_ip":    private_ip,
+                "vcpu":          vcpu,
+                "memory_gb":     round(ram_mb / 1024, 1) if ram_mb else None,
+                "storage_gb":    model.get("disk"),
+                "os":            os_name,
+                "tags":          {},
+                "extra": {
+                    "type":       "vps",
+                    "offerType":  v.get("offerType"),
+                    "model_ver":  model.get("version"),
+                },
+            }
+        except Exception as e:
+            errors.append(f"vps/{vps_name}: {e}")
+            return None
+
+    def _ovh_fetch_vps_servers(self, client, errors: list[str]) -> list[dict[str, Any]]:
+        servers: list[dict[str, Any]] = []
         try:
             vps_names: list[str] = client.get("/vps")
-
-            def fetch_vps(vps_name: str) -> dict[str, Any] | None:
-                try:
-                    v   = client.get(f"/vps/{vps_name}")
-                    ips = client.get(f"/vps/{vps_name}/ips")
-
-                    # IPs come back as plain strings on US endpoint
-                    public_ip  = _first_ipv4(ips if isinstance(ips, list) else [])
-                    private_ip = None
-                    for ip in (ips or []):
-                        val = ip.get("ip") if isinstance(ip, dict) else str(ip)
-                        if val and ":" not in val and val != public_ip:
-                            private_ip = val
-                            break
-
-                    # vcpu + memory at TOP LEVEL (not nested in model)
-                    vcpu   = v.get("vcore")
-                    ram_mb = v.get("memoryLimit")
-
-                    # model.name is the cleanest type label
-                    model = v.get("model") or {}
-                    if not isinstance(model, dict):
-                        model = {}
-                    instance_type = model.get("offer") or model.get("name")
-
-                    # Try distribution endpoint for OS
-                    raw_os: str | None = None
-                    try:
-                        dist = client.get(f"/vps/{vps_name}/distribution")
-                        if isinstance(dist, dict):
-                            raw_os = dist.get("name") or dist.get("id")
-                        elif isinstance(dist, str):
-                            raw_os = dist
-                    except Exception:
-                        # SDK routing fails for some endpoints — fall back to raw HTTP
-                        raw_os = _ovh_get_distribution(
-                            self.config.get("endpoint", "ovh-eu"),
-                            self.config["application_key"],
-                            self.config["application_secret"],
-                            self.config["consumer_key"],
-                            vps_name,
-                        )
-                    os_name = _prettify_os(raw_os)
-
-                    return {
-                        "cloud_id":      vps_name,
-                        "name":          v.get("displayName") or v.get("name", vps_name),
-                        "provider":      "ovh",
-                        "region":        _clean_zone(v.get("zone")),
-                        "instance_type": instance_type,
-                        "status":        VPS_STATUS.get(v.get("state", "unknown"), "unknown"),
-                        "public_ip":     public_ip,
-                        "private_ip":    private_ip,
-                        "vcpu":          vcpu,
-                        "memory_gb":     round(ram_mb / 1024, 1) if ram_mb else None,
-                        "storage_gb":    model.get("disk"),
-                        "os":            os_name,
-                        "tags":          {},
-                        "extra": {
-                            "type":       "vps",
-                            "offerType":  v.get("offerType"),
-                            "model_ver":  model.get("version"),
-                        },
-                    }
-                except Exception as e:
-                    errors.append(f"vps/{vps_name}: {e}")
-                    return None
-
             with ThreadPoolExecutor(max_workers=10) as pool:
                 for fut in as_completed(
-                    {pool.submit(fetch_vps, n): n for n in vps_names}, timeout=180
+                    {pool.submit(self._ovh_fetch_one_vps, client, n, errors): n for n in vps_names}, timeout=180
                 ):
                     r = fut.result()
                     if r:
                         servers.append(r)
-
         except Exception as e:
             if "404" not in str(e) and "ResourceNotFound" not in str(e):
                 errors.append(f"vps list: {e}")
+        return servers
 
-        # ── Public Cloud instances ─────────────────────────────────────────
+    @staticmethod
+    def _ovh_cloud_instance_dict(inst: dict, project_id: str) -> dict[str, Any]:
+        addrs      = inst.get("ipAddresses", [])
+        public_ip  = next((a["ip"] for a in addrs if a.get("type") == "public"  and ":" not in a.get("ip", "")), None)
+        private_ip = next((a["ip"] for a in addrs if a.get("type") == "private" and ":" not in a.get("ip", "")), None)
+        flavor     = inst.get("flavor") or {}
+        image      = inst.get("image")  or {}
+        return {
+            "cloud_id":      inst.get("id"),
+            "name":          inst.get("name", inst.get("id", "")),
+            "provider":      "ovh",
+            "region":        inst.get("region"),
+            "instance_type": flavor.get("name") or flavor.get("id"),
+            "status":        CLOUD_STATUS.get(inst.get("status", "UNKNOWN"), "unknown"),
+            "public_ip":     public_ip,
+            "private_ip":    private_ip,
+            "vcpu":          flavor.get("vcpus"),
+            "memory_gb":     round(flavor["ram"] / 1024, 1) if flavor.get("ram") else None,
+            "storage_gb":    flavor.get("disk"),
+            "os":            _prettify_os(image.get("name") or image.get("id")),
+            "tags":          {},
+            "extra":         {"type": "cloud", "project_id": project_id},
+        }
+
+    def _ovh_fetch_one_cloud_project(self, client, project_id: str, errors: list[str]) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        try:
+            instances = client.get(f"/cloud/project/{project_id}/instance")
+            for inst in (instances or []):
+                results.append(self._ovh_cloud_instance_dict(inst, project_id))
+        except Exception as e:
+            errors.append(f"cloud/{project_id}: {e}")
+        return results
+
+    def _ovh_fetch_cloud_instances(self, client, errors: list[str]) -> list[dict[str, Any]]:
+        servers: list[dict[str, Any]] = []
         try:
             projects: list[str] = client.get("/cloud/project")
-
-            def fetch_cloud_project(project_id: str) -> list[dict[str, Any]]:
-                results: list[dict[str, Any]] = []
-                try:
-                    instances = client.get(f"/cloud/project/{project_id}/instance")
-                    for inst in (instances or []):
-                        addrs      = inst.get("ipAddresses", [])
-                        public_ip  = next((a["ip"] for a in addrs if a.get("type") == "public"  and ":" not in a.get("ip", "")), None)
-                        private_ip = next((a["ip"] for a in addrs if a.get("type") == "private" and ":" not in a.get("ip", "")), None)
-                        flavor     = inst.get("flavor") or {}
-                        image      = inst.get("image")  or {}
-                        results.append({
-                            "cloud_id":      inst.get("id"),
-                            "name":          inst.get("name", inst.get("id", "")),
-                            "provider":      "ovh",
-                            "region":        inst.get("region"),
-                            "instance_type": flavor.get("name") or flavor.get("id"),
-                            "status":        CLOUD_STATUS.get(inst.get("status", "UNKNOWN"), "unknown"),
-                            "public_ip":     public_ip,
-                            "private_ip":    private_ip,
-                            "vcpu":          flavor.get("vcpus"),
-                            "memory_gb":     round(flavor["ram"] / 1024, 1) if flavor.get("ram") else None,
-                            "storage_gb":    flavor.get("disk"),
-                            "os":            _prettify_os(image.get("name") or image.get("id")),
-                            "tags":          {},
-                            "extra":         {"type": "cloud", "project_id": project_id},
-                        })
-                except Exception as e:
-                    errors.append(f"cloud/{project_id}: {e}")
-                return results
-
             with ThreadPoolExecutor(max_workers=4) as cloud_pool:
                 for fut in as_completed(  # type: ignore[assignment]
-                    [cloud_pool.submit(fetch_cloud_project, pid) for pid in projects],
+                    [cloud_pool.submit(self._ovh_fetch_one_cloud_project, client, pid, errors) for pid in projects],
                     timeout=60,
                 ):
                     result_batch: list[dict[str, Any]] = fut.result()  # type: ignore[assignment]
                     servers.extend(result_batch)
-
         except Exception as e:
             if "404" not in str(e):
                 errors.append(f"cloud list: {e}")
+        return servers
+
+    def fetch_servers(self) -> list[dict[str, Any]]:
+        client = self._ovh_connect()
+
+        errors: list[str] = []
+        servers: list[dict[str, Any]] = []
+        servers.extend(self._ovh_fetch_dedicated_servers(client, errors))
+        servers.extend(self._ovh_fetch_vps_servers(client, errors))
+        servers.extend(self._ovh_fetch_cloud_instances(client, errors))
 
         if not servers and errors:
             raise RuntimeError("; ".join(errors[:5]))
