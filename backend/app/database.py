@@ -4,12 +4,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
 from dotenv import load_dotenv
 
+from .config import _is_production
+
 load_dotenv()
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://inventory:inventory@localhost:5432/server_inventory",
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    if _is_production():
+        raise RuntimeError("DATABASE_URL must be set in production")
+    DATABASE_URL = "postgresql://inventory:inventory@localhost:5432/server_inventory"
 
 engine = create_engine(
     DATABASE_URL,

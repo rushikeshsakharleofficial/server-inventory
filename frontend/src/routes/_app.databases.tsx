@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/databases")({
 function match(s: string, q: string) { return s.toLowerCase().includes(q.toLowerCase()); }
 
 function buildFields(items: DatabaseInstance[]) {
-  const uniq = (vals: (string | undefined | null)[]) => [...new Set(vals.filter((v): v is string => !!v))].sort();
+  const uniq = (vals: (string | undefined | null)[]) => [...new Set(vals.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
   return [
     { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(d => d.provider)).map(v => ({ value: v })) },
     { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(d => d.status)).map(v => ({ value: v })) },

@@ -217,10 +217,11 @@ function EditServerDialog({ server, onClose }: { server: Server; onClose: () => 
 }
 
 function buildServerFilterFields(stats: Stats | undefined, items: Server[]) {
-  const providerOpts = Object.keys(stats?.by_provider ?? {}).sort().map(v => ({ value: v }));
-  const statusOpts   = Object.keys(stats?.by_status   ?? {}).sort().map(v => ({ value: v }));
-  const regionOpts   = Object.keys(stats?.by_region ?? {}).sort().map(v => ({ value: v }));
-  const osOpts       = [...new Set(items.map(s => s.os).filter((v): v is string => !!v))].sort().map(v => ({ value: v }));
+  const cmp = (a: string, b: string) => a.localeCompare(b);
+  const providerOpts = Object.keys(stats?.by_provider ?? {}).sort(cmp).map(v => ({ value: v }));
+  const statusOpts   = Object.keys(stats?.by_status   ?? {}).sort(cmp).map(v => ({ value: v }));
+  const regionOpts   = Object.keys(stats?.by_region ?? {}).sort(cmp).map(v => ({ value: v }));
+  const osOpts       = [...new Set(items.map(s => s.os).filter((v): v is string => !!v))].sort(cmp).map(v => ({ value: v }));
   return [
     { key: "provider", label: "Provider", type: "multiselect" as const, options: providerOpts },
     { key: "status",   label: "Status",   type: "multiselect" as const, options: statusOpts },

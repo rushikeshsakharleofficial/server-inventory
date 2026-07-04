@@ -67,7 +67,7 @@ function buildCpFields(items: Credential[]) {
         .filter((p) => !(DNS_PROVIDERS as readonly string[]).includes(p)),
     ),
   ]
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map((v) => ({ value: v }));
   return [
     {

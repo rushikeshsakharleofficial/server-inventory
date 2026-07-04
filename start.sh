@@ -4,8 +4,7 @@ set -e
 echo "==> Server Inventory Startup"
 echo ""
 echo "  Requires PostgreSQL running at localhost:5432"
-echo "  Default DSN: postgresql://inventory:inventory@localhost:5432/server_inventory"
-echo "  Override: export DATABASE_URL=postgresql://user:pass@host:port/db"
+echo "  Set DATABASE_URL, e.g.: export DATABASE_URL=postgresql://user:pass@host:port/db"
 echo ""
 
 # Backend

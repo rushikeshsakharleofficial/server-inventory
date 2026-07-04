@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/kubernetes")({
 function match(s: string, q: string) { return s.toLowerCase().includes(q.toLowerCase()); }
 
 function buildFields(items: KubernetesCluster[]) {
-  const uniq = (vals: (string | undefined | null)[]) => [...new Set(vals.filter((v): v is string => !!v))].sort();
+  const uniq = (vals: (string | undefined | null)[]) => [...new Set(vals.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
   return [
     { key: "provider", label: "Provider", type: "multiselect" as const, options: uniq(items.map(c => c.provider)).map(v => ({ value: v })) },
     { key: "status",   label: "Status",   type: "multiselect" as const, options: uniq(items.map(c => c.status)).map(v => ({ value: v })) },

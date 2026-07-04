@@ -33,7 +33,7 @@ function isSecret(f: string) {
 
 function buildFields(items: Credential[]) {
   const providerOpts = [...new Set(items.map((c) => c.provider))]
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map((v) => ({ value: v }));
   return [
     {

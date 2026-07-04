@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_app/domains")({
 
 function buildFields(items: DnsRecord[]) {
   const uniq = (vals: (string | undefined | null)[]) =>
-    [...new Set(vals.filter((v): v is string => !!v))].sort();
+    [...new Set(vals.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
   return [
     {
       key: "provider",
