@@ -381,16 +381,24 @@ export function AdvancedFilter({
   state,
   onChange,
   searchPlaceholder = "Search…",
+  searchSuggestions,
   extra,
 }: {
   fields: FilterField[];
   state: FilterState;
   onChange: (s: FilterState) => void;
   searchPlaceholder?: string;
+  /** Values (e.g. item names) to suggest as a dropdown while typing in the search box. */
+  searchSuggestions?: string[];
   extra?: ReactNode;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const active = hasActiveFilters(state);
+
+  const matches = (searchSuggestions && state.q && searchFocused)
+    ? searchSuggestions.filter((s) => s.toLowerCase().includes(state.q.toLowerCase()) && s !== state.q).slice(0, 8)
+    : [];
 
   function setQ(q: string) {
     onChange({ ...state, q });
@@ -465,6 +473,8 @@ export function AdvancedFilter({
           <input
             value={state.q}
             onChange={(e) => setQ(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
             placeholder={searchPlaceholder}
             className="w-full pl-8 pr-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
           />
@@ -476,6 +486,21 @@ export function AdvancedFilter({
             >
               <X className="size-3.5" />
             </button>
+          )}
+          {matches.length > 0 && (
+            <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-surface border border-border rounded-md shadow-lg py-1 max-h-56 overflow-y-auto">
+              {matches.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { setQ(m); setSearchFocused(false); }}
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 

@@ -22,6 +22,7 @@ import {
   KeyRound,
   Layers,
   Globe,
+  ChevronDown,
 } from "lucide-react";
 import { useCurrentUser, logout } from "@/lib/auth";
 import { ConfirmDialogHost } from "@/components/ui-bits";
@@ -94,6 +95,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const logoUrl = useBrandingLogo();
   const [wsLive, setWsLive] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    new Set(NAV.map((g) => g.group)),
+  );
+  const toggleGroup = (group: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  };
   useEffect(() => {
     onWsConnectChange(setWsLive);
   }, []);
@@ -159,14 +171,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav
           className={`flex-1 overflow-y-auto overflow-x-hidden sidebar-scroll py-3 space-y-0 transition-all duration-300 ${collapsed ? "px-2" : "px-3"}`}
         >
-          {NAV.map((group) => (
-            <div key={group.group} className="mb-5">
-              <div
-                className={`px-2 pb-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest whitespace-nowrap transition-all duration-300 ${collapsed ? "opacity-0 -translate-x-2 h-0 overflow-hidden" : "opacity-100 translate-x-0"}`}
+          {NAV.map((group) => {
+            const isOpen = openGroups.has(group.group);
+            return (
+            <div key={group.group} className="mb-3">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.group)}
+                className={`w-full flex items-center justify-between px-2 pb-1.5 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest whitespace-nowrap transition-all duration-300 ${collapsed ? "opacity-0 -translate-x-2 h-0 overflow-hidden pointer-events-none" : "opacity-100 translate-x-0"}`}
               >
-                {group.group}
-              </div>
-              <div className="space-y-0.5">
+                <span>{group.group}</span>
+                <ChevronDown
+                  className={`size-3 shrink-0 transition-transform duration-300 ${isOpen ? "" : "-rotate-180"}`}
+                />
+              </button>
+              <div
+                className={`space-y-0.5 overflow-hidden transition-all duration-300 ${!collapsed && !isOpen ? "max-h-0 opacity-0" : "max-h-[1000px] opacity-100"}`}
+              >
                 {group.items.map((it) => {
                   const active =
                     it.to === "/"
@@ -181,7 +202,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       to={it.to}
                       title={collapsed ? it.label : undefined}
                       className={[
-                        "flex items-center w-full py-2 text-sm rounded-lg transition-all duration-150",
+                        "flex items-center w-full py-1.5 text-sm rounded-lg transition-all duration-150",
                         collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
                         active
                           ? "bg-primary text-primary-foreground font-medium shadow-sm"
@@ -212,7 +233,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="px-3 py-3 border-t border-border shrink-0">
@@ -272,9 +294,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             <span
-              className={`size-2 rounded-full transition-colors duration-500 ${wsLive ? "bg-green-500" : "bg-amber-400 animate-pulse"}`}
-              title={wsLive ? "Live" : "Reconnecting…"}
-            />
+              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full transition-colors duration-500 ${wsLive ? "text-green-700 bg-green-50" : "text-amber-700 bg-amber-50"}`}
+            >
+              <span className={`size-1.5 rounded-full ${wsLive ? "bg-green-500" : "bg-amber-400 animate-pulse"}`} />
+              {wsLive ? "Online" : "Reconnecting…"}
+            </span>
             {syncing && (
               <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground bg-warning/10 px-2.5 py-1 rounded-full">
                 <span className="size-3 border-2 border-warning border-t-transparent rounded-full animate-spin" />

@@ -3,11 +3,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type CronJob, type CronJobCreate, type Credential, type Page } from "@/lib/api";
 import { Card, PageHeader, StatusPill, EmptyState, CustomSelect } from "@/components/ui-bits";
-import { Play, Power, Trash2, Plus, X, Pencil } from "lucide-react";
+import { Play, Power, Trash2, Plus, X, Pencil, CalendarClock, Terminal as TerminalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/style.css";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
+import { PROVIDER_LOGOS } from "@/components/ui-bits";
+
+type RepeatMode = "once" | "daily" | "weekly";
+
+// Builds a 5-field cron expression from a picked date/time + repeat mode.
+// "once" still needs a real cron trigger (this scheduler has no one-shot
+// concept) — pin it to that exact minute/day/month, which only ever fires once.
+function buildCronExpr(date: Date, mode: RepeatMode): string {
+  const minute = date.getMinutes();
+  const hour = date.getHours();
+  if (mode === "daily") return `${minute} ${hour} * * *`;
+  if (mode === "weekly") return `${minute} ${hour} * * ${date.getDay()}`;
+  return `${minute} ${hour} ${date.getDate()} ${date.getMonth() + 1} *`;
+}
 
 export const Route = createFileRoute("/_app/crons")({
   head: () => ({ meta: [{ title: "Crons — System Control" }] }),
@@ -21,6 +37,20 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
       ? { name: job.name, cron_expr: job.cron_expr, provider: job.provider ?? null, is_active: job.is_active }
       : { name: "", cron_expr: "0 * * * *", provider: null, is_active: true }
   );
+  const [scheduleMode, setScheduleMode] = useState<"cron" | "picker">("cron");
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("daily");
+  const [pickedDate, setPickedDate] = useState<Date>(new Date());
+  const [pickedTime, setPickedTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  });
+
+  function applyPicker(date: Date, time: string, mode: RepeatMode) {
+    const [h, m] = time.split(":").map(Number);
+    const merged = new Date(date);
+    merged.setHours(h, m, 0, 0);
+    setForm((f) => ({ ...f, cron_expr: buildCronExpr(merged, mode) }));
+  }
 
   const { data: creds } = useQuery({
     queryKey: ["creds"],
@@ -66,14 +96,70 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Schedule</label>
-            <input
-              className={`${inp} font-mono`}
-              value={form.cron_expr}
-              onChange={e => setForm(f => ({ ...f, cron_expr: e.target.value }))}
-              placeholder="0 * * * *"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">minute hour day month weekday</p>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground font-medium">Schedule</label>
+              <div className="inline-flex rounded-md border border-border overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setScheduleMode("picker")}
+                  className={`inline-flex items-center gap-1 px-2 py-1 ${scheduleMode === "picker" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                >
+                  <CalendarClock className="size-3" /> Calendar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScheduleMode("cron")}
+                  className={`inline-flex items-center gap-1 px-2 py-1 border-l border-border ${scheduleMode === "cron" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                >
+                  <TerminalIcon className="size-3" /> Cron
+                </button>
+              </div>
+            </div>
+
+            {scheduleMode === "cron" ? (
+              <>
+                <input
+                  className={`${inp} font-mono`}
+                  value={form.cron_expr}
+                  onChange={e => setForm(f => ({ ...f, cron_expr: e.target.value }))}
+                  placeholder="0 * * * *"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">minute hour day month weekday</p>
+              </>
+            ) : (
+              <div className="border border-border rounded-md p-3 space-y-3">
+                <div className="inline-flex rounded-md border border-border overflow-hidden text-xs w-full">
+                  {(["once", "daily", "weekly"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setRepeatMode(m); applyPicker(pickedDate, pickedTime, m); }}
+                      className={`flex-1 px-2 py-1 capitalize ${repeatMode === m ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"} ${m !== "once" ? "border-l border-border" : ""}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-center">
+                  <DayPicker
+                    mode="single"
+                    selected={pickedDate}
+                    onSelect={(d) => { if (!d) return; setPickedDate(d); applyPicker(d, pickedTime, repeatMode); }}
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium block mb-1">Time</label>
+                  <input
+                    type="time"
+                    className={inp}
+                    value={pickedTime}
+                    onChange={(e) => { setPickedTime(e.target.value); applyPicker(pickedDate, e.target.value, repeatMode); }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground font-mono">{form.cron_expr}</p>
+              </div>
+            )}
           </div>
           <div>
             <label className="text-xs text-muted-foreground font-medium block mb-1">Provider</label>
@@ -100,11 +186,6 @@ function CronDialog({ onClose, job }: { onClose: () => void; job?: CronJob }) {
   );
 }
 
-const CRON_FIELDS = [
-  { key: "state",    label: "State",    type: "select" as const, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Disabled" }] },
-  { key: "provider", label: "Provider", type: "text" as const },
-];
-
 function CronsPage() {
   const qc = useQueryClient();
   const [editJob, setEditJob] = useState<CronJob | null | "new">(null);
@@ -116,6 +197,23 @@ function CronsPage() {
     queryFn: () => api<CronJob[]>("/api/crons"),
   });
 
+  const { data: creds } = useQuery({
+    queryKey: ["creds"],
+    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100 } }),
+  });
+  const allProviders = Array.from(
+    new Set((creds?.items ?? []).filter((c) => c.is_active).map((c) => c.provider))
+  );
+
+  const providerFieldOptions = Array.from(
+    new Set((data ?? []).map((j) => j.provider).filter((p): p is string => !!p))
+  ).map((p) => ({ value: p, label: p.toUpperCase() }));
+
+  const CRON_FIELDS = [
+    { key: "state",    label: "State",    type: "select" as const, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Disabled" }] },
+    { key: "provider", label: "Provider", type: "select" as const, options: providerFieldOptions },
+  ];
+
   const stateFilter = (fs.filters.state    as string) ?? "";
   const provFilter  = (fs.filters.provider as string) ?? "";
 
@@ -123,7 +221,7 @@ function CronsPage() {
     if (fs.q && !j.name.toLowerCase().includes(fs.q.toLowerCase())) return false;
     if (stateFilter === "active"   && !j.is_active) return false;
     if (stateFilter === "inactive" &&  j.is_active) return false;
-    if (provFilter && !(j.provider ?? "").toLowerCase().includes(provFilter.toLowerCase())) return false;
+    if (provFilter && (j.provider ?? "") !== provFilter) return false;
     return true;
   });
   const toggle = useMutation({
@@ -161,11 +259,17 @@ function CronsPage() {
         </button>
       </div>
       <Card className="p-3">
-        <AdvancedFilter fields={CRON_FIELDS} state={fs} onChange={s => { setFs(s); setPage(1); }} searchPlaceholder="Search job name…" />
+        <AdvancedFilter
+          fields={CRON_FIELDS}
+          state={fs}
+          onChange={s => { setFs(s); setPage(1); }}
+          searchPlaceholder="Search job name…"
+          searchSuggestions={(data ?? []).map((j) => j.name)}
+        />
       </Card>
 
       <SmartTable
-        columns={cronColumns(run, setEditJob, toggle, del)}
+        columns={cronColumns(run, setEditJob, toggle, del, allProviders)}
         rows={items}
         rowKey={(j) => j.id}
         mode="client"
@@ -178,11 +282,56 @@ function CronsPage() {
   );
 }
 
+const LOGO_GRID_MAX = 4;
+
+function ProviderLogoGrid({ providers }: { providers: string[] }) {
+  const [open, setOpen] = useState(false);
+  if (!providers.length) return <span className="text-xs text-muted-foreground">—</span>;
+  const shown = providers.slice(0, LOGO_GRID_MAX);
+  const hidden = providers.length - shown.length;
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setOpen(false)}
+        className="inline-flex items-center gap-1"
+      >
+        <div className="grid grid-cols-2 gap-0.5">
+          {shown.map((p) => (
+            <img
+              key={p}
+              src={PROVIDER_LOGOS[p]}
+              alt={p}
+              title={p}
+              className="size-3.5 object-contain rounded-sm"
+            />
+          ))}
+        </div>
+        {hidden > 0 && (
+          <span className="text-[10px] text-muted-foreground font-medium">{hidden}+ more</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute z-30 top-full left-0 mt-1 bg-surface border border-border rounded-md shadow-lg p-2 flex flex-wrap gap-2 w-max max-w-[200px]">
+          {providers.map((p) => (
+            <div key={p} className="flex items-center gap-1.5 text-xs">
+              <img src={PROVIDER_LOGOS[p]} alt={p} className="size-4 object-contain rounded-sm" />
+              <span className="capitalize">{p}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function cronColumns(
   run: ReturnType<typeof useMutation<unknown, Error, number>>,
   setEditJob: (j: CronJob) => void,
   toggle: ReturnType<typeof useMutation<unknown, Error, number>>,
-  del: ReturnType<typeof useMutation<unknown, Error, number>>
+  del: ReturnType<typeof useMutation<unknown, Error, number>>,
+  allProviders: string[]
 ): SmartTableColumn<CronJob>[] {
   return [
     { key: "name", header: "Name", render: (j) => <span className="font-medium">{j.name}</span> },
@@ -193,7 +342,7 @@ function cronColumns(
       render: (j) =>
         j.provider
           ? <span className="text-xs bg-muted px-1.5 py-0.5 rounded border border-border">{j.provider}</span>
-          : <span className="text-xs text-muted-foreground">—</span>,
+          : <ProviderLogoGrid providers={allProviders} />,
     },
     {
       key: "last_run",

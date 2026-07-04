@@ -354,12 +354,10 @@ function LoginPage() {
           </div>
         </div>
 
-        {/* API footer */}
+        {/* Instance status footer */}
         <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
-          <span style={{ fontSize: 10, color: "#9ca3af" }}>
-            API connected · <span style={{ fontFamily: "monospace" }}>{API_BASE}</span>
-          </span>
+          <span style={{ fontSize: 10, color: "#9ca3af" }}>Online</span>
         </div>
       </div>
 

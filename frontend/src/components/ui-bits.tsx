@@ -225,7 +225,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   cloudflare: "text-orange-500",
 };
 
-const PROVIDER_LOGOS: Record<string, string> = {
+export const PROVIDER_LOGOS: Record<string, string> = {
   aws: "/providers/aws.svg",
   gcp: "/providers/gcp.svg",
   azure: "/providers/azure.png",
