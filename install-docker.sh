@@ -23,8 +23,8 @@ echo "==> Starting and enabling Docker daemon..."
 systemctl start docker
 systemctl enable docker
 
-echo "==> Adding user '${SUDO_USER:-$USER}' to docker group..."
-TARGET_USER="${SUDO_USER:-rushikesh.sakharle}"
+TARGET_USER="${SUDO_USER:-$USER}"
+echo "==> Adding user '${TARGET_USER}' to docker group..."
 usermod -aG docker "$TARGET_USER"
 
 echo ""
@@ -37,4 +37,4 @@ docker compose version
 
 echo ""
 echo "==> Done! Log out and back in (or run 'newgrp docker') for group to take effect."
-echo "    Then run: cd /home/rushikesh.sakharle/Projects/ServerInventory && docker compose up --build"
+echo "    Then run: cd /path/to/server-inventory && docker compose up --build"

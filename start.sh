@@ -25,9 +25,9 @@ cd ..
 # Frontend
 echo "==> Frontend: installing deps..."
 cd frontend
-npm install --silent
+bun install --frozen-lockfile
 echo "==> Frontend: starting Vite on http://localhost:5173"
-npm run dev &
+bun run dev &
 FRONTEND_PID=$!
 cd ..
 
