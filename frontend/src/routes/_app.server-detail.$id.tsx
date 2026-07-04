@@ -209,13 +209,15 @@ function FieldGrid({ entries }: { entries: [string, React.ReactNode][] }) {
   // instead of a fixed grid-cols-N track — a fixed column count still leaves
   // visible empty track space when only 1-2 fields are populated, since the
   // grid reserves columns regardless of how many cells actually render.
-  // flex-wrap only ever takes up as much width as the populated cells need.
+  // No max-w cap: fewer cells than a row can hold should stretch to fill it
+  // rather than leaving dead space, since flex-1 alone (capped) still left a
+  // gap when e.g. 3 cells populated a 4-wide row.
   const populated = entries.filter(([, value]) => value !== "—" && value !== null && value !== undefined);
   if (!populated.length) return <p className="text-xs text-muted-foreground">No data.</p>;
   return (
     <div className="flex flex-wrap gap-px bg-border ring-1 ring-border rounded-lg overflow-hidden">
       {populated.map(([label, value]) => (
-        <div key={label} className="bg-surface p-3 flex-1 min-w-[140px] max-w-[calc(50%-1px)] sm:max-w-[calc(33.333%-1px)] lg:max-w-[calc(25%-1px)]">
+        <div key={label} className="bg-surface p-3 flex-1 min-w-[140px]">
           <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">{label}</div>
           <div className="text-sm font-mono break-all">{value}</div>
         </div>
