@@ -62,6 +62,202 @@ def _edge(src: str, dst: str, label: str = "") -> dict[str, str]:
 
 # ── AWS ───────────────────────────────────────────────────────────────────────
 
+def _aws_append_vpc(ec2, root_id: str, vpc_id: str | None, nodes: list, edges: list) -> None:
+    if not vpc_id:
+        return
+    try:
+        vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
+        vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
+        nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
+        edges.append(_edge(root_id, vpc_id, _IN_VPC))
+    except Exception:
+        pass
+
+
+def _aws_append_subnet(ec2, root_id: str, subnet_id: str | None, nodes: list, edges: list) -> None:
+    if not subnet_id:
+        return
+    try:
+        sub_data = ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]
+        sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), subnet_id)
+        nodes.append(_node(subnet_id, "subnet", "network", sub_name,
+                           {"cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": subnet_id}))
+        edges.append(_edge(root_id, subnet_id, "in subnet"))
+    except Exception:
+        pass
+
+
+def _aws_append_security_groups(ec2, root_id: str, instance: dict, nodes: list, edges: list) -> None:
+    for sg in instance.get("SecurityGroups", []):
+        sg_id = sg["GroupId"]
+        sg_name = sg.get("GroupName", sg_id)
+        try:
+            sg_detail = ec2.describe_security_groups(GroupIds=[sg_id])["SecurityGroups"][0]
+            in_count = len(sg_detail.get("IpPermissions", []))
+            out_count = len(sg_detail.get("IpPermissionsEgress", []))
+            nodes.append(_node(sg_id, "security_group", "security", sg_name,
+                               {"description": sg_detail.get("Description", ""), "inbound_rules": in_count, "outbound_rules": out_count, "id": sg_id}))
+        except Exception:
+            nodes.append(_node(sg_id, "security_group", "security", sg_name, {"id": sg_id}))
+        edges.append(_edge(root_id, sg_id, "member of"))
+
+
+def _aws_append_one_eni(ec2, root_id: str, eni: dict, seen_subnets: set, nodes: list, edges: list) -> None:
+    eni_id = eni["NetworkInterfaceId"]
+    primary_ip = eni.get("PrivateIpAddress", "")
+    all_private_ips = [a["PrivateIpAddress"] for a in eni.get("PrivateIpAddresses", []) if a.get("PrivateIpAddress")]
+    all_public_ips = [a["Association"]["PublicIp"] for a in eni.get("PrivateIpAddresses", []) if a.get("Association", {}).get("PublicIp")]
+
+    nodes.append(_node(eni_id, "network_interface", "network", f"ENI {primary_ip}", {
+        "mac": eni.get("MacAddress", ""),
+        "primary_ip": primary_ip,
+        "all_private_ips": all_private_ips,
+        "public_ips": all_public_ips,
+        "status": eni.get("Status", ""),
+        "id": eni_id,
+    }))
+    edges.append(_edge(root_id, eni_id, "has NIC"))
+
+    for ip in all_private_ips:
+        if ip != primary_ip:
+            nodes.append(_node(f"sip-{ip}", "elastic_ip", "network", f"Secondary IP {ip}", {"type": "secondary private IP"}))
+            edges.append(_edge(eni_id, f"sip-{ip}", "secondary IP"))
+
+    for pub_ip in all_public_ips:
+        nodes.append(_node(f"pub-{pub_ip}", "elastic_ip", "network", pub_ip, {"type": "public IP via ENI"}))
+        edges.append(_edge(eni_id, f"pub-{pub_ip}", "public IP"))
+
+    eni_subnet = eni.get("SubnetId", "")
+    if eni_subnet and eni_subnet not in seen_subnets:
+        seen_subnets.add(eni_subnet)
+        try:
+            sub_data = ec2.describe_subnets(SubnetIds=[eni_subnet])["Subnets"][0]
+            sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), eni_subnet)
+            nodes.append(_node(eni_subnet, "subnet", "network", sub_name, {
+                "cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": eni_subnet
+            }))
+            edges.append(_edge(eni_id, eni_subnet, "in subnet"))
+        except Exception:
+            pass
+
+
+def _aws_append_network_interfaces(ec2, root_id: str, instance: dict, subnet_id: str | None, nodes: list, edges: list) -> None:
+    seen_subnets = {subnet_id} if subnet_id else set()
+    for eni in instance.get("NetworkInterfaces", []):
+        _aws_append_one_eni(ec2, root_id, eni, seen_subnets, nodes, edges)
+
+
+def _aws_append_iam_and_key(root_id: str, instance: dict, nodes: list, edges: list) -> None:
+    iam_profile = instance.get("IamInstanceProfile")
+    if iam_profile:
+        arn = iam_profile.get("Arn", "")
+        profile_name = arn.split("/")[-1] if "/" in arn else arn
+        nodes.append(_node(arn, "iam_profile", "iam", profile_name, {"arn": arn}))
+        edges.append(_edge(root_id, arn, "uses role"))
+
+    key_name = instance.get("KeyName")
+    if key_name:
+        nodes.append(_node(f"key-{key_name}", "key_pair", "security", key_name, {"name": key_name}))
+        edges.append(_edge(root_id, f"key-{key_name}", "SSH key"))
+
+
+def _aws_append_elastic_ips(ec2, root_id: str, cloud_id: str, nodes: list, edges: list) -> None:
+    try:
+        eips = ec2.describe_addresses(Filters=[{"Name": "instance-id", "Values": [cloud_id]}])["Addresses"]
+        for eip in eips:
+            eip_id = eip.get("AllocationId", eip.get("PublicIp", ""))
+            nodes.append(_node(eip_id, "elastic_ip", "network", eip.get("PublicIp", eip_id),
+                               {"allocation_id": eip.get("AllocationId"), "domain": eip.get("Domain")}))
+            edges.append(_edge(root_id, eip_id, "Elastic IP"))
+    except Exception:
+        pass
+
+
+def _aws_append_nat_gateways(ec2, vpc_id: str | None, nodes: list, edges: list) -> None:
+    if not vpc_id:
+        return
+    try:
+        nats = ec2.describe_nat_gateways(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}, {"Name": "state", "Values": ["available"]}]
+        )["NatGateways"]
+        for nat in nats:
+            nat_id = nat["NatGatewayId"]
+            nat_subnet = nat.get("SubnetId", "")
+            nat_ip = nat.get("NatGatewayAddresses", [{}])[0].get("PublicIp", "")
+            nodes.append(_node(nat_id, "nat_gateway", "network", f"NAT {nat_ip}",
+                               {"subnet": nat_subnet, "public_ip": nat_ip, "state": nat.get("State"), "id": nat_id}))
+            edges.append(_edge(vpc_id, nat_id, "NAT gateway"))
+    except Exception:
+        pass
+
+
+def _aws_append_asg(region: str, access_key: str, secret_key: str, root_id: str, cloud_id: str, nodes: list, edges: list) -> None:
+    try:
+        import boto3
+        asg_client = boto3.client("autoscaling", region_name=region,
+                                  aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+        asg_resp = asg_client.describe_auto_scaling_instances(InstanceIds=[cloud_id])
+        for asg_inst in asg_resp.get("AutoScalingInstances", []):
+            asg_name = asg_inst["AutoScalingGroupName"]
+            nodes.append(_node(f"asg-{asg_name}", "autoscaling_group", "compute", asg_name,
+                               {"lifecycle": asg_inst.get("LifecycleState"), "health": asg_inst.get("HealthStatus")}))
+            edges.append(_edge(root_id, f"asg-{asg_name}", "in ASG"))
+    except Exception:
+        pass
+
+
+def _aws_find_load_balancers_for_target_group(elbv2, tg: dict, cloud_id: str) -> list[dict]:
+    """Returns LB dicts if cloud_id is a healthy/registered target in this
+    target group, else an empty list."""
+    tg_arn = tg["TargetGroupArn"]
+    try:
+        health = elbv2.describe_target_health(TargetGroupArn=tg_arn)
+    except Exception:
+        return []
+    if not any(t["Target"]["Id"] == cloud_id for t in health.get("TargetHealthDescriptions", [])):
+        return []
+
+    lbs = []
+    for lb_arn in tg.get("LoadBalancerArns", []):
+        try:
+            lb_resp = elbv2.describe_load_balancers(LoadBalancerArns=[lb_arn])
+        except Exception:
+            continue
+        for lb in lb_resp.get("LoadBalancers", []):
+            lbs.append({"arn": lb_arn, **lb})
+    return lbs
+
+
+def _aws_append_load_balancers(region: str, access_key: str, secret_key: str, root_id: str, cloud_id: str, nodes: list, edges: list) -> None:
+    try:
+        import boto3
+        elbv2 = boto3.client("elbv2", region_name=region,
+                             aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+        tg_resp = elbv2.describe_target_groups()
+        for tg in tg_resp.get("TargetGroups", []):
+            for lb in _aws_find_load_balancers_for_target_group(elbv2, tg, cloud_id):
+                nodes.append(_node(lb["arn"], "load_balancer", "network", lb["LoadBalancerName"], {
+                    "dns": lb.get("DNSName"), "scheme": lb.get("Scheme"), "type": lb.get("Type"),
+                }))
+                edges.append(_edge(root_id, lb["arn"], "behind LB"))
+    except Exception:
+        pass
+
+
+def _aws_append_route_tables(ec2, subnet_id: str | None, nodes: list, edges: list) -> None:
+    if not subnet_id:
+        return
+    try:
+        rt_resp = ec2.describe_route_tables(Filters=[{"Name": "association.subnet-id", "Values": [subnet_id]}])
+        for rt in rt_resp.get("RouteTables", []):
+            rt_id = rt["RouteTableId"]
+            rt_name = next((t["Value"] for t in rt.get("Tags", []) if t["Key"] == "Name"), rt_id)
+            nodes.append(_node(rt_id, "route_table", "network", rt_name, {"routes": len(rt.get("Routes", [])), "id": rt_id}))
+            edges.append(_edge(subnet_id, rt_id, "route table"))
+    except Exception:
+        pass
+
+
 def _aws_server_map(server: models.Server, config: dict) -> dict:
     try:
         import boto3
@@ -76,7 +272,8 @@ def _aws_server_map(server: models.Server, config: dict) -> dict:
                        aws_access_key_id=access_key, aws_secret_access_key=secret_key)
 
     root_id = f"server-{server.id}"
-    nodes, edges = [], []
+    nodes: list = []
+    edges: list = []
 
     try:
         resp = ec2.describe_instances(InstanceIds=[server.cloud_id])
@@ -84,172 +281,19 @@ def _aws_server_map(server: models.Server, config: dict) -> dict:
     except Exception:
         return {"nodes": [], "edges": []}
 
-    # VPC
     vpc_id = instance.get("VpcId")
-    if vpc_id:
-        try:
-            vpc_data = ec2.describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]
-            vpc_name = next((t["Value"] for t in vpc_data.get("Tags", []) if t["Key"] == "Name"), vpc_id)
-            nodes.append(_node(vpc_id, "vpc", "network", vpc_name, {"cidr": vpc_data.get("CidrBlock"), "id": vpc_id}))
-            edges.append(_edge(root_id, vpc_id, _IN_VPC))
-        except Exception:
-            pass
-
-    # Subnet
     subnet_id = instance.get("SubnetId")
-    if subnet_id:
-        try:
-            sub_data = ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]
-            sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), subnet_id)
-            nodes.append(_node(subnet_id, "subnet", "network", sub_name, {"cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": subnet_id}))
-            edges.append(_edge(root_id, subnet_id, "in subnet"))
-        except Exception:
-            pass
 
-    # Security Groups
-    for sg in instance.get("SecurityGroups", []):
-        sg_id = sg["GroupId"]
-        sg_name = sg.get("GroupName", sg_id)
-        try:
-            sg_detail = ec2.describe_security_groups(GroupIds=[sg_id])["SecurityGroups"][0]
-            in_count = len(sg_detail.get("IpPermissions", []))
-            out_count = len(sg_detail.get("IpPermissionsEgress", []))
-            nodes.append(_node(sg_id, "security_group", "security", sg_name, {"description": sg_detail.get("Description", ""), "inbound_rules": in_count, "outbound_rules": out_count, "id": sg_id}))
-        except Exception:
-            nodes.append(_node(sg_id, "security_group", "security", sg_name, {"id": sg_id}))
-        edges.append(_edge(root_id, sg_id, "member of"))
-
-    # Network Interfaces — including ALL private IPs and attached subnets
-    seen_subnets = {subnet_id} if subnet_id else set()
-    for eni in instance.get("NetworkInterfaces", []):
-        eni_id = eni["NetworkInterfaceId"]
-        primary_ip = eni.get("PrivateIpAddress", "")
-        # Collect all private IPs (primary + secondary)
-        all_private_ips = [a["PrivateIpAddress"] for a in eni.get("PrivateIpAddresses", []) if a.get("PrivateIpAddress")]
-        # Public IPs on this ENI
-        all_public_ips = [a["Association"]["PublicIp"] for a in eni.get("PrivateIpAddresses", []) if a.get("Association", {}).get("PublicIp")]
-        nodes.append(_node(eni_id, "network_interface", "network", f"ENI {primary_ip}", {
-            "mac": eni.get("MacAddress", ""),
-            "primary_ip": primary_ip,
-            "all_private_ips": all_private_ips,
-            "public_ips": all_public_ips,
-            "status": eni.get("Status", ""),
-            "id": eni_id,
-        }))
-        edges.append(_edge(root_id, eni_id, "has NIC"))
-
-        # Show each secondary private IP as its own node
-        for ip in all_private_ips:
-            if ip != primary_ip:
-                nodes.append(_node(f"sip-{ip}", "elastic_ip", "network", f"Secondary IP {ip}", {"type": "secondary private IP"}))
-                edges.append(_edge(eni_id, f"sip-{ip}", "secondary IP"))
-
-        # Show public IPs attached to this ENI
-        for pub_ip in all_public_ips:
-            nodes.append(_node(f"pub-{pub_ip}", "elastic_ip", "network", pub_ip, {"type": "public IP via ENI"}))
-            edges.append(_edge(eni_id, f"pub-{pub_ip}", "public IP"))
-
-        # Additional subnets from ENI (if different from primary)
-        eni_subnet = eni.get("SubnetId", "")
-        if eni_subnet and eni_subnet not in seen_subnets:
-            seen_subnets.add(eni_subnet)
-            try:
-                sub_data = ec2.describe_subnets(SubnetIds=[eni_subnet])["Subnets"][0]
-                sub_name = next((t["Value"] for t in sub_data.get("Tags", []) if t["Key"] == "Name"), eni_subnet)
-                nodes.append(_node(eni_subnet, "subnet", "network", sub_name, {
-                    "cidr": sub_data.get("CidrBlock"), "az": sub_data.get("AvailabilityZone"), "id": eni_subnet
-                }))
-                edges.append(_edge(eni_id, eni_subnet, "in subnet"))
-            except Exception:
-                pass
-
-    # IAM Instance Profile
-    iam_profile = instance.get("IamInstanceProfile")
-    if iam_profile:
-        arn = iam_profile.get("Arn", "")
-        profile_name = arn.split("/")[-1] if "/" in arn else arn
-        nodes.append(_node(arn, "iam_profile", "iam", profile_name, {"arn": arn}))
-        edges.append(_edge(root_id, arn, "uses role"))
-
-    # Key Pair
-    key_name = instance.get("KeyName")
-    if key_name:
-        nodes.append(_node(f"key-{key_name}", "key_pair", "security", key_name, {"name": key_name}))
-        edges.append(_edge(root_id, f"key-{key_name}", "SSH key"))
-
-    # Elastic IPs
-    try:
-        eips = ec2.describe_addresses(Filters=[{"Name": "instance-id", "Values": [server.cloud_id]}])["Addresses"]
-        for eip in eips:
-            eip_id = eip.get("AllocationId", eip.get("PublicIp", ""))
-            nodes.append(_node(eip_id, "elastic_ip", "network", eip.get("PublicIp", eip_id), {"allocation_id": eip.get("AllocationId"), "domain": eip.get("Domain")}))
-            edges.append(_edge(root_id, eip_id, "Elastic IP"))
-    except Exception:
-        pass
-
-    # NAT Gateways in the same VPC
-    if vpc_id:
-        try:
-            nats = ec2.describe_nat_gateways(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}, {"Name": "state", "Values": ["available"]}])["NatGateways"]
-            for nat in nats:
-                nat_id = nat["NatGatewayId"]
-                nat_subnet = nat.get("SubnetId", "")
-                nat_ip = nat.get("NatGatewayAddresses", [{}])[0].get("PublicIp", "")
-                nodes.append(_node(nat_id, "nat_gateway", "network", f"NAT {nat_ip}", {"subnet": nat_subnet, "public_ip": nat_ip, "state": nat.get("State"), "id": nat_id}))
-                edges.append(_edge(vpc_id, nat_id, "NAT gateway"))
-        except Exception:
-            pass
-
-    # Auto Scaling Group
-    try:
-        import boto3
-        asg_client = boto3.client("autoscaling", region_name=region,
-                                  aws_access_key_id=access_key, aws_secret_access_key=secret_key)
-        asg_resp = asg_client.describe_auto_scaling_instances(InstanceIds=[server.cloud_id])
-        for asg_inst in asg_resp.get("AutoScalingInstances", []):
-            asg_name = asg_inst["AutoScalingGroupName"]
-            nodes.append(_node(f"asg-{asg_name}", "autoscaling_group", "compute", asg_name, {"lifecycle": asg_inst.get("LifecycleState"), "health": asg_inst.get("HealthStatus")}))
-            edges.append(_edge(root_id, f"asg-{asg_name}", "in ASG"))
-    except Exception:
-        pass
-
-    # Load Balancers (ELB v2)
-    try:
-        elbv2 = boto3.client("elbv2", region_name=region,
-                             aws_access_key_id=access_key, aws_secret_access_key=secret_key)
-        # Get target groups
-        tg_resp = elbv2.describe_target_groups()
-        for tg in tg_resp.get("TargetGroups", []):
-            tg_arn = tg["TargetGroupArn"]
-            try:
-                health = elbv2.describe_target_health(TargetGroupArn=tg_arn)
-                for t in health.get("TargetHealthDescriptions", []):
-                    if t["Target"]["Id"] == server.cloud_id:
-                        # This instance is in this target group — get its LBs
-                        for lb_arn in tg.get("LoadBalancerArns", []):
-                            lb_resp = elbv2.describe_load_balancers(LoadBalancerArns=[lb_arn])
-                            for lb in lb_resp.get("LoadBalancers", []):
-                                lb_name = lb["LoadBalancerName"]
-                                nodes.append(_node(lb_arn, "load_balancer", "network", lb_name, {
-                                    "dns": lb.get("DNSName"), "scheme": lb.get("Scheme"), "type": lb.get("Type")
-                                }))
-                                edges.append(_edge(root_id, lb_arn, "behind LB"))
-            except Exception:
-                continue
-    except Exception:
-        pass
-
-    # Route Tables
-    if subnet_id:
-        try:
-            rt_resp = ec2.describe_route_tables(Filters=[{"Name": "association.subnet-id", "Values": [subnet_id]}])
-            for rt in rt_resp.get("RouteTables", []):
-                rt_id = rt["RouteTableId"]
-                rt_name = next((t["Value"] for t in rt.get("Tags", []) if t["Key"] == "Name"), rt_id)
-                nodes.append(_node(rt_id, "route_table", "network", rt_name, {"routes": len(rt.get("Routes", [])), "id": rt_id}))
-                edges.append(_edge(subnet_id, rt_id, "route table"))
-        except Exception:
-            pass
+    _aws_append_vpc(ec2, root_id, vpc_id, nodes, edges)
+    _aws_append_subnet(ec2, root_id, subnet_id, nodes, edges)
+    _aws_append_security_groups(ec2, root_id, instance, nodes, edges)
+    _aws_append_network_interfaces(ec2, root_id, instance, subnet_id, nodes, edges)
+    _aws_append_iam_and_key(root_id, instance, nodes, edges)
+    _aws_append_elastic_ips(ec2, root_id, server.cloud_id, nodes, edges)
+    _aws_append_nat_gateways(ec2, vpc_id, nodes, edges)
+    _aws_append_asg(region, access_key, secret_key, root_id, server.cloud_id, nodes, edges)
+    _aws_append_load_balancers(region, access_key, secret_key, root_id, server.cloud_id, nodes, edges)
+    _aws_append_route_tables(ec2, subnet_id, nodes, edges)
 
     return {"nodes": nodes, "edges": edges}
 
