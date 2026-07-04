@@ -1,5 +1,0 @@
-[ 1053585ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-DHhqGohO.js:21
-[ 1056242ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-DHhqGohO.js:21
-[ 1059365ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-DHhqGohO.js:21
-[ 1065813ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-DHhqGohO.js:21
-[ 1084306ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-DHhqGohO.js:21

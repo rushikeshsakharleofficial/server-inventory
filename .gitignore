@@ -26,6 +26,15 @@ CLAUDE.md.bak*
 QODER.md
 QODER.md.bak*
 *.local.json
+.cursorrules
+.windsurfrules
+.opencode.json
+.kiro/
+.qoder/
+.vscode/
+.commandcode/
+.stitch/
+*.bak
 # Added by code-review-graph
 .code-review-graph/
 

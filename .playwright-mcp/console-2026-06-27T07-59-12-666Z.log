@@ -1,7 +1,0 @@
-[  121829ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://142.44.210.103:5173/api/servers/stats:0
-[  123424ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://142.44.210.103:5173/api/servers/stats:0
-[  130056ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-mV5LiyxW.js:21
-[  132998ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-mV5LiyxW.js:21
-[  136296ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-mV5LiyxW.js:21
-[  145880ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-mV5LiyxW.js:21
-[  161771ms] [ERROR] WebSocket connection to 'ws://142.44.210.103:5173/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://142.44.210.103:5173/assets/index-mV5LiyxW.js:21
