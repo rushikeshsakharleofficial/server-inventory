@@ -9,7 +9,11 @@ function resolveApiBase(): string {
   )?.trim();
   if (configured) return configured.replace(/\/+$/, "");
   if (typeof window !== "undefined") {
-    return `${window.location.protocol}//${window.location.hostname}:8001`;
+    // ponytail: HTTPS pages need the API's own TLS-terminated port (8444),
+    // not the plain-HTTP backend port (8001) — calling the latter from an
+    // HTTPS origin fails as mixed content / connection-refused.
+    const port = window.location.protocol === "https:" ? 8444 : 8001;
+    return `${window.location.protocol}//${window.location.hostname}:${port}`;
   }
   return "http://localhost:8001";
 }
