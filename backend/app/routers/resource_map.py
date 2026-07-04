@@ -1337,15 +1337,133 @@ def _linode_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> d
 
 # ── OVH Server ────────────────────────────────────────────────────────────────
 
-def _ovh_server_map(server: models.Server, config: dict) -> dict:
-    import hmac, hashlib, time, requests
-    root_id = f"server-{server.id}"
-    nodes, edges = [], []
+def _ovh_signed_get(base_url: str, app_key: str, app_secret: str, consumer_key: str, path: str):
+    import hashlib, time, requests
+    now = str(int(time.time()))
+    url = f"{base_url}{path}"
+    sig_str = f"{app_secret}+{consumer_key}+GET+{url}++{now}"
+    sig = "$1$" + hashlib.sha1(sig_str.encode()).hexdigest()
+    headers: dict[str, str | bytes] = {
+        "X-Ovh-Application": app_key,
+        "X-Ovh-Consumer": consumer_key,
+        "X-Ovh-Timestamp": now,
+        "X-Ovh-Signature": sig,
+    }
+    return requests.get(url, headers=headers, timeout=15)
 
-    app_key    = config.get("application_key", "")
+
+def _ovh_append_ip_nodes(ovh_get, root_id: str, nodes: list, edges: list) -> None:
+    ip_resp = ovh_get("/ips")
+    if not ip_resp.ok:
+        return
+    for ip in ip_resp.json():
+        nodes.append(_node(f"ip-{ip}", "public_ip", "network", ip, {}))
+        edges.append(_edge(root_id, f"ip-{ip}", "IP address"))
+
+
+def _ovh_append_failover_ips(ovh_get_absolute, root_id: str, server_name: str, nodes: list, edges: list) -> None:
+    fo_resp = ovh_get_absolute("/ip?type=failover")
+    if not fo_resp.ok:
+        return
+    for fo_ip in fo_resp.json()[:10]:
+        detail = ovh_get_absolute(f"/ip/{fo_ip.replace('/', '%2F')}")
+        if not detail.ok:
+            continue
+        ip_data = detail.json()
+        if ip_data.get("routedTo", {}).get("serviceName") == server_name:
+            nodes.append(_node(f"failover-{fo_ip}", "elastic_ip", "network",
+                               f"Failover {fo_ip}", {"block": fo_ip}))
+            edges.append(_edge(root_id, f"failover-{fo_ip}", "failover IP"))
+
+
+def _ovh_append_vrack(ovh_get, root_id: str, nodes: list, edges: list) -> None:
+    vrack_resp = ovh_get("/vrack")
+    if not vrack_resp.ok:
+        return
+    vrack = vrack_resp.json()
+    vrack_id = vrack.get("vrack", "")
+    if vrack_id:
+        nodes.append(_node(f"vrack-{vrack_id}", "vpc_network", "network",
+                           f"vRack: {vrack_id}",
+                           {"vrack_id": vrack_id, "mode": vrack.get("mode"), "status": vrack.get("taskState")}))
+        edges.append(_edge(root_id, f"vrack-{vrack_id}", "vRack"))
+
+
+def _ovh_append_firewalls(ovh_get_absolute, root_id: str, server_name: str, nodes: list, edges: list) -> None:
+    fw_resp = ovh_get_absolute(f"/ip?routedTo={server_name}")
+    if not fw_resp.ok:
+        return
+    for ip_block in fw_resp.json()[:5]:
+        fw_detail = ovh_get_absolute(f"/ip/{ip_block.replace('/', '%2F')}/firewall")
+        if not fw_detail.ok:
+            continue
+        for fw_ip in fw_detail.json()[:5]:
+            fw_rules = ovh_get_absolute(f"/ip/{ip_block.replace('/', '%2F')}/firewall/{fw_ip.replace('/', '%2F')}")
+            if not fw_rules.ok:
+                continue
+            fw_data = fw_rules.json()
+            if fw_data.get("enabled"):
+                nodes.append(_node(f"fw-{fw_ip}", "firewall", "security",
+                                   f"OVH Firewall {fw_ip}",
+                                   {"enabled": True, "ip": fw_ip}))
+                edges.append(_edge(root_id, f"fw-{fw_ip}", "OVH Firewall"))
+
+
+def _ovh_append_backup(ovh_get, root_id: str, nodes: list, edges: list) -> None:
+    backup_resp = ovh_get("/backupCloudOfferDetails")
+    if not backup_resp.ok:
+        return
+    backup = backup_resp.json()
+    nodes.append(_node("backup-cloud", "backup", "storage", "OVH Backup Cloud",
+                       {"quota_used": backup.get("quotaUsed"), "quota_total": backup.get("quotaTotal")}))
+    edges.append(_edge(root_id, "backup-cloud", "backup storage"))
+
+
+def _ovh_append_ipmi(ovh_get, root_id: str, nodes: list, edges: list) -> None:
+    ipmi_resp = ovh_get("/features/ipmi")
+    if not ipmi_resp.ok:
+        return
+    ipmi = ipmi_resp.json()
+    if ipmi.get("activated"):
+        nodes.append(_node("ipmi", "network_interface", "network", "IPMI / iDRAC", {"activated": True}))
+        edges.append(_edge(root_id, "ipmi", "IPMI access"))
+
+
+def _ovh_append_dedicated_extras(ovh_get_absolute, root_id: str, server_name: str, nodes: list, edges: list) -> None:
+    def _dedicated_get(suffix: str):
+        return ovh_get_absolute(f"/dedicated/server/{server_name}{suffix}")
+
+    _ovh_append_vrack(_dedicated_get, root_id, nodes, edges)
+    _ovh_append_firewalls(ovh_get_absolute, root_id, server_name, nodes, edges)
+    _ovh_append_backup(_dedicated_get, root_id, nodes, edges)
+    _ovh_append_ipmi(_dedicated_get, root_id, nodes, edges)
+
+
+def _ovh_append_vps_extras(ovh_get, root_id: str, nodes: list, edges: list) -> None:
+    snap_resp = ovh_get("/snapshot")
+    if snap_resp.ok:
+        snap = snap_resp.json()
+        if snap:
+            nodes.append(_node("vps-snapshot", "disk", "storage", "VPS Snapshot",
+                               {"creation_date": snap.get("creationDate")}))
+            edges.append(_edge(root_id, "vps-snapshot", "snapshot"))
+
+    opt_resp = ovh_get("/option")
+    if opt_resp.ok:
+        for opt in opt_resp.json():
+            nodes.append(_node(f"opt-{opt}", "addon", "config", opt.replace("-", " ").title(), {}))
+            edges.append(_edge(root_id, f"opt-{opt}", "option"))
+
+
+def _ovh_server_map(server: models.Server, config: dict) -> dict:
+    root_id = f"server-{server.id}"
+    nodes: list = []
+    edges: list = []
+
+    app_key = config.get("application_key", "")
     app_secret = config.get("application_secret", "")
     consumer_key = config.get("consumer_key", "")
-    endpoint   = config.get("endpoint", "ovh-eu")
+    endpoint = config.get("endpoint", "ovh-eu")
 
     base_urls = {
         "ovh-eu": "https://eu.api.ovh.com/1.0",
@@ -1354,111 +1472,29 @@ def _ovh_server_map(server: models.Server, config: dict) -> dict:
     }
     base_url = base_urls.get(endpoint, base_urls["ovh-eu"])
 
-    def ovh_get(path: str):
-        now = str(int(time.time()))
-        url = f"{base_url}{path}"
-        sig_str = f"{app_secret}+{consumer_key}+GET+{url}++{now}"
-        sig = "$1$" + hashlib.sha1(sig_str.encode()).hexdigest()
-        headers: dict[str, str | bytes] = {
-            "X-Ovh-Application": app_key,
-            "X-Ovh-Consumer": consumer_key,
-            "X-Ovh-Timestamp": now,
-            "X-Ovh-Signature": sig,
-        }
-        return requests.get(url, headers=headers, timeout=15)
+    def ovh_get_absolute(path: str):
+        return _ovh_signed_get(base_url, app_key, app_secret, consumer_key, path)
 
     server_name = server.cloud_id or server.name
-
-    # Determine if dedicated or VPS
-    is_vps = server.instance_type and "vps" in str(server.instance_type).lower()
+    is_vps = bool(server.instance_type and "vps" in str(server.instance_type).lower())
     prefix = "/vps" if is_vps else "/dedicated/server"
     resource_path = f"{prefix}/{server_name}"
 
+    def resource_get(suffix: str):
+        return ovh_get_absolute(f"{resource_path}{suffix}")
+
     try:
-        resp = ovh_get(resource_path)
+        resp = resource_get("")
         if not resp.ok:
             return {"nodes": [], "edges": []}
 
-        # IPs
-        ip_resp = ovh_get(f"{resource_path}/ips")
-        if ip_resp.ok:
-            for ip in ip_resp.json():
-                nodes.append(_node(f"ip-{ip}", "public_ip", "network", ip, {}))
-                edges.append(_edge(root_id, f"ip-{ip}", "IP address"))
+        _ovh_append_ip_nodes(resource_get, root_id, nodes, edges)
+        _ovh_append_failover_ips(ovh_get_absolute, root_id, server_name, nodes, edges)
 
-        # Failover IPs
-        fo_resp = ovh_get("/ip?type=failover")
-        if fo_resp.ok:
-            for fo_ip in fo_resp.json()[:10]:
-                # Check if routed to this server
-                detail = ovh_get(f"/ip/{fo_ip.replace('/', '%2F')}")
-                if detail.ok:
-                    ip_data = detail.json()
-                    if ip_data.get("routedTo", {}).get("serviceName") == server_name:
-                        nodes.append(_node(f"failover-{fo_ip}", "elastic_ip", "network",
-                                           f"Failover {fo_ip}", {"block": fo_ip}))
-                        edges.append(_edge(root_id, f"failover-{fo_ip}", "failover IP"))
-
-        if not is_vps:
-            # vRack
-            vrack_resp = ovh_get(f"/dedicated/server/{server_name}/vrack")
-            if vrack_resp.ok:
-                vrack = vrack_resp.json()
-                vrack_id = vrack.get("vrack", "")
-                if vrack_id:
-                    nodes.append(_node(f"vrack-{vrack_id}", "vpc_network", "network",
-                                       f"vRack: {vrack_id}",
-                                       {"vrack_id": vrack_id, "mode": vrack.get("mode"), "status": vrack.get("taskState")}))
-                    edges.append(_edge(root_id, f"vrack-{vrack_id}", "vRack"))
-
-            # Firewall
-            fw_resp = ovh_get(f"/ip?routedTo={server_name}")
-            if fw_resp.ok:
-                for ip_block in fw_resp.json()[:5]:
-                    fw_detail = ovh_get(f"/ip/{ip_block.replace('/', '%2F')}/firewall")
-                    if fw_detail.ok:
-                        for fw_ip in fw_detail.json()[:5]:
-                            fw_rules = ovh_get(f"/ip/{ip_block.replace('/', '%2F')}/firewall/{fw_ip.replace('/', '%2F')}")
-                            if fw_rules.ok:
-                                fw_data = fw_rules.json()
-                                if fw_data.get("enabled"):
-                                    nodes.append(_node(f"fw-{fw_ip}", "firewall", "security",
-                                                       f"OVH Firewall {fw_ip}",
-                                                       {"enabled": True, "ip": fw_ip}))
-                                    edges.append(_edge(root_id, f"fw-{fw_ip}", "OVH Firewall"))
-
-            # Backup storage
-            backup_resp = ovh_get(f"/dedicated/server/{server_name}/backupCloudOfferDetails")
-            if backup_resp.ok:
-                backup = backup_resp.json()
-                nodes.append(_node("backup-cloud", "backup", "storage", "OVH Backup Cloud",
-                                   {"quota_used": backup.get("quotaUsed"), "quota_total": backup.get("quotaTotal")}))
-                edges.append(_edge(root_id, "backup-cloud", "backup storage"))
-
-            # IPMI / KVM
-            ipmi_resp = ovh_get(f"/dedicated/server/{server_name}/features/ipmi")
-            if ipmi_resp.ok:
-                ipmi = ipmi_resp.json()
-                if ipmi.get("activated"):
-                    nodes.append(_node("ipmi", "network_interface", "network", "IPMI / iDRAC", {"activated": True}))
-                    edges.append(_edge(root_id, "ipmi", "IPMI access"))
-
+        if is_vps:
+            _ovh_append_vps_extras(resource_get, root_id, nodes, edges)
         else:
-            # VPS-specific: distributions, snapshots
-            snap_resp = ovh_get(f"/vps/{server_name}/snapshot")
-            if snap_resp.ok:
-                snap = snap_resp.json()
-                if snap:
-                    nodes.append(_node("vps-snapshot", "disk", "storage", "VPS Snapshot",
-                                       {"creation_date": snap.get("creationDate")}))
-                    edges.append(_edge(root_id, "vps-snapshot", "snapshot"))
-
-            # VPS options
-            opt_resp = ovh_get(f"/vps/{server_name}/option")
-            if opt_resp.ok:
-                for opt in opt_resp.json():
-                    nodes.append(_node(f"opt-{opt}", "addon", "config", opt.replace("-", " ").title(), {}))
-                    edges.append(_edge(root_id, f"opt-{opt}", "option"))
+            _ovh_append_dedicated_extras(ovh_get_absolute, root_id, server_name, nodes, edges)
 
     except Exception:
         pass
