@@ -411,6 +411,127 @@ def _get_ssh_credential(db: Session, ssh_credential_id: int | None) -> "models.S
     return db.query(models.SSHCredential).filter(models.SSHCredential.is_default.is_(True)).first()
 
 
+def _fail_discovery_job(db, job, job_id: int, message: str) -> None:
+    job.status = "failed"
+    job.error_message = message
+    job.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    manager.broadcast({"type": "discovery_complete", "job_id": job_id, "status": "failed"})
+
+
+def _discovery_progress_payload(job_id: int, job) -> dict:
+    return {
+        "type": "discovery_progress",
+        "job_id": job_id,
+        "scanned_ips": job.scanned_ips,
+        "reachable_ssh": job.reachable_ssh,
+        "authenticated": job.authenticated,
+        "servers_added": job.servers_added,
+        "servers_updated": job.servers_updated,
+        "duplicates_merged": job.duplicates_merged,
+        "failed": job.failed,
+    }
+
+
+def _process_successful_scan(db, job, job_id: int, network, result: dict, seen_servers_this_job: dict) -> None:
+    job.authenticated += 1
+    facts = result["facts"] or {}
+    signals = extract_identity_signals(facts)
+    discovered_ips = [
+        a["address"]
+        for iface in facts.get("interfaces") or []
+        for a in iface.get("addresses") or []
+        if a.get("scope") not in ("loopback", "link-local")
+    ]
+    matched_server, matched_signal = resolve_server(db, signals, result["host_key_fp"], discovered_ips)
+
+    conflict = None
+    if matched_server is not None and matched_signal is not None:
+        conflict = check_identity_conflict(db, signals, matched_server, matched_signal, result["host_key_fp"])
+
+    server, was_new = upsert_server_and_ips(
+        db, matched_server, signals, result["host_key_fp"], facts, network, result["ip"]
+    )
+    if was_new:
+        job.servers_added += 1
+    else:
+        job.servers_updated += 1
+
+    repeat_count = seen_servers_this_job.get(server.id, 0)
+    seen_servers_this_job[server.id] = repeat_count + 1
+    is_duplicate_this_job = repeat_count > 0
+    if is_duplicate_this_job:
+        job.duplicates_merged += 1
+
+    hash_signal = matched_signal or ("machine_id" if signals.get("machine_id") else None)
+    hash_value = signals.get(hash_signal) if hash_signal else None
+    raw_summary: dict[str, Any] = dict(facts)
+    if conflict:
+        raw_summary["identity_conflict"] = conflict
+
+    db.add(models.DiscoveryResult(
+        job_id=job_id,
+        ip=result["ip"],
+        status="duplicate" if is_duplicate_this_job else "success",
+        server_id=server.id,
+        identity_hash=compute_identity_hash(hash_signal, hash_value) if hash_value else None,
+        hostname=facts.get("hostname"),
+        raw_summary=raw_summary,
+    ))
+
+
+def _process_unsuccessful_scan(db, job, job_id: int, result: dict) -> None:
+    if result["status"] in ("auth_failed", "error"):
+        job.failed += 1
+    db.add(models.DiscoveryResult(
+        job_id=job_id,
+        ip=result["ip"],
+        status=result["status"],
+        error_message=result["error_message"],
+    ))
+
+
+def _process_one_scan_result(db, job, job_id: int, network, result: dict, seen_servers_this_job: dict) -> None:
+    job.scanned_ips += 1
+    if result["port_open"]:
+        job.reachable_ssh += 1
+    if result["status"] == "success":
+        _process_successful_scan(db, job, job_id, network, result, seen_servers_this_job)
+    else:
+        _process_unsuccessful_scan(db, job, job_id, result)
+
+
+def _run_scan_loop(db, job, job_id: int, network, ips: list[str], ssh_cred, timeout_seconds: int, max_parallel: int, stop_event) -> bool:
+    """Fans out IP scans across a thread pool; this thread is the sole
+    consumer that writes to `db`. Returns True if the loop was stopped early."""
+    seen_servers_this_job: dict[int, int] = {}
+    stopped = False
+
+    with ThreadPoolExecutor(max_workers=max_parallel or 32) as ex:
+        futures = {ex.submit(_scan_ip, ip, ssh_cred, timeout_seconds): ip for ip in ips}
+        since_commit = 0
+        for future in as_completed(futures):
+            if stop_event.is_set():
+                stopped = True
+                break
+
+            result = future.result()
+            _process_one_scan_result(db, job, job_id, network, result, seen_servers_this_job)
+
+            since_commit += 1
+            if since_commit >= DISCOVERY_BATCH_SIZE:
+                db.commit()
+                since_commit = 0
+                manager.broadcast(_discovery_progress_payload(job_id, job))
+                time.sleep(DISCOVERY_BATCH_DELAY_S)
+
+        if since_commit:
+            db.commit()
+            manager.broadcast(_discovery_progress_payload(job_id, job))
+
+    return stopped
+
+
 def run_discovery(
     job_id: int,
     cidr: str,
@@ -446,19 +567,14 @@ def run_discovery(
         try:
             net = validate_cidr(cidr, max_ips=4096)
         except ValueError as exc:
-            job.status = "failed"
-            job.error_message = str(exc)
-            job.completed_at = datetime.now(timezone.utc)
-            db.commit()
-            manager.broadcast({"type": "discovery_complete", "job_id": job_id, "status": "failed"})
+            _fail_discovery_job(db, job, job_id, str(exc))
             return
 
         if not ssh_cred:
-            job.status = "failed"
-            job.error_message = "No SSH credential available (none specified and no default configured)"
-            job.completed_at = datetime.now(timezone.utc)
-            db.commit()
-            manager.broadcast({"type": "discovery_complete", "job_id": job_id, "status": "failed"})
+            _fail_discovery_job(
+                db, job, job_id,
+                "No SSH credential available (none specified and no default configured)",
+            )
             return
 
         ips = expand_cidr(net)
@@ -469,112 +585,10 @@ def run_discovery(
 
         manager.broadcast({"type": "discovery_started", "job_id": job_id, "total_ips": len(ips)})
 
-        seen_servers_this_job: dict[int, int] = {}  # server_id -> IPs merged into it this job
         error: str | None = None
         stopped = False
-
         try:
-            with ThreadPoolExecutor(max_workers=max_parallel or 32) as ex:
-                futures = {ex.submit(_scan_ip, ip, ssh_cred, timeout_seconds): ip for ip in ips}
-                since_commit = 0
-                for future in as_completed(futures):
-                    if stop_event.is_set():
-                        stopped = True
-                        break
-
-                    result = future.result()
-                    job.scanned_ips += 1
-                    if result["port_open"]:
-                        job.reachable_ssh += 1
-
-                    if result["status"] == "success":
-                        job.authenticated += 1
-                        facts = result["facts"] or {}
-                        signals = extract_identity_signals(facts)
-                        discovered_ips = [
-                            a["address"]
-                            for iface in facts.get("interfaces") or []
-                            for a in iface.get("addresses") or []
-                            if a.get("scope") not in ("loopback", "link-local")
-                        ]
-                        matched_server, matched_signal = resolve_server(
-                            db, signals, result["host_key_fp"], discovered_ips
-                        )
-                        conflict = None
-                        if matched_server is not None and matched_signal is not None:
-                            conflict = check_identity_conflict(
-                                db, signals, matched_server, matched_signal, result["host_key_fp"]
-                            )
-
-                        server, was_new = upsert_server_and_ips(
-                            db, matched_server, signals, result["host_key_fp"], facts, network, result["ip"]
-                        )
-                        if was_new:
-                            job.servers_added += 1
-                        else:
-                            job.servers_updated += 1
-
-                        repeat_count = seen_servers_this_job.get(server.id, 0)
-                        seen_servers_this_job[server.id] = repeat_count + 1
-                        is_duplicate_this_job = repeat_count > 0
-                        if is_duplicate_this_job:
-                            job.duplicates_merged += 1
-
-                        hash_signal = matched_signal or ("machine_id" if signals.get("machine_id") else None)
-                        hash_value = signals.get(hash_signal) if hash_signal else None
-                        raw_summary: dict[str, Any] = dict(facts)
-                        if conflict:
-                            raw_summary["identity_conflict"] = conflict
-
-                        db.add(models.DiscoveryResult(
-                            job_id=job_id,
-                            ip=result["ip"],
-                            status="duplicate" if is_duplicate_this_job else "success",
-                            server_id=server.id,
-                            identity_hash=compute_identity_hash(hash_signal, hash_value) if hash_value else None,
-                            hostname=facts.get("hostname"),
-                            raw_summary=raw_summary,
-                        ))
-                    else:
-                        if result["status"] in ("auth_failed", "error"):
-                            job.failed += 1
-                        db.add(models.DiscoveryResult(
-                            job_id=job_id,
-                            ip=result["ip"],
-                            status=result["status"],
-                            error_message=result["error_message"],
-                        ))
-
-                    since_commit += 1
-                    if since_commit >= DISCOVERY_BATCH_SIZE:
-                        db.commit()
-                        since_commit = 0
-                        manager.broadcast({
-                            "type": "discovery_progress",
-                            "job_id": job_id,
-                            "scanned_ips": job.scanned_ips,
-                            "reachable_ssh": job.reachable_ssh,
-                            "authenticated": job.authenticated,
-                            "servers_added": job.servers_added,
-                            "servers_updated": job.servers_updated,
-                            "duplicates_merged": job.duplicates_merged,
-                            "failed": job.failed,
-                        })
-                        time.sleep(DISCOVERY_BATCH_DELAY_S)
-
-                if since_commit:
-                    db.commit()
-                    manager.broadcast({
-                        "type": "discovery_progress",
-                        "job_id": job_id,
-                        "scanned_ips": job.scanned_ips,
-                        "reachable_ssh": job.reachable_ssh,
-                        "authenticated": job.authenticated,
-                        "servers_added": job.servers_added,
-                        "servers_updated": job.servers_updated,
-                        "duplicates_merged": job.duplicates_merged,
-                        "failed": job.failed,
-                    })
+            stopped = _run_scan_loop(db, job, job_id, network, ips, ssh_cred, timeout_seconds, max_parallel, stop_event)
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
             db.rollback()
