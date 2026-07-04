@@ -15,75 +15,91 @@ class AzureProvider(CloudProvider):
     def provider_name(self) -> str:
         return "azure"
 
-    def fetch_servers(self) -> list[dict[str, Any]]:
-        try:
-            from azure.identity import ClientSecretCredential
-            from azure.mgmt.compute import ComputeManagementClient
-            from azure.mgmt.network import NetworkManagementClient
-        except ImportError:
-            raise RuntimeError("azure-mgmt-compute and azure-identity not installed")
+    def _az_credential(self):
+        from azure.identity import ClientSecretCredential
 
-        subscription_id = self.config["subscription_id"]
-        credential = ClientSecretCredential(
+        return ClientSecretCredential(
             tenant_id=self.config["tenant_id"],
             client_id=self.config["client_id"],
             client_secret=self.config["client_secret"],
         )
 
+    @staticmethod
+    def _vm_power_status(compute, rg: str, vm_name: str) -> str:
+        try:
+            iv = compute.virtual_machines.instance_view(rg, vm_name)
+            for s in iv.statuses:
+                if s.code.startswith("PowerState/"):
+                    power = s.code.split("/")[1]
+                    return POWER_STATE_MAP.get(power, "unknown")
+        except Exception:
+            pass
+        return "unknown"
+
+    @staticmethod
+    def _vm_ip_addresses(network, rg: str, vm) -> tuple[str | None, str | None]:
+        public_ip = None
+        private_ip = None
+        try:
+            if vm.network_profile and vm.network_profile.network_interfaces:
+                nic_id = vm.network_profile.network_interfaces[0].id
+                nic_name = nic_id.split("/")[-1]
+                nic = network.network_interfaces.get(rg, nic_name)
+                for ipc in nic.ip_configurations:
+                    private_ip = ipc.private_ip_address
+                    if ipc.public_ip_address:
+                        pip_name = ipc.public_ip_address.id.split("/")[-1]
+                        pip = network.public_ip_addresses.get(rg, pip_name)
+                        public_ip = pip.ip_address
+        except Exception:
+            pass
+        return public_ip, private_ip
+
+    @staticmethod
+    def _vm_os_type(vm) -> str:
+        if vm.storage_profile and vm.storage_profile.os_disk and vm.storage_profile.os_disk.os_type:
+            return vm.storage_profile.os_disk.os_type.lower()
+        return "unknown"
+
+    def _map_vm(self, compute, network, vm, subscription_id: str) -> dict[str, Any]:
+        rg = vm.id.split("/")[4]
+        status = self._vm_power_status(compute, rg, vm.name)
+        public_ip, private_ip = self._vm_ip_addresses(network, rg, vm)
+
+        return {
+            "cloud_id": vm.id,
+            "name": vm.name,
+            "provider": "azure",
+            "region": vm.location,
+            "instance_type": vm.hardware_profile.vm_size if vm.hardware_profile else None,
+            "status": status,
+            "public_ip": public_ip,
+            "private_ip": private_ip,
+            "os": self._vm_os_type(vm),
+            "tags": dict(vm.tags) if vm.tags else {},
+            "extra": {
+                "resource_group": rg,
+                "subscription_id": subscription_id,
+            },
+        }
+
+    def fetch_servers(self) -> list[dict[str, Any]]:
+        try:
+            from azure.mgmt.compute import ComputeManagementClient
+            from azure.mgmt.network import NetworkManagementClient
+
+            credential = self._az_credential()
+        except ImportError:
+            raise RuntimeError("azure-mgmt-compute and azure-identity not installed")
+
+        subscription_id = self.config["subscription_id"]
         compute = ComputeManagementClient(credential, subscription_id)
         network = NetworkManagementClient(credential, subscription_id)
 
-        servers = []
-        for vm in compute.virtual_machines.list_all():
-            rg = vm.id.split("/")[4]
-
-            status = "unknown"
-            try:
-                iv = compute.virtual_machines.instance_view(rg, vm.name)
-                for s in iv.statuses:
-                    if s.code.startswith("PowerState/"):
-                        power = s.code.split("/")[1]
-                        status = POWER_STATE_MAP.get(power, "unknown")
-            except Exception:
-                pass
-
-            public_ip = None
-            private_ip = None
-            try:
-                if vm.network_profile and vm.network_profile.network_interfaces:
-                    nic_id = vm.network_profile.network_interfaces[0].id
-                    nic_name = nic_id.split("/")[-1]
-                    nic = network.network_interfaces.get(rg, nic_name)
-                    for ipc in nic.ip_configurations:
-                        private_ip = ipc.private_ip_address
-                        if ipc.public_ip_address:
-                            pip_name = ipc.public_ip_address.id.split("/")[-1]
-                            pip = network.public_ip_addresses.get(rg, pip_name)
-                            public_ip = pip.ip_address
-            except Exception:
-                pass
-
-            os_type = "unknown"
-            if vm.storage_profile and vm.storage_profile.os_disk and vm.storage_profile.os_disk.os_type:
-                os_type = vm.storage_profile.os_disk.os_type.lower()
-
-            servers.append({
-                "cloud_id": vm.id,
-                "name": vm.name,
-                "provider": "azure",
-                "region": vm.location,
-                "instance_type": vm.hardware_profile.vm_size if vm.hardware_profile else None,
-                "status": status,
-                "public_ip": public_ip,
-                "private_ip": private_ip,
-                "os": os_type,
-                "tags": dict(vm.tags) if vm.tags else {},
-                "extra": {
-                    "resource_group": rg,
-                    "subscription_id": subscription_id,
-                },
-            })
-        return servers
+        return [
+            self._map_vm(compute, network, vm, subscription_id)
+            for vm in compute.virtual_machines.list_all()
+        ]
 
     def _az_token(self) -> str:
         import requests
@@ -191,70 +207,63 @@ class AzureProvider(CloudProvider):
             })
         return result
 
+    _DISK_STATE_MAP = {
+        "Attached": "running",
+        "Unattached": "available",
+        "Reserved": "available",
+        "Frozen": "stopped",
+    }
+
+    @classmethod
+    def _disk_status(cls, disk, attachment: str | None) -> str:
+        if hasattr(disk, "disk_state") and disk.disk_state:
+            return cls._DISK_STATE_MAP.get(disk.disk_state, "unknown")
+        return "running" if attachment else "available"
+
+    @staticmethod
+    def _map_disk(disk) -> dict[str, Any]:
+        sku_name = "standard"
+        if hasattr(disk, "sku") and disk.sku:
+            sku_name = getattr(disk.sku, "name", "standard")
+
+        attachment = None
+        if hasattr(disk, "managed_by") and disk.managed_by:
+            attachment = disk.managed_by.split("/")[-1]
+
+        tags = {}
+        if hasattr(disk, "tags") and disk.tags:
+            tags = dict(disk.tags)
+
+        return {
+            "cloud_id": disk.id,
+            "name": disk.name,
+            "provider": "azure",
+            "region": disk.location,
+            "size_gb": float(disk.disk_size_gb) if getattr(disk, "disk_size_gb", None) else 0.0,
+            "status": AzureProvider._disk_status(disk, attachment),
+            "attachment": attachment,
+            "volume_type": sku_name,
+            "tags": tags,
+            "extra": {
+                "resource_group": disk.id.split("/")[4] if "/" in disk.id else "",
+                "time_created": str(getattr(disk, "time_created", "")),
+                "disk_state": getattr(disk, "disk_state", None),
+                "provisioning_state": getattr(disk, "provisioning_state", None),
+            },
+        }
+
     def fetch_block_storages(self) -> list[dict[str, Any]]:
         try:
-            from azure.identity import ClientSecretCredential
             from azure.mgmt.compute import ComputeManagementClient
+
+            credential = self._az_credential()
         except ImportError:
             return []
 
         subscription_id = self.config["subscription_id"]
-        credential = ClientSecretCredential(
-            tenant_id=self.config["tenant_id"],
-            client_id=self.config["client_id"],
-            client_secret=self.config["client_secret"],
-        )
-
         compute = ComputeManagementClient(credential, subscription_id)
 
-        result = []
-        state_map = {
-            "Attached": "running",
-            "Unattached": "available",
-            "Reserved": "available",
-            "Frozen": "stopped",
-        }
-
         try:
-            for disk in compute.disks.list():
-                sku_name = "standard"
-                if hasattr(disk, "sku") and disk.sku:
-                    sku_name = getattr(disk.sku, "name", "standard")
-
-                attachment = None
-                if hasattr(disk, "managed_by") and disk.managed_by:
-                    attachment = disk.managed_by.split("/")[-1]
-
-                tags = {}
-                if hasattr(disk, "tags") and disk.tags:
-                    tags = dict(disk.tags)
-
-                status = "unknown"
-                if hasattr(disk, "disk_state") and disk.disk_state:
-                    status = state_map.get(disk.disk_state, "unknown")
-                elif attachment:
-                    status = "running"
-                else:
-                    status = "available"
-
-                result.append({
-                    "cloud_id": disk.id,
-                    "name": disk.name,
-                    "provider": "azure",
-                    "region": disk.location,
-                    "size_gb": float(disk.disk_size_gb) if getattr(disk, "disk_size_gb", None) else 0.0,
-                    "status": status,
-                    "attachment": attachment,
-                    "volume_type": sku_name,
-                    "tags": tags,
-                    "extra": {
-                        "resource_group": disk.id.split("/")[4] if "/" in disk.id else "",
-                        "time_created": str(getattr(disk, "time_created", "")),
-                        "disk_state": getattr(disk, "disk_state", None),
-                        "provisioning_state": getattr(disk, "provisioning_state", None),
-                    },
-                })
+            return [self._map_disk(disk) for disk in compute.disks.list()]
         except Exception:
-            pass
-
-        return result
+            return []
