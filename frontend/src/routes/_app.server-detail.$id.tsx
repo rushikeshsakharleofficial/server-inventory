@@ -205,15 +205,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function FieldGrid({ entries }: { entries: [string, React.ReactNode][] }) {
-  // Drop fields with no real value (bare "—" placeholder) so the grid sizes
-  // itself to the fields that actually have data instead of always rendering
-  // a fixed number of mostly-empty cells.
+  // Drop fields with no real value (bare "—" placeholder), and use flex-wrap
+  // instead of a fixed grid-cols-N track — a fixed column count still leaves
+  // visible empty track space when only 1-2 fields are populated, since the
+  // grid reserves columns regardless of how many cells actually render.
+  // flex-wrap only ever takes up as much width as the populated cells need.
   const populated = entries.filter(([, value]) => value !== "—" && value !== null && value !== undefined);
   if (!populated.length) return <p className="text-xs text-muted-foreground">No data.</p>;
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px bg-border ring-1 ring-border rounded-lg overflow-hidden">
+    <div className="flex flex-wrap gap-px bg-border ring-1 ring-border rounded-lg overflow-hidden">
       {populated.map(([label, value]) => (
-        <div key={label} className="bg-surface p-3">
+        <div key={label} className="bg-surface p-3 flex-1 min-w-[140px] max-w-[calc(50%-1px)] sm:max-w-[calc(33.333%-1px)] lg:max-w-[calc(25%-1px)]">
           <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">{label}</div>
           <div className="text-sm font-mono break-all">{value}</div>
         </div>
@@ -325,18 +327,53 @@ function SshInfoSection({ sshInfo }: { sshInfo: Record<string, unknown> }) {
 // This queries it defensively — a 404 renders the empty state below instead
 // of an error, so this section is a no-op until that endpoint ships.
 
-function DiscoveredNetworksSection({ serverId }: { serverId: string }) {
-  const { data: addrs, isLoading, error } = useQuery({
+function DiscoveredNetworksSection({ serverId, server }: { serverId: string; server: Server }) {
+  const { data: rawAddrs, isLoading, error } = useQuery({
     queryKey: ["serverIpAddresses", serverId],
     queryFn: () => api<ServerIpAddress[]>(`/api/servers/${serverId}/ip-addresses`),
     retry: false,
   });
 
   const notFound = error instanceof ApiError && error.status === 404;
+  const discovered = (error && !notFound) ? [] : (rawAddrs ?? []);
+
+  // Union with the legacy IP sources (public_ip/private_ip/ssh_info.all_ips) so
+  // servers never scanned by discovery still show their known addresses here,
+  // not just an empty "no discovered aliases" message. Dedup by address —
+  // discovery-sourced rows win when both list the same address (richer data).
+  const seen = new Set(discovered.map(a => a.address));
+  const legacy: ServerIpAddress[] = [];
+  const allIps: string[] = Array.isArray(server.ssh_info?.all_ips) ? (server.ssh_info!.all_ips as string[]) : [];
+  const legacyAddrs = new Set([
+    ...(server.public_ip ? [server.public_ip] : []),
+    ...(server.private_ip ? [server.private_ip] : []),
+    ...allIps,
+  ]);
+  for (const addr of legacyAddrs) {
+    const bareAddr = addr.split("/")[0];
+    if (seen.has(bareAddr)) continue;
+    seen.add(bareAddr);
+    legacy.push({
+      id: -legacy.length - 1,
+      server_id: server.id,
+      address: bareAddr,
+      cidr: addr,
+      ip_version: bareAddr.includes(":") ? 6 : 4,
+      interface_name: "known",
+      mac_address: null,
+      scope: bareAddr === server.public_ip ? "public" : "private",
+      is_primary: bareAddr === (server.private_ip ?? server.public_ip),
+      discovered_from_ip: null,
+      source: "manual",
+      first_seen_at: null,
+      last_seen_at: null,
+    });
+  }
+  const addrs = [...discovered, ...legacy];
 
   if (isLoading) return <p className="text-xs text-muted-foreground">Loading…</p>;
-  if ((error && !notFound) || !addrs || addrs.length === 0) {
-    return <p className="text-xs text-muted-foreground">No discovered IP aliases yet.</p>;
+  if (addrs.length === 0) {
+    return <p className="text-xs text-muted-foreground">No known IP addresses yet.</p>;
   }
 
   const groups = new Map<string, ServerIpAddress[]>();
@@ -509,7 +546,7 @@ function ServerDetailPage() {
 
       {/* Discovered Networks (server_ip_addresses, best-effort — see component note) */}
       <Section title="Discovered Networks">
-        <DiscoveredNetworksSection serverId={id} />
+        <DiscoveredNetworksSection serverId={id} server={server} />
       </Section>
 
       {/* Tags */}

@@ -283,10 +283,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
             <button
               onClick={logout}
-              className="p-1.5 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Sign out"
             >
-              <LogOut className="size-4" />
+              <LogOut className="size-3.5" /> Logout
             </button>
           </div>
         </header>
