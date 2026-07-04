@@ -1413,6 +1413,70 @@ def _linode_database_map(db_inst: models.DatabaseInstance, config: dict) -> dict
 
 # ── Linode Kubernetes (LKE) ───────────────────────────────────────────────────
 
+def _lke_append_one_pool(root_id: str, pool: dict, nodes: list, edges: list) -> None:
+    pool_id = pool["id"]
+    nodes_list = pool.get("nodes", [])
+    nodes.append(_node(str(pool_id), "node_pool", "compute",
+                       f"Pool: {pool.get('type', pool_id)}",
+                       {"type": pool.get("type"), "count": pool.get("count"),
+                        "disk_encryption": pool.get("disk_encryption"),
+                        "nodes": len(nodes_list)}))
+    edges.append(_edge(root_id, str(pool_id), _NODE_POOL))
+
+    for n in nodes_list[:3]:
+        n_id = str(n.get("id", ""))
+        n_status = n.get("status", "")
+        nodes.append(_node(f"node-{n_id}", "network_interface", "compute",
+                           f"Node {n_id[:8]}…",
+                           {"status": n_status, "instance_id": str(n.get("instance_id", ""))}))
+        edges.append(_edge(str(pool_id), f"node-{n_id}", "node"))
+
+
+def _lke_append_node_pools(headers: dict, root_id: str, cluster_id: str, nodes: list, edges: list) -> None:
+    import requests
+    pools_resp = requests.get(f"https://api.linode.com/v4/lke/clusters/{cluster_id}/pools", headers=headers, timeout=15)
+    if pools_resp.ok:
+        for pool in pools_resp.json().get("data", []):
+            _lke_append_one_pool(root_id, pool, nodes, edges)
+
+
+def _lke_append_control_plane(root_id: str, c: dict, nodes: list, edges: list) -> None:
+    control_plane = c.get("control_plane", {})
+    if control_plane:
+        nodes.append(_node("control-plane", "oidc_provider", "iam", "Control Plane",
+                           {"high_availability": control_plane.get("high_availability"),
+                            "acl": bool(control_plane.get("acl"))}))
+        edges.append(_edge(root_id, "control-plane", "control plane"))
+
+
+def _lke_append_api_endpoints(headers: dict, root_id: str, cluster_id: str, nodes: list, edges: list) -> None:
+    import requests
+    ep_resp = requests.get(f"https://api.linode.com/v4/lke/clusters/{cluster_id}/api-endpoints",
+                           headers=headers, timeout=15)
+    if ep_resp.ok:
+        for ep in ep_resp.json().get("data", []):
+            endpoint = ep.get("endpoint", "")
+            nodes.append(_node(f"ep-{endpoint}", "public_ip", "network", endpoint, {"type": "API endpoint"}))
+            edges.append(_edge(root_id, f"ep-{endpoint}", "API endpoint"))
+
+
+def _lke_append_dashboard(headers: dict, root_id: str, cluster_id: str, nodes: list, edges: list) -> None:
+    import requests
+    dash_resp = requests.get(f"https://api.linode.com/v4/lke/clusters/{cluster_id}/dashboard",
+                             headers=headers, timeout=15)
+    if dash_resp.ok:
+        url = dash_resp.json().get("url", "")
+        if url:
+            nodes.append(_node("dashboard", "addon", "config", "Kubernetes Dashboard", {"url": url}))
+            edges.append(_edge(root_id, "dashboard", "dashboard"))
+
+
+def _lke_append_tags(root_id: str, c: dict, nodes: list, edges: list) -> None:
+    for tag in c.get("tags", []):
+        nodes.append(_node(f"tag-{tag}", "tag", "meta", tag, {}))
+        edges.append(_edge(root_id, f"tag-{tag}", "tag"))
+
+
 def _linode_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict:
     import requests
     root_id = f"k8s-{cluster.id}"
@@ -1427,59 +1491,11 @@ def _linode_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> d
             return {"nodes": [], "edges": []}
         c = resp.json()
 
-        # Node pools
-        pools_resp = requests.get(f"https://api.linode.com/v4/lke/clusters/{cluster_id}/pools", headers=headers, timeout=15)
-        if pools_resp.ok:
-            for pool in pools_resp.json().get("data", []):
-                pool_id = pool["id"]
-                nodes_list = pool.get("nodes", [])
-                nodes.append(_node(str(pool_id), "node_pool", "compute",
-                                   f"Pool: {pool.get('type', pool_id)}",
-                                   {"type": pool.get("type"), "count": pool.get("count"),
-                                    "disk_encryption": pool.get("disk_encryption"),
-                                    "nodes": len(nodes_list)}))
-                edges.append(_edge(root_id, str(pool_id), _NODE_POOL))
-
-                # Per-node info
-                for n in nodes_list[:3]:
-                    n_id = str(n.get("id", ""))
-                    n_status = n.get("status", "")
-                    nodes.append(_node(f"node-{n_id}", "network_interface", "compute",
-                                       f"Node {n_id[:8]}…",
-                                       {"status": n_status, "instance_id": str(n.get("instance_id", ""))}))
-                    edges.append(_edge(str(pool_id), f"node-{n_id}", "node"))
-
-        # Control plane
-        control_plane = c.get("control_plane", {})
-        if control_plane:
-            nodes.append(_node("control-plane", "oidc_provider", "iam", "Control Plane",
-                               {"high_availability": control_plane.get("high_availability"),
-                                "acl": bool(control_plane.get("acl"))}))
-            edges.append(_edge(root_id, "control-plane", "control plane"))
-
-        # API endpoint
-        ep_resp = requests.get(f"https://api.linode.com/v4/lke/clusters/{cluster_id}/api-endpoints",
-                               headers=headers, timeout=15)
-        if ep_resp.ok:
-            for ep in ep_resp.json().get("data", []):
-                endpoint = ep.get("endpoint", "")
-                nodes.append(_node(f"ep-{endpoint}", "public_ip", "network",
-                                   endpoint, {"type": "API endpoint"}))
-                edges.append(_edge(root_id, f"ep-{endpoint}", "API endpoint"))
-
-        # Dashboard
-        dash_resp = requests.get(f"https://api.linode.com/v4/lke/clusters/{cluster_id}/dashboard",
-                                 headers=headers, timeout=15)
-        if dash_resp.ok:
-            url = dash_resp.json().get("url", "")
-            if url:
-                nodes.append(_node("dashboard", "addon", "config", "Kubernetes Dashboard", {"url": url}))
-                edges.append(_edge(root_id, "dashboard", "dashboard"))
-
-        # Tags
-        for tag in c.get("tags", []):
-            nodes.append(_node(f"tag-{tag}", "tag", "meta", tag, {}))
-            edges.append(_edge(root_id, f"tag-{tag}", "tag"))
+        _lke_append_node_pools(headers, root_id, cluster_id, nodes, edges)
+        _lke_append_control_plane(root_id, c, nodes, edges)
+        _lke_append_api_endpoints(headers, root_id, cluster_id, nodes, edges)
+        _lke_append_dashboard(headers, root_id, cluster_id, nodes, edges)
+        _lke_append_tags(root_id, c, nodes, edges)
 
     except Exception:
         pass
