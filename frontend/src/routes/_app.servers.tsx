@@ -54,7 +54,7 @@ function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredentia
       tabIndex={0}
       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onClose(); }}
     >
-      <div onClick={e => e.stopPropagation()} role="presentation" className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
+      <div onClick={e => e.stopPropagation()} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-sm">{cred.name}</h2>
           <button onClick={onClose} className="icon-btn"><X className="size-4" /></button>
@@ -374,7 +374,7 @@ function ServersPage() {
         />
       ),
       render: (s) => (
-        <div onClick={e => e.stopPropagation()} role="presentation">
+        <div onClick={e => e.stopPropagation()}>
           <input type="checkbox"
             checked={selected.has(s.id)}
             onChange={e => setSelected(prev => {
@@ -414,7 +414,7 @@ function ServersPage() {
       key: "ssh_key",
       header: "SSH Key",
       render: (s) => (
-        <div onClick={e => e.stopPropagation()} role="presentation">
+        <div onClick={e => e.stopPropagation()}>
           <select
             className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
             value={s.ssh_credential_id ?? ""}
@@ -438,7 +438,7 @@ function ServersPage() {
       header: "Actions",
       className: "text-right",
       render: (s) => (
-        <div className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()} role="presentation">
+        <div className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
           {s.ssh_credential_id && (
             <button onClick={() => setSshInfoFor(s)} className="icon-btn" title="View SSH credential">
               <KeyRound className="size-3.5" />

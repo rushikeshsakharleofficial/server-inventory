@@ -151,8 +151,6 @@ function PermissionDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        role="button"
-        tabIndex={0}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
       >
@@ -235,8 +233,6 @@ function GroupDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        role="button"
-        tabIndex={0}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
       >
@@ -521,8 +517,6 @@ function EditProfileDialog({ user, onClose }: Readonly<{ user: UserRow; onClose:
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        role="button"
-        tabIndex={0}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
       >
@@ -571,8 +565,6 @@ function NewUserDialog({ onClose }: Readonly<{ onClose: () => void }>) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        role="button"
-        tabIndex={0}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
       >

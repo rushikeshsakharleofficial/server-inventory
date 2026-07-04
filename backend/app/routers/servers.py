@@ -40,16 +40,16 @@ _SORT_COLS: dict[str, object] = {
 def list_servers(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    provider: str | None = Query(None),
-    status: str | None = Query(None),
-    search: str | None = Query(None),
-    region: str | None = Query(None),
-    os: str | None = Query(None),
-    datacenter: str | None = Query(None),
-    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
-    offset: int = Query(default=0, ge=0),
-    sort: str = Query(default="name"),
-    order: Literal["asc", "desc"] = Query(default="asc"),
+    provider: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    search: Annotated[str | None, Query()] = None,
+    region: Annotated[str | None, Query()] = None,
+    os: Annotated[str | None, Query()] = None,
+    datacenter: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=schemas._MAX_PAGE_SIZE)] = schemas._DEFAULT_PAGE_SIZE,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    sort: Annotated[str, Query()] = "name",
+    order: Annotated[Literal["asc", "desc"], Query()] = "asc",
 ) -> schemas.Page[schemas.ServerResponse]:
     q = db.query(models.Server)
     if provider:
@@ -117,8 +117,8 @@ def get_stats(
 def ip_inventory(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    search: str = Query("", alias="q"),
-    ip_type: str = Query("", alias="type"),
+    search: Annotated[str, Query(alias="q")] = "",
+    ip_type: Annotated[str, Query(alias="type")] = "",
 ) -> dict:
     """Aggregate all IPs from public_ip, private_ip, and ssh_info.all_ips."""
     servers = db.query(
@@ -255,7 +255,7 @@ async def ssh_sync_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
-    ssh_credential_id: int = Query(...),
+    ssh_credential_id: Annotated[int, Query()],
 ):
     """Connect via SSH and gather live data from a Custom DC server."""
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
@@ -454,7 +454,7 @@ async def trust_host_key(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
-    ssh_credential_id: int = Query(...),
+    ssh_credential_id: Annotated[int, Query()],
 ):
     """Retrieve and trust the SSH host key for a server by connecting via low-level Transport."""
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
@@ -527,7 +527,7 @@ async def trust_host_key(
 def ssh_fetch_all_ips(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
-    ssh_credential_id: int | None = Query(None),
+    ssh_credential_id: Annotated[int | None, Query()] = None,
 ) -> list[dict]:
     """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
     if ssh_credential_id:
@@ -588,7 +588,7 @@ def ssh_fetch_all_ips(
 def ssh_fetch_ips_stream(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
-    ssh_credential_id: int | None = Query(None),
+    ssh_credential_id: Annotated[int | None, Query()] = None,
 ) -> StreamingResponse:
     """Stream SSH IP results as NDJSON — one line per server as it completes."""
     import json

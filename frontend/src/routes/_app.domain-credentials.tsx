@@ -279,7 +279,6 @@ function EditCredentialDialog({
       onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       <div
-        role="presentation"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
@@ -383,7 +382,6 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
       onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       <div
-        role="presentation"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
@@ -567,7 +565,6 @@ function BulkImportDialog({ onClose }: Readonly<{ onClose: () => void }>) {
       }}
     >
       <div
-        role="presentation"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"

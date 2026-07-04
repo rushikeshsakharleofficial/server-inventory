@@ -45,7 +45,7 @@ async def upload_branding_asset(
     slot: str,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_admin)],
-    file: UploadFile = File(...),
+    file: Annotated[UploadFile, File(...)],
 ) -> dict[str, bool]:
     if slot not in SLOTS:
         raise HTTPException(404)

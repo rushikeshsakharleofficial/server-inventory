@@ -304,7 +304,6 @@ function EditCredentialDialog({
       }}
     >
       <div
-        role="presentation"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]"
       >
@@ -445,7 +444,6 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
       }}
     >
       <div
-        role="presentation"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
       >

@@ -504,7 +504,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
             <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: "#9ca3af", flexShrink: 0 }}>
               <ExternalLink style={{ width: 11, height: 11 }} />
             </a>
-            <div role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+            <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
               <CopyBtn value={cfg.login_url} title="Copy URL" small />
             </div>
           </div>
@@ -519,7 +519,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 12, color: "#374151", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cfg.username ?? "—"}</span>
-            <div role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+            <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
               <CopyBtn value={cfg.username} title="Copy Username" small />
             </div>
           </div>
@@ -530,7 +530,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       key: "password",
       header: "Password",
       render: (cred) => (
-        <div role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
           <PasswordCell cred={cred} isAdmin={isAdmin} />
         </div>
       ),
@@ -579,7 +579,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       key: "actions",
       header: "Actions",
       render: (cred) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }} role="button" tabIndex={0} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
           <a href={cred.config.login_url} target="_blank" rel="noreferrer" title="Open login" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
             <ExternalLink style={{ width: 12, height: 12 }} />
           </a>

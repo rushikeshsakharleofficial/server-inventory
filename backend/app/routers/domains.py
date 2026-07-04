@@ -20,13 +20,13 @@ def _sync_domains(provider_name: str | None, db_url: str) -> None:
 def list_domains(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    provider: str | None = Query(None),
-    status: str | None = Query(None),
-    zone: str | None = Query(None),
-    record_type: str | None = Query(None),
-    search: str | None = Query(None),
-    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
-    offset: int = Query(default=0, ge=0),
+    provider: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    zone: Annotated[str | None, Query()] = None,
+    record_type: Annotated[str | None, Query()] = None,
+    search: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=schemas._MAX_PAGE_SIZE)] = schemas._DEFAULT_PAGE_SIZE,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> schemas.Page[schemas.DnsRecordResponse]:
     q = db.query(models.DnsRecord)
     if provider:
@@ -49,7 +49,7 @@ def sync_domains(
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_perm("domains", "sync"))],
-    provider: str | None = Query(None),
+    provider: Annotated[str | None, Query()] = None,
 ) -> dict[str, str]:
     background_tasks.add_task(_sync_domains, provider, DATABASE_URL)
     return {"status": "sync started"}

@@ -128,7 +128,6 @@ function NewUserDialog({ onClose }: Readonly<{ onClose: () => void }>) {
       <div
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
-        role="presentation"
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
       >
         <div className="p-4 border-b border-border">

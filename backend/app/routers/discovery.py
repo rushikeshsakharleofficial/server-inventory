@@ -219,7 +219,7 @@ def list_jobs(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_perm("discovery", "read"))],
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
     network_id: int | None = None,
     status: str | None = None,
 ) -> list[schemas.DiscoveryJobResponse]:
@@ -252,8 +252,8 @@ def get_job_results(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_perm("discovery", "read"))],
-    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
-    offset: int = Query(default=0, ge=0),
+    limit: Annotated[int, Query(ge=1, le=schemas._MAX_PAGE_SIZE)] = schemas._DEFAULT_PAGE_SIZE,
+    offset: Annotated[int, Query(ge=0)] = 0,
     status: str | None = None,
 ) -> schemas.Page[schemas.DiscoveryResultResponse]:
     q = db.query(models.DiscoveryResult).filter(models.DiscoveryResult.job_id == job_id)

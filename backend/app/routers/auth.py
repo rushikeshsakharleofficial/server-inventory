@@ -79,7 +79,7 @@ def bootstrap_admin(
 def login(
     request: Request,
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
-    remember_me: bool | None = Form(default=False),
+    remember_me: Annotated[bool | None, Form()] = False,
     db: Annotated[Session, Depends(get_db)] = None,
 ) -> schemas.LoginResponse:
     user = db.query(models.User).filter(models.User.username == form.username).first()

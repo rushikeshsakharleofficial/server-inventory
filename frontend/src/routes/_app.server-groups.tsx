@@ -58,8 +58,6 @@ function GroupDialog({ group, onClose }: Readonly<{ group?: ServerGroup; onClose
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
     >
       <div
-        role="button"
-        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl"
@@ -123,8 +121,6 @@ function MembersDialog({ group, onClose }: Readonly<{ group: ServerGroup; onClos
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
     >
       <div
-        role="button"
-        tabIndex={0}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[85vh]"

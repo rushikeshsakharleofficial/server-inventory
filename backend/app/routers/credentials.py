@@ -55,9 +55,9 @@ def _build_response(c: models.Credential) -> dict:
 def list_credentials(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    limit: int = Query(default=schemas._DEFAULT_PAGE_SIZE, ge=1, le=schemas._MAX_PAGE_SIZE),
-    offset: int = Query(default=0, ge=0),
-    cred_type: str | None = Query(default=None),
+    limit: Annotated[int, Query(ge=1, le=schemas._MAX_PAGE_SIZE)] = schemas._DEFAULT_PAGE_SIZE,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    cred_type: Annotated[str | None, Query()] = None,
 ) -> schemas.Page[schemas.CredentialResponse]:
     q = db.query(models.Credential)
     if cred_type:

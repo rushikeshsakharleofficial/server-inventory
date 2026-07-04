@@ -457,7 +457,6 @@ export function ConfirmDialogHost() {
       <div
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
-        role="presentation"
         className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-4"
       >
         <p className="text-sm">{req.message}</p>

@@ -267,7 +267,7 @@ def trigger_sync(
 def stop_sync(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
-    log_id: int | None = Query(None),
+    log_id: Annotated[int | None, Query()] = None,
 ) -> dict[str, list[int]]:
     """Stop one or all running syncs."""
     now = datetime.now(timezone.utc)
@@ -340,7 +340,7 @@ def trigger_ssh_sync(
 def get_sync_logs(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
-    limit: int = Query(default=50, ge=1, le=500),
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[models.SyncLog]:
     return (
         db.query(models.SyncLog)
