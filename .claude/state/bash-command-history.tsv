@@ -1,2 +1,0 @@
-1782717738	96107b782ada3c99412d2c873ae741c0354383aa482b4993110f54996dedf948	find /home/rushikesh.sakharle/Projects/server-inventory/frontend/src -name "*etting*" | head -10
-1782718075	aa8343b2394a7cbcc53205a2fb0d8afd66f0d5856271a230c9d0d0da84e73427	cd /home/rushikesh.sakharle/Projects/server-inventory/frontend && cat package.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(k) for k in d.get('dependencies',{}).keys()]" | head -30

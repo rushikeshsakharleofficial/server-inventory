@@ -35,6 +35,8 @@ QODER.md.bak*
 .commandcode/
 .stitch/
 *.bak
+.agent/
+.claude/
 # Added by code-review-graph
 .code-review-graph/
 
