@@ -973,6 +973,62 @@ def _do_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> dict:
 
 # ── Linode helpers ────────────────────────────────────────────────────────────
 
+def _linodesrv_append_firewalls(headers: dict, root_id: str, cloud_id: str, nodes: list, edges: list) -> None:
+    import requests
+    fw_resp = requests.get(f"https://api.linode.com/v4/linode/instances/{cloud_id}/firewalls", headers=headers, timeout=15)
+    if fw_resp.ok:
+        for fw in fw_resp.json().get("data", []):
+            nodes.append(_node(str(fw["id"]), "firewall", "security", fw.get("label", str(fw["id"])), {"status": fw.get("status"), "rules": fw.get("rules", {}).get("inbound_policy")}))
+            edges.append(_edge(root_id, str(fw["id"]), "firewall"))
+
+
+def _linodesrv_nb_matches_server(headers: dict, nb_id, cloud_id: str) -> bool:
+    import requests
+    cfg_resp = requests.get(f"https://api.linode.com/v4/nodebalancers/{nb_id}/configs", headers=headers, timeout=15)
+    if not cfg_resp.ok:
+        return False
+    for cfg in cfg_resp.json().get("data", []):
+        nodes_resp = requests.get(f"https://api.linode.com/v4/nodebalancers/{nb_id}/configs/{cfg['id']}/nodes", headers=headers, timeout=15)
+        if nodes_resp.ok:
+            for node in nodes_resp.json().get("data", []):
+                if str(cloud_id) in node.get("address", ""):
+                    return True
+    return False
+
+
+def _linodesrv_append_nodebalancers(headers: dict, root_id: str, cloud_id: str, nodes: list, edges: list) -> None:
+    import requests
+    nb_resp = requests.get("https://api.linode.com/v4/nodebalancers", headers=headers, timeout=15)
+    if not nb_resp.ok:
+        return
+    for nb in nb_resp.json().get("data", []):
+        nb_id = nb["id"]
+        if _linodesrv_nb_matches_server(headers, nb_id, cloud_id):
+            nodes.append(_node(str(nb_id), "load_balancer", "network", nb.get("label", str(nb_id)), {"ip": nb.get("ipv4"), "hostname": nb.get("hostname")}))
+            edges.append(_edge(root_id, str(nb_id), "NodeBalancer"))
+
+
+def _linodesrv_append_vlans(headers: dict, root_id: str, cloud_id: str, nodes: list, edges: list) -> None:
+    import requests
+    vlan_resp = requests.get(f"https://api.linode.com/v4/linode/instances/{cloud_id}/configs", headers=headers, timeout=15)
+    if vlan_resp.ok:
+        for cfg in vlan_resp.json().get("data", []):
+            for iface in cfg.get("interfaces", []):
+                if iface.get("purpose") == "vlan":
+                    vlan_label = iface.get("label", "VLAN")
+                    nodes.append(_node(f"vlan-{vlan_label}", "vlan", "network", vlan_label, {"ipam_address": iface.get("ipam_address")}))
+                    edges.append(_edge(root_id, f"vlan-{vlan_label}", "VLAN"))
+
+
+def _linodesrv_append_disks(headers: dict, root_id: str, cloud_id: str, nodes: list, edges: list) -> None:
+    import requests
+    disk_resp = requests.get(f"https://api.linode.com/v4/linode/instances/{cloud_id}/disks", headers=headers, timeout=15)
+    if disk_resp.ok:
+        for disk in disk_resp.json().get("data", [])[:4]:
+            nodes.append(_node(str(disk["id"]), "disk", "storage", disk.get("label", str(disk["id"])), {"size_mb": disk.get("size"), "filesystem": disk.get("filesystem")}))
+            edges.append(_edge(root_id, str(disk["id"]), "disk"))
+
+
 def _linode_server_map(server: models.Server, config: dict) -> dict:
     import requests
     root_id = f"server-{server.id}"
@@ -985,45 +1041,10 @@ def _linode_server_map(server: models.Server, config: dict) -> dict:
         if not resp.ok:
             return {"nodes": [], "edges": []}
 
-        # Firewall
-        fw_resp = requests.get(f"https://api.linode.com/v4/linode/instances/{server.cloud_id}/firewalls", headers=headers, timeout=15)
-        if fw_resp.ok:
-            for fw in fw_resp.json().get("data", []):
-                nodes.append(_node(str(fw["id"]), "firewall", "security", fw.get("label", str(fw["id"])), {"status": fw.get("status"), "rules": fw.get("rules", {}).get("inbound_policy")}))
-                edges.append(_edge(root_id, str(fw["id"]), "firewall"))
-
-        # NodeBalancers
-        nb_resp = requests.get("https://api.linode.com/v4/nodebalancers", headers=headers, timeout=15)
-        if nb_resp.ok:
-            # Check each NB's configs for this linode
-            for nb in nb_resp.json().get("data", []):
-                nb_id = nb["id"]
-                cfg_resp = requests.get(f"https://api.linode.com/v4/nodebalancers/{nb_id}/configs", headers=headers, timeout=15)
-                if cfg_resp.ok:
-                    for cfg in cfg_resp.json().get("data", []):
-                        nodes_resp = requests.get(f"https://api.linode.com/v4/nodebalancers/{nb_id}/configs/{cfg['id']}/nodes", headers=headers, timeout=15)
-                        if nodes_resp.ok:
-                            for node in nodes_resp.json().get("data", []):
-                                if str(server.cloud_id) in node.get("address", ""):
-                                    nodes.append(_node(str(nb_id), "load_balancer", "network", nb.get("label", str(nb_id)), {"ip": nb.get("ipv4"), "hostname": nb.get("hostname")}))
-                                    edges.append(_edge(root_id, str(nb_id), "NodeBalancer"))
-
-        # VLANs
-        vlan_resp = requests.get(f"https://api.linode.com/v4/linode/instances/{server.cloud_id}/configs", headers=headers, timeout=15)
-        if vlan_resp.ok:
-            for cfg in vlan_resp.json().get("data", []):
-                for iface in cfg.get("interfaces", []):
-                    if iface.get("purpose") == "vlan":
-                        vlan_label = iface.get("label", "VLAN")
-                        nodes.append(_node(f"vlan-{vlan_label}", "vlan", "network", vlan_label, {"ipam_address": iface.get("ipam_address")}))
-                        edges.append(_edge(root_id, f"vlan-{vlan_label}", "VLAN"))
-
-        # Disks
-        disk_resp = requests.get(f"https://api.linode.com/v4/linode/instances/{server.cloud_id}/disks", headers=headers, timeout=15)
-        if disk_resp.ok:
-            for disk in disk_resp.json().get("data", [])[:4]:
-                nodes.append(_node(str(disk["id"]), "disk", "storage", disk.get("label", str(disk["id"])), {"size_mb": disk.get("size"), "filesystem": disk.get("filesystem")}))
-                edges.append(_edge(root_id, str(disk["id"]), "disk"))
+        _linodesrv_append_firewalls(headers, root_id, server.cloud_id, nodes, edges)
+        _linodesrv_append_nodebalancers(headers, root_id, server.cloud_id, nodes, edges)
+        _linodesrv_append_vlans(headers, root_id, server.cloud_id, nodes, edges)
+        _linodesrv_append_disks(headers, root_id, server.cloud_id, nodes, edges)
 
     except Exception:
         pass
