@@ -253,6 +253,28 @@ def ip_inventory_rdns(
     return {r.address: r.hostname for r in rows}
 
 
+@router.post("/ip-inventory/rdns/refresh")
+def refresh_ip_inventory_rdns(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+) -> dict:
+    """Manual on-demand RDNS resolution — the only request-path trigger for
+    live DNS lookups (everything else only runs during sync). Synchronous by
+    design: this is an explicit user action with an explicit wait, not a
+    background job. Respects rdns_lookup_enabled same as every other path."""
+    if not _rdns_setting_enabled(db):
+        return {"resolved": 0, "rdns_enabled": False}
+    servers = db.query(
+        models.Server.public_ip, models.Server.private_ip, models.Server.ssh_info,
+    ).all()
+    addrs: set[str] = set()
+    for srv in servers:
+        for cidr in _server_all_ips(srv):
+            addrs.add(cidr.split("/")[0])
+    rdns_map = _resolve_rdns_concurrent(db, addrs) if addrs else {}
+    return {"resolved": len(rdns_map), "rdns_enabled": True}
+
+
 @router.get(
     "/{server_id}",
     response_model=schemas.ServerResponse,

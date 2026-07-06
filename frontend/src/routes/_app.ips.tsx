@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, PageHeader, EmptyState } from "@/components/ui-bits";
 import {
@@ -89,6 +91,7 @@ const COLUMNS: SmartTableColumn<IpRow>[] = [
 ];
 
 function IpsPage() {
+  const qc = useQueryClient();
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
   const [page, setPage] = useState(1);
 
@@ -118,6 +121,19 @@ function IpsPage() {
     staleTime: 60 * 60 * 1000,
   });
 
+  const syncPtr = useMutation({
+    mutationFn: () => api<{ resolved: number; rdns_enabled: boolean }>("/api/servers/ip-inventory/rdns/refresh", { method: "POST" }),
+    onSuccess: (res) => {
+      if (!res.rdns_enabled) {
+        toast.info("RDNS lookup is turned off in Settings.");
+        return;
+      }
+      toast.success(`Resolved RDNS for ${res.resolved} address${res.resolved === 1 ? "" : "es"}.`);
+      qc.invalidateQueries({ queryKey: ["ip-inventory-rdns"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const items = (data?.items ?? []).filter((row) => {
     if (types.length > 1 && !types.includes(row.type)) return false;
     if (prov && !row.provider.toLowerCase().includes(prov.toLowerCase()))
@@ -140,15 +156,30 @@ function IpsPage() {
       />
 
       <Card className="p-3">
-        <AdvancedFilter
-          fields={FIELDS}
-          state={fs}
-          onChange={(s) => {
-            setFs(s);
-            setPage(1);
-          }}
-          searchPlaceholder="Search IP address or server name…"
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <AdvancedFilter
+              fields={FIELDS}
+              state={fs}
+              onChange={(s) => {
+                setFs(s);
+                setPage(1);
+              }}
+              searchPlaceholder="Search IP address or server name…"
+            />
+          </div>
+          {rdnsEnabled && (
+            <button
+              onClick={() => syncPtr.mutate()}
+              disabled={syncPtr.isPending}
+              title="Resolve reverse-DNS (PTR) for every IP now"
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors disabled:opacity-60 shrink-0"
+            >
+              <RefreshCw className={`size-3.5 ${syncPtr.isPending ? "animate-spin" : ""}`} />
+              {syncPtr.isPending ? "Syncing PTR…" : "Sync PTR"}
+            </button>
+          )}
+        </div>
       </Card>
 
       <SmartTable
