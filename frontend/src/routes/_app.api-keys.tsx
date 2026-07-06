@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse } from "@/lib/api";
-import { Card, PageHeader, EmptyState, confirmAsync, Modal } from "@/components/ui-bits";
+import { Card, PageHeader, EmptyState, confirmAsync, Modal, CustomSelect } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Trash2, ScrollText, RotateCw, Copy, Check } from "lucide-react";
 import { useState } from "react";
@@ -16,6 +16,7 @@ function ApiKeysPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [auditKey, setAuditKey] = useState<ApiKey | null>(null);
+  const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
   const [page, setPage] = useState(1);
   // One-time token to show after create/rotate. Local-only, never persisted
   // to a query cache or storage, and cleared the moment its dialog closes.
@@ -146,20 +147,26 @@ function ApiKeysPage() {
         }
       />
 
-      <Card className="p-0">
-        <SmartTable
-          columns={columns}
-          rows={items}
-          rowKey={(k) => k.id}
-          mode="client"
-          page={page}
-          onPageChange={setPage}
-          totalItems={items.length}
-          isLoading={isLoading}
-          error={error ? (error as Error).message : null}
-          empty={<EmptyState title="No API keys yet" description="Create one to authenticate programmatic requests to the public API." />}
-        />
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+        <Card className="p-0">
+          <SmartTable
+            columns={columns}
+            rows={items}
+            rowKey={(k) => k.id}
+            mode="client"
+            page={page}
+            onPageChange={setPage}
+            totalItems={items.length}
+            isLoading={isLoading}
+            error={error ? (error as Error).message : null}
+            onRowClick={setSelectedKey}
+            rowClassName={(k) => (selectedKey?.id === k.id ? "bg-primary/5" : "")}
+            empty={<EmptyState title="No API keys yet" description="Create one to authenticate programmatic requests to the public API." />}
+          />
+        </Card>
+
+        <KeyMetricsPanel apiKey={selectedKey} />
+      </div>
 
       {open && (
         <CreateKeyDialog
@@ -173,6 +180,90 @@ function ApiKeysPage() {
       {revealToken && <RevealTokenDialog name={revealToken.name} token={revealToken.token} onClose={() => setRevealToken(null)} />}
       {auditKey && <AuditLogDialog apiKey={auditKey} onClose={() => setAuditKey(null)} />}
     </div>
+  );
+}
+
+/**
+ * Summary stats for one key, derived entirely client-side from its audit
+ * logs — there is no dedicated metrics endpoint, this is just an aggregation
+ * over GET /api/api-keys/{id}/audit-logs (same data the audit-log modal
+ * shows row-by-row).
+ */
+function KeyMetricsPanel({ apiKey }: Readonly<{ apiKey: ApiKey | null }>) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["api-keys", apiKey?.id, "audit-logs"],
+    queryFn: () => api<ApiKeyAuditLog[]>(`/api/api-keys/${apiKey?.id}/audit-logs`),
+    enabled: apiKey != null,
+  });
+
+  if (!apiKey) {
+    return (
+      <Card className="p-4">
+        <p className="text-sm text-muted-foreground">Click a key to see its usage metrics.</p>
+      </Card>
+    );
+  }
+
+  if (isLoading || !data) {
+    return (
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold mb-2 truncate">{apiKey.name}</h3>
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      </Card>
+    );
+  }
+
+  const total = data.length;
+  const allowed = data.filter((l) => l.decision === "allowed").length;
+  const denied = total - allowed;
+
+  const pathCounts = new Map<string, number>();
+  for (const log of data) pathCounts.set(log.path, (pathCounts.get(log.path) ?? 0) + 1);
+  const topPath = [...pathCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  return (
+    <Card className="p-4 space-y-3">
+      <h3 className="text-sm font-semibold truncate">{apiKey.name}</h3>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-md bg-muted/40 p-2">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+            Requests{total >= 500 ? " (last 500)" : ""}
+          </div>
+          <div className="text-lg font-semibold">{total}</div>
+        </div>
+        <div className="rounded-md bg-muted/40 p-2">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Last used</div>
+          <div className="text-xs font-medium">{apiKey.last_used_at ? new Date(apiKey.last_used_at).toLocaleDateString() : "Never"}</div>
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Allowed vs denied</div>
+        {total === 0 ? (
+          <p className="text-xs text-muted-foreground">No requests yet.</p>
+        ) : (
+          <>
+            <div className="flex h-2 rounded-full overflow-hidden bg-muted">
+              <div className="bg-green-500" style={{ width: `${(allowed / total) * 100}%` }} />
+              <div className="bg-red-500" style={{ width: `${(denied / total) * 100}%` }} />
+            </div>
+            <div className="flex justify-between mt-1 text-[11px] text-muted-foreground">
+              <span className="text-green-700">{allowed} allowed</span>
+              <span className="text-red-600">{denied} denied</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {topPath && (
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Most-used endpoint</div>
+          <div className="text-xs font-mono truncate" title={topPath[0]}>{topPath[0]}</div>
+          <div className="text-[11px] text-muted-foreground">{topPath[1]} request{topPath[1] === 1 ? "" : "s"}</div>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -254,15 +345,12 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
 
         <div>
           <Label>Expires</Label>
-          <select
+          <CustomSelect
             value={expiryChoice}
-            onChange={(e) => setExpiryChoice(e.target.value as typeof expiryChoice)}
-            className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-          >
-            {EXPIRY_PRESETS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
+            onChange={(v) => setExpiryChoice(v as typeof expiryChoice)}
+            options={EXPIRY_PRESETS.map((p) => ({ value: p.value, label: p.label }))}
+            className="mt-1 [&>button]:rounded-xl [&>div]:rounded-xl"
+          />
           {expiryChoice === "custom" && (
             <input
               type="date"
