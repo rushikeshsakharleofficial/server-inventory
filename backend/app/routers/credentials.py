@@ -13,9 +13,6 @@ router = APIRouter(prefix="/api/credentials", tags=["credentials"])
 
 CREDENTIAL_NOT_FOUND = "Credential not found"
 
-# Open-ended — any provider name accepted
-_KNOWN_PROVIDERS: frozenset[str] = frozenset()
-
 _SECRET_KEYWORDS = frozenset({
     "secret", "password", "token", "key", "credential",
     "private", "auth", "api_key", "client_secret", "access_key",
