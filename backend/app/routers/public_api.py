@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import discovery_service, models, schemas
-from ..api_key_auth import ApiPrincipal, require_api_permission, write_api_audit_log
+from ..api_key_auth import IP_INVENTORY_FEATURE, ApiPrincipal, require_api_permission, write_api_audit_log
 from ..database import DATABASE_URL, get_db
 from ..limiter import limiter
 from .servers import _build_ip_rows, _resolve_rdns_concurrent
@@ -78,10 +78,8 @@ def public_get_server(
 def public_ip_inventory(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-    # ip_inventory:read is an alias scope onto the "servers" IAM feature (see
-    # SCOPE_MAP in api_key_auth.py — there is no separate "ip_inventory"
-    # feature) — the guard here must match that target, not the scope name.
-    principal: Annotated[ApiPrincipal, Depends(require_api_permission("servers", "read"))],
+    # No separate "ip_inventory" feature — this is a servers.py-owned query.
+    principal: Annotated[ApiPrincipal, Depends(require_api_permission(IP_INVENTORY_FEATURE, "read"))],
     search: Annotated[str, Query(alias="q")] = "",
     ip_type: Annotated[str, Query(alias="type")] = "",
 ) -> dict:
@@ -138,8 +136,6 @@ def public_list_kubernetes(
 def public_list_block_storage(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-    # block_storage:read maps to the "block-storages" IAM feature (hyphenated,
-    # matching permissions.FEATURES) — not "block_storage" (underscored).
     principal: Annotated[ApiPrincipal, Depends(require_api_permission("block-storages", "read"))],
     limit: Annotated[int, Query(ge=1, le=schemas._MAX_PAGE_SIZE)] = schemas._DEFAULT_PAGE_SIZE,
     offset: Annotated[int, Query(ge=0)] = 0,

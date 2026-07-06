@@ -7,9 +7,8 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user
-from ..permissions import has_perm
+from ..permissions import FEATURE_ACTIONS, has_perm
 from ..api_key_auth import (
-    SCOPE_MAP,
     generate_api_token,
     hash_api_token,
 )
@@ -34,20 +33,25 @@ def _get_owned_or_404(db: Session, key_id: int, user: models.User) -> models.Api
     return key
 
 
-def _validate_scopes(scopes: list[str], user: models.User) -> None:
+def _validate_scopes(scopes: dict[str, list[str]], user: models.User) -> None:
     """A key can never be created/updated to exceed what its owner currently
-    has. Any scope outside SCOPE_MAP, or one the owner lacks right now, is
-    rejected here at write time — the request-time intersection in
-    api_key_auth.py enforces the same rule again on every subsequent call."""
-    for scope in scopes:
-        target = SCOPE_MAP.get(scope)
-        if target is None:
-            raise HTTPException(status_code=400, detail=f"Unknown scope: {scope}")
-        if not has_perm(user, *target):
-            raise HTTPException(
-                status_code=403,
-                detail=f"Scope '{scope}' exceeds your current permissions",
-            )
+    has. scopes is {feature: [actions]} — the exact same vocabulary as
+    User/Group.permissions. Any unknown feature/action, or one the owner
+    lacks right now, is rejected here at write time — the request-time
+    intersection in api_key_auth.py enforces the same rule again on every
+    subsequent call."""
+    for feature, actions in scopes.items():
+        valid_actions = FEATURE_ACTIONS.get(feature)
+        if valid_actions is None:
+            raise HTTPException(status_code=400, detail=f"Unknown feature: {feature}")
+        for action in actions:
+            if action not in valid_actions:
+                raise HTTPException(status_code=400, detail=f"Unknown action '{action}' for feature '{feature}'")
+            if not has_perm(user, feature, action):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Scope '{feature}:{action}' exceeds your current permissions",
+                )
 
 
 @router.get("")

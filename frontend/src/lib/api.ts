@@ -374,7 +374,7 @@ export interface ApiKey {
   id: number;
   name: string;
   key_prefix: string;
-  scopes: string[];
+  scopes: Record<string, string[]>; // {feature: [actions]} — same shape as IAM permissions
   allowed_ips?: string[] | null;
   expires_at?: string | null;
   last_used_at?: string | null;
@@ -387,7 +387,7 @@ export interface ApiKey {
 
 export interface ApiKeyCreate {
   name: string;
-  scopes: string[];
+  scopes: Record<string, string[]>;
   allowed_ips?: string[];
   expires_at?: string;
 }

@@ -555,7 +555,9 @@ class ApiKey(Base):
     name           = Column(String(255), nullable=False)
     key_prefix     = Column(String(32),  nullable=False)   # fast, non-secret lookup key
     token_hash     = Column(String(128), nullable=False)   # HMAC-SHA256(token, API_KEY_PEPPER) — never the raw token
-    scopes         = Column(JSONB, default=list, nullable=False, server_default="[]")
+    # {feature: [actions]} — same shape/vocabulary as User.permissions and
+    # Group.permissions (permissions.FEATURES / permissions.ACTIONS).
+    scopes         = Column(JSONB, default=_empty_json_dict, nullable=False, server_default="{}")
     allowed_ips    = Column(JSONB, nullable=True)           # list[str] CIDR/IP, null = no restriction
     expires_at     = Column(DateTime(timezone=True), nullable=True)
     last_used_at   = Column(DateTime(timezone=True), nullable=True)

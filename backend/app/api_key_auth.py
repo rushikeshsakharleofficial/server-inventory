@@ -37,23 +37,10 @@ from .permissions import has_perm
 
 TOKEN_PREFIX = "si_live"
 
-# Public scope string -> (feature, action) in the existing IAM vocabulary.
-# Verified against permissions.FEATURE_ACTIONS — every target below is a real,
-# already-guarded (feature, action) pair. This is the security-critical
-# artifact: get an entry wrong here and a scope silently always denies (safe
-# but broken) or, if a target were ever wrong in the *permissive* direction,
-# a key could gain more than intended. Keep entries 1:1 with
-# permissions.FEATURE_ACTIONS; do not invent new actions here.
-SCOPE_MAP: dict[str, tuple[str, str]] = {
-    "servers:read":       ("servers",        "read"),
-    "ip_inventory:read":  ("servers",        "read"),
-    "databases:read":     ("databases",      "read"),
-    "kubernetes:read":    ("kubernetes",     "read"),
-    "block_storage:read": ("block-storages", "read"),
-    "discovery:read":     ("discovery",      "read"),
-    "discovery:run":      ("discovery",      "write"),
-    "sync:trigger":       ("sync",           "write"),
-}
+# ip_inventory has no feature of its own — GET /public/v1/ip-inventory is an
+# alias onto the "servers" feature (it's a servers.py-owned query), so a key
+# needs ("servers", "read") to use it, same as GET /public/v1/servers.
+IP_INVENTORY_FEATURE = "servers"
 
 
 class ApiKeyAuthError(Exception):
@@ -153,26 +140,25 @@ def write_api_audit_log(
 # ─── Principal resolution ───────────────────────────────────────────────────────
 
 class ApiPrincipal:
-    """The authenticated (user, api_key) pair for a Public API request."""
+    """The authenticated (user, api_key) pair for a Public API request.
+
+    api_key.scopes is a plain {feature: [actions]} dict — the exact same
+    shape and vocabulary as User.permissions / Group.permissions in the IAM
+    system (permissions.FEATURES / permissions.ACTIONS). No separate scope
+    string or mapping table: a key's picker IS the IAM feature×action grid."""
 
     def __init__(self, user: models.User, api_key: models.ApiKey):
         self.user = user
         self.api_key = api_key
 
-    def effective_scopes(self) -> set[str]:
-        """Recomputed on every access — never cache this set across requests."""
-        return {scope for scope in (self.api_key.scopes or []) if self.has_scope(scope)}
-
-    def has_scope(self, scope: str) -> bool:
-        """True only if the key itself was granted `scope` AND the owner
-        currently has the underlying IAM permission — checking has_perm alone
-        (without the key.scopes membership test) would let a key act on any
-        scope its owner can, ignoring what the key was actually restricted to."""
-        return (
-            scope in (self.api_key.scopes or [])
-            and scope in SCOPE_MAP
-            and has_perm(self.user, *SCOPE_MAP[scope])
-        )
+    def has_perm(self, feature: str, action: str) -> bool:
+        """True only if the key itself was granted (feature, action) AND the
+        owner currently has that IAM permission right now — checking
+        has_perm(user, ...) alone (without the key.scopes membership test)
+        would let a key act on anything its owner can, ignoring what the key
+        was actually restricted to at creation."""
+        key_scopes: dict[str, list[str]] = self.api_key.scopes or {}
+        return action in key_scopes.get(feature, []) and has_perm(self.user, feature, action)
 
 
 def _parse_bearer_token(request: Request) -> str:
@@ -260,17 +246,16 @@ def get_current_api_principal(
 
 def require_api_permission(feature: str, action: str):
     """Dependency factory mirroring auth.require_perm, but for API-key
-    principals. Resolves the public scope(s) that map onto (feature, action)
-    and checks the live intersection — recomputed every call, never cached."""
-
-    matching_scopes = [s for s, fa in SCOPE_MAP.items() if fa == (feature, action)]
+    principals — checks the live intersection of the key's own
+    {feature: [actions]} grant and the owner's current IAM permission,
+    recomputed every call, never cached."""
 
     def _dep(
         request: Request,
         principal: ApiPrincipal = Depends(get_current_api_principal),
         db: Session = Depends(get_db),
     ) -> ApiPrincipal:
-        if not any(principal.has_scope(s) for s in matching_scopes):
+        if not principal.has_perm(feature, action):
             write_api_audit_log(
                 db,
                 request=request,

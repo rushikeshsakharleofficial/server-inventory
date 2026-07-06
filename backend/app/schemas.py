@@ -551,14 +551,14 @@ class DiscoveryResultResponse(BaseModel):
 
 class ApiKeyCreate(BaseModel):
     name: str
-    scopes: list[str] = Field(default_factory=list)
+    scopes: dict[str, list[str]] = Field(default_factory=dict)  # {feature: [actions]} — same shape as IAM permissions
     allowed_ips: list[str] | None = None
     expires_at: datetime | None = None
 
 
 class ApiKeyUpdate(BaseModel):
     name: str | None = None
-    scopes: list[str] | None = None
+    scopes: dict[str, list[str]] | None = None
     allowed_ips: list[str] | None = None
     expires_at: datetime | None = None
 
@@ -567,7 +567,7 @@ class ApiKeyResponse(BaseModel):
     id: int
     name: str
     key_prefix: str
-    scopes: list[str] = Field(default_factory=list)
+    scopes: dict[str, list[str]] = Field(default_factory=dict)
     allowed_ips: list[str] | None = None
     expires_at: datetime | None = None
     last_used_at: datetime | None = None

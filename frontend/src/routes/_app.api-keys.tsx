@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse } from "@/lib/api";
+import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse, type PermissionCatalog } from "@/lib/api";
 import { Card, PageHeader, EmptyState, confirmAsync, Modal } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Trash2, ScrollText, RotateCw, Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/api-keys")({
@@ -12,38 +12,79 @@ export const Route = createFileRoute("/_app/api-keys")({
   component: ApiKeysPage,
 });
 
-const SCOPE_GROUPS: Array<{ group: string; scopes: Array<{ value: string; label: string }> }> = [
-  { group: "Servers", scopes: [{ value: "servers:read", label: "Read servers" }] },
-  { group: "IP Inventory", scopes: [{ value: "ip_inventory:read", label: "Read IP inventory" }] },
-  { group: "Databases", scopes: [{ value: "databases:read", label: "Read databases" }] },
-  { group: "Kubernetes", scopes: [{ value: "kubernetes:read", label: "Read clusters" }] },
-  { group: "Block Storage", scopes: [{ value: "block_storage:read", label: "Read block storage" }] },
-  { group: "Discovery", scopes: [{ value: "discovery:read", label: "Read discovery" }, { value: "discovery:run", label: "Run discovery" }] },
-  { group: "Sync", scopes: [{ value: "sync:trigger", label: "Trigger sync" }] },
-];
+/**
+ * Same feature × action grid as Users & Groups' PermissionMatrix (duplicated
+ * locally — this repo's convention for small, page-specific UI rather than a
+ * shared component), with one addition: a column is only checkable if it's
+ * both in the global catalog AND in the caller's own effective permissions.
+ * A key's scopes are stored as {feature: [actions]} — the exact IAM shape —
+ * so there is no separate scope-string vocabulary to keep in sync.
+ */
+function ApiKeyPermissionGrid({
+  catalog,
+  myEffective,
+  value,
+  onChange,
+}: Readonly<{
+  catalog: PermissionCatalog;
+  myEffective: Record<string, string[]> | undefined;
+  value: Record<string, string[]>;
+  onChange: (v: Record<string, string[]>) => void;
+}>) {
+  const toggle = useCallback(
+    (feature: string, action: string) => {
+      const current = value[feature] ?? [];
+      const next = current.includes(action) ? current.filter((a) => a !== action) : [...current, action];
+      onChange({ ...value, [feature]: next });
+    },
+    [value, onChange],
+  );
 
-// Mirrors backend/app/api_key_auth.py SCOPE_MAP exactly — each public scope's
-// underlying (feature, action) in the IAM vocabulary. Used only to grey out
-// scopes the caller's own effective permissions don't cover; the backend is
-// still the sole enforcer (creation rejects, and existing keys lose access
-// live, if this ever drifts out of sync with the real SCOPE_MAP).
-const SCOPE_IAM_TARGET: Record<string, [string, string]> = {
-  "servers:read": ["servers", "read"],
-  "ip_inventory:read": ["servers", "read"],
-  "databases:read": ["databases", "read"],
-  "kubernetes:read": ["kubernetes", "read"],
-  "block_storage:read": ["block-storages", "read"],
-  "discovery:read": ["discovery", "read"],
-  "discovery:run": ["discovery", "write"],
-  "sync:trigger": ["sync", "write"],
-};
-
-function scopeIsAllowed(scope: string, effective: Record<string, string[]> | undefined): boolean {
-  if (!effective) return true; // still loading — don't flash everything disabled
-  const target = SCOPE_IAM_TARGET[scope];
-  if (!target) return false;
-  const [feature, action] = target;
-  return (effective[feature] ?? []).includes(action);
+  return (
+    <div className="overflow-x-auto border border-border rounded-md">
+      <table className="w-full text-xs">
+        <thead>
+          <tr>
+            <th className="text-left px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-32">Feature</th>
+            {catalog.actions.map((action) => (
+              <th key={action} className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">{action}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {catalog.features.map((feature) => {
+            const inCatalog = catalog.feature_actions[feature] ?? [];
+            const mine = myEffective?.[feature] ?? [];
+            const checked = value[feature] ?? [];
+            return (
+              <tr key={feature} className="hover:bg-muted/30">
+                <td className="px-2 py-1.5 font-mono text-[11px] text-foreground">{feature}</td>
+                {catalog.actions.map((action) => {
+                  if (!inCatalog.includes(action)) {
+                    return <td key={action} className="px-2 py-1.5 text-center text-border">—</td>;
+                  }
+                  // myEffective undefined = still loading; don't flash everything disabled
+                  const allowed = myEffective === undefined || mine.includes(action);
+                  return (
+                    <td key={action} className="px-2 py-1.5 text-center">
+                      <input
+                        type="checkbox"
+                        disabled={!allowed}
+                        title={allowed ? undefined : "Not part of your current IAM permissions"}
+                        checked={checked.includes(action)}
+                        onChange={() => toggle(feature, action)}
+                        className="accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function ApiKeysPage() {
@@ -98,9 +139,13 @@ function ApiKeysPage() {
       header: "Scopes",
       render: (k) => (
         <div className="flex flex-wrap gap-1 max-w-xs">
-          {k.scopes.map((s) => (
-            <span key={s} className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{s}</span>
-          ))}
+          {Object.entries(k.scopes).flatMap(([feature, actions]) =>
+            actions.map((action) => (
+              <span key={`${feature}:${action}`} className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded border border-border">
+                {feature}:{action}
+              </span>
+            )),
+          )}
         </div>
       ),
     },
@@ -209,11 +254,12 @@ function ApiKeysPage() {
 function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void; onCreated: (res: ApiKeyCreateResponse) => void }>) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState<string[]>([]);
+  const [scopes, setScopes] = useState<Record<string, string[]>>({});
   const [allowedIps, setAllowedIps] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
-  // Grey out scopes the caller's own IAM policy doesn't grant — a key can
+  const { data: catalog } = useQuery({ queryKey: ["iam-catalog"], queryFn: () => api<PermissionCatalog>("/api/iam/catalog") });
+  // Grey out cells the caller's own IAM policy doesn't grant — a key can
   // never exceed this regardless of what's checked here; the backend
   // enforces the same at creation and on every subsequent request.
   const { data: myPerms } = useQuery({
@@ -222,8 +268,7 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
     staleTime: 60_000,
   });
 
-  const toggleScope = (value: string) =>
-    setScopes((prev) => (prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]));
+  const hasAnyScope = Object.values(scopes).some((actions) => actions.length > 0);
 
   const create = useMutation({
     mutationFn: () => {
@@ -231,11 +276,14 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
         .split(/[\n,]/)
         .map((s) => s.trim())
         .filter(Boolean);
+      // Drop features with an empty action list — {} is the "nothing" shape
+      // the backend expects, not {feature: []} entries for every unchecked row.
+      const nonEmptyScopes = Object.fromEntries(Object.entries(scopes).filter(([, actions]) => actions.length > 0));
       return api<ApiKeyCreateResponse>("/api/api-keys", {
         method: "POST",
         json: {
           name,
-          scopes,
+          scopes: nonEmptyScopes,
           ...(ips.length ? { allowed_ips: ips } : {}),
           ...(expiresAt ? { expires_at: new Date(expiresAt).toISOString() } : {}),
         },
@@ -249,7 +297,7 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
   });
 
   return (
-    <Modal onClose={onClose} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+    <Modal onClose={onClose} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
       <div className="p-4 border-b border-border shrink-0">
         <h3 className="text-sm font-semibold">New API key</h3>
       </div>
@@ -257,8 +305,8 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
         className="p-4 space-y-4 overflow-y-auto flex-1"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!scopes.length) {
-            toast.error("Select at least one scope");
+          if (!hasAnyScope) {
+            toast.error("Select at least one permission");
             return;
           }
           create.mutate();
@@ -267,38 +315,16 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
         <Input label="Name" value={name} onChange={setName} required />
 
         <div>
-          <Label>Scopes</Label>
+          <Label>Permissions</Label>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Capped by your own IAM permissions — greyed-out scopes aren't part of your current policy.
+            Same feature/action grid as IAM — capped by your own permissions, greyed-out cells aren't part of your current policy.
           </p>
-          <div className="mt-1 space-y-2 border border-border rounded-md p-3">
-            {SCOPE_GROUPS.map(({ group, scopes: groupScopes }) => (
-              <div key={group}>
-                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{group}</div>
-                <div className="space-y-1">
-                  {groupScopes.map((s) => {
-                    const allowed = scopeIsAllowed(s.value, myPerms);
-                    return (
-                      <label
-                        key={s.value}
-                        className={`flex items-center gap-2 text-xs ${allowed ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}
-                        title={allowed ? undefined : "Not part of your current IAM permissions"}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={scopes.includes(s.value)}
-                          disabled={!allowed}
-                          onChange={() => toggleScope(s.value)}
-                          className="accent-primary disabled:cursor-not-allowed"
-                        />
-                        <span className="font-mono text-muted-foreground">{s.value}</span>
-                        <span className="text-foreground/70">— {s.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          <div className="mt-1">
+            {catalog ? (
+              <ApiKeyPermissionGrid catalog={catalog} myEffective={myPerms} value={scopes} onChange={setScopes} />
+            ) : (
+              <p className="text-xs text-muted-foreground p-3 border border-border rounded-md">Loading…</p>
+            )}
           </div>
         </div>
 
