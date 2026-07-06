@@ -1,7 +1,5 @@
 import concurrent.futures
-import hashlib
 import re
-import time
 import urllib.parse
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
@@ -101,38 +99,19 @@ def _prettify_os(raw: str | None) -> str | None:
     return cleaned or raw
 
 
-def _ovh_get_distribution(endpoint: str, app_key: str, app_secret: str,
-                           consumer_key: str, vps_name: str) -> str | None:
-    """Fetch VPS distribution via raw HTTP, trying full FQDN then short ID.
-    Returns None if the VPS plan doesn't expose distribution info via the API."""
-    import requests as req_lib
-    _ENDPOINT_URLS = {
-        'ovh-eu': 'https://eu.api.ovh.com/1.0',
-        'ovh-us': 'https://api.us.ovhcloud.com/1.0',
-        'ovh-ca': 'https://ca.api.ovh.com/1.0',
-    }
-    base = _ENDPOINT_URLS.get(endpoint, 'https://eu.api.ovh.com/1.0')
+def _ovh_get_distribution(client, vps_name: str) -> str | None:
+    """Fetch VPS distribution via the OVH SDK client, trying full FQDN then
+    short ID. Returns None if the VPS plan doesn't expose distribution info."""
     short_name = vps_name.split('.')[0] if '.' in vps_name else vps_name
     for name_variant in [vps_name, short_name]:
         try:
             encoded = urllib.parse.quote(name_variant, safe='')
-            url = f"{base}/vps/{encoded}/distribution"
-            ts  = str(int(time.time()))
-            presign = "+".join([app_secret, consumer_key, "GET", url, "", ts])
-            sig = "$1$" + hashlib.sha1(presign.encode('utf-8')).hexdigest()
-            resp = req_lib.get(url, headers={
-                "X-Ovh-Application": app_key,
-                "X-Ovh-Consumer":    consumer_key,
-                "X-Ovh-Signature":   sig,
-                "X-Ovh-Timestamp":   ts,
-            }, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                if isinstance(data, dict):
-                    raw: str | None = data.get("name") or data.get("id")
-                    return raw
-                if isinstance(data, str):
-                    return data
+            data = client.get(f"/vps/{encoded}/distribution")
+            if isinstance(data, dict):
+                raw: str | None = data.get("name") or data.get("id")
+                return raw
+            if isinstance(data, str):
+                return data
         except Exception:
             pass
     return None
@@ -281,14 +260,9 @@ class OVHProvider(CloudProvider):
                 return dist
             return None
         except Exception:
-            # SDK routing fails for some endpoints — fall back to raw HTTP
-            return _ovh_get_distribution(
-                self.config.get("endpoint", "ovh-eu"),
-                self.config["application_key"],
-                self.config["application_secret"],
-                self.config["consumer_key"],
-                vps_name,
-            )
+            # Some VPS plans only expose distribution under the short ID,
+            # not the full FQDN tried above — retry with that variant.
+            return _ovh_get_distribution(client, vps_name)
 
     def _ovh_fetch_one_vps(self, client, vps_name: str, errors: list[str]) -> dict[str, Any] | None:
         try:

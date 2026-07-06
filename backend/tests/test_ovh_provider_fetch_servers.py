@@ -154,6 +154,31 @@ class TestOvhFetchServersVps:
         assert vps["memory_gb"] == pytest.approx(4.0)
         assert vps["extra"]["type"] == "vps"
 
+    def test_distribution_falls_back_to_short_name_when_fqdn_lookup_fails(self, fake_ovh_module):
+        # Explicit raiser for the FQDN distribution path — without it the
+        # longest-prefix match in _mock_client would resolve it against
+        # "/vps/vps1.ovh.net" (the VPS detail route) instead of raising, and
+        # the short-name fallback would never run.
+        def fqdn_distribution_fails(path):
+            raise RuntimeError("404 Not Found ResourceNotFound")
+
+        routes = {
+            "/me": {},
+            "/dedicated/server": [],
+            "/vps": ["vps1.ovh.net"],
+            "/vps/vps1.ovh.net": {"displayName": "my-vps", "zone": "GRA", "vcore": 2, "memoryLimit": 4096, "model": {"offer": "VPS-2", "disk": 40}, "state": "running"},
+            "/vps/vps1.ovh.net/ips": ["1.2.3.4", "10.0.0.5"],
+            "/vps/vps1.ovh.net/distribution": fqdn_distribution_fails,
+            "/vps/vps1/distribution": {"name": "debian12"},
+            "/cloud/project": [],
+        }
+        fake_ovh_module.Client.return_value = _mock_client(routes)
+
+        result = OVHProvider(_config()).fetch_servers()
+
+        assert len(result) == 1
+        assert result[0]["os"] == "Debian 12 (Bookworm)"
+
     def test_vps_list_404_is_silently_ignored(self, fake_ovh_module):
         def vps_list_fetch(path):
             raise RuntimeError("404 Not Found ResourceNotFound")
