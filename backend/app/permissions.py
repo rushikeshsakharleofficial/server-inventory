@@ -30,9 +30,10 @@ FEATURES: list[str] = [
     "resource-map",
     "users",
     "discovery",
+    "api_keys",
 ]
 
-ACTIONS: list[str] = ["read", "write", "delete", "sync", "admin"]
+ACTIONS: list[str] = ["read", "write", "delete", "sync", "admin", "manage_all"]
 
 # Actions each feature actually supports (for UI — only these checkboxes appear).
 FEATURE_ACTIONS: dict[str, list[str]] = {
@@ -50,6 +51,7 @@ FEATURE_ACTIONS: dict[str, list[str]] = {
     "resource-map":    ["read"],
     "users":           ["read", "admin"],
     "discovery":       ["read", "write", "delete", "sync"],
+    "api_keys":        ["read", "write", "delete", "manage_all"],
 }
 
 # ─── Role baseline ─────────────────────────────────────────────────────────────
@@ -62,13 +64,14 @@ def _all_feature_read() -> dict[str, list[str]]:
 
 def _all_feature_write() -> dict[str, list[str]]:
     """
-    write role gets read+write+delete+sync on all features, but NOT admin-action
-    items (settings update, credential delete, user management) — mirrors require_write.
+    write role gets read+write+delete+sync on all features, but NOT admin-tier
+    actions (settings update, credential delete, user management, managing
+    other users' API keys) — mirrors require_write.
     """
     result: dict[str, list[str]] = {}
     for f in FEATURES:
         fa = FEATURE_ACTIONS[f]
-        result[f] = [a for a in fa if a != "admin"]
+        result[f] = [a for a in fa if a not in ("admin", "manage_all")]
     return result
 
 

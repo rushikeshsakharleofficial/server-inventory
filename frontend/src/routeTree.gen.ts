@@ -35,6 +35,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCronsRouteImport } from './routes/_app.crons'
 import { Route as AppCloudProvidersRouteImport } from './routes/_app.cloud-providers'
 import { Route as AppBlockStoragesRouteImport } from './routes/_app.block-storages'
+import { Route as AppApiKeysRouteImport } from './routes/_app.api-keys'
 import { Route as AppServerDetailIdRouteImport } from './routes/_app.server-detail.$id'
 import { Route as AppPoliciesSlugRouteImport } from './routes/_app.policies_.$slug'
 
@@ -167,6 +168,11 @@ const AppBlockStoragesRoute = AppBlockStoragesRouteImport.update({
   path: '/block-storages',
   getParentRoute: () => AppRoute,
 } as any)
+const AppApiKeysRoute = AppApiKeysRouteImport.update({
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppServerDetailIdRoute = AppServerDetailIdRouteImport.update({
   id: '/server-detail/$id',
   path: '/server-detail/$id',
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/api-keys': typeof AppApiKeysRoute
   '/block-storages': typeof AppBlockStoragesRoute
   '/cloud-providers': typeof AppCloudProvidersRoute
   '/crons': typeof AppCronsRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/api-keys': typeof AppApiKeysRoute
   '/block-storages': typeof AppBlockStoragesRoute
   '/cloud-providers': typeof AppCloudProvidersRoute
   '/crons': typeof AppCronsRoute
@@ -242,6 +250,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_app/api-keys': typeof AppApiKeysRoute
   '/_app/block-storages': typeof AppBlockStoragesRoute
   '/_app/cloud-providers': typeof AppCloudProvidersRoute
   '/_app/crons': typeof AppCronsRoute
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/api-keys'
     | '/block-storages'
     | '/cloud-providers'
     | '/crons'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/api-keys'
     | '/block-storages'
     | '/cloud-providers'
     | '/crons'
@@ -332,6 +343,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/setup'
+    | '/_app/api-keys'
     | '/_app/block-storages'
     | '/_app/cloud-providers'
     | '/_app/crons'
@@ -549,6 +561,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBlockStoragesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/api-keys': {
+      id: '/_app/api-keys'
+      path: '/api-keys'
+      fullPath: '/api-keys'
+      preLoaderRoute: typeof AppApiKeysRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/server-detail/$id': {
       id: '/_app/server-detail/$id'
       path: '/server-detail/$id'
@@ -567,6 +586,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppApiKeysRoute: typeof AppApiKeysRoute
   AppBlockStoragesRoute: typeof AppBlockStoragesRoute
   AppCloudProvidersRoute: typeof AppCloudProvidersRoute
   AppCronsRoute: typeof AppCronsRoute
@@ -594,6 +614,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppApiKeysRoute: AppApiKeysRoute,
   AppBlockStoragesRoute: AppBlockStoragesRoute,
   AppCloudProvidersRoute: AppCloudProvidersRoute,
   AppCronsRoute: AppCronsRoute,

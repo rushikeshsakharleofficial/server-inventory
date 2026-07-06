@@ -543,3 +543,63 @@ class DiscoveryResultResponse(BaseModel):
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+# ─── API Keys ───────────────────────────────────────────────────────────────────
+# NOTE: no schema here ever includes token_hash or the raw token, except the
+# one-time Create/Rotate response — never add token_hash to any Response type.
+
+class ApiKeyCreate(BaseModel):
+    name: str
+    scopes: list[str] = Field(default_factory=list)
+    allowed_ips: list[str] | None = None
+    expires_at: datetime | None = None
+
+
+class ApiKeyUpdate(BaseModel):
+    name: str | None = None
+    scopes: list[str] | None = None
+    allowed_ips: list[str] | None = None
+    expires_at: datetime | None = None
+
+
+class ApiKeyResponse(BaseModel):
+    id: int
+    name: str
+    key_prefix: str
+    scopes: list[str] = Field(default_factory=list)
+    allowed_ips: list[str] | None = None
+    expires_at: datetime | None = None
+    last_used_at: datetime | None = None
+    last_used_ip: str | None = None
+    is_active: bool
+    revoked_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ApiKeyCreateResponse(ApiKeyResponse):
+    token: str  # shown once — caller must copy it now, it is never retrievable again
+
+
+class ApiKeyRotateResponse(ApiKeyResponse):
+    token: str  # shown once — same one-time-display rule as create
+
+
+class ApiKeyAuditLogResponse(BaseModel):
+    id: int
+    api_key_id: int | None = None
+    user_id: int | None = None
+    request_id: str | None = None
+    method: str
+    path: str
+    ip_address: str
+    user_agent: str | None = None
+    status_code: int | None = None
+    decision: str
+    denied_reason: str | None = None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}

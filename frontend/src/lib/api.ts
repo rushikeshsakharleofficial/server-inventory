@@ -370,6 +370,47 @@ export interface CronJobCreate {
   is_active?: boolean;
 }
 
+export interface ApiKey {
+  id: number;
+  name: string;
+  key_prefix: string;
+  scopes: string[];
+  allowed_ips?: string[] | null;
+  expires_at?: string | null;
+  last_used_at?: string | null;
+  last_used_ip?: string | null;
+  is_active: boolean;
+  revoked_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKeyCreate {
+  name: string;
+  scopes: string[];
+  allowed_ips?: string[];
+  expires_at?: string;
+}
+
+export interface ApiKeyCreateResponse extends ApiKey {
+  token: string;
+}
+
+export interface ApiKeyAuditLog {
+  id: number;
+  api_key_id?: number | null;
+  user_id?: number | null;
+  request_id?: string | null;
+  method: string;
+  path: string;
+  ip_address: string;
+  user_agent?: string | null;
+  status_code?: number | null;
+  decision: "allowed" | "denied";
+  denied_reason?: string | null;
+  created_at: string;
+}
+
 export interface UserRow {
   id: number;
   username: string;

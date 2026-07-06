@@ -543,3 +543,64 @@ class DiscoveryResult(Base):
         Index("ix_discovery_results_job_id", "job_id"),
     )
 
+
+class ApiKey(Base):
+    """User-created Public API key. Effective permission is always
+    api_key.scopes ∩ user_effective_permissions, computed fresh at request
+    time in api_key_auth.py — never cached here or anywhere else."""
+    __tablename__ = "api_keys"
+
+    id             = Column(Integer, primary_key=True)
+    user_id        = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name           = Column(String(255), nullable=False)
+    key_prefix     = Column(String(32),  nullable=False)   # fast, non-secret lookup key
+    token_hash     = Column(String(128), nullable=False)   # HMAC-SHA256(token, API_KEY_PEPPER) — never the raw token
+    scopes         = Column(JSONB, default=list, nullable=False, server_default="[]")
+    allowed_ips    = Column(JSONB, nullable=True)           # list[str] CIDR/IP, null = no restriction
+    expires_at     = Column(DateTime(timezone=True), nullable=True)
+    last_used_at   = Column(DateTime(timezone=True), nullable=True)
+    last_used_ip   = Column(String(45), nullable=True)
+    is_active      = Column(Boolean, default=True, nullable=False)
+    revoked_at     = Column(DateTime(timezone=True), nullable=True)
+    revoked_by     = Column(Integer, ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL), nullable=True)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at     = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (
+        Index("ix_api_keys_user_id", "user_id"),
+        Index("ix_api_keys_key_prefix", "key_prefix"),
+        Index("ix_api_keys_token_hash", "token_hash", unique=True),
+        Index("ix_api_keys_is_active", "is_active"),
+    )
+
+
+class ApiKeyAuditLog(Base):
+    """Per-request allow/deny forensic trail for Public API access — separate
+    from EventLog, which covers human-facing key lifecycle events (created/
+    rotated/revoked) only."""
+    __tablename__ = "api_key_audit_logs"
+
+    id            = Column(Integer, primary_key=True)
+    api_key_id    = Column(Integer, ForeignKey("api_keys.id", ondelete=_ON_DELETE_SET_NULL), nullable=True)
+    user_id       = Column(Integer, ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL), nullable=True)
+    request_id    = Column(String(64),  nullable=True)
+    method        = Column(String(8),   nullable=False)
+    path          = Column(String(512), nullable=False)
+    ip_address    = Column(String(45),  nullable=False)
+    user_agent    = Column(String(512), nullable=True)
+    status_code   = Column(Integer,     nullable=True)
+    decision      = Column(String(8),   nullable=False)   # allowed|denied
+    denied_reason = Column(String(64),  nullable=True)
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+    api_key = relationship("ApiKey", foreign_keys=[api_key_id])
+    user    = relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (
+        Index("ix_api_key_audit_logs_api_key_id", "api_key_id"),
+        Index("ix_api_key_audit_logs_user_id", "user_id"),
+        Index("ix_api_key_audit_logs_created_at", "created_at"),
+    )
+
