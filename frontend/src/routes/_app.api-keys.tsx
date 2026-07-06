@@ -7,8 +7,8 @@ import {
 import { Card, PageHeader, EmptyState, confirmAsync, Modal, CustomSelect } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import {
-  Plus, Trash2, ScrollText, RotateCw, Copy, Check, Download,
-  KeyRound, Sparkles, Clock, Ban, Search,
+  Plus, ScrollText, RotateCw, Copy, Check, Download,
+  KeyRound, Sparkles, Clock, Ban, Search, Pencil,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -98,6 +98,50 @@ function ScopeBadgeList({ scopes }: Readonly<{ scopes: Record<string, string[]> 
   );
 }
 
+/** Inline rename: click the pencil, edit in place, Enter/blur saves, Escape cancels. */
+function EditableKeyName({ name, onRename }: Readonly<{ name: string; onRename: (newName: string) => void }>) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  const save = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== name) onRename(trimmed);
+    else setDraft(name);
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") { setDraft(name); setEditing(false); }
+        }}
+        className="font-medium text-sm bg-background border border-border rounded px-1.5 py-0.5 -my-0.5 w-full max-w-[10rem]"
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 group">
+      <span className="font-medium">{name}</span>
+      <button
+        type="button"
+        title="Rename"
+        onClick={(e) => { e.stopPropagation(); setDraft(name); setEditing(true); }}
+        className="p-0.5 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <Pencil className="size-3 text-muted-foreground" />
+      </button>
+    </div>
+  );
+}
+
 function isExpired(k: ApiKey): boolean {
   return !!k.expires_at && new Date(k.expires_at).getTime() < Date.now();
 }
@@ -139,21 +183,17 @@ function ApiKeysPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const del = useMutation({
-    mutationFn: (id: number) => api(`/api/api-keys/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      toast.success("API key deleted");
-      setSelectedKey(null);
-      qc.invalidateQueries({ queryKey: ["api-keys"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
   const rotate = useMutation({
     mutationFn: (id: number) => api<ApiKeyCreateResponse>(`/api/api-keys/${id}/rotate`, { method: "POST" }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["api-keys"] });
       setRevealToken({ name: res.name, token: res.token });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const rename = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => api(`/api/api-keys/${id}`, { method: "PATCH", json: { name } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["api-keys"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -164,7 +204,7 @@ function ApiKeysPage() {
       render: (k) => (
         <div className="flex items-center gap-2">
           <input type="checkbox" className="accent-primary" onClick={(e) => e.stopPropagation()} />
-          <span className="font-medium">{k.name}</span>
+          <EditableKeyName name={k.name} onRename={(newName) => rename.mutate({ id: k.id, name: newName })} />
         </div>
       ),
     },
@@ -172,17 +212,7 @@ function ApiKeysPage() {
       key: "prefix",
       header: "Key Prefix",
       render: (k) => (
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{k.key_prefix}…</span>
-          <button
-            type="button"
-            title="Copy prefix"
-            onClick={async (e) => { e.stopPropagation(); await navigator.clipboard.writeText(k.key_prefix); toast.success("Prefix copied"); }}
-            className="p-1 hover:bg-muted rounded"
-          >
-            <Copy className="size-3 text-muted-foreground" />
-          </button>
-        </div>
+        <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{k.key_prefix}…</span>
       ),
     },
     {
@@ -251,16 +281,6 @@ function ApiKeysPage() {
               Revoke
             </button>
           )}
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              if (await confirmAsync(`Delete "${k.name}" permanently?`)) del.mutate(k.id);
-            }}
-            className="p-1.5 hover:bg-muted rounded-md text-red-600"
-            title="Delete"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
         </div>
       ),
     },
@@ -291,7 +311,7 @@ function ApiKeysPage() {
           hint={totalKeys ? `${Math.round((revokedKeys / totalKeys) * 100)}% of total` : undefined} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-stretch">
         <Card className="p-0">
           <div className="p-3 border-b border-border">
             <div className="relative max-w-xs">
@@ -350,7 +370,7 @@ function ApiKeysPage() {
 function KeyDetailPanel({ apiKey, onRevoke }: Readonly<{ apiKey: ApiKey | null; onRevoke: (id: number) => void }>) {
   if (!apiKey) {
     return (
-      <Card className="p-4">
+      <Card className="p-4 h-full flex items-center justify-center">
         <p className="text-sm text-muted-foreground">Click a key to see its details.</p>
       </Card>
     );
@@ -362,7 +382,7 @@ function KeyDetailPanel({ apiKey, onRevoke }: Readonly<{ apiKey: ApiKey | null; 
   const statusColor = !apiKey.is_active ? "text-zinc-600" : expired ? "text-amber-700" : "text-green-700";
 
   return (
-    <Card className="p-4 space-y-4">
+    <Card className="p-4 space-y-4 h-full overflow-y-auto">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold truncate">{apiKey.name}</h3>
         <span className={`text-[11px] font-semibold shrink-0 ${statusColor}`}>● {statusLabel}</span>
@@ -370,16 +390,7 @@ function KeyDetailPanel({ apiKey, onRevoke }: Readonly<{ apiKey: ApiKey | null; 
 
       <div>
         <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Key Prefix</div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono bg-muted px-2 py-1 rounded border border-border">{apiKey.key_prefix}…</span>
-          <button
-            type="button"
-            onClick={async () => { await navigator.clipboard.writeText(apiKey.key_prefix); toast.success("Copied"); }}
-            className="p-1 hover:bg-muted rounded"
-          >
-            <Copy className="size-3 text-muted-foreground" />
-          </button>
-        </div>
+        <span className="text-xs font-mono bg-muted px-2 py-1 rounded border border-border">{apiKey.key_prefix}…</span>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -747,9 +758,6 @@ function RevealTokenDialog({ name, token, onClose }: Readonly<{ name: string; to
   return (
     <Modal onClose={onClose} dismissible={false} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl p-5 space-y-4">
       <h3 className="text-sm font-semibold">API key for "{name}"</h3>
-      <div className="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-md px-3 py-2">
-        Copy this token now. It will not be shown again.
-      </div>
       <div className="flex items-center gap-2">
         <input
           readOnly
@@ -774,7 +782,11 @@ function RevealTokenDialog({ name, token, onClose }: Readonly<{ name: string; to
           <Download className="size-3.5" />
         </button>
       </div>
-      <div className="flex justify-end pt-1">
+      <p className="text-xs text-muted-foreground/70">Copy this token now. It will not be shown again.</p>
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm font-medium bg-muted hover:bg-muted/70 rounded-md">
+          Close
+        </button>
         <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md">
           Done — I've saved it
         </button>
