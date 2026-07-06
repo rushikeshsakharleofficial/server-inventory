@@ -602,4 +602,15 @@ class ApiKeyAuditLogResponse(BaseModel):
     denied_reason: str | None = None
     created_at: datetime | None = None
 
+
+class ApiKeyEndpointUsageResponse(BaseModel):
+    """One row per (method, path) — request counts across every key in scope
+    (own keys, or fleet-wide with api_keys:manage_all), revoked keys included."""
+    method: str
+    path: str
+    total: int
+    allowed: int
+    denied: int
+    last_used_at: datetime | None = None
+
     model_config = {"from_attributes": True}

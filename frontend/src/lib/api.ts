@@ -412,6 +412,15 @@ export interface ApiKeyAuditLog {
   created_at: string;
 }
 
+export interface ApiKeyEndpointUsage {
+  method: string;
+  path: string;
+  total: number;
+  allowed: number;
+  denied: number;
+  last_used_at?: string | null;
+}
+
 export interface UserRow {
   id: number;
   username: string;

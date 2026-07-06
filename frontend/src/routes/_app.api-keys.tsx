@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse } from "@/lib/api";
+import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse, type ApiKeyEndpointUsage } from "@/lib/api";
 import { Card, PageHeader, EmptyState, confirmAsync, Modal, CustomSelect } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Trash2, ScrollText, RotateCw, Copy, Check } from "lucide-react";
@@ -11,6 +11,44 @@ export const Route = createFileRoute("/_app/api-keys")({
   head: () => ({ meta: [{ title: "API Keys — System Control" }] }),
   component: ApiKeysPage,
 });
+
+const SCOPE_BADGES_MAX = 3;
+
+/**
+ * Same compact-list pattern as crons.tsx's ProviderLogoGrid: show a few
+ * badges, "+N more" opens a small popover with the rest — instead of every
+ * feature:action pair wrapping across several lines in the cell.
+ */
+function ScopeBadgeList({ scopes }: Readonly<{ scopes: Record<string, string[]> }>) {
+  const [open, setOpen] = useState(false);
+  const all = Object.entries(scopes).flatMap(([feature, actions]) => actions.map((action) => `${feature}:${action}`));
+  if (!all.length) return <span className="text-xs text-muted-foreground">—</span>;
+  const shown = all.slice(0, SCOPE_BADGES_MAX);
+  const hidden = all.length - shown.length;
+
+  const badge = (s: string) => (
+    <span key={s} className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{s}</span>
+  );
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setOpen(false)}
+        className="inline-flex items-center gap-1 flex-wrap"
+      >
+        {shown.map(badge)}
+        {hidden > 0 && <span className="text-[10px] text-muted-foreground font-medium">+{hidden} more</span>}
+      </button>
+      {open && (
+        <div className="absolute z-30 top-full left-0 mt-1 bg-surface border border-border rounded-md shadow-lg p-2 flex flex-wrap gap-1.5 w-max max-w-xs">
+          {all.map(badge)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ApiKeysPage() {
   const qc = useQueryClient();
@@ -63,17 +101,7 @@ function ApiKeysPage() {
     {
       key: "scopes",
       header: "Scopes",
-      render: (k) => (
-        <div className="flex flex-wrap gap-1 max-w-xs">
-          {Object.entries(k.scopes).flatMap(([feature, actions]) =>
-            actions.map((action) => (
-              <span key={`${feature}:${action}`} className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded border border-border">
-                {feature}:{action}
-              </span>
-            )),
-          )}
-        </div>
-      ),
+      render: (k) => <ScopeBadgeList scopes={k.scopes} />,
     },
     {
       key: "status",
@@ -168,6 +196,8 @@ function ApiKeysPage() {
         <KeyMetricsPanel apiKey={selectedKey} />
       </div>
 
+      <EndpointUsageSection />
+
       {open && (
         <CreateKeyDialog
           onClose={() => setOpen(false)}
@@ -180,6 +210,60 @@ function ApiKeysPage() {
       {revealToken && <RevealTokenDialog name={revealToken.name} token={revealToken.token} onClose={() => setRevealToken(null)} />}
       {auditKey && <AuditLogDialog apiKey={auditKey} onClose={() => setAuditKey(null)} />}
     </div>
+  );
+}
+
+/**
+ * Fleet-wide (or own-keys-only, without api_keys:manage_all) per-endpoint
+ * request counts — includes revoked and even fully deleted keys' history,
+ * since GET /api/api-keys/audit-logs/summary keys off ApiKeyAuditLog.user_id
+ * directly rather than joining through the (possibly gone) ApiKey row.
+ */
+function EndpointUsageSection() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["api-keys", "audit-logs", "summary"],
+    queryFn: () => api<ApiKeyEndpointUsage[]>("/api/api-keys/audit-logs/summary"),
+  });
+
+  const rows = data ?? [];
+  const maxTotal = Math.max(1, ...rows.map((r) => r.total));
+
+  return (
+    <Card className="p-4 space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold">Endpoint usage</h3>
+        <p className="text-xs text-muted-foreground">
+          Request counts per endpoint across all your API keys, including revoked and deleted ones.
+        </p>
+      </div>
+
+      {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
+      {error && <p className="text-xs text-red-600">{(error as Error).message}</p>}
+      {!isLoading && !error && !rows.length && (
+        <EmptyState title="No requests yet" description="Endpoint usage will appear here once a key makes its first request." />
+      )}
+
+      {!!rows.length && (
+        <div className="space-y-2">
+          {rows.map((r) => (
+            <div key={`${r.method}:${r.path}`} className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-mono">
+                  <span className="text-muted-foreground">{r.method}</span> {r.path}
+                </span>
+                <span className="text-muted-foreground">
+                  {r.total} req{r.total === 1 ? "" : "s"}
+                  {r.denied > 0 && <span className="text-red-600"> · {r.denied} denied</span>}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary" style={{ width: `${(r.total / maxTotal) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

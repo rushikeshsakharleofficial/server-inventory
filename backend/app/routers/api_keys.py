@@ -2,6 +2,7 @@ from typing import Annotated
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -42,6 +43,43 @@ def list_api_keys(
     if not _can_manage_all(user):
         q = q.filter(models.ApiKey.user_id == user.id)
     return [schemas.ApiKeyResponse.model_validate(k) for k in q.order_by(models.ApiKey.created_at.desc()).all()]
+
+
+@router.get("/audit-logs/summary")
+def get_api_keys_endpoint_usage(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(get_current_user)],
+) -> list[schemas.ApiKeyEndpointUsageResponse]:
+    """Per-endpoint request counts across every key in scope — own keys only,
+    unless api_keys:manage_all, in which case it's fleet-wide. Uses
+    ApiKeyAuditLog.user_id directly (not a join through ApiKey) so a revoked
+    OR fully deleted key's history still counts — deleting a key only clears
+    its audit rows' api_key_id (ondelete=SET NULL), never their user_id."""
+    q = db.query(
+        models.ApiKeyAuditLog.method,
+        models.ApiKeyAuditLog.path,
+        func.count(models.ApiKeyAuditLog.id).label("total"),
+        func.count(models.ApiKeyAuditLog.id).filter(models.ApiKeyAuditLog.decision == "allowed").label("allowed"),
+        func.max(models.ApiKeyAuditLog.created_at).label("last_used_at"),
+    )
+    if not _can_manage_all(user):
+        q = q.filter(models.ApiKeyAuditLog.user_id == user.id)
+    rows = (
+        q.group_by(models.ApiKeyAuditLog.method, models.ApiKeyAuditLog.path)
+        .order_by(func.count(models.ApiKeyAuditLog.id).desc())
+        .all()
+    )
+    return [
+        schemas.ApiKeyEndpointUsageResponse(
+            method=r.method,
+            path=r.path,
+            total=r.total,
+            allowed=r.allowed or 0,
+            denied=r.total - (r.allowed or 0),
+            last_used_at=r.last_used_at,
+        )
+        for r in rows
+    ]
 
 
 @router.post("", status_code=201)
