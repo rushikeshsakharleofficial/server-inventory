@@ -176,11 +176,21 @@ function ApiKeysPage() {
   );
 }
 
+const EXPIRY_PRESETS = [
+  { value: "1d", label: "1 day", days: 1 },
+  { value: "1w", label: "1 week", days: 7 },
+  { value: "1m", label: "1 month", days: 30 },
+  { value: "1y", label: "1 year", days: 365 },
+  { value: "lifetime", label: "Lifetime (never expires)", days: null },
+  { value: "custom", label: "Custom date…", days: undefined },
+] as const;
+
 function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void; onCreated: (res: ApiKeyCreateResponse) => void }>) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [allowedIps, setAllowedIps] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [expiryChoice, setExpiryChoice] = useState<(typeof EXPIRY_PRESETS)[number]["value"]>("lifetime");
+  const [customDate, setCustomDate] = useState("");
 
   const create = useMutation({
     mutationFn: () => {
@@ -188,12 +198,21 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
         .split(/[\n,]/)
         .map((s) => s.trim())
         .filter(Boolean);
+
+      let expiresAt: string | null = null;
+      if (expiryChoice === "custom") {
+        if (customDate) expiresAt = new Date(customDate).toISOString();
+      } else {
+        const preset = EXPIRY_PRESETS.find((p) => p.value === expiryChoice);
+        if (preset?.days) expiresAt = new Date(Date.now() + preset.days * 86_400_000).toISOString();
+      }
+
       return api<ApiKeyCreateResponse>("/api/api-keys", {
         method: "POST",
         json: {
           name,
           ...(ips.length ? { allowed_ips: ips } : {}),
-          ...(expiresAt ? { expires_at: new Date(expiresAt).toISOString() } : {}),
+          ...(expiresAt ? { expires_at: expiresAt } : {}),
         },
       });
     },
@@ -234,14 +253,26 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
         </div>
 
         <div>
-          <Label>Expires (optional)</Label>
-          <input
-            type="date"
-            value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
+          <Label>Expires</Label>
+          <select
+            value={expiryChoice}
+            onChange={(e) => setExpiryChoice(e.target.value as typeof expiryChoice)}
             className="mt-1 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-          />
-          <p className="mt-1 text-[11px] text-muted-foreground">Leave blank for a key that never expires.</p>
+          >
+            {EXPIRY_PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+          {expiryChoice === "custom" && (
+            <input
+              type="date"
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+              min={new Date().toISOString().slice(0, 10)}
+              required
+              className="mt-2 w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
+            />
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
@@ -357,7 +388,7 @@ function AuditLogDialog({ apiKey, onClose }: Readonly<{ apiKey: ApiKey; onClose:
 }
 
 function Label({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{children}</label>;
+  return <label className="text-sm font-semibold text-foreground">{children}</label>;
 }
 function Input({ label, value, onChange, required }: Readonly<{ label: string; value: string; onChange: (v: string) => void; required?: boolean }>) {
   return (
