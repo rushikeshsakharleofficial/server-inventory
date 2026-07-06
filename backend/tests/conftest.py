@@ -30,7 +30,8 @@ os.environ.setdefault(
     "CREDENTIAL_ENCRYPTION_KEY", "N637BA0dKyVJU755KP9yndQK-ywwBwKU0QCYF1AA-ro="
 )
 
-from app import models  # noqa: E402  (import after env vars set, matches main.py's own import-time DB connect)
+# Import after env vars set above, matching main.py's own import-time DB connect.
+from app import models  # noqa: E402
 from app.database import get_db
 from app.main import app
 

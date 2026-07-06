@@ -24,7 +24,8 @@ def _fetch_for_credential(
         provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
         items = getattr(provider, fetch_method_name)()
         return cred, items, None
-    except Exception as e:  # noqa: BLE001 — surfaced via event log, not raised
+    except Exception as e:  # noqa: BLE001
+        # Surfaced via event log by the caller, not raised.
         return cred, [], f"{type(e).__name__}: {e}"
 
 

@@ -441,7 +441,8 @@ def _scan_ip(ip: str, ssh_cred: "models.SSHCredential", timeout: int) -> dict[st
             if jump_client:
                 try: jump_client.close()
                 except Exception: pass  # noqa: BLE001
-    except Exception as exc:  # noqa: BLE001 — absolute last resort, never propagate
+    except Exception as exc:  # noqa: BLE001
+        # Absolute last resort — never let a single credential's failure propagate.
         result["status"] = "error"
         result["error_message"] = str(exc)
     return result
