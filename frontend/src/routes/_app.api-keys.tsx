@@ -3,9 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse, type ApiKeyEndpointUsage } from "@/lib/api";
 import { Card, PageHeader, EmptyState, confirmAsync, Modal, CustomSelect } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
-import { Plus, Trash2, ScrollText, RotateCw, Copy, Check } from "lucide-react";
+import { Plus, Trash2, ScrollText, RotateCw, Copy, Check, Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, Cell as PieCell,
+} from "recharts";
 
 export const Route = createFileRoute("/_app/api-keys")({
   head: () => ({ meta: [{ title: "API Keys — System Control" }] }),
@@ -219,6 +223,26 @@ function ApiKeysPage() {
  * since GET /api/api-keys/audit-logs/summary keys off ApiKeyAuditLog.user_id
  * directly rather than joining through the (possibly gone) ApiKey row.
  */
+const _ENDPOINT_COLORS = ["#6366f1", "#3b82f6", "#0ea5e9", "#22c55e", "#f59e0b", "#f97316", "#a855f7"];
+const _ALLOWED_COLOR = "#22c55e"; // matches STATUS_COLORS.running in dashboard.tsx
+const _DENIED_COLOR = "#ef4444"; // matches STATUS_COLORS.failed in dashboard.tsx
+
+const _UsageTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="font-semibold mb-1 text-gray-800">{label}</div>
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.fill ?? p.color }} />
+          <span className="text-gray-500">{p.name}:</span>
+          <span className="font-mono font-semibold text-gray-800">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 function EndpointUsageSection() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["api-keys", "audit-logs", "summary"],
@@ -226,7 +250,13 @@ function EndpointUsageSection() {
   });
 
   const rows = data ?? [];
-  const maxTotal = Math.max(1, ...rows.map((r) => r.total));
+  const barData = rows.map((r) => ({ name: `${r.method} ${r.path}`, count: r.total }));
+  const totalAllowed = rows.reduce((sum, r) => sum + r.allowed, 0);
+  const totalDenied = rows.reduce((sum, r) => sum + r.denied, 0);
+  const pieData = [
+    { name: "Allowed", value: totalAllowed },
+    { name: "Denied", value: totalDenied },
+  ].filter((d) => d.value > 0);
 
   return (
     <Card className="p-4 space-y-3">
@@ -244,23 +274,46 @@ function EndpointUsageSection() {
       )}
 
       {!!rows.length && (
-        <div className="space-y-2">
-          {rows.map((r) => (
-            <div key={`${r.method}:${r.path}`} className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-mono">
-                  <span className="text-muted-foreground">{r.method}</span> {r.path}
-                </span>
-                <span className="text-muted-foreground">
-                  {r.total} req{r.total === 1 ? "" : "s"}
-                  {r.denied > 0 && <span className="text-red-600"> · {r.denied} denied</span>}
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-primary" style={{ width: `${(r.total / maxTotal) * 100}%` }} />
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-4">
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#6b7280" }} axisLine={false} tickLine={false} width={160} />
+                <Tooltip content={<_UsageTooltip />} cursor={{ fill: "#f8fafc" }} />
+                <Bar dataKey="count" name="Requests" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={900}>
+                  {barData.map((entry, i) => (
+                    <Cell key={entry.name} fill={_ENDPOINT_COLORS[i % _ENDPOINT_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-64 flex flex-col items-center justify-center">
+            {pieData.length ? (
+              <>
+                <ResponsiveContainer width="100%" height="80%">
+                  <PieChart>
+                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                      innerRadius={45} outerRadius={70} paddingAngle={2} startAngle={90} endAngle={-270}
+                      isAnimationActive animationDuration={900}>
+                      {pieData.map((entry) => (
+                        <PieCell key={entry.name} fill={entry.name === "Allowed" ? _ALLOWED_COLOR : _DENIED_COLOR} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<_UsageTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex gap-3 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: _ALLOWED_COLOR }} />Allowed</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: _DENIED_COLOR }} />Denied</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data.</p>
+            )}
+          </div>
         </div>
       )}
     </Card>
@@ -472,6 +525,16 @@ function RevealTokenDialog({ name, token, onClose }: Readonly<{ name: string; to
     setCopied(true);
   };
 
+  const download = () => {
+    const blob = new Blob([token], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.replace(/[^a-z0-9_-]+/gi, "_")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Modal onClose={onClose} dismissible={false} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl p-5 space-y-4">
       <h3 className="text-sm font-semibold">API key for "{name}"</h3>
@@ -492,6 +555,14 @@ function RevealTokenDialog({ name, token, onClose }: Readonly<{ name: string; to
         >
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           {copied ? "Copied" : "Copy"}
+        </button>
+        <button
+          type="button"
+          onClick={download}
+          title="Download as .txt"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-muted hover:bg-muted/70 rounded-md shrink-0"
+        >
+          <Download className="size-3.5" />
         </button>
       </div>
       <div className="flex justify-end pt-1">
