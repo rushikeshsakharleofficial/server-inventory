@@ -409,6 +409,7 @@ export interface ApiKeyAuditLog {
   status_code?: number | null;
   decision: "allowed" | "denied";
   denied_reason?: string | null;
+  response_time_ms?: number | null;
   created_at: string;
 }
 
@@ -418,7 +419,15 @@ export interface ApiKeyEndpointUsage {
   total: number;
   allowed: number;
   denied: number;
+  avg_response_time_ms?: number | null;
   last_used_at?: string | null;
+}
+
+export interface ApiKeyTimeseriesPoint {
+  date: string; // YYYY-MM-DD
+  total: number;
+  allowed: number;
+  denied: number;
 }
 
 export interface UserRow {

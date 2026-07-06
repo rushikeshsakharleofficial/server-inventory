@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import discovery_service, models, schemas
-from ..api_key_auth import IP_INVENTORY_FEATURE, ApiPrincipal, require_api_permission, write_api_audit_log
+from ..api_key_auth import IP_INVENTORY_FEATURE, ApiPrincipal, require_api_permission
 from ..database import DATABASE_URL, get_db
 from ..limiter import limiter
 from .servers import _build_ip_rows, _resolve_rdns_concurrent
@@ -190,11 +190,6 @@ def public_discovery_run_once(
     db.commit()
     db.refresh(job)
 
-    write_api_audit_log(
-        db, request=request, decision="allowed", status_code=202,
-        api_key_id=principal.api_key.id, user_id=principal.user.id,
-    )
-
     background_tasks.add_task(
         discovery_service.run_discovery,
         job.id, payload.cidr, payload.ssh_credential_id,
@@ -214,11 +209,6 @@ def public_trigger_sync(
     principal: Annotated[ApiPrincipal, Depends(require_api_permission("sync", "write"))],
     provider: str | None = None,
 ) -> dict[str, str]:
-    write_api_audit_log(
-        db, request=request, decision="allowed", status_code=202,
-        api_key_id=principal.api_key.id, user_id=principal.user.id,
-    )
-
     if provider:
         background_tasks.add_task(_run_sync, provider, DATABASE_URL)
     else:

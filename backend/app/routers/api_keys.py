@@ -1,7 +1,7 @@
 from typing import Annotated
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -60,6 +60,7 @@ def get_api_keys_endpoint_usage(
         models.ApiKeyAuditLog.path,
         func.count(models.ApiKeyAuditLog.id).label("total"),
         func.count(models.ApiKeyAuditLog.id).filter(models.ApiKeyAuditLog.decision == "allowed").label("allowed"),
+        func.avg(models.ApiKeyAuditLog.response_time_ms).label("avg_response_time_ms"),
         func.max(models.ApiKeyAuditLog.created_at).label("last_used_at"),
     )
     if not _can_manage_all(user):
@@ -76,7 +77,38 @@ def get_api_keys_endpoint_usage(
             total=r.total,
             allowed=r.allowed or 0,
             denied=r.total - (r.allowed or 0),
+            avg_response_time_ms=round(r.avg_response_time_ms) if r.avg_response_time_ms is not None else None,
             last_used_at=r.last_used_at,
+        )
+        for r in rows
+    ]
+
+
+@router.get("/audit-logs/timeseries")
+def get_api_keys_requests_over_time(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(get_current_user)],
+    days: Annotated[int, Query(ge=1, le=90)] = 7,
+) -> list[schemas.ApiKeyTimeseriesPointResponse]:
+    """Daily request counts across every key in scope, same own-keys-vs-
+    fleet-wide scoping and revoked/deleted-key-inclusive behavior as
+    /audit-logs/summary — feeds the "Requests Over Time" line chart."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    day = func.date(models.ApiKeyAuditLog.created_at)
+    q = db.query(
+        day.label("date"),
+        func.count(models.ApiKeyAuditLog.id).label("total"),
+        func.count(models.ApiKeyAuditLog.id).filter(models.ApiKeyAuditLog.decision == "allowed").label("allowed"),
+    ).filter(models.ApiKeyAuditLog.created_at >= since)
+    if not _can_manage_all(user):
+        q = q.filter(models.ApiKeyAuditLog.user_id == user.id)
+    rows = q.group_by(day).order_by(day).all()
+    return [
+        schemas.ApiKeyTimeseriesPointResponse(
+            date=str(r.date),
+            total=r.total,
+            allowed=r.allowed or 0,
+            denied=r.total - (r.allowed or 0),
         )
         for r in rows
     ]

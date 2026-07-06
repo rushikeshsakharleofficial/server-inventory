@@ -1,20 +1,64 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse, type ApiKeyEndpointUsage } from "@/lib/api";
+import {
+  api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse,
+  type ApiKeyEndpointUsage, type ApiKeyTimeseriesPoint,
+} from "@/lib/api";
 import { Card, PageHeader, EmptyState, confirmAsync, Modal, CustomSelect } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
-import { Plus, Trash2, ScrollText, RotateCw, Copy, Check, Download } from "lucide-react";
+import {
+  Plus, Trash2, ScrollText, RotateCw, Copy, Check, Download,
+  KeyRound, Sparkles, Clock, Ban, Search,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  PieChart, Pie, Cell as PieCell,
+  PieChart, Pie, Cell as PieCell, LineChart, Line,
 } from "recharts";
 
 export const Route = createFileRoute("/_app/api-keys")({
   head: () => ({ meta: [{ title: "API Keys — System Control" }] }),
   component: ApiKeysPage,
 });
+
+// Matches dashboard.tsx's STATUS_COLORS convention (running=green, failed=red).
+const _ALLOWED_COLOR = "#22c55e";
+const _DENIED_COLOR = "#ef4444";
+const _ENDPOINT_COLORS = ["#6366f1", "#3b82f6", "#0ea5e9", "#22c55e", "#f59e0b", "#f97316", "#a855f7"];
+
+const _ChartTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="font-semibold mb-1 text-gray-800">{label}</div>
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.fill ?? p.stroke ?? p.color }} />
+          <span className="text-gray-500">{p.name}:</span>
+          <span className="font-mono font-semibold text-gray-800">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+function StatCard({
+  icon: Icon, iconBg, iconColor, label, value, hint,
+}: Readonly<{ icon: React.ElementType; iconBg: string; iconColor: string; label: string; value: React.ReactNode; hint?: string }>) {
+  return (
+    <Card className="p-4 flex items-center gap-3">
+      <div className="size-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: iconBg }}>
+        <Icon className="size-4.5" style={{ color: iconColor }} />
+      </div>
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground truncate">{label}</div>
+        <div className="text-xl font-semibold tabular-nums">{value}</div>
+        {hint && <div className="text-[11px] text-muted-foreground truncate">{hint}</div>}
+      </div>
+    </Card>
+  );
+}
 
 const SCOPE_BADGES_MAX = 3;
 
@@ -54,11 +98,16 @@ function ScopeBadgeList({ scopes }: Readonly<{ scopes: Record<string, string[]> 
   );
 }
 
+function isExpired(k: ApiKey): boolean {
+  return !!k.expires_at && new Date(k.expires_at).getTime() < Date.now();
+}
+
 function ApiKeysPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [auditKey, setAuditKey] = useState<ApiKey | null>(null);
   const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   // One-time token to show after create/rotate. Local-only, never persisted
   // to a query cache or storage, and cleared the moment its dialog closes.
@@ -68,7 +117,19 @@ function ApiKeysPage() {
     queryKey: ["api-keys"],
     queryFn: () => api<ApiKey[]>("/api/api-keys"),
   });
-  const items = data ?? [];
+  const allItems = data ?? [];
+  const items = search
+    ? allItems.filter((k) => k.name.toLowerCase().includes(search.toLowerCase()) || k.key_prefix.includes(search.toLowerCase()))
+    : allItems;
+
+  const totalKeys = allItems.length;
+  const activeKeys = allItems.filter((k) => k.is_active && !isExpired(k)).length;
+  const expiredKeys = allItems.filter((k) => k.is_active && isExpired(k)).length;
+  const revokedKeys = allItems.filter((k) => !k.is_active).length;
+
+  // selectedKey can go stale after a revoke/delete elsewhere — always render
+  // from the live list entry with the same id, not the captured object.
+  const liveSelectedKey = selectedKey ? (allItems.find((k) => k.id === selectedKey.id) ?? null) : null;
 
   const revoke = useMutation({
     mutationFn: (id: number) => api(`/api/api-keys/${id}/revoke`, { method: "POST" }),
@@ -82,6 +143,7 @@ function ApiKeysPage() {
     mutationFn: (id: number) => api(`/api/api-keys/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success("API key deleted");
+      setSelectedKey(null);
       qc.invalidateQueries({ queryKey: ["api-keys"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -96,11 +158,32 @@ function ApiKeysPage() {
   });
 
   const columns: SmartTableColumn<ApiKey>[] = [
-    { key: "name", header: "Name", render: (k) => <span className="font-medium">{k.name}</span> },
+    {
+      key: "name",
+      header: "Name",
+      render: (k) => (
+        <div className="flex items-center gap-2">
+          <input type="checkbox" className="accent-primary" onClick={(e) => e.stopPropagation()} />
+          <span className="font-medium">{k.name}</span>
+        </div>
+      ),
+    },
     {
       key: "prefix",
-      header: "Key",
-      render: (k) => <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{k.key_prefix}…</span>,
+      header: "Key Prefix",
+      render: (k) => (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{k.key_prefix}…</span>
+          <button
+            type="button"
+            title="Copy prefix"
+            onClick={async (e) => { e.stopPropagation(); await navigator.clipboard.writeText(k.key_prefix); toast.success("Prefix copied"); }}
+            className="p-1 hover:bg-muted rounded"
+          >
+            <Copy className="size-3 text-muted-foreground" />
+          </button>
+        </div>
+      ),
     },
     {
       key: "scopes",
@@ -110,12 +193,22 @@ function ApiKeysPage() {
     {
       key: "status",
       header: "Status",
-      render: (k) => (
-        <span className={`pill ${k.is_active ? "bg-green-50 text-green-700" : "bg-zinc-100 text-zinc-600"}`}>
-          <span className={`size-1.5 rounded-full ${k.is_active ? "bg-green-500" : "bg-zinc-400"}`} />
-          {k.is_active ? "ACTIVE" : "REVOKED"}
-        </span>
-      ),
+      render: (k) => {
+        const expired = isExpired(k);
+        const label = !k.is_active ? "REVOKED" : expired ? "EXPIRED" : "ACTIVE";
+        const cls = !k.is_active
+          ? "bg-zinc-100 text-zinc-600"
+          : expired
+            ? "bg-amber-50 text-amber-700"
+            : "bg-green-50 text-green-700";
+        const dot = !k.is_active ? "bg-zinc-400" : expired ? "bg-amber-500" : "bg-green-500";
+        return (
+          <span className={`pill ${cls}`}>
+            <span className={`size-1.5 rounded-full ${dot}`} />
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: "last_used",
@@ -133,11 +226,14 @@ function ApiKeysPage() {
       className: "text-right",
       render: (k) => (
         <div className="inline-flex gap-1">
-          <button onClick={() => setAuditKey(k)} className="p-1.5 hover:bg-muted rounded-md" title="View audit logs">
+          <button onClick={(e) => { e.stopPropagation(); setAuditKey(k); }} className="p-1.5 hover:bg-muted rounded-md" title="View audit logs">
             <ScrollText className="size-3.5" />
           </button>
           <button
-            onClick={async () => (await confirmAsync(`Rotate "${k.name}"? The old token will stop working immediately.`)) && rotate.mutate(k.id)}
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (await confirmAsync(`Rotate "${k.name}"? The old token will stop working immediately.`)) rotate.mutate(k.id);
+            }}
             className="p-1.5 hover:bg-muted rounded-md"
             title="Rotate"
           >
@@ -145,7 +241,10 @@ function ApiKeysPage() {
           </button>
           {k.is_active && (
             <button
-              onClick={async () => (await confirmAsync(`Revoke "${k.name}"? This cannot be undone.`)) && revoke.mutate(k.id)}
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (await confirmAsync(`Revoke "${k.name}"? This cannot be undone.`)) revoke.mutate(k.id);
+              }}
               className="px-2 py-1.5 text-xs font-medium hover:bg-muted rounded-md text-amber-600"
               title="Revoke"
             >
@@ -153,7 +252,10 @@ function ApiKeysPage() {
             </button>
           )}
           <button
-            onClick={async () => (await confirmAsync(`Delete "${k.name}" permanently?`)) && del.mutate(k.id)}
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (await confirmAsync(`Delete "${k.name}" permanently?`)) del.mutate(k.id);
+            }}
             className="p-1.5 hover:bg-muted rounded-md text-red-600"
             title="Delete"
           >
@@ -167,8 +269,8 @@ function ApiKeysPage() {
   return (
     <div className="p-6 space-y-4">
       <PageHeader
-        title="API keys"
-        description="Tokens for programmatic access to the public API. Each token is shown only once, at creation or rotation."
+        title="API Keys"
+        description="Manage API keys for programmatic access to the public API."
         actions={
           <button
             onClick={() => setOpen(true)}
@@ -179,8 +281,29 @@ function ApiKeysPage() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard icon={KeyRound} iconBg="#eef2ff" iconColor="#6366f1" label="Total Keys" value={totalKeys} hint="All time" />
+        <StatCard icon={Sparkles} iconBg="#ecfdf5" iconColor="#22c55e" label="Active Keys" value={activeKeys}
+          hint={totalKeys ? `${Math.round((activeKeys / totalKeys) * 100)}% of total` : undefined} />
+        <StatCard icon={Clock} iconBg="#fffbeb" iconColor="#f59e0b" label="Expired Keys" value={expiredKeys}
+          hint={totalKeys ? `${Math.round((expiredKeys / totalKeys) * 100)}% of total` : undefined} />
+        <StatCard icon={Ban} iconBg="#fef2f2" iconColor="#ef4444" label="Revoked Keys" value={revokedKeys}
+          hint={totalKeys ? `${Math.round((revokedKeys / totalKeys) * 100)}% of total` : undefined} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-start">
         <Card className="p-0">
+          <div className="p-3 border-b border-border">
+            <div className="relative max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search API keys…"
+                className="w-full pl-8 pr-3 py-1.5 text-sm bg-background border border-border rounded-md"
+              />
+            </div>
+          </div>
           <SmartTable
             columns={columns}
             rows={items}
@@ -197,10 +320,10 @@ function ApiKeysPage() {
           />
         </Card>
 
-        <KeyMetricsPanel apiKey={selectedKey} />
+        <KeyDetailPanel apiKey={liveSelectedKey} onRevoke={(id) => revoke.mutate(id)} />
       </div>
 
-      <EndpointUsageSection />
+      <ApiMonitoringSection />
 
       {open && (
         <CreateKeyDialog
@@ -218,187 +341,266 @@ function ApiKeysPage() {
 }
 
 /**
- * Fleet-wide (or own-keys-only, without api_keys:manage_all) per-endpoint
- * request counts — includes revoked and even fully deleted keys' history,
- * since GET /api/api-keys/audit-logs/summary keys off ApiKeyAuditLog.user_id
- * directly rather than joining through the (possibly gone) ApiKey row.
+ * Right-side detail panel for the selected key — name/status, key prefix,
+ * created/last-used dates, allowed IPs, full scope list, and a Revoke
+ * shortcut. All fields come straight off the ApiKey row; no fabricated data
+ * (e.g. no "description" field exists on this model, so that section from
+ * the reference design is simply omitted rather than faked).
  */
-const _ENDPOINT_COLORS = ["#6366f1", "#3b82f6", "#0ea5e9", "#22c55e", "#f59e0b", "#f97316", "#a855f7"];
-const _ALLOWED_COLOR = "#22c55e"; // matches STATUS_COLORS.running in dashboard.tsx
-const _DENIED_COLOR = "#ef4444"; // matches STATUS_COLORS.failed in dashboard.tsx
+function KeyDetailPanel({ apiKey, onRevoke }: Readonly<{ apiKey: ApiKey | null; onRevoke: (id: number) => void }>) {
+  if (!apiKey) {
+    return (
+      <Card className="p-4">
+        <p className="text-sm text-muted-foreground">Click a key to see its details.</p>
+      </Card>
+    );
+  }
 
-const _UsageTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-lg">
-      <div className="font-semibold mb-1 text-gray-800">{label}</div>
-      {payload.map((p: any) => (
-        <div key={p.name} className="flex items-center gap-2">
-          <span className="size-2 rounded-full" style={{ background: p.fill ?? p.color }} />
-          <span className="text-gray-500">{p.name}:</span>
-          <span className="font-mono font-semibold text-gray-800">{p.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-function EndpointUsageSection() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["api-keys", "audit-logs", "summary"],
-    queryFn: () => api<ApiKeyEndpointUsage[]>("/api/api-keys/audit-logs/summary"),
-  });
-
-  const rows = data ?? [];
-  const barData = rows.map((r) => ({ name: `${r.method} ${r.path}`, count: r.total }));
-  const totalAllowed = rows.reduce((sum, r) => sum + r.allowed, 0);
-  const totalDenied = rows.reduce((sum, r) => sum + r.denied, 0);
-  const pieData = [
-    { name: "Allowed", value: totalAllowed },
-    { name: "Denied", value: totalDenied },
-  ].filter((d) => d.value > 0);
+  const scopeEntries = Object.entries(apiKey.scopes).flatMap(([feature, actions]) => actions.map((a) => `${feature}:${a}`));
+  const expired = isExpired(apiKey);
+  const statusLabel = !apiKey.is_active ? "REVOKED" : expired ? "EXPIRED" : "ACTIVE";
+  const statusColor = !apiKey.is_active ? "text-zinc-600" : expired ? "text-amber-700" : "text-green-700";
 
   return (
-    <Card className="p-4 space-y-3">
-      <div>
-        <h3 className="text-sm font-semibold">Endpoint usage</h3>
-        <p className="text-xs text-muted-foreground">
-          Request counts per endpoint across all your API keys, including revoked and deleted ones.
-        </p>
+    <Card className="p-4 space-y-4">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-sm font-semibold truncate">{apiKey.name}</h3>
+        <span className={`text-[11px] font-semibold shrink-0 ${statusColor}`}>● {statusLabel}</span>
       </div>
 
-      {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
-      {error && <p className="text-xs text-red-600">{(error as Error).message}</p>}
-      {!isLoading && !error && !rows.length && (
-        <EmptyState title="No requests yet" description="Endpoint usage will appear here once a key makes its first request." />
+      <div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Key Prefix</div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono bg-muted px-2 py-1 rounded border border-border">{apiKey.key_prefix}…</span>
+          <button
+            type="button"
+            onClick={async () => { await navigator.clipboard.writeText(apiKey.key_prefix); toast.success("Copied"); }}
+            className="p-1 hover:bg-muted rounded"
+          >
+            <Copy className="size-3 text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Created</div>
+          <div className="text-xs font-medium">{new Date(apiKey.created_at).toLocaleDateString()}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Last Used</div>
+          <div className="text-xs font-medium">{apiKey.last_used_at ? new Date(apiKey.last_used_at).toLocaleString() : "Never"}</div>
+          {apiKey.last_used_ip && <div className="text-[11px] text-muted-foreground font-mono">from {apiKey.last_used_ip}</div>}
+        </div>
+      </div>
+
+      {apiKey.expires_at && (
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Expires</div>
+          <div className="text-xs font-medium">{new Date(apiKey.expires_at).toLocaleString()}</div>
+        </div>
       )}
 
-      {!!rows.length && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-4">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#6b7280" }} axisLine={false} tickLine={false} width={160} />
-                <Tooltip content={<_UsageTooltip />} cursor={{ fill: "#f8fafc" }} />
-                <Bar dataKey="count" name="Requests" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={900}>
-                  {barData.map((entry, i) => (
-                    <Cell key={entry.name} fill={_ENDPOINT_COLORS[i % _ENDPOINT_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="h-64 flex flex-col items-center justify-center">
-            {pieData.length ? (
-              <>
-                <ResponsiveContainer width="100%" height="80%">
-                  <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                      innerRadius={45} outerRadius={70} paddingAngle={2} startAngle={90} endAngle={-270}
-                      isAnimationActive animationDuration={900}>
-                      {pieData.map((entry) => (
-                        <PieCell key={entry.name} fill={entry.name === "Allowed" ? _ALLOWED_COLOR : _DENIED_COLOR} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<_UsageTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex gap-3 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: _ALLOWED_COLOR }} />Allowed</span>
-                  <span className="flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: _DENIED_COLOR }} />Denied</span>
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data.</p>
-            )}
-          </div>
+      <div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+          Allowed IPs {apiKey.allowed_ips?.length ? `(${apiKey.allowed_ips.length})` : ""}
         </div>
+        {apiKey.allowed_ips?.length ? (
+          <div className="flex flex-wrap gap-1">
+            {apiKey.allowed_ips.map((ip) => (
+              <span key={ip} className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{ip}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Any IP allowed.</p>
+        )}
+      </div>
+
+      <div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Scopes ({scopeEntries.length})</div>
+        <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+          {scopeEntries.map((s) => (
+            <span key={s} className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{s}</span>
+          ))}
+        </div>
+      </div>
+
+      {apiKey.is_active && (
+        <button
+          type="button"
+          onClick={async () => {
+            if (await confirmAsync(`Revoke "${apiKey.name}"? This cannot be undone.`)) onRevoke(apiKey.id);
+          }}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 rounded-md"
+        >
+          <Ban className="size-3.5" /> Revoke API key
+        </button>
       )}
     </Card>
   );
 }
 
 /**
- * Summary stats for one key, derived entirely client-side from its audit
- * logs — there is no dedicated metrics endpoint, this is just an aggregation
- * over GET /api/api-keys/{id}/audit-logs (same data the audit-log modal
- * shows row-by-row).
+ * Real usage data only — every number here comes from the two aggregate
+ * endpoints (audit-logs/summary, audit-logs/timeseries). No fabricated
+ * demo values: an empty state renders wherever there's genuinely no data
+ * yet, rather than showing placeholder numbers.
  */
-function KeyMetricsPanel({ apiKey }: Readonly<{ apiKey: ApiKey | null }>) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["api-keys", apiKey?.id, "audit-logs"],
-    queryFn: () => api<ApiKeyAuditLog[]>(`/api/api-keys/${apiKey?.id}/audit-logs`),
-    enabled: apiKey != null,
+function ApiMonitoringSection() {
+  const summary = useQuery({
+    queryKey: ["api-keys", "audit-logs", "summary"],
+    queryFn: () => api<ApiKeyEndpointUsage[]>("/api/api-keys/audit-logs/summary"),
+  });
+  const timeseries = useQuery({
+    queryKey: ["api-keys", "audit-logs", "timeseries"],
+    queryFn: () => api<ApiKeyTimeseriesPoint[]>("/api/api-keys/audit-logs/timeseries", { query: { days: 7 } }),
   });
 
-  if (!apiKey) {
-    return (
-      <Card className="p-4">
-        <p className="text-sm text-muted-foreground">Click a key to see its usage metrics.</p>
-      </Card>
-    );
-  }
+  const rows = summary.data ?? [];
+  const points = timeseries.data ?? [];
+  const isLoading = summary.isLoading || timeseries.isLoading;
+  const hasError = summary.error || timeseries.error;
+  const hasData = rows.length > 0;
 
-  if (isLoading || !data) {
-    return (
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold mb-2 truncate">{apiKey.name}</h3>
-        <p className="text-xs text-muted-foreground">Loading…</p>
-      </Card>
-    );
-  }
+  const totalRequests = rows.reduce((sum, r) => sum + r.total, 0);
+  const totalAllowed = rows.reduce((sum, r) => sum + r.allowed, 0);
+  const totalDenied = rows.reduce((sum, r) => sum + r.denied, 0);
+  const successRate = totalRequests ? (totalAllowed / totalRequests) * 100 : null;
+  const timedRows = rows.filter((r) => r.avg_response_time_ms != null);
+  const avgResponseTime = timedRows.length
+    ? Math.round(timedRows.reduce((sum, r) => sum + (r.avg_response_time_ms ?? 0), 0) / timedRows.length)
+    : null;
 
-  const total = data.length;
-  const allowed = data.filter((l) => l.decision === "allowed").length;
-  const denied = total - allowed;
-
-  const pathCounts = new Map<string, number>();
-  for (const log of data) pathCounts.set(log.path, (pathCounts.get(log.path) ?? 0) + 1);
-  const topPath = [...pathCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  const barData = rows.map((r) => ({ name: `${r.method} ${r.path}`, count: r.total }));
+  const pieData = [
+    { name: "Allowed", value: totalAllowed },
+    { name: "Denied", value: totalDenied },
+  ].filter((d) => d.value > 0);
+  const lineData = points.map((p) => ({ date: p.date.slice(5), total: p.total }));
 
   return (
-    <Card className="p-4 space-y-3">
-      <h3 className="text-sm font-semibold truncate">{apiKey.name}</h3>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-md bg-muted/40 p-2">
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-            Requests{total >= 500 ? " (last 500)" : ""}
-          </div>
-          <div className="text-lg font-semibold">{total}</div>
-        </div>
-        <div className="rounded-md bg-muted/40 p-2">
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Last used</div>
-          <div className="text-xs font-medium">{apiKey.last_used_at ? new Date(apiKey.last_used_at).toLocaleDateString() : "Never"}</div>
-        </div>
-      </div>
-
+    <Card className="p-4 space-y-4">
       <div>
-        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Allowed vs denied</div>
-        {total === 0 ? (
-          <p className="text-xs text-muted-foreground">No requests yet.</p>
-        ) : (
-          <>
-            <div className="flex h-2 rounded-full overflow-hidden bg-muted">
-              <div className="bg-green-500" style={{ width: `${(allowed / total) * 100}%` }} />
-              <div className="bg-red-500" style={{ width: `${(denied / total) * 100}%` }} />
-            </div>
-            <div className="flex justify-between mt-1 text-[11px] text-muted-foreground">
-              <span className="text-green-700">{allowed} allowed</span>
-              <span className="text-red-600">{denied} denied</span>
-            </div>
-          </>
-        )}
+        <h3 className="text-sm font-semibold">API Monitoring</h3>
+        <p className="text-xs text-muted-foreground">Overview of API usage across all your keys, including revoked and deleted ones.</p>
       </div>
 
-      {topPath && (
-        <div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Most-used endpoint</div>
-          <div className="text-xs font-mono truncate" title={topPath[0]}>{topPath[0]}</div>
-          <div className="text-[11px] text-muted-foreground">{topPath[1]} request{topPath[1] === 1 ? "" : "s"}</div>
-        </div>
+      {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
+      {hasError && <p className="text-xs text-red-600">{((summary.error ?? timeseries.error) as Error).message}</p>}
+
+      {!isLoading && !hasError && !hasData && (
+        <EmptyState title="No requests yet" description="Usage stats will appear here once a key makes its first request." />
+      )}
+
+      {hasData && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Requests</div>
+              <div className="text-xl font-semibold tabular-nums">{totalRequests.toLocaleString()}</div>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Success Rate</div>
+              <div className="text-xl font-semibold tabular-nums">{successRate != null ? `${successRate.toFixed(2)}%` : "—"}</div>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg Response Time</div>
+              <div className="text-xl font-semibold tabular-nums">{avgResponseTime != null ? `${avgResponseTime} ms` : "—"}</div>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Denied Requests</div>
+              <div className="text-xl font-semibold tabular-nums">{totalDenied.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs font-semibold mb-2">Requests over time (last 7 days)</div>
+              <div className="h-52">
+                {lineData.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={lineData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<_ChartTooltip />} />
+                      <Line type="monotone" dataKey="total" name="Requests" stroke="#6366f1" strokeWidth={2} dot={false} isAnimationActive animationDuration={900} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground">No data in this range.</div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold mb-2">Status breakdown</div>
+              <div className="h-52 flex items-center gap-4">
+                <div className="flex-1 h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                        innerRadius={45} outerRadius={70} paddingAngle={2} startAngle={90} endAngle={-270}
+                        isAnimationActive animationDuration={900}>
+                        {pieData.map((entry) => (
+                          <PieCell key={entry.name} fill={entry.name === "Allowed" ? _ALLOWED_COLOR : _DENIED_COLOR} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<_ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-1.5 text-xs shrink-0">
+                  <div className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: _ALLOWED_COLOR }} /> Allowed ({totalAllowed})</div>
+                  <div className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: _DENIED_COLOR }} /> Denied ({totalDenied})</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold mb-2">Top endpoints</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#6b7280" }} axisLine={false} tickLine={false} width={160} />
+                    <Tooltip content={<_ChartTooltip />} cursor={{ fill: "#f8fafc" }} />
+                    <Bar dataKey="count" name="Requests" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={900}>
+                      {barData.map((entry, i) => (
+                        <Cell key={entry.name} fill={_ENDPOINT_COLORS[i % _ENDPOINT_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-2 py-1">Endpoint</th>
+                      <th className="px-2 py-1 text-right">Requests</th>
+                      <th className="px-2 py-1 text-right">Success</th>
+                      <th className="px-2 py-1 text-right">Avg Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {rows.map((r) => (
+                      <tr key={`${r.method}:${r.path}`}>
+                        <td className="px-2 py-1.5 font-mono truncate max-w-[12rem]">
+                          <span className="text-muted-foreground">{r.method}</span> {r.path}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{r.total.toLocaleString()}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{((r.allowed / r.total) * 100).toFixed(1)}%</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{r.avg_response_time_ms != null ? `${r.avg_response_time_ms} ms` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </Card>
   );
@@ -600,6 +802,7 @@ function AuditLogDialog({ apiKey, onClose }: Readonly<{ apiKey: ApiKey; onClose:
                 <th className="px-2 py-1">Path</th>
                 <th className="px-2 py-1">IP</th>
                 <th className="px-2 py-1">Status</th>
+                <th className="px-2 py-1">Time</th>
                 <th className="px-2 py-1">Decision</th>
               </tr>
             </thead>
@@ -611,6 +814,7 @@ function AuditLogDialog({ apiKey, onClose }: Readonly<{ apiKey: ApiKey; onClose:
                   <td className="px-2 py-1.5 font-mono truncate max-w-[16rem]">{log.path}</td>
                   <td className="px-2 py-1.5 font-mono">{log.ip_address ?? "—"}</td>
                   <td className="px-2 py-1.5">{log.status_code}</td>
+                  <td className="px-2 py-1.5 tabular-nums">{log.response_time_ms != null ? `${log.response_time_ms} ms` : "—"}</td>
                   <td className="px-2 py-1.5">
                     <span className={log.decision === "allowed" ? "text-green-700" : "text-red-600"}>
                       {log.decision}

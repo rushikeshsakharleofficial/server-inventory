@@ -165,6 +165,15 @@ def _migrate_discovery_server_columns() -> None:
         conn.commit()
 
 
+def _migrate_api_key_audit_response_time() -> None:
+    """Add response_time_ms to api_key_audit_logs if it doesn't exist yet."""
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE api_key_audit_logs ADD COLUMN IF NOT EXISTS response_time_ms INTEGER"
+        ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
@@ -176,6 +185,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_server_ssh_assignment()
     _migrate_group_super_admin()
     _migrate_discovery_server_columns()
+    _migrate_api_key_audit_response_time()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -211,6 +221,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+from .api_key_auth import PublicApiAuditMiddleware
+app.add_middleware(PublicApiAuditMiddleware, session_factory=SessionLocal)
 
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost:3001,http://127.0.0.1:3001")
 _cors_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]

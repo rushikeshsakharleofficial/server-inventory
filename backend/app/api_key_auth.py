@@ -25,11 +25,13 @@ import hmac
 import ipaddress
 import os
 import secrets
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import models
 from .database import get_db
@@ -51,6 +53,15 @@ class ApiKeyAuthError(Exception):
         self.reason = reason
         self.status_code = status_code
         super().__init__(reason)
+
+
+def _stash_denied_reason(request: Request, reason: str) -> None:
+    """PublicApiAuditMiddleware (main.py) writes exactly one audit row per
+    request after call_next returns — it knows the response status code but
+    not *why* a denial happened, since that's only known here, inside
+    request handling. Stashing it on request.state lets the middleware pick
+    it up without every call site needing to write its own audit row."""
+    request.state.api_denied_reason = reason
 
 
 # ─── Token generation / hashing ────────────────────────────────────────────────
@@ -119,6 +130,7 @@ def write_api_audit_log(
     user_id: int | None = None,
     status_code: int | None = None,
     denied_reason: str | None = None,
+    response_time_ms: int | None = None,
 ) -> models.ApiKeyAuditLog:
     row = models.ApiKeyAuditLog(
         api_key_id=api_key_id,
@@ -131,6 +143,7 @@ def write_api_audit_log(
         status_code=status_code,
         decision=decision,
         denied_reason=denied_reason,
+        response_time_ms=response_time_ms,
     )
     db.add(row)
     db.commit()
@@ -217,15 +230,15 @@ def get_current_api_principal(
             raise ApiKeyAuthError("ip_not_allowed", status_code=status.HTTP_403_FORBIDDEN)
 
     except ApiKeyAuthError as e:
-        write_api_audit_log(
-            db,
-            request=request,
-            decision="denied",
-            status_code=e.status_code,
-            denied_reason=e.reason,
-            api_key_id=api_key.id if api_key else None,
-            user_id=user.id if user else None,
-        )
+        # PublicApiAuditMiddleware writes the actual audit row after the
+        # response is built — it knows the request/response but not *why* a
+        # denial happened, so the reason (and whatever identity was resolved
+        # before the failure) is stashed here for it to pick up.
+        _stash_denied_reason(request, e.reason)
+        if api_key:
+            request.state.api_key_id = api_key.id
+        if user:
+            request.state.api_user_id = user.id
         raise HTTPException(
             status_code=e.status_code,
             detail="Invalid or unauthorized API key",
@@ -241,6 +254,14 @@ def get_current_api_principal(
     # wrapper runs its key_func) so per-route rate limiting can key on the
     # API key id instead of the caller's IP. See public_api._api_key_id_key_func.
     request.state.api_principal = principal
+    # Plain ints, stashed separately from api_principal: PublicApiAuditMiddleware
+    # runs its own DB session *after* call_next returns, by which point the
+    # request-scoped session behind `user`/`api_key` (from Depends(get_db)) is
+    # already closed — touching principal.user.id there would lazy-load
+    # against a dead session (DetachedInstanceError). Reading plain ints
+    # avoids touching the ORM objects at all outside their own session.
+    request.state.api_key_id = api_key.id
+    request.state.api_user_id = user.id
     return principal
 
 
@@ -253,18 +274,9 @@ def require_api_permission(feature: str, action: str):
     def _dep(
         request: Request,
         principal: ApiPrincipal = Depends(get_current_api_principal),
-        db: Session = Depends(get_db),
     ) -> ApiPrincipal:
         if not principal.has_perm(feature, action):
-            write_api_audit_log(
-                db,
-                request=request,
-                decision="denied",
-                status_code=status.HTTP_403_FORBIDDEN,
-                denied_reason=f"missing_scope:{feature}:{action}",
-                api_key_id=principal.api_key.id,
-                user_id=principal.user.id,
-            )
+            _stash_denied_reason(request, f"missing_scope:{feature}:{action}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"API key missing required scope for {feature}:{action}",
@@ -273,3 +285,67 @@ def require_api_permission(feature: str, action: str):
 
     _dep.__name__ = f"require_api_permission_{feature}_{action}"
     return _dep
+
+
+# ─── Audit middleware ───────────────────────────────────────────────────────────
+
+class PublicApiAuditMiddleware(BaseHTTPMiddleware):
+    """Writes exactly one ApiKeyAuditLog row per /public/v1/* request,
+    allowed or denied, with real response_time_ms and status_code — the
+    single place this is logged, replacing the old pattern of scattering
+    write_api_audit_log() calls through every handler and auth dependency
+    (which only ever covered denials + the 2 write endpoints, silently
+    missing every successful read). Denial reason and identity, when known
+    before the response is built, are stashed on request.state above; this
+    middleware only reads them.
+
+    session_factory defaults to the real app's SessionLocal but is
+    overridable (app.add_middleware(PublicApiAuditMiddleware,
+    session_factory=...)) so tests can point it at an isolated test DB —
+    middleware isn't a FastAPI dependency, so app.dependency_overrides can't
+    reach it. Lives here rather than in main.py because main.py imports
+    app.database.engine at module scope and connects to real Postgres
+    immediately on import — importing this class from main.py would defeat
+    the whole point of the standalone test app in tests/conftest.py."""
+
+    def __init__(self, app, session_factory):
+        super().__init__(app)
+        self.session_factory = session_factory
+
+    async def dispatch(self, request: Request, call_next):
+        if not request.url.path.startswith("/public/v1"):
+            return await call_next(request)
+
+        start = time.monotonic()
+        response = await call_next(request)
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+
+        # Plain ints only — never touch principal.user/.api_key here, that
+        # ORM object's session (Depends(get_db), scoped to the request) is
+        # already closed by the time call_next returns.
+        api_key_id = getattr(request.state, "api_key_id", None)
+        user_id = getattr(request.state, "api_user_id", None)
+        decision = "allowed" if response.status_code < 400 else "denied"
+        denied_reason = getattr(request.state, "api_denied_reason", None)
+        if decision == "denied" and denied_reason is None:
+            # No handler/dependency stashed a specific reason — e.g. a 429
+            # from the @limiter.limit decorator, which never touches this
+            # module's denial paths at all.
+            denied_reason = "rate_limited" if response.status_code == 429 else f"http_{response.status_code}"
+
+        db = self.session_factory()
+        try:
+            write_api_audit_log(
+                db,
+                request=request,
+                decision=decision,
+                status_code=response.status_code,
+                denied_reason=denied_reason,
+                response_time_ms=elapsed_ms,
+                api_key_id=api_key_id,
+                user_id=user_id,
+            )
+        finally:
+            db.close()
+
+        return response

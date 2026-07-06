@@ -595,6 +595,7 @@ class ApiKeyAuditLog(Base):
     status_code   = Column(Integer,     nullable=True)
     decision      = Column(String(8),   nullable=False)   # allowed|denied
     denied_reason = Column(String(64),  nullable=True)
+    response_time_ms = Column(Integer, nullable=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
 
     api_key = relationship("ApiKey", foreign_keys=[api_key_id])

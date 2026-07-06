@@ -600,6 +600,7 @@ class ApiKeyAuditLogResponse(BaseModel):
     status_code: int | None = None
     decision: str
     denied_reason: str | None = None
+    response_time_ms: int | None = None
     created_at: datetime | None = None
 
 
@@ -611,6 +612,16 @@ class ApiKeyEndpointUsageResponse(BaseModel):
     total: int
     allowed: int
     denied: int
+    avg_response_time_ms: int | None = None
     last_used_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class ApiKeyTimeseriesPointResponse(BaseModel):
+    """One row per day — request counts across every key in scope, same
+    scoping rules as ApiKeyEndpointUsageResponse. Feeds a line chart."""
+    date: str  # YYYY-MM-DD
+    total: int
+    allowed: int
+    denied: int
