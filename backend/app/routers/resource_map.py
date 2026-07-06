@@ -24,6 +24,10 @@ def _cache_get(key: str) -> dict | None:
 
 
 def _cache_set(key: str, value: dict) -> None:
+    # Empty topology is often a transient failure (API hiccup, missing cred) —
+    # never worth pinning for the full TTL, so the next request gets a fresh try.
+    if not value.get("nodes"):
+        return
     _cache[key] = (time.monotonic() + _CACHE_TTL, value)
 
 router = APIRouter(prefix="/api/resource-map", tags=["resource-map"])
@@ -1747,35 +1751,43 @@ def _ovh_server_map(server: models.Server, config: dict) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
-# ── Hivelocity ────────────────────────────────────────────────────────────────
+# ── Inventory fallback (no cloud API — any provider without one) ──────────────
 
-def _hivelocity_server_map(server: models.Server, config: dict) -> dict:
-    """Build a resource map from stored server data (no topology API available)."""
+def _inventory_server_map(server: models.Server, config: dict | None = None) -> dict:
+    """Build a resource map from stored server/SSH data alone. Used for any
+    provider with no cloud-API topology function (on-prem, custom discovery
+    values, or a wired provider whose API call came back empty) — so a server
+    with real inventory data never renders as a bare empty map."""
     nodes: list[dict] = []
     edges: list[dict] = []
-    root_id = f"hv-server-{server.id}"
+    root_id = f"server-{server.id}"
 
     nodes.append(_node(
         root_id, "server", "compute", server.name,
         {
-            "provider": "hivelocity",
+            "provider": server.provider,
+            "hostname": server.hostname or "",
             "region": server.region or "",
             "datacenter": server.datacenter or server.region or "",
-            "instance_type": server.instance_type or "",
             "status": server.status,
+            "os": server.os or "",
+            "instance_type": server.instance_type or "",
+            "source": "inventory_fallback",
         },
     ))
 
-    if server.public_ip:
-        ip_id = f"hv-ip-{server.id}"
-        nodes.append(_node(ip_id, "ip", "network", server.public_ip, {"type": "primary"}))
-        edges.append(_edge(root_id, ip_id, "primary IP"))
-
-    if server.region:
-        dc_id = f"hv-dc-{server.region}"
-        nodes.append(_node(dc_id, "datacenter", "infrastructure", server.datacenter or server.region, {"facility": server.region}))
+    if server.datacenter or server.region:
+        dc_id = f"dc-{server.id}"
+        nodes.append(_node(dc_id, "datacenter", "infrastructure", server.datacenter or server.region, {"facility": server.region or ""}))
         edges.append(_edge(dc_id, root_id, "hosts"))
 
+    if server.ssh_group:
+        grp_id = f"sshgrp-{server.id}"
+        nodes.append(_node(grp_id, "tag", "meta", server.ssh_group, {}))
+        edges.append(_edge(root_id, grp_id, "SSH group"))
+
+    # _append_ip_nodes (below) attaches public_ip/private_ip/ssh_info.all_ips —
+    # skipped here to avoid duplicating that logic for every dispatch target.
     return {"nodes": nodes, "edges": edges}
 
 
@@ -1840,11 +1852,18 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
         ("linode", "database"):   _linode_database_map,
         ("linode", "kubernetes"): _linode_kubernetes_map,
         ("ovh",        "server"):        _ovh_server_map,
-        ("hivelocity", "server"):        _hivelocity_server_map,
+        ("hivelocity", "server"):        _inventory_server_map,
     }
     fn = dispatch.get((provider, resource_type))
     if fn is None:
-        return {"nodes": [], "edges": []}
+        # No cloud-API topology for this provider (on-prem/custom discovery
+        # values, or anything not explicitly wired above). Servers still have
+        # useful local data (IPs, datacenter, OS) worth showing instead of a
+        # bare empty map; database/kubernetes have no such local model, so
+        # they keep the original empty-topology behavior.
+        if resource_type != "server":
+            return {"nodes": [], "edges": []}
+        fn = _inventory_server_map
     result = fn(resource, config)
     if resource_type == "server":
         result = _append_ip_nodes(resource, result)

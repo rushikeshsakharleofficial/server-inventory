@@ -13,7 +13,7 @@ import type { SshCredential } from "@/lib/api";
 import { apiToFlow, type RmApiData, type RmNodeData } from "@/lib/resource-map-layout";
 import { PageHeader, StatusPill } from "@/components/ui-bits";
 import {
-  Maximize2, Minimize2, RefreshCw, Search, ExternalLink, Wifi,
+  Maximize2, Minimize2, RefreshCw, Search, ExternalLink,
   Server as ServerIcon, Database, HardDrive, Network, Shield,
   Globe, Layers, Activity, Box,
 } from "lucide-react";
@@ -353,8 +353,6 @@ function SidebarItem({ label, sub, status, active, onClick }: Readonly<{
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-interface SyncProg { done: number; total: number; skipped: number; status: "idle" | "running" | "done" }
-
 function ResourceMapPage() {
   const { server: targetServerId } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -366,7 +364,6 @@ function ResourceMapPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
-  const [syncProg, setSyncProg] = useState<SyncProg>({ done: 0, total: 0, skipped: 0, status: "idle" });
   const syncAbortRef = useRef(false);
   const syncRunningRef = useRef(false);
 
@@ -409,7 +406,6 @@ function ResourceMapPage() {
     if (syncRunningRef.current) return;
     syncRunningRef.current = true;
     syncAbortRef.current = false;
-    setSyncProg({ done: 0, total: serverList.length, skipped: 0, status: "running" });
     let done = 0, skipped = 0;
     for (const s of serverList) {
       if (syncAbortRef.current) break;
@@ -418,10 +414,8 @@ function ResourceMapPage() {
         await api(`/api/servers/${s.id}/ssh-sync?ssh_credential_id=${credId}`, { method: "POST" });
         done++;
       } catch { skipped++; }
-      setSyncProg(p => ({ ...p, done: done + skipped, skipped, status: "running" }));
     }
     syncRunningRef.current = false;
-    setSyncProg({ done: done + skipped, total: serverList.length, skipped, status: "done" });
     if (!syncAbortRef.current) qc.invalidateQueries({ queryKey: ["servers"] });
   }, [qc]);
 
@@ -487,47 +481,6 @@ function ResourceMapPage() {
               className="w-full bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
               style={{ paddingLeft: 28, paddingRight: 12, paddingTop: 6, paddingBottom: 6, fontSize: 12 }}
             />
-          </div>
-
-          {/* SSH sync bar */}
-          <div style={{ flexShrink: 0 }}>
-            {(() => {
-              if (syncProg.status === "running") {
-                return (
-                  <div style={{ padding: "0 4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <RefreshCw className="animate-spin" style={{ width: 10, height: 10 }} />
-                        Syncing {syncProg.done}/{syncProg.total}
-                      </span>
-                      <button onClick={() => { syncAbortRef.current = true; }} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: 10 }}>stop</button>
-                    </div>
-                    <div style={{ height: 4, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ height: "100%", background: "#6366f1", borderRadius: 4, transition: "width 0.3s", width: syncProg.total ? `${(syncProg.done / syncProg.total) * 100}%` : "0%" }} />
-                    </div>
-                  </div>
-                );
-              }
-              if (syncProg.status === "done") {
-                return (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, padding: "0 4px" }}>
-                    <span style={{ color: "#22c55e" }}>SSH sync done ✓</span>
-                    {defaultCredId && <button onClick={() => runSshSync(servers.data!.items, defaultCredId)} style={{ color: "#9ca3af", background: "none", border: "none", cursor: "pointer", fontSize: 10 }}>re-run</button>}
-                  </div>
-                );
-              }
-              if (defaultCredId && servers.data?.items.length) {
-                return (
-                  <button
-                    onClick={() => runSshSync(servers.data!.items, defaultCredId)}
-                    className="w-full flex items-center justify-center gap-1.5 text-[10px] font-medium px-2 py-1.5 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors"
-                  >
-                    <Wifi className="size-3" /> Sync All via SSH
-                  </button>
-                );
-              }
-              return null;
-            })()}
           </div>
 
           <div style={{ flex: 1, overflowY: "auto" }}>
