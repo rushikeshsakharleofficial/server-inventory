@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user
-from ..permissions import FEATURE_ACTIONS, has_perm
+from ..permissions import effective_permissions, has_perm
 from ..api_key_auth import (
     generate_api_token,
     hash_api_token,
@@ -33,27 +33,6 @@ def _get_owned_or_404(db: Session, key_id: int, user: models.User) -> models.Api
     return key
 
 
-def _validate_scopes(scopes: dict[str, list[str]], user: models.User) -> None:
-    """A key can never be created/updated to exceed what its owner currently
-    has. scopes is {feature: [actions]} — the exact same vocabulary as
-    User/Group.permissions. Any unknown feature/action, or one the owner
-    lacks right now, is rejected here at write time — the request-time
-    intersection in api_key_auth.py enforces the same rule again on every
-    subsequent call."""
-    for feature, actions in scopes.items():
-        valid_actions = FEATURE_ACTIONS.get(feature)
-        if valid_actions is None:
-            raise HTTPException(status_code=400, detail=f"Unknown feature: {feature}")
-        for action in actions:
-            if action not in valid_actions:
-                raise HTTPException(status_code=400, detail=f"Unknown action '{action}' for feature '{feature}'")
-            if not has_perm(user, feature, action):
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Scope '{feature}:{action}' exceeds your current permissions",
-                )
-
-
 @router.get("")
 def list_api_keys(
     db: Annotated[Session, Depends(get_db)],
@@ -71,7 +50,12 @@ def create_api_key(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[models.User, Depends(get_current_user)],
 ) -> schemas.ApiKeyCreateResponse:
-    _validate_scopes(payload.scopes, user)
+    # A key always gets exactly its creator's current permissions — there is
+    # no separate scope selection. This is a snapshot at creation time only;
+    # the live check in api_key_auth.py still re-derives has_perm(user, ...)
+    # on every request, so a later permission change still applies immediately
+    # even though this stored copy doesn't move until the key is rotated.
+    scopes = {feature: sorted(actions) for feature, actions in effective_permissions(user).items() if actions}
 
     raw_token, key_prefix = generate_api_token()
     key = models.ApiKey(
@@ -79,13 +63,12 @@ def create_api_key(
         name=payload.name,
         key_prefix=key_prefix,
         token_hash=hash_api_token(raw_token),
-        scopes=payload.scopes,
+        scopes=scopes,
         allowed_ips=payload.allowed_ips,
         expires_at=payload.expires_at,
     )
     db.add(key)
-    add_event_log(db, source="api-keys", resource=payload.name, event="API key created",
-                  owner=user.username, message=f"scopes={payload.scopes}")
+    add_event_log(db, source="api-keys", resource=payload.name, event="API key created", owner=user.username)
     db.commit()
     db.refresh(key)
 
@@ -111,17 +94,6 @@ def update_api_key(
 ) -> schemas.ApiKeyResponse:
     key = _get_owned_or_404(db, key_id, user)
     updates = payload.model_dump(exclude_unset=True)
-
-    if updates.get("scopes") is None:
-        # scopes is NOT NULL in the DB — a `null` in the payload means
-        # "leave scopes unchanged", never "clear the scopes".
-        updates.pop("scopes", None)
-    else:
-        # Validate against the *owner's* permissions, not the caller's — an
-        # admin with manage_all editing someone else's key must still be
-        # bound by what that key's owner can do, never their own broader set.
-        owner = key.owner if key.owner is not None else user
-        _validate_scopes(updates["scopes"], owner)
 
     for field, value in updates.items():
         setattr(key, field, value)

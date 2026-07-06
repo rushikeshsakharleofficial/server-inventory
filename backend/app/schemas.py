@@ -550,15 +550,15 @@ class DiscoveryResultResponse(BaseModel):
 # one-time Create/Rotate response — never add token_hash to any Response type.
 
 class ApiKeyCreate(BaseModel):
+    # No scopes field — a key always gets exactly its creator's current
+    # effective permissions, stamped at creation (routers/api_keys.py).
     name: str
-    scopes: dict[str, list[str]] = Field(default_factory=dict)  # {feature: [actions]} — same shape as IAM permissions
     allowed_ips: list[str] | None = None
     expires_at: datetime | None = None
 
 
 class ApiKeyUpdate(BaseModel):
     name: str | None = None
-    scopes: dict[str, list[str]] | None = None
     allowed_ips: list[str] | None = None
     expires_at: datetime | None = None
 

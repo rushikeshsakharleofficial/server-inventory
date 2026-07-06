@@ -386,8 +386,9 @@ export interface ApiKey {
 }
 
 export interface ApiKeyCreate {
+  // No scopes field — a key always gets exactly its creator's current
+  // effective permissions, stamped at creation (backend/app/routers/api_keys.py).
   name: string;
-  scopes: Record<string, string[]>;
   allowed_ips?: string[];
   expires_at?: string;
 }

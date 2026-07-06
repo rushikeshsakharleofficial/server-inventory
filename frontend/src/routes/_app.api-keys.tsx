@@ -1,91 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse, type PermissionCatalog } from "@/lib/api";
+import { api, type ApiKey, type ApiKeyAuditLog, type ApiKeyCreateResponse } from "@/lib/api";
 import { Card, PageHeader, EmptyState, confirmAsync, Modal } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
 import { Plus, Trash2, ScrollText, RotateCw, Copy, Check } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/api-keys")({
   head: () => ({ meta: [{ title: "API Keys — System Control" }] }),
   component: ApiKeysPage,
 });
-
-/**
- * Same feature × action grid as Users & Groups' PermissionMatrix (duplicated
- * locally — this repo's convention for small, page-specific UI rather than a
- * shared component), with one addition: a column is only checkable if it's
- * both in the global catalog AND in the caller's own effective permissions.
- * A key's scopes are stored as {feature: [actions]} — the exact IAM shape —
- * so there is no separate scope-string vocabulary to keep in sync.
- */
-function ApiKeyPermissionGrid({
-  catalog,
-  myEffective,
-  value,
-  onChange,
-}: Readonly<{
-  catalog: PermissionCatalog;
-  myEffective: Record<string, string[]> | undefined;
-  value: Record<string, string[]>;
-  onChange: (v: Record<string, string[]>) => void;
-}>) {
-  const toggle = useCallback(
-    (feature: string, action: string) => {
-      const current = value[feature] ?? [];
-      const next = current.includes(action) ? current.filter((a) => a !== action) : [...current, action];
-      onChange({ ...value, [feature]: next });
-    },
-    [value, onChange],
-  );
-
-  return (
-    <div className="overflow-x-auto border border-border rounded-md">
-      <table className="w-full text-xs">
-        <thead>
-          <tr>
-            <th className="text-left px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-32">Feature</th>
-            {catalog.actions.map((action) => (
-              <th key={action} className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">{action}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {catalog.features.map((feature) => {
-            const inCatalog = catalog.feature_actions[feature] ?? [];
-            const mine = myEffective?.[feature] ?? [];
-            const checked = value[feature] ?? [];
-            return (
-              <tr key={feature} className="hover:bg-muted/30">
-                <td className="px-2 py-1.5 font-mono text-[11px] text-foreground">{feature}</td>
-                {catalog.actions.map((action) => {
-                  if (!inCatalog.includes(action)) {
-                    return <td key={action} className="px-2 py-1.5 text-center text-border">—</td>;
-                  }
-                  // myEffective undefined = still loading; don't flash everything disabled
-                  const allowed = myEffective === undefined || mine.includes(action);
-                  return (
-                    <td key={action} className="px-2 py-1.5 text-center">
-                      <input
-                        type="checkbox"
-                        disabled={!allowed}
-                        title={allowed ? undefined : "Not part of your current IAM permissions"}
-                        checked={checked.includes(action)}
-                        onChange={() => toggle(feature, action)}
-                        className="accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function ApiKeysPage() {
   const qc = useQueryClient();
@@ -254,21 +179,8 @@ function ApiKeysPage() {
 function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void; onCreated: (res: ApiKeyCreateResponse) => void }>) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState<Record<string, string[]>>({});
   const [allowedIps, setAllowedIps] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
-
-  const { data: catalog } = useQuery({ queryKey: ["iam-catalog"], queryFn: () => api<PermissionCatalog>("/api/iam/catalog") });
-  // Grey out cells the caller's own IAM policy doesn't grant — a key can
-  // never exceed this regardless of what's checked here; the backend
-  // enforces the same at creation and on every subsequent request.
-  const { data: myPerms } = useQuery({
-    queryKey: ["iam-me-effective"],
-    queryFn: () => api<Record<string, string[]>>("/api/iam/me/effective"),
-    staleTime: 60_000,
-  });
-
-  const hasAnyScope = Object.values(scopes).some((actions) => actions.length > 0);
 
   const create = useMutation({
     mutationFn: () => {
@@ -276,14 +188,10 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
         .split(/[\n,]/)
         .map((s) => s.trim())
         .filter(Boolean);
-      // Drop features with an empty action list — {} is the "nothing" shape
-      // the backend expects, not {feature: []} entries for every unchecked row.
-      const nonEmptyScopes = Object.fromEntries(Object.entries(scopes).filter(([, actions]) => actions.length > 0));
       return api<ApiKeyCreateResponse>("/api/api-keys", {
         method: "POST",
         json: {
           name,
-          scopes: nonEmptyScopes,
           ...(ips.length ? { allowed_ips: ips } : {}),
           ...(expiresAt ? { expires_at: new Date(expiresAt).toISOString() } : {}),
         },
@@ -297,7 +205,7 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
   });
 
   return (
-    <Modal onClose={onClose} className="w-full max-w-lg bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
+    <Modal onClose={onClose} className="w-full max-w-md bg-surface rounded-lg ring-1 ring-border shadow-2xl flex flex-col max-h-[90vh]">
       <div className="p-4 border-b border-border shrink-0">
         <h3 className="text-sm font-semibold">New API key</h3>
       </div>
@@ -305,28 +213,13 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
         className="p-4 space-y-4 overflow-y-auto flex-1"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!hasAnyScope) {
-            toast.error("Select at least one permission");
-            return;
-          }
           create.mutate();
         }}
       >
         <Input label="Name" value={name} onChange={setName} required />
-
-        <div>
-          <Label>Permissions</Label>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Same feature/action grid as IAM — capped by your own permissions, greyed-out cells aren't part of your current policy.
-          </p>
-          <div className="mt-1">
-            {catalog ? (
-              <ApiKeyPermissionGrid catalog={catalog} myEffective={myPerms} value={scopes} onChange={setScopes} />
-            ) : (
-              <p className="text-xs text-muted-foreground p-3 border border-border rounded-md">Loading…</p>
-            )}
-          </div>
-        </div>
+        <p className="text-[11px] text-muted-foreground -mt-2">
+          This key will have exactly your current IAM permissions. If your permissions change later, the key changes with them.
+        </p>
 
         <div>
           <Label>Allowed IPs (optional)</Label>
