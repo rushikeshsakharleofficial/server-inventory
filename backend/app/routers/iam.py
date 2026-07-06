@@ -222,6 +222,16 @@ def set_user_groups(
     return resp
 
 
+@router.get("/me/effective")
+def get_my_effective_permissions(
+    user: Annotated[models.User, Depends(get_current_user)],
+):
+    """Effective permissions for the caller's own account — used by the API
+    Keys scope picker to grey out scopes the caller's IAM policy doesn't
+    grant, without needing to know their own numeric user_id."""
+    return {f: sorted(acts) for f, acts in effective_permissions(user).items()}
+
+
 @router.get(
     "/users/{user_id}/effective",
     responses={404: {"description": USER_NOT_FOUND}},

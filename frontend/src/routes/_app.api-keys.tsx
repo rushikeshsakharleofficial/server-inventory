@@ -22,6 +22,30 @@ const SCOPE_GROUPS: Array<{ group: string; scopes: Array<{ value: string; label:
   { group: "Sync", scopes: [{ value: "sync:trigger", label: "Trigger sync" }] },
 ];
 
+// Mirrors backend/app/api_key_auth.py SCOPE_MAP exactly — each public scope's
+// underlying (feature, action) in the IAM vocabulary. Used only to grey out
+// scopes the caller's own effective permissions don't cover; the backend is
+// still the sole enforcer (creation rejects, and existing keys lose access
+// live, if this ever drifts out of sync with the real SCOPE_MAP).
+const SCOPE_IAM_TARGET: Record<string, [string, string]> = {
+  "servers:read": ["servers", "read"],
+  "ip_inventory:read": ["servers", "read"],
+  "databases:read": ["databases", "read"],
+  "kubernetes:read": ["kubernetes", "read"],
+  "block_storage:read": ["block-storages", "read"],
+  "discovery:read": ["discovery", "read"],
+  "discovery:run": ["discovery", "write"],
+  "sync:trigger": ["sync", "write"],
+};
+
+function scopeIsAllowed(scope: string, effective: Record<string, string[]> | undefined): boolean {
+  if (!effective) return true; // still loading — don't flash everything disabled
+  const target = SCOPE_IAM_TARGET[scope];
+  if (!target) return false;
+  const [feature, action] = target;
+  return (effective[feature] ?? []).includes(action);
+}
+
 function ApiKeysPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -189,6 +213,15 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
   const [allowedIps, setAllowedIps] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
+  // Grey out scopes the caller's own IAM policy doesn't grant — a key can
+  // never exceed this regardless of what's checked here; the backend
+  // enforces the same at creation and on every subsequent request.
+  const { data: myPerms } = useQuery({
+    queryKey: ["iam-me-effective"],
+    queryFn: () => api<Record<string, string[]>>("/api/iam/me/effective"),
+    staleTime: 60_000,
+  });
+
   const toggleScope = (value: string) =>
     setScopes((prev) => (prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]));
 
@@ -235,23 +268,34 @@ function CreateKeyDialog({ onClose, onCreated }: Readonly<{ onClose: () => void;
 
         <div>
           <Label>Scopes</Label>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Capped by your own IAM permissions — greyed-out scopes aren't part of your current policy.
+          </p>
           <div className="mt-1 space-y-2 border border-border rounded-md p-3">
             {SCOPE_GROUPS.map(({ group, scopes: groupScopes }) => (
               <div key={group}>
                 <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{group}</div>
                 <div className="space-y-1">
-                  {groupScopes.map((s) => (
-                    <label key={s.value} className="flex items-center gap-2 text-xs cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={scopes.includes(s.value)}
-                        onChange={() => toggleScope(s.value)}
-                        className="accent-primary cursor-pointer"
-                      />
-                      <span className="font-mono text-muted-foreground">{s.value}</span>
-                      <span className="text-foreground/70">— {s.label}</span>
-                    </label>
-                  ))}
+                  {groupScopes.map((s) => {
+                    const allowed = scopeIsAllowed(s.value, myPerms);
+                    return (
+                      <label
+                        key={s.value}
+                        className={`flex items-center gap-2 text-xs ${allowed ? "cursor-pointer" : "cursor-not-allowed opacity-40"}`}
+                        title={allowed ? undefined : "Not part of your current IAM permissions"}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={scopes.includes(s.value)}
+                          disabled={!allowed}
+                          onChange={() => toggleScope(s.value)}
+                          className="accent-primary disabled:cursor-not-allowed"
+                        />
+                        <span className="font-mono text-muted-foreground">{s.value}</span>
+                        <span className="text-foreground/70">— {s.label}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             ))}
