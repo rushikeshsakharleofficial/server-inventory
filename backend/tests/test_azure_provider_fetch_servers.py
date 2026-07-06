@@ -111,9 +111,11 @@ class TestFetchServers:
 
         result = AzureProvider(_config()).fetch_servers()
 
-        assert result[0]["status"] == "unknown"
-        assert result[0]["public_ip"] is None
-        assert result[0]["private_ip"] is None
+        assert len(result) == 1
+        s = result[0]
+        assert s["status"] == "unknown"
+        assert s["public_ip"] is None
+        assert s["private_ip"] is None
 
     def test_network_interface_lookup_exception_leaves_ips_none(self, fake_azure_sdk):
         compute = fake_azure_sdk["compute"]
@@ -125,8 +127,10 @@ class TestFetchServers:
 
         result = AzureProvider(_config()).fetch_servers()
 
-        assert result[0]["public_ip"] is None
-        assert result[0]["private_ip"] is None
+        assert len(result) == 1
+        s = result[0]
+        assert s["public_ip"] is None
+        assert s["private_ip"] is None
 
     def test_no_tags_and_no_hardware_profile_and_no_os_type(self, fake_azure_sdk):
         compute = fake_azure_sdk["compute"]
@@ -137,9 +141,11 @@ class TestFetchServers:
 
         result = AzureProvider(_config()).fetch_servers()
 
-        assert result[0]["tags"] == {}
-        assert result[0]["os"] == "unknown"
-        assert result[0]["instance_type"] is None
+        assert len(result) == 1
+        s = result[0]
+        assert s["tags"] == {}
+        assert s["os"] == "unknown"
+        assert s["instance_type"] is None
 
     def test_multiple_vms_all_mapped(self, fake_azure_sdk):
         compute = fake_azure_sdk["compute"]
@@ -196,7 +202,7 @@ class TestFetchBlockStorages:
         assert d["name"] == "disk1"
         assert d["provider"] == "azure"
         assert d["region"] == "eastus"
-        assert d["size_gb"] == 128.0
+        assert d["size_gb"] == pytest.approx(128.0)
         assert d["status"] == "running"
         assert d["attachment"] == "vm1"
         assert d["volume_type"] == "Premium_LRS"
@@ -212,8 +218,10 @@ class TestFetchBlockStorages:
 
         result = AzureProvider(_config()).fetch_block_storages()
 
-        assert result[0]["status"] == "available"
-        assert result[0]["attachment"] is None
+        assert len(result) == 1
+        d = result[0]
+        assert d["status"] == "available"
+        assert d["attachment"] is None
 
     def test_attached_disk_with_no_disk_state_falls_back_to_running(self, fake_azure_sdk):
         compute = fake_azure_sdk["compute"]
@@ -225,6 +233,7 @@ class TestFetchBlockStorages:
 
         result = AzureProvider(_config()).fetch_block_storages()
 
+        assert len(result) == 1
         assert result[0]["status"] == "running"
 
     def test_missing_size_defaults_to_zero(self, fake_azure_sdk):
@@ -234,7 +243,8 @@ class TestFetchBlockStorages:
 
         result = AzureProvider(_config()).fetch_block_storages()
 
-        assert result[0]["size_gb"] == 0.0
+        assert len(result) == 1
+        assert result[0]["size_gb"] == pytest.approx(0.0)
 
     def test_no_sku_defaults_to_standard(self, fake_azure_sdk):
         compute = fake_azure_sdk["compute"]
@@ -243,6 +253,7 @@ class TestFetchBlockStorages:
 
         result = AzureProvider(_config()).fetch_block_storages()
 
+        assert len(result) == 1
         assert result[0]["volume_type"] == "standard"
 
     def test_no_tags_defaults_to_empty_dict(self, fake_azure_sdk):
@@ -252,6 +263,7 @@ class TestFetchBlockStorages:
 
         result = AzureProvider(_config()).fetch_block_storages()
 
+        assert len(result) == 1
         assert result[0]["tags"] == {}
 
     def test_disks_list_exception_returns_empty_list(self, fake_azure_sdk):

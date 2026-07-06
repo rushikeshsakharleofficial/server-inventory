@@ -4,6 +4,8 @@ Pinning tests for AWSProvider.fetch_servers and AWSProvider.fetch_block_storages
 """
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.providers.aws import AWSProvider
 
 
@@ -257,7 +259,7 @@ class TestFetchBlockStorages:
 
         v = result[0]
         assert v["name"] == "vol-456"
-        assert v["size_gb"] == 0.0
+        assert v["size_gb"] == pytest.approx(0.0)
         assert v["status"] == "unknown"
         assert v["attachment"] is None
         assert v["tags"] == {}

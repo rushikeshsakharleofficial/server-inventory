@@ -151,7 +151,7 @@ class TestOvhFetchServersVps:
         assert vps["public_ip"] == "1.2.3.4"
         assert vps["private_ip"] == "10.0.0.5"
         assert vps["vcpu"] == 2
-        assert vps["memory_gb"] == 4.0
+        assert vps["memory_gb"] == pytest.approx(4.0)
         assert vps["extra"]["type"] == "vps"
 
     def test_vps_list_404_is_silently_ignored(self, fake_ovh_module):

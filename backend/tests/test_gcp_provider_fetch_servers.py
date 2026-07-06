@@ -128,7 +128,7 @@ class TestGcpFetchBlockStorages:
         assert vol["volume_type"] == "pd-ssd"
         assert vol["attachment"] == "vm-1"
         assert vol["status"] == "running"  # attached disks always "running" regardless of status_map
-        assert vol["size_gb"] == 100.0
+        assert vol["size_gb"] == pytest.approx(100.0)
 
     def test_unattached_disk_uses_status_map(self, fake_gcp_modules):
         disk = SimpleNamespace(
@@ -138,6 +138,7 @@ class TestGcpFetchBlockStorages:
         fake_gcp_modules.DisksClient.return_value.aggregated_list.return_value = [("zones/us-central1-a", response)]
 
         result = GCPProvider(_config()).fetch_block_storages()
+        assert len(result) == 1
         assert result[0]["status"] == "pending"
         assert result[0]["attachment"] is None
 

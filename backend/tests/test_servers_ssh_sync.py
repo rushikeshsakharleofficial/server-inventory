@@ -7,6 +7,8 @@ then stay green after the refactor.
 """
 from unittest.mock import MagicMock
 
+import pytest
+
 from app import models
 from app.crypto import encrypt_str
 
@@ -130,7 +132,7 @@ class TestSshSyncServerHappyPath:
         assert resp.status_code == 200
         db_session.refresh(server)
         assert server.vcpu == 99
-        assert server.memory_gb == 999.0
+        assert server.memory_gb == pytest.approx(999.0)
         assert server.hostname == "do-not-overwrite"
         assert server.os == "Ubuntu 22.04.3 LTS"
 
