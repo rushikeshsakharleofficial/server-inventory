@@ -13,6 +13,7 @@ from ..crypto import decrypt_config
 from ..event_log_utils import add_event_log
 from ..ssh_utils import fetch_ssh_ips
 from ..ws_manager import manager
+from .servers import _server_all_ips, _resolve_rdns_concurrent, _rdns_setting_enabled
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
@@ -28,11 +29,16 @@ def _get_default_ssh(db):
 
 
 def _ssh_fetch_ips(db, servers: list) -> None:
-    """Best-effort: SSH each server using its assigned key (fallback to default)."""
+    """Best-effort: SSH each server using its assigned key (fallback to default).
+
+    RDNS for every touched address is refreshed here, once per sync — not on
+    IP Inventory page load. This is the only place ssh_info.all_ips changes,
+    so it's the only place that needs to keep IpRdnsCache current.
+    """
     if not servers:
         return
     default_cred = _get_default_ssh(db)
-    changed = False
+    changed_servers: list = []
     for svr in servers:
         host = svr.public_ip or svr.private_ip
         if not host:
@@ -43,9 +49,13 @@ def _ssh_fetch_ips(db, servers: list) -> None:
         ips = fetch_ssh_ips(host, cred)
         if ips:
             svr.ssh_info = {**(svr.ssh_info or {}), "all_ips": ips}
-            changed = True
-    if changed:
+            changed_servers.append(svr)
+    if changed_servers:
         db.commit()
+        if _rdns_setting_enabled(db):
+            addrs = {cidr.split("/")[0] for svr in changed_servers for cidr in _server_all_ips(svr)}
+            if addrs:
+                _resolve_rdns_concurrent(db, addrs)
 
 # Per-log cancellation events (process-local — single worker only)
 _stop_events: dict[int, threading.Event] = {}

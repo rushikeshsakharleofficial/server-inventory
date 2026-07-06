@@ -465,6 +465,18 @@ class ServerIpAddress(Base):
     )
 
 
+class IpRdnsCache(Base):
+    """Persistent reverse-DNS cache, keyed by address. Populated during sync
+    (see sync.py), not on IP Inventory page load — refreshing only when a
+    server's IP data actually changes, not on a blind time-based TTL, and
+    surviving backend restarts/redeploys instead of resetting every time."""
+    __tablename__ = "ip_rdns_cache"
+
+    address    = Column(String(45), primary_key=True)
+    hostname   = Column(String(255), nullable=True)  # None = looked up, no PTR record
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class DiscoveryNetwork(Base):
     """A saved CIDR range + scan settings an admin can re-run discovery against."""
     __tablename__ = "discovery_networks"

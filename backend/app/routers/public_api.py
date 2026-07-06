@@ -22,7 +22,7 @@ from .. import discovery_service, models, schemas
 from ..api_key_auth import IP_INVENTORY_FEATURE, ApiPrincipal, require_api_permission
 from ..database import DATABASE_URL, get_db
 from ..limiter import limiter
-from .servers import _build_ip_rows, _resolve_rdns_concurrent
+from .servers import _build_ip_rows
 from .sync import _run_sync, _run_sync_all_parallel
 
 router = APIRouter(prefix="/public/v1", tags=["public-api"])
@@ -88,7 +88,12 @@ def public_ip_inventory(
         models.Server.public_ip, models.Server.private_ip, models.Server.ssh_info,
     ).all()
     rows = _build_ip_rows(servers)
-    rdns_map = _resolve_rdns_concurrent({r["address"] for r in rows})
+    # RDNS is resolved only during sync (see sync.py._ssh_fetch_ips), never on
+    # this request path — read whatever's already cached, same as the
+    # internal /api/servers/ip-inventory/rdns endpoint.
+    addrs = {r["address"] for r in rows}
+    cached = db.query(models.IpRdnsCache).filter(models.IpRdnsCache.address.in_(addrs)).all()
+    rdns_map = {c.address: c.hostname for c in cached}
     for row in rows:
         row["rdns"] = rdns_map.get(row["address"])
     if search:

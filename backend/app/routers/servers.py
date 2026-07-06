@@ -2,7 +2,6 @@ import io
 import asyncio
 import os
 import socket
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Annotated, Literal
 from datetime import datetime, timezone
@@ -161,30 +160,14 @@ def _rdns_lookup(addr: str) -> tuple[str, str | None]:
         return addr, None
 
 
-# ── in-process TTL cache for RDNS lookups ──────────────────────────────────────
-# PTR records rarely change; a fleet-wide reverse-DNS pass took 190s on a cold
-# cache (500+ addresses, 10 workers, 2s/lookup timeout) because it re-resolved
-# every IP on every request. Caching per-address (including negative "no PTR"
-# results, so those don't keep paying the 2s timeout either) makes every
-# request after the first one near-instant.
-_RDNS_TTL = 3600  # seconds
-_rdns_cache: dict[str, tuple[float, str | None]] = {}
-
-
-def _resolve_rdns_concurrent(addrs: set[str]) -> dict[str, str | None]:
-    """Reverse-DNS lookups, concurrent, one per unique address not already
-    cached (same ThreadPoolExecutor pattern as the SSH fan-out elsewhere in
-    this router)."""
-    now = time.monotonic()
-    rdns_map: dict[str, str | None] = {}
-    to_resolve: set[str] = set()
-    for addr in addrs:
-        cached = _rdns_cache.get(addr)
-        if cached and cached[0] > now:
-            rdns_map[addr] = cached[1]
-        else:
-            to_resolve.add(addr)
-
+def _resolve_rdns_concurrent(db: Session, addrs: set[str]) -> dict[str, str | None]:
+    """Reverse-DNS lookups, concurrent, one per unique address not already in
+    IpRdnsCache. Persisted in Postgres (not in-process) so results survive
+    backend restarts/redeploys — call sites decide WHEN this runs (sync only;
+    see sync.py), never on an IP Inventory page load."""
+    cached_rows = db.query(models.IpRdnsCache).filter(models.IpRdnsCache.address.in_(addrs)).all()
+    rdns_map: dict[str, str | None] = {r.address: r.hostname for r in cached_rows}
+    to_resolve = addrs - rdns_map.keys()
     if not to_resolve:
         return rdns_map
 
@@ -201,11 +184,12 @@ def _resolve_rdns_concurrent(addrs: set[str]) -> dict[str, str | None]:
                 try:
                     addr, hostname = fut.result()
                     rdns_map[addr] = hostname
-                    _rdns_cache[addr] = (now + _RDNS_TTL, hostname)
+                    db.merge(models.IpRdnsCache(address=addr, hostname=hostname))
                 except Exception:  # noqa: BLE001
                     pass
     finally:
         socket.setdefaulttimeout(prev_timeout)
+    db.commit()
     return rdns_map
 
 
@@ -253,10 +237,9 @@ def ip_inventory_rdns(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],
 ) -> dict[str, str | None]:
-    """Fast follow-up call: resolve RDNS for every address currently in the
-    fleet and return {address: hostname}. Cached per-address (see
-    _resolve_rdns_concurrent), so only genuinely new/expired addresses pay
-    the DNS round trip — repeat calls are near-instant."""
+    """Fast follow-up call: return whatever RDNS is already cached from the
+    last sync. Never triggers a live DNS lookup itself — sync.py is the only
+    writer to IpRdnsCache, so this stays instant no matter fleet size."""
     if not _rdns_setting_enabled(db):
         return {}
     servers = db.query(
@@ -266,7 +249,8 @@ def ip_inventory_rdns(
     for srv in servers:
         for cidr in _server_all_ips(srv):
             addrs.add(cidr.split("/")[0])
-    return _resolve_rdns_concurrent(addrs)
+    rows = db.query(models.IpRdnsCache).filter(models.IpRdnsCache.address.in_(addrs)).all()
+    return {r.address: r.hostname for r in rows}
 
 
 @router.get(
