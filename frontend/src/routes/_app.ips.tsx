@@ -101,10 +101,21 @@ function IpsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["ip-inventory", fs.q, apiType],
     queryFn: () =>
-      api<{ total: number; items: IpRow[] }>("/api/servers/ip-inventory", {
+      api<{ total: number; items: IpRow[]; rdns_enabled: boolean }>("/api/servers/ip-inventory", {
         query: { q: fs.q, type: apiType },
       }),
     staleTime: 30_000,
+  });
+
+  // RDNS is resolved server-side over real DNS round trips and can take a
+  // while cold; fetched as its own fast follow-up (cached after the first
+  // hit) so the table above renders immediately instead of blocking on it.
+  const rdnsEnabled = data?.rdns_enabled ?? true;
+  const rdnsQuery = useQuery({
+    queryKey: ["ip-inventory-rdns"],
+    queryFn: () => api<Record<string, string | null>>("/api/servers/ip-inventory/rdns"),
+    enabled: rdnsEnabled,
+    staleTime: 60 * 60 * 1000,
   });
 
   const items = (data?.items ?? []).filter((row) => {
@@ -112,7 +123,12 @@ function IpsPage() {
     if (prov && !row.provider.toLowerCase().includes(prov.toLowerCase()))
       return false;
     return true;
-  });
+  }).map((row) => ({
+    ...row,
+    rdns: rdnsQuery.data?.[row.address] ?? row.rdns,
+  }));
+
+  const columns = rdnsEnabled ? COLUMNS : COLUMNS.filter((c) => c.key !== "rdns");
 
   const countSuffix = data ? ` — ${items.length} of ${data.total} total` : "";
 
@@ -136,7 +152,7 @@ function IpsPage() {
       </Card>
 
       <SmartTable
-        columns={COLUMNS}
+        columns={columns}
         rows={items}
         rowKey={(row) => `${row.server_id}-${row.address}`}
         mode="client"

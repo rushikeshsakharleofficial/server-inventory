@@ -96,6 +96,18 @@ function SettingsPage() {
                           />
                         );
                       }
+                      if (k === "rdns_lookup_enabled") {
+                        return (
+                          <CustomSelect
+                            value={v}
+                            onChange={(val) => setDraftValue(k, val)}
+                            options={[
+                              { value: "true",  label: "On (default)" },
+                              { value: "false", label: "Off — hide RDNS column" },
+                            ]}
+                          />
+                        );
+                      }
                       if (k === "sync_timeout") {
                         return (
                           <CustomSelect

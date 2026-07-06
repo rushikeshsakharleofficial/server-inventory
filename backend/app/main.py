@@ -347,6 +347,7 @@ def _seed_default_settings() -> None:
         "sync_timeout":       "300",
         "ssh_default_port":   "22",
         "appearance_compact": "false",
+        "rdns_lookup_enabled": "true",
     }
     db = SessionLocal()
     try:

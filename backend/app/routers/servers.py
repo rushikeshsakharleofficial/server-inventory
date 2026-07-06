@@ -2,6 +2,7 @@ import io
 import asyncio
 import os
 import socket
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Annotated, Literal
 from datetime import datetime, timezone
@@ -160,24 +161,57 @@ def _rdns_lookup(addr: str) -> tuple[str, str | None]:
         return addr, None
 
 
+# ── in-process TTL cache for RDNS lookups ──────────────────────────────────────
+# PTR records rarely change; a fleet-wide reverse-DNS pass took 190s on a cold
+# cache (500+ addresses, 10 workers, 2s/lookup timeout) because it re-resolved
+# every IP on every request. Caching per-address (including negative "no PTR"
+# results, so those don't keep paying the 2s timeout either) makes every
+# request after the first one near-instant.
+_RDNS_TTL = 3600  # seconds
+_rdns_cache: dict[str, tuple[float, str | None]] = {}
+
+
 def _resolve_rdns_concurrent(addrs: set[str]) -> dict[str, str | None]:
-    """Reverse-DNS lookups, concurrent, one per unique address (same pattern
-    as the ThreadPoolExecutor SSH fan-out elsewhere in this router)."""
+    """Reverse-DNS lookups, concurrent, one per unique address not already
+    cached (same ThreadPoolExecutor pattern as the SSH fan-out elsewhere in
+    this router)."""
+    now = time.monotonic()
     rdns_map: dict[str, str | None] = {}
+    to_resolve: set[str] = set()
+    for addr in addrs:
+        cached = _rdns_cache.get(addr)
+        if cached and cached[0] > now:
+            rdns_map[addr] = cached[1]
+        else:
+            to_resolve.add(addr)
+
+    if not to_resolve:
+        return rdns_map
+
     prev_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(2)
     try:
-        with ThreadPoolExecutor(max_workers=10) as ex:
-            futures = {ex.submit(_rdns_lookup, addr): addr for addr in addrs}
+        # ponytail: gethostbyaddr blocks on network I/O, not CPU — threads
+        # spend nearly all their time waiting, so this can safely run far
+        # above core count. 40 cuts a ~500-address cold cache from ~55
+        # batches to ~13 (each capped at the 2s timeout above).
+        with ThreadPoolExecutor(max_workers=40) as ex:
+            futures = {ex.submit(_rdns_lookup, addr): addr for addr in to_resolve}
             for fut in as_completed(futures):
                 try:
                     addr, hostname = fut.result()
                     rdns_map[addr] = hostname
+                    _rdns_cache[addr] = (now + _RDNS_TTL, hostname)
                 except Exception:  # noqa: BLE001
                     pass
     finally:
         socket.setdefaulttimeout(prev_timeout)
     return rdns_map
+
+
+def _rdns_setting_enabled(db: Session) -> bool:
+    setting = db.query(models.AppSetting).filter(models.AppSetting.key == "rdns_lookup_enabled").first()
+    return (setting.value if setting else "true") != "false"
 
 
 @router.get("/ip-inventory")
@@ -187,17 +221,23 @@ def ip_inventory(
     search: Annotated[str, Query(alias="q")] = "",
     ip_type: Annotated[str, Query(alias="type")] = "",
 ) -> dict:
-    """Aggregate all IPs from public_ip, private_ip, and ssh_info.all_ips."""
+    """Aggregate all IPs from public_ip, private_ip, and ssh_info.all_ips.
+
+    RDNS is deliberately NOT resolved here — reverse-DNS lookups are the slow
+    part (network round trips per address) while everything else is a plain
+    local DB read. Returning rows immediately with rdns=None lets the page
+    render instantly; the frontend fetches /ip-inventory/rdns as a fast
+    follow-up and fills the column in once those (cached) lookups resolve.
+    """
     servers = db.query(
         models.Server.id, models.Server.name, models.Server.provider,
         models.Server.public_ip, models.Server.private_ip, models.Server.ssh_info,
     ).all()
 
     rows = _build_ip_rows(servers)
-
-    rdns_map = _resolve_rdns_concurrent({r["address"] for r in rows})
+    rdns_on = _rdns_setting_enabled(db)
     for row in rows:
-        row["rdns"] = rdns_map.get(row["address"])
+        row["rdns"] = None
 
     if search:
         q = search.lower()
@@ -205,7 +245,28 @@ def ip_inventory(
     if ip_type:
         rows = [r for r in rows if r["type"] == ip_type]
 
-    return {"total": len(rows), "items": rows}
+    return {"total": len(rows), "items": rows, "rdns_enabled": rdns_on}
+
+
+@router.get("/ip-inventory/rdns")
+def ip_inventory_rdns(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(get_current_user)],
+) -> dict[str, str | None]:
+    """Fast follow-up call: resolve RDNS for every address currently in the
+    fleet and return {address: hostname}. Cached per-address (see
+    _resolve_rdns_concurrent), so only genuinely new/expired addresses pay
+    the DNS round trip — repeat calls are near-instant."""
+    if not _rdns_setting_enabled(db):
+        return {}
+    servers = db.query(
+        models.Server.public_ip, models.Server.private_ip, models.Server.ssh_info,
+    ).all()
+    addrs: set[str] = set()
+    for srv in servers:
+        for cidr in _server_all_ips(srv):
+            addrs.add(cidr.split("/")[0])
+    return _resolve_rdns_concurrent(addrs)
 
 
 @router.get(
