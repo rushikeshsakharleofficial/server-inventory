@@ -7,7 +7,11 @@ function resolveApiBase(): string {
   const configured = (
     import.meta.env.VITE_API_URL as string | undefined
   )?.trim();
-  if (configured) return configured.replace(/\/+$/, "");
+  if (configured) {
+    let end = configured.length;
+    while (end > 0 && configured[end - 1] === "/") end--;
+    return configured.slice(0, end);
+  }
   if (globalThis.window !== undefined) {
     // ponytail: HTTPS pages need the API's own TLS-terminated port (8444),
     // not the plain-HTTP backend port (8001) — calling the latter from an
@@ -64,7 +68,7 @@ function buildUrl(path: string, query?: Record<string, unknown>): string {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(query)) {
     if (v === undefined || v === null || v === "") continue;
-    qs.append(k, `${v}`);
+    qs.append(k, typeof v === "object" ? JSON.stringify(v) : String(v));
   }
   const s = qs.toString();
   if (s) url += `?${s}`;

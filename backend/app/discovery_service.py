@@ -106,7 +106,7 @@ def extract_identity_signals(facts: dict[str, Any]) -> dict[str, str | None]:
         if has_routable:
             macs.append(mac.lower())
     if macs:
-        primary_mac = sorted(macs)[0]
+        primary_mac = min(macs)
 
     return {
         "machine_id": machine_id,

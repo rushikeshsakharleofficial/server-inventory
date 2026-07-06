@@ -20,9 +20,14 @@ function copyToClipboard(text: string): boolean {
   el.select();
   // ponytail: execCommand is deprecated but kept as the fallback for browsers/contexts
   // (e.g. non-HTTPS) where navigator.clipboard is unavailable — remove once that's no longer a target.
-  const ok = document.execCommand("copy");
-  document.body.removeChild(el);
+  const ok = document.execCommand("copy"); // NOSONAR
+  el.remove();
   return ok;
+}
+
+function copySshField(label: string, value: string) {
+  if (copyToClipboard(value)) toast.success(`${label} copied`);
+  else toast.error("Failed to copy");
 }
 
 function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredential; isAdmin: boolean; onClose: () => void }>) {
@@ -43,11 +48,6 @@ function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredentia
     finally { setLoading(false); }
   }
 
-  function copy(label: string, value: string) {
-    if (copyToClipboard(value)) toast.success(`${label} copied`);
-    else toast.error("Failed to copy");
-  }
-
   return (
     <Modal onClose={onClose} className="bg-background border border-border rounded-lg p-5 w-full max-w-sm shadow-lg space-y-3">
       <div className="flex items-center justify-between">
@@ -60,7 +60,7 @@ function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredentia
             <div className="text-xs text-muted-foreground">Username</div>
             <div className="font-mono">{cred.username}</div>
           </div>
-          <button onClick={() => copy("Username", cred.username)} className="icon-btn" title="Copy username"><Copy className="size-3.5" /></button>
+          <button onClick={() => copySshField("Username", cred.username)} className="icon-btn" title="Copy username"><Copy className="size-3.5" /></button>
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -74,7 +74,7 @@ function SshInfoDialog({ cred, isAdmin, onClose }: Readonly<{ cred: SshCredentia
             <button
               onClick={async () => {
                 const value = revealed ?? (await reveal());
-                if (value) copy(cred.auth_method === "key" ? "Private key" : "Password", value);
+                if (value) copySshField(cred.auth_method === "key" ? "Private key" : "Password", value);
               }}
               className="icon-btn" title="Copy"
             ><Copy className="size-3.5" /></button>

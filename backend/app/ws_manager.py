@@ -54,7 +54,7 @@ class ConnectionManager:
         if self._ping_task is None or self._ping_task.done():
             self._ping_task = loop.create_task(self._heartbeat_loop())
 
-    async def connect(self, ws: WebSocket, username: str, token_exp: float = float("inf")) -> None:
+    def connect(self, ws: WebSocket, username: str, token_exp: float = float("inf")) -> None:
         # ws.accept() is called by the endpoint before auth — do not accept again
         self._meta[ws] = _ConnMeta(username=username, token_exp=token_exp)
 
@@ -92,31 +92,38 @@ class ConnectionManager:
         """
         while True:
             await asyncio.sleep(PING_INTERVAL_SECS)
-            now  = time.monotonic()
-            dead: list[WebSocket] = []
+            now = time.monotonic()
+            dead = await self._collect_dead_sockets(now)
+            await self._evict(dead)
 
-            for ws, meta in list(self._meta.items()):
-                if time.time() > meta.token_exp:
-                    dead.append(ws)
-                    try:
-                        await ws.close(code=4001)
-                    except Exception:
-                        pass
-                    continue
-                if now - meta.last_pong > PING_TIMEOUT_SECS:
-                    dead.append(ws)
-                    continue
+    async def _collect_dead_sockets(self, now: float) -> list[WebSocket]:
+        """Return sockets to evict; sends a keep-alive ping to live ones."""
+        dead: list[WebSocket] = []
+        for ws, meta in list(self._meta.items()):
+            if time.time() > meta.token_exp:
+                dead.append(ws)
                 try:
-                    await ws.send_text("ping")
-                except Exception:
-                    dead.append(ws)
-
-            for ws in dead:
-                self.disconnect(ws)
-                try:
-                    await ws.close()
+                    await ws.close(code=4001)
                 except Exception:
                     pass
+                continue
+            if now - meta.last_pong > PING_TIMEOUT_SECS:
+                dead.append(ws)
+                continue
+            try:
+                await ws.send_text("ping")
+            except Exception:
+                dead.append(ws)
+        return dead
+
+    async def _evict(self, dead: list[WebSocket]) -> None:
+        """Drop metadata and close each dead socket."""
+        for ws in dead:
+            self.disconnect(ws)
+            try:
+                await ws.close()
+            except Exception:
+                pass
 
     async def _send(self, message: dict[str, Any]) -> None:
         dead: list[WebSocket] = []

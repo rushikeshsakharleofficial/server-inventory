@@ -200,7 +200,9 @@ def _run_ip_cmd(client: Any) -> list[str]:
         "ip -br a 2>/dev/null || ip a 2>/dev/null", timeout=8
     )
     output = stdout.read().decode("utf-8", errors="replace")
-    all_ips = re.findall(r"([\da-f:.]+)/\d+", output)
+    # Anchored to whitespace/line boundaries (vs. bare `X+` scanned from every
+    # offset) so a long non-matching run can't trigger quadratic backtracking.
+    all_ips = re.findall(r"(?:(?<=\s)|(?<=^))([\da-f:.]+)/\d+(?=\s|$)", output, re.MULTILINE)
     return [
         ip for ip in all_ips
         if not ip.startswith("127.") and ip != "::1" and ip not in ("0.0.0.0", "::")

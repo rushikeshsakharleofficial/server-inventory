@@ -134,7 +134,7 @@ function NetworkDialog({ network, sshCreds, onClose }: Readonly<{ network: Disco
           <div>
             <label htmlFor="net-active" className="text-xs text-muted-foreground font-medium flex items-center gap-2">
               <input id="net-active" type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="rounded" />
-              Active
+              <span>Active</span>
             </label>
           </div>
           <div>
@@ -262,10 +262,7 @@ function DiscoveryPage() {
       render: (n) => (
         <div
           className="inline-flex items-center gap-0.5"
-          role="button"
-          tabIndex={0}
           onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
         >
           <button onClick={() => runNetwork.mutate(n.id)} disabled={runNetwork.isPending || !n.is_active}
             className="icon-btn disabled:opacity-40" title="Run discovery">
@@ -307,10 +304,7 @@ function DiscoveryPage() {
       render: (j) => (
         <div
           className="inline-flex items-center gap-1.5"
-          role="button"
-          tabIndex={0}
           onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
         >
           <button
             onClick={() => { setSelectedJobId(j.id); setResultsPage(1); }}

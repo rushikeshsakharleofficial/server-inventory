@@ -123,7 +123,6 @@ function EventDetails({ event, onClose, onUpdate }: Readonly<{
   event: EventLog; onClose: () => void;
   onUpdate: (id: number, status: string) => void;
 }>) {
-  const s = sev(event.severity);
   return (
     <div className="flex flex-col h-full" style={{ borderLeft: "1px solid #f3f4f6" }}>
       {/* Header */}

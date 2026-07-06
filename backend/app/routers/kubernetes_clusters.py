@@ -16,7 +16,7 @@ def _sync_kubernetes(provider_name: str | None, db_url: str) -> None:
     _sync_resources(provider_name, db_url, models.KubernetesCluster, "fetch_kubernetes")
 
 
-@router.get("", response_model=schemas.Page[schemas.KubernetesClusterResponse])
+@router.get("")
 def list_clusters(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(get_current_user)],

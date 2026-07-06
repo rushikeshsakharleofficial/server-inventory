@@ -531,28 +531,34 @@ function ResourceMapPage() {
           </div>
 
           <div style={{ flex: 1, overflowY: "auto" }}>
-            {filteredServers.length > 0 ? (
-              <div>
-                <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9ca3af", padding: "0 4px", marginBottom: 4 }}>
-                  Servers ({filteredServers.length})
-                </div>
-                {filteredServers.map(s => (
-                  <SidebarItem key={s.id} label={s.name}
-                    sub={`${s.provider} · ${s.region ?? "—"}`}
-                    status={s.status}
-                    active={selectedServer?.id === s.id}
-                    onClick={() => {
-                      setSelectedServer(s);
-                      setActiveNode(null);
-                      setFlowData(null);
-                      navigate({ search: { server: s.id } });
-                    }}
-                  />
-                ))}
-              </div>
-            ) : q ? (
-              <p style={{ fontSize: 11, color: "#9ca3af", padding: "0 4px" }}>No results.</p>
-            ) : null}
+            {(() => {
+              if (filteredServers.length > 0) {
+                return (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9ca3af", padding: "0 4px", marginBottom: 4 }}>
+                      Servers ({filteredServers.length})
+                    </div>
+                    {filteredServers.map(s => (
+                      <SidebarItem key={s.id} label={s.name}
+                        sub={`${s.provider} · ${s.region ?? "—"}`}
+                        status={s.status}
+                        active={selectedServer?.id === s.id}
+                        onClick={() => {
+                          setSelectedServer(s);
+                          setActiveNode(null);
+                          setFlowData(null);
+                          navigate({ search: { server: s.id } });
+                        }}
+                      />
+                    ))}
+                  </div>
+                );
+              }
+              if (q) {
+                return <p style={{ fontSize: 11, color: "#9ca3af", padding: "0 4px" }}>No results.</p>;
+              }
+              return null;
+            })()}
           </div>
         </div>
 

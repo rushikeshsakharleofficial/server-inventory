@@ -90,30 +90,30 @@ function MfaBadge({ enabled }: Readonly<{ enabled: boolean }>) {
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
+function copyToClipboard(text: string): boolean {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text);
+    return true;
+  }
+  // Fallback for insecure (non-HTTPS) contexts where the Clipboard API is unavailable.
+  // ponytail: execCommand is deprecated but remains the only copy path outside secure
+  // contexts; no upgrade until browsers drop it entirely.
+  const el = document.createElement("textarea");
+  el.value = text;
+  el.style.position = "fixed";
+  el.style.opacity = "0";
+  document.body.appendChild(el);
+  el.select();
+  const ok = document.execCommand("copy"); // NOSONAR
+  el.remove();
+  return ok;
+}
+
 function CopyBtn({ value, label, title, isSecret = false, credId, field, isAdmin, small = false }: Readonly<{
   value?: string; label?: string; title: string;
   isSecret?: boolean; credId?: number; field?: string; isAdmin?: boolean; small?: boolean;
 }>) {
   const [copied, setCopied] = useState(false);
-
-  function copyToClipboard(text: string): boolean {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text);
-      return true;
-    }
-    // Fallback for insecure (non-HTTPS) contexts where the Clipboard API is unavailable.
-    // ponytail: execCommand is deprecated but remains the only copy path outside secure
-    // contexts; no upgrade until browsers drop it entirely.
-    const el = document.createElement("textarea");
-    el.value = text;
-    el.style.position = "fixed";
-    el.style.opacity = "0";
-    document.body.appendChild(el);
-    el.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(el);
-    return ok;
-  }
 
   async function handleCopy() {
     if (isSecret && credId && field) {
@@ -390,7 +390,7 @@ function CredModal({ initial, onClose, onSave }: Readonly<{
                 <img src={form.logo_data || form.logo_url} alt="logo" style={{ height: 28, width: 28, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
               )}
               <label style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "7px 10px", fontSize: 12, fontWeight: 500, background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-                Upload
+                Upload{" "}
                 <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
                   const file = e.target.files?.[0];
                   if (!file) return;
@@ -506,7 +506,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
             <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: "#9ca3af", flexShrink: 0 }}>
               <ExternalLink style={{ width: 11, height: 11 }} />
             </a>
-            <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+            <div onClick={e => e.stopPropagation()}>
               <CopyBtn value={cfg.login_url} title="Copy URL" small />
             </div>
           </div>
@@ -521,7 +521,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 12, color: "#374151", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cfg.username ?? "—"}</span>
-            <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+            <div onClick={e => e.stopPropagation()}>
               <CopyBtn value={cfg.username} title="Copy Username" small />
             </div>
           </div>
@@ -532,7 +532,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       key: "password",
       header: "Password",
       render: (cred) => (
-        <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()}>
           <PasswordCell cred={cred} isAdmin={isAdmin} />
         </div>
       ),
@@ -581,7 +581,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       key: "actions",
       header: "Actions",
       render: (cred) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()}>
           <a href={cred.config.login_url} target="_blank" rel="noreferrer" title="Open login" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
             <ExternalLink style={{ width: 12, height: 12 }} />
           </a>

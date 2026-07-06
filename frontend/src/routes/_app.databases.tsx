@@ -87,7 +87,10 @@ function DatabasesPage() {
       key: "endpoint",
       header: "Endpoint",
       className: "font-mono text-xs text-muted-foreground truncate max-w-xs",
-      render: (d) => `${d.endpoint ?? "—"}${d.port ? `:${d.port}` : ""}`,
+      render: (d) => {
+        const portSuffix = d.port ? `:${d.port}` : "";
+        return `${d.endpoint ?? "—"}${portSuffix}`;
+      },
     },
     {
       key: "status",

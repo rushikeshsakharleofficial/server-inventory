@@ -357,7 +357,7 @@ function _osKey(os: string): string {
 }
 
 function _osVersion(os: string): string {
-  const m = os.match(/(\d+(?:\.\d+)*)/);
+  const m = /(\d+(?:\.\d+)*)/.exec(os);
   return m ? m[1] : "";
 }
 
@@ -490,7 +490,7 @@ let _confirmRequest: ((req: ConfirmRequest) => void) | null = null;
 export function confirmAsync(message: string): Promise<boolean> {
   return new Promise((resolve) => {
     if (!_confirmRequest) {
-      resolve(window.confirm(message));
+      resolve(globalThis.confirm(message));
       return;
     }
     _confirmRequest({ message, resolve });

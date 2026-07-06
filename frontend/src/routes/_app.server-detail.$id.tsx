@@ -340,21 +340,12 @@ function SshInfoSection({ sshInfo }: Readonly<{ sshInfo: Record<string, unknown>
 // This queries it defensively — a 404 renders the empty state below instead
 // of an error, so this section is a no-op until that endpoint ships.
 
-function DiscoveredNetworksSection({ serverId, server }: Readonly<{ serverId: string; server: Server }>) {
-  const { data: rawAddrs, isLoading, error } = useQuery({
-    queryKey: ["serverIpAddresses", serverId],
-    queryFn: () => api<ServerIpAddress[]>(`/api/servers/${serverId}/ip-addresses`),
-    retry: false,
-  });
-
-  const notFound = error instanceof ApiError && error.status === 404;
-  const discovered = (error && !notFound) ? [] : (rawAddrs ?? []);
-
-  // Union with the legacy IP sources (public_ip/private_ip/ssh_info.all_ips) so
-  // servers never scanned by discovery still show their known addresses here,
-  // not just an empty "no discovered aliases" message. Dedup by address —
-  // discovery-sourced rows win when both list the same address (richer data).
-  const seen = new Set(discovered.map(a => a.address));
+// Union with the legacy IP sources (public_ip/private_ip/ssh_info.all_ips) so
+// servers never scanned by discovery still show their known addresses here,
+// not just an empty "no discovered aliases" message. Dedup by address (via the
+// caller-supplied `seen` set) — discovery-sourced rows win when both list the
+// same address (richer data), because they are already recorded in `seen`.
+function buildLegacyAddrs(server: Server, seen: Set<string>): ServerIpAddress[] {
   const legacy: ServerIpAddress[] = [];
   const allIps: string[] = Array.isArray(server.ssh_info?.all_ips) ? (server.ssh_info!.all_ips as string[]) : [];
   const legacyAddrs = new Set([
@@ -382,19 +373,38 @@ function DiscoveredNetworksSection({ serverId, server }: Readonly<{ serverId: st
       last_seen_at: null,
     });
   }
-  const addrs = [...discovered, ...legacy];
+  return legacy;
+}
 
-  if (isLoading) return <p className="text-xs text-muted-foreground">Loading…</p>;
-  if (addrs.length === 0) {
-    return <p className="text-xs text-muted-foreground">No known IP addresses yet.</p>;
-  }
-
+function groupByInterface(addrs: ServerIpAddress[]): Map<string, ServerIpAddress[]> {
   const groups = new Map<string, ServerIpAddress[]>();
   for (const a of addrs) {
     const key = a.interface_name ?? "unknown";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(a);
   }
+  return groups;
+}
+
+function DiscoveredNetworksSection({ serverId, server }: Readonly<{ serverId: string; server: Server }>) {
+  const { data: rawAddrs, isLoading, error } = useQuery({
+    queryKey: ["serverIpAddresses", serverId],
+    queryFn: () => api<ServerIpAddress[]>(`/api/servers/${serverId}/ip-addresses`),
+    retry: false,
+  });
+
+  const notFound = error instanceof ApiError && error.status === 404;
+  const discovered = (error && !notFound) ? [] : (rawAddrs ?? []);
+
+  const seen = new Set(discovered.map(a => a.address));
+  const addrs = [...discovered, ...buildLegacyAddrs(server, seen)];
+
+  if (isLoading) return <p className="text-xs text-muted-foreground">Loading…</p>;
+  if (addrs.length === 0) {
+    return <p className="text-xs text-muted-foreground">No known IP addresses yet.</p>;
+  }
+
+  const groups = groupByInterface(addrs);
 
   return (
     <div className="space-y-4">
@@ -524,7 +534,7 @@ function ServerDetailPage() {
           ["vCPU",    server.vcpu ?? "—"],
           ["Memory",  server.memory_gb ? `${server.memory_gb} GB` : "—"],
           ["Storage", server.storage_gb ? `${server.storage_gb} GB` : "—"],
-          ["OS",      <OsBadge os={server.os} />],
+          ["OS",      <OsBadge key={`os-${server.id}`} os={server.os} />],
           ["Region",  server.region ?? "—"],
           ["Zone",    server.zone ?? "—"],
           ["Type",    server.instance_type ?? "—"],

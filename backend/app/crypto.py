@@ -58,8 +58,8 @@ def decrypt_str(value: str) -> str:
     except InvalidToken:
         _log.error("decrypt_str: InvalidToken — possible key mismatch or tampered ciphertext")
         return value
-    except Exception as exc:
-        _log.error("decrypt_str: unexpected decryption error: %s", exc)
+    except Exception:
+        _log.exception("decrypt_str: unexpected decryption error")
         return value
 
 
@@ -80,7 +80,7 @@ def decrypt_config(cfg: dict) -> dict:
         except InvalidToken:
             _log.error("decrypt_config: InvalidToken — possible key mismatch or tampered config")
             return cfg
-        except Exception as exc:
-            _log.error("decrypt_config: unexpected decryption error: %s", exc)
+        except Exception:
+            _log.exception("decrypt_config: unexpected decryption error")
             return cfg
     return cfg

@@ -432,6 +432,19 @@ def _ssh_sync_gather_facts(host: str, ssh_cred) -> tuple[dict | None, str | None
             jump_client.close()
 
 
+def _apply_ssh_facts_to_server(server, ssh_info: dict) -> None:
+    """Fill in server fields from freshly-gathered SSH facts, only overwriting
+    what is currently missing (except OS, where SSH is treated as authoritative)."""
+    if not server.vcpu and ssh_info.get("cpu_count"):
+        server.vcpu = ssh_info["cpu_count"]
+    if not server.memory_gb and ssh_info.get("memory_mb"):
+        server.memory_gb = round(ssh_info["memory_mb"] / 1024, 1)
+    if ssh_info.get("os_release"):  # SSH is more accurate than cloud API
+        server.os = ssh_info["os_release"]
+    if not server.hostname and ssh_info.get("hostname"):
+        server.hostname = ssh_info["hostname"]
+
+
 @router.post(
     "/{server_id}/ssh-sync",
     response_model=schemas.ServerResponse,
@@ -475,18 +488,52 @@ async def ssh_sync_server(
 
     # Update fields if currently missing
     if ssh_info:
-        if not server.vcpu and ssh_info.get("cpu_count"):
-            server.vcpu = ssh_info["cpu_count"]
-        if not server.memory_gb and ssh_info.get("memory_mb"):
-            server.memory_gb = round(ssh_info["memory_mb"] / 1024, 1)
-        if ssh_info.get("os_release"):  # SSH is more accurate than cloud API
-            server.os = ssh_info["os_release"]
-        if not server.hostname and ssh_info.get("hostname"):
-            server.hostname = ssh_info["hostname"]
+        _apply_ssh_facts_to_server(server, ssh_info)
 
     db.commit()
     db.refresh(server)
     return server
+
+
+def _ssh_trust_host_key(host: str, ssh_cred) -> tuple[dict | None, str | None]:
+    """Connect via low-level Transport, read the remote host key, and persist it
+    to known_hosts. Returns (result, None) on success or (None, error) on failure.
+    Runs on a worker thread via run_in_executor — never touches the DB session."""
+    import paramiko, socket as _socket
+    transport = None
+    try:
+        port = ssh_cred.port or 22
+        sock = _socket.create_connection((host, port), timeout=10)
+        transport = paramiko.Transport(sock)
+        transport.start_client(timeout=10)
+
+        host_key = transport.get_remote_server_key()
+        key_type = host_key.get_name()
+        fingerprint_bytes = host_key.get_fingerprint()
+        fingerprint = ":".join(f"{b:02x}" for b in fingerprint_bytes)
+
+        transport.close()
+
+        # Persist host key to known_hosts file
+        known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+        known_hosts_dir = os.path.dirname(os.path.abspath(known_hosts_path))
+        os.makedirs(known_hosts_dir, exist_ok=True)
+
+        known_hosts = paramiko.HostKeys()
+        if os.path.exists(known_hosts_path):
+            try:
+                known_hosts.load(known_hosts_path)
+            except Exception:  # noqa: BLE001
+                pass  # Start fresh if file is corrupt
+        known_hosts.add(host, key_type, host_key)
+        known_hosts.save(known_hosts_path)
+
+        return {"fingerprint": fingerprint, "key_type": key_type, "added": True}, None
+
+    except Exception as exc:  # noqa: BLE001
+        if transport:
+            transport.close()
+        return None, f"Could not retrieve host key: {exc}"
 
 
 @router.post(
@@ -522,41 +569,7 @@ async def trust_host_key(
         raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
 
     def _do_trust():
-        import paramiko, socket as _socket
-        transport = None
-        try:
-            port = ssh_cred.port or 22
-            sock = _socket.create_connection((host, port), timeout=10)
-            transport = paramiko.Transport(sock)
-            transport.start_client(timeout=10)
-
-            host_key = transport.get_remote_server_key()
-            key_type = host_key.get_name()
-            fingerprint_bytes = host_key.get_fingerprint()
-            fingerprint = ":".join(f"{b:02x}" for b in fingerprint_bytes)
-
-            transport.close()
-
-            # Persist host key to known_hosts file
-            known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
-            known_hosts_dir = os.path.dirname(os.path.abspath(known_hosts_path))
-            os.makedirs(known_hosts_dir, exist_ok=True)
-
-            known_hosts = paramiko.HostKeys()
-            if os.path.exists(known_hosts_path):
-                try:
-                    known_hosts.load(known_hosts_path)
-                except Exception:  # noqa: BLE001
-                    pass  # Start fresh if file is corrupt
-            known_hosts.add(host, key_type, host_key)
-            known_hosts.save(known_hosts_path)
-
-            return {"fingerprint": fingerprint, "key_type": key_type, "added": True}, None
-
-        except Exception as exc:  # noqa: BLE001
-            if transport:
-                transport.close()
-            return None, f"Could not retrieve host key: {exc}"
+        return _ssh_trust_host_key(host, ssh_cred)
 
     result, err = await asyncio.get_running_loop().run_in_executor(None, _do_trust)
     if err or not result:
@@ -565,19 +578,10 @@ async def trust_host_key(
     return schemas.HostKeyTrustResponse(**result)
 
 
-@router.post(
-    "/ssh-fetch-all-ips",
-    responses={
-        404: {"description": "SSH credential not found"},
-        400: {"description": "No SSH credential selected and no default configured"},
-    },
-)
-def ssh_fetch_all_ips(
-    db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
-    ssh_credential_id: Annotated[int | None, Query()] = None,
-) -> list[dict]:
-    """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
+def _resolve_ssh_credential_or_default(db: Session, ssh_credential_id: int | None):
+    """Return the requested SSH credential, or the default one when no id is given.
+    Raises HTTPException(404) for a missing requested id and HTTPException(400)
+    when neither an id nor a configured default is available."""
     if ssh_credential_id:
         ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
         if not ssh_cred:
@@ -590,13 +594,12 @@ def ssh_fetch_all_ips(
         )
     if not ssh_cred:
         raise HTTPException(status_code=400, detail="No SSH credential selected and no default configured")
+    return ssh_cred
 
-    servers = (
-        db.query(models.Server)
-        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
-        .all()
-    )
 
+def _collect_ssh_ips(servers, ssh_cred) -> list[dict]:
+    """SSH into each server concurrently, stamp discovered IPs onto ssh_info, and
+    return one result row per server that yielded any addresses."""
     def _fetch_one(srv: models.Server) -> tuple[models.Server, list[str]]:
         host = srv.public_ip or srv.private_ip
         ips = fetch_ssh_ips(host, ssh_cred) if host else []
@@ -619,6 +622,31 @@ def ssh_fetch_all_ips(
                     })
             except Exception:  # noqa: BLE001
                 pass
+    return results
+
+
+@router.post(
+    "/ssh-fetch-all-ips",
+    responses={
+        404: {"description": "SSH credential not found"},
+        400: {"description": "No SSH credential selected and no default configured"},
+    },
+)
+def ssh_fetch_all_ips(
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+    ssh_credential_id: Annotated[int | None, Query()] = None,
+) -> list[dict]:
+    """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
+    ssh_cred = _resolve_ssh_credential_or_default(db, ssh_credential_id)
+
+    servers = (
+        db.query(models.Server)
+        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
+        .all()
+    )
+
+    results = _collect_ssh_ips(servers, ssh_cred)
 
     if results:
         db.commit()
@@ -684,6 +712,42 @@ def _stream_result_payload(srv, ips: list[str]) -> dict:
     }
 
 
+def _stream_ip_results(db: Session, servers, ssh_cred):
+    """Generator yielding one NDJSON line per server as its SSH IP fetch completes,
+    broadcasting each result over the websocket and committing changes at the end."""
+    import json
+
+    try:
+        jump_client, jump_transport, pkey = _stream_setup_jump_client(ssh_cred)
+    except Exception as exc:  # noqa: BLE001
+        yield json.dumps({"error": f"Jump/key setup failed: {exc}"}) + "\n"
+        return
+
+    changed: list[models.Server] = []
+    try:
+        with ThreadPoolExecutor(max_workers=20) as ex:
+            futures = {
+                ex.submit(_stream_fetch_one, srv, ssh_cred, jump_transport, pkey): srv
+                for srv in servers
+            }
+            for fut in as_completed(futures):
+                try:
+                    srv, ips = fut.result()
+                    srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
+                    changed.append(srv)
+                    _result = _stream_result_payload(srv, ips)
+                    ws_manager.broadcast(_result)
+                    yield json.dumps(_result) + "\n"
+                except Exception:  # noqa: BLE001
+                    pass
+    finally:
+        if changed:
+            db.commit()
+        if jump_client:
+            try: jump_client.close()
+            except Exception: pass  # noqa: BLE001
+
+
 @router.post(
     "/ssh-fetch-ips-stream",
     responses={
@@ -697,16 +761,7 @@ def ssh_fetch_ips_stream(
     ssh_credential_id: Annotated[int | None, Query()] = None,
 ) -> StreamingResponse:
     """Stream SSH IP results as NDJSON — one line per server as it completes."""
-    import json
-
-    if ssh_credential_id:
-        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
-        if not ssh_cred:
-            raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
-    else:
-        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.is_default.is_(True)).first()
-    if not ssh_cred:
-        raise HTTPException(status_code=400, detail="No SSH credential selected and no default configured")
+    ssh_cred = _resolve_ssh_credential_or_default(db, ssh_credential_id)
 
     servers = (
         db.query(models.Server)
@@ -714,38 +769,10 @@ def ssh_fetch_ips_stream(
         .all()
     )
 
-    def generate():
-        try:
-            jump_client, jump_transport, pkey = _stream_setup_jump_client(ssh_cred)
-        except Exception as exc:  # noqa: BLE001
-            yield json.dumps({"error": f"Jump/key setup failed: {exc}"}) + "\n"
-            return
-
-        changed: list[models.Server] = []
-        try:
-            with ThreadPoolExecutor(max_workers=20) as ex:
-                futures = {
-                    ex.submit(_stream_fetch_one, srv, ssh_cred, jump_transport, pkey): srv
-                    for srv in servers
-                }
-                for fut in as_completed(futures):
-                    try:
-                        srv, ips = fut.result()
-                        srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
-                        changed.append(srv)
-                        _result = _stream_result_payload(srv, ips)
-                        ws_manager.broadcast(_result)
-                        yield json.dumps(_result) + "\n"
-                    except Exception:  # noqa: BLE001
-                        pass
-        finally:
-            if changed:
-                db.commit()
-            if jump_client:
-                try: jump_client.close()
-                except Exception: pass  # noqa: BLE001
-
-    return StreamingResponse(generate(), media_type="application/x-ndjson")
+    return StreamingResponse(
+        _stream_ip_results(db, servers, ssh_cred),
+        media_type="application/x-ndjson",
+    )
 
 
 @router.delete(

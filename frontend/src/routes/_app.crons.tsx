@@ -151,7 +151,7 @@ function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: Cron
                   <DayPicker
                     mode="single"
                     selected={pickedDate}
-                    onSelect={(d) => { if (!d) return; setPickedDate(d); applyPicker(d, pickedTime, repeatMode); }}
+                    onSelect={(d) => { if (!d) { return; } setPickedDate(d); applyPicker(d, pickedTime, repeatMode); }}
                     className="text-xs"
                   />
                 </div>

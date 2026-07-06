@@ -261,10 +261,12 @@ function EditCredentialDialog({
     Object.fromEntries(
       Object.entries(cred.config ?? {}).map(([k, v]) => [
         k,
-        isSecret(k) ? "" : String(v ?? ""),
+        isSecret(k) ? "" : v == null ? "" : String(v),
       ]),
     ),
   );
+  const setField = (f: string, value: string) =>
+    setValues((v) => ({ ...v, [f]: value }));
   // Which secret fields already have a real stored value — drives the locked/
   // configured indicator, since blanking on open (above) loses that info.
   const configuredSecrets = new Set(
@@ -350,9 +352,7 @@ function EditCredentialDialog({
                         id={fieldId}
                         rows={4}
                         value={values[f] ?? ""}
-                        onChange={(e) =>
-                          setValues((v) => ({ ...v, [f]: e.target.value }))
-                        }
+                        onChange={(e) => setField(f, e.target.value)}
                         className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
                       />
                     );
@@ -361,7 +361,7 @@ function EditCredentialDialog({
                     return (
                       <CustomSelect
                         value={values[f] ?? ""}
-                        onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
+                        onChange={(v) => setField(f, v)}
                         options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
                         placeholder="— select —"
                       />
@@ -373,9 +373,7 @@ function EditCredentialDialog({
                         id={fieldId}
                         type={isSecret(f) ? "password" : "text"}
                         value={values[f] ?? ""}
-                        onChange={(e) =>
-                          setValues((v) => ({ ...v, [f]: e.target.value }))
-                        }
+                        onChange={(e) => setField(f, e.target.value)}
                         placeholder={
                           isReplacingSecret
                             ? "•••••••••••• (locked — type to replace)"
@@ -417,6 +415,8 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const def = PROVIDERS.find((p) => p.id === provider)!;
+  const setField = (f: string, value: string) =>
+    setValues((v) => ({ ...v, [f]: value }));
 
   const create = useMutation({
     mutationFn: () =>
@@ -521,9 +521,7 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
                       required
                       rows={4}
                       value={values[f] ?? ""}
-                      onChange={(e) =>
-                        setValues((v) => ({ ...v, [f]: e.target.value }))
-                      }
+                      onChange={(e) => setField(f, e.target.value)}
                       className="mt-1 w-full px-3 py-2 text-xs font-mono bg-background border border-border rounded-md"
                     />
                   );
@@ -532,7 +530,7 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
                   return (
                     <CustomSelect
                       value={values[f] ?? ""}
-                      onChange={(v) => setValues((prev) => ({ ...prev, [f]: v }))}
+                      onChange={(v) => setField(f, v)}
                       options={FIELD_OPTIONS[f].map((o) => ({ value: o }))}
                       placeholder="— select —"
                     />
@@ -544,9 +542,7 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
                     required
                     type={isSecret(f) ? "password" : "text"}
                     value={values[f] ?? ""}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, [f]: e.target.value }))
-                    }
+                    onChange={(e) => setField(f, e.target.value)}
                     className="mt-1 w-full px-3 py-2 text-sm font-mono bg-background border border-border rounded-md"
                   />
                 );

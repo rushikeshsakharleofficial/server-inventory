@@ -114,11 +114,13 @@ function IpsPage() {
     return true;
   });
 
+  const countSuffix = data ? ` — ${items.length} of ${data.total} total` : "";
+
   return (
     <div className="p-6 space-y-4">
       <PageHeader
         title="IP Inventory"
-        description={`All IPs discovered via SSH across your fleet${data ? ` — ${items.length} of ${data.total} total` : ""}.`}
+        description={`All IPs discovered via SSH across your fleet${countSuffix}.`}
       />
 
       <Card className="p-3">

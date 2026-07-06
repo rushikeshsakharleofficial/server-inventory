@@ -432,7 +432,7 @@ function UsersGroupsPage() {
                   </td>
                 </tr>
               ))}
-              {groups && groups.length === 0 && (
+              {groups?.length === 0 && (
                 <tr><td colSpan={4}><EmptyState title="No groups" description="Create a group to bundle permissions." /></td></tr>
               )}
             </tbody>

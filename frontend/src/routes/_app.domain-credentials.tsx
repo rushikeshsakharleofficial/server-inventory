@@ -380,18 +380,11 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
           create.mutate();
         }}
       >
-        <div>
-          <span
-            id="new-cred-provider-label"
-            className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
-          >
+        <fieldset>
+          <legend className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
             Provider
-          </span>
-          <div
-            role="group"
-            aria-labelledby="new-cred-provider-label"
-            className="mt-1 grid grid-cols-4 gap-2"
-          >
+          </legend>
+          <div className="mt-1 grid grid-cols-4 gap-2">
             {PROVIDERS.map((p) => (
               <button
                 key={p.id}
@@ -415,7 +408,7 @@ function NewCredentialDialog({ onClose }: Readonly<{ onClose: () => void }>) {
               </button>
             ))}
           </div>
-        </div>
+        </fieldset>
         <div>
           <label
             htmlFor="new-cred-name"

@@ -12,7 +12,7 @@ echo "==> Backend: installing deps..."
 cd backend
 pip install -r requirements.txt -q
 
-if [ ! -f .env ]; then
+if [[ ! -f .env ]]; then
   cp .env.example .env
   echo "  Created backend/.env from .env.example"
 fi

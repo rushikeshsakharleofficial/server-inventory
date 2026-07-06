@@ -154,6 +154,36 @@ class DigitalOceanProvider(CloudProvider):
             })
         return result
 
+    @staticmethod
+    def _do_volume_to_dict(vol: dict[str, Any]) -> dict[str, Any]:
+        droplet_ids = vol.get("droplet_ids", [])
+        attachment = str(droplet_ids[0]) if droplet_ids else None
+        status = "in-use" if droplet_ids else "available"
+
+        vol_region = vol.get("region")
+        region_slug = None
+        if isinstance(vol_region, dict):
+            region_slug = vol_region.get("slug")
+        elif isinstance(vol_region, str):
+            region_slug = vol_region
+
+        return {
+            "cloud_id": vol["id"],
+            "name": vol["name"],
+            "provider": "digitalocean",
+            "region": region_slug,
+            "size_gb": float(vol.get("size_gigabytes", 0)),
+            "status": status,
+            "attachment": attachment,
+            "volume_type": vol.get("filesystem_type") or "standard",
+            "tags": {tag: tag for tag in vol.get("tags", [])},
+            "extra": {
+                "description": vol.get("description"),
+                "created_at": vol.get("created_at"),
+                "filesystem_label": vol.get("filesystem_label"),
+            },
+        }
+
     def fetch_block_storages(self) -> list[dict[str, Any]]:
         import requests
 
@@ -174,33 +204,7 @@ class DigitalOceanProvider(CloudProvider):
             data = resp.json()
 
             for vol in data.get("volumes", []):
-                droplet_ids = vol.get("droplet_ids", [])
-                attachment = str(droplet_ids[0]) if droplet_ids else None
-                status = "in-use" if droplet_ids else "available"
-                
-                vol_region = vol.get("region")
-                region_slug = None
-                if isinstance(vol_region, dict):
-                    region_slug = vol_region.get("slug")
-                elif isinstance(vol_region, str):
-                    region_slug = vol_region
-
-                result.append({
-                    "cloud_id": vol["id"],
-                    "name": vol["name"],
-                    "provider": "digitalocean",
-                    "region": region_slug,
-                    "size_gb": float(vol.get("size_gigabytes", 0)),
-                    "status": status,
-                    "attachment": attachment,
-                    "volume_type": vol.get("filesystem_type") or "standard",
-                    "tags": {tag: tag for tag in vol.get("tags", [])},
-                    "extra": {
-                        "description": vol.get("description"),
-                        "created_at": vol.get("created_at"),
-                        "filesystem_label": vol.get("filesystem_label"),
-                    },
-                })
+                result.append(self._do_volume_to_dict(vol))
 
             next_url = data.get("links", {}).get("pages", {}).get("next")
             url = next_url

@@ -502,7 +502,7 @@ async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> 
         await ws.close(code=4001)
         return
 
-    await manager.connect(ws, username=username, token_exp=token_exp)
+    manager.connect(ws, username=username, token_exp=token_exp)
 
     # On connect: send any currently running syncs so the client can recover state
     await _ws_send_active_syncs(ws)
