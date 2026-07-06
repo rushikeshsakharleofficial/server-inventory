@@ -173,7 +173,7 @@ function IpsPage() {
               onClick={() => syncPtr.mutate()}
               disabled={syncPtr.isPending}
               title="Resolve reverse-DNS (PTR) for every IP now"
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-md border border-border transition-colors disabled:opacity-60 shrink-0"
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             >
               <RefreshCw className={`size-3.5 ${syncPtr.isPending ? "animate-spin" : ""}`} />
               {syncPtr.isPending ? "Syncing PTR…" : "Sync PTR"}
