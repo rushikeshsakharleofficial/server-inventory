@@ -45,3 +45,9 @@ frontend/.output/
 .playwright-mcp/
 *.png
 
+# Tests (kept locally, not tracked)
+backend/tests/
+frontend/vitest.config.ts
+frontend/**/*.test.ts
+frontend/**/*.test.tsx
+
