@@ -1564,19 +1564,32 @@ def _linode_kubernetes_map(cluster: models.KubernetesCluster, config: dict) -> d
 
 # ── OVH Server ────────────────────────────────────────────────────────────────
 
-def _ovh_signed_get(base_url: str, app_key: str, app_secret: str, consumer_key: str, path: str):
-    import hashlib, time, requests
-    now = str(int(time.time()))
-    url = f"{base_url}{path}"
-    sig_str = f"{app_secret}+{consumer_key}+GET+{url}++{now}"
-    sig = "$1$" + hashlib.sha1(sig_str.encode()).hexdigest()
-    headers: dict[str, str | bytes] = {
-        "X-Ovh-Application": app_key,
-        "X-Ovh-Consumer": consumer_key,
-        "X-Ovh-Timestamp": now,
-        "X-Ovh-Signature": sig,
-    }
-    return requests.get(url, headers=headers, timeout=15)
+class _OvhResp:
+    """Adapts the ovh SDK's return/raise contract to the .ok/.json() shape
+    every _ovh_append_* helper below expects, so they don't need to change."""
+    __slots__ = ("ok", "_data")
+
+    def __init__(self, ok: bool, data):
+        self.ok = ok
+        self._data = data
+
+    def json(self):
+        return self._data
+
+
+def _ovh_sdk_get(client, path: str) -> _OvhResp:
+    """GET through the OVH SDK client — it signs and authenticates
+    internally, so no hashing happens in this codebase for this call."""
+    import ovh.exceptions as ovh_exc
+    try:
+        return _OvhResp(True, client.get(path))
+    except ovh_exc.APIError as e:
+        if e.response is not None:
+            try:
+                return _OvhResp(False, e.response.json())
+            except ValueError:
+                return _OvhResp(False, {})
+        return _OvhResp(False, {})
 
 
 def _ovh_append_ip_nodes(ovh_get, root_id: str, nodes: list, edges: list) -> None:
@@ -1683,34 +1696,40 @@ def _ovh_append_vps_extras(ovh_get, root_id: str, nodes: list, edges: list) -> N
 
 
 def _ovh_server_map(server: models.Server, config: dict) -> dict:
+    try:
+        import ovh as ovh_sdk
+    except ImportError:
+        return {"nodes": [], "edges": []}
+
     root_id = f"server-{server.id}"
     nodes: list = []
     edges: list = []
 
-    app_key = config.get("application_key", "")
-    app_secret = config.get("application_secret", "")
-    consumer_key = config.get("consumer_key", "")
-    endpoint = config.get("endpoint", "ovh-eu")
-
-    base_urls = {
-        "ovh-eu": "https://eu.api.ovh.com/1.0",
-        "ovh-ca": "https://ca.api.ovh.com/1.0",
-        "ovh-us": "https://api.us.ovhcloud.com/1.0",
-    }
-    base_url = base_urls.get(endpoint, base_urls["ovh-eu"])
-
-    def ovh_get_absolute(path: str):
-        return _ovh_signed_get(base_url, app_key, app_secret, consumer_key, path)
-
-    server_name = server.cloud_id or server.name
-    is_vps = bool(server.instance_type and "vps" in str(server.instance_type).lower())
-    prefix = "/vps" if is_vps else "/dedicated/server"
-    resource_path = f"{prefix}/{server_name}"
-
-    def resource_get(suffix: str):
-        return ovh_get_absolute(f"{resource_path}{suffix}")
-
     try:
+        # Unrecognized endpoint values fall back to ovh-eu, matching the
+        # previous raw-HTTP base_urls.get(endpoint, base_urls["ovh-eu"]).
+        endpoint = config.get("endpoint", "ovh-eu")
+        if endpoint not in ovh_sdk.ENDPOINTS:
+            endpoint = "ovh-eu"
+        client = ovh_sdk.Client(
+            endpoint=endpoint,
+            application_key=config.get("application_key", ""),
+            application_secret=config.get("application_secret", ""),
+            consumer_key=config.get("consumer_key", ""),
+            timeout=15,
+        )
+
+        def ovh_get_absolute(path: str):
+            return _ovh_sdk_get(client, path)
+
+        server_name = server.cloud_id or server.name
+        is_vps = bool(server.instance_type and "vps" in str(server.instance_type).lower())
+        prefix = "/vps" if is_vps else "/dedicated/server"
+        resource_path = f"{prefix}/{server_name}"
+
+        def resource_get(suffix: str):
+            return ovh_get_absolute(f"{resource_path}{suffix}")
+
         resp = resource_get("")
         if not resp.ok:
             return {"nodes": [], "edges": []}

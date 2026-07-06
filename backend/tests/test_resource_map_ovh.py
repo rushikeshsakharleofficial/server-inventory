@@ -1,9 +1,30 @@
 """
-Pinning tests for _ovh_server_map (backend/app/routers/resource_map.py),
-complexity 69 vs 15 allowed. Written before refactoring — must pass against
-the original implementation first.
+Tests for _ovh_server_map (backend/app/routers/resource_map.py).
+
+Originally written as pinning tests against the raw-HTTP+SHA1-signing
+implementation (patching requests.get). That implementation was replaced
+with the OVH SDK client (which signs internally, removing our own SHA1
+call) — these tests now inject a fake SDK client instead, but keep the
+same per-test assertions as the original pins, so they still verify the
+same graph-building behavior.
+
+One real behavior difference from the original: the SDK raises a typed
+exception (ovh.exceptions.APIError and subclasses) on any non-2xx or
+network failure instead of returning a response with .ok=False. The
+_ovh_sdk_get adapter in resource_map.py catches APIError and translates
+it back to an .ok=False response so the _ovh_append_* helpers below are
+unaffected — but a raised APIError with no attached response (e.g. a bare
+network failure) now means "this one call failed", not necessarily
+"abort the whole map", the way a caught RuntimeError used to via the
+outer try/except. The all-calls-fail test still asserts an empty graph,
+because the primary resource lookup failing already short-circuits
+before any node is appended — so that assertion still holds either way.
 """
+import sys
+import types
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from app import models
 from app.routers.resource_map import _ovh_server_map
@@ -24,38 +45,51 @@ def _config():
     }
 
 
-def _resp(ok=True, json_data=None):
-    r = MagicMock()
-    r.ok = ok
-    r.json.return_value = json_data if json_data is not None else {}
-    return r
+@pytest.fixture
+def fake_ovh_module():
+    import ovh.exceptions as real_ovh_exc
+
+    fake_module = types.ModuleType("ovh")
+    fake_module.Client = MagicMock()
+    fake_module.ENDPOINTS = {"ovh-eu": "...", "ovh-us": "...", "ovh-ca": "..."}
+    fake_module.exceptions = real_ovh_exc
+    with patch.dict(sys.modules, {"ovh": fake_module, "ovh.exceptions": real_ovh_exc}):
+        yield fake_module
+
+
+def _mock_client(fake_get):
+    """fake_get(path) -> data on success, or raise ovh.exceptions.APIError on failure."""
+    client = MagicMock()
+    client.get.side_effect = fake_get
+    return client
 
 
 class TestOvhServerMapDedicated:
-    def test_all_apis_succeed_produces_full_graph(self):
+    def test_all_apis_succeed_produces_full_graph(self, fake_ovh_module):
         server = _server(instance_type="dedicated")
 
-        def fake_get(url, headers=None, timeout=None):
-            if url.endswith("/ips"):
-                return _resp(json_data=["1.2.3.4"])
-            if "type=failover" in url:
-                return _resp(json_data=["5.6.7.8/32"])
-            if "/ip/5.6.7.8" in url:
-                return _resp(json_data={"routedTo": {"serviceName": "ns123456.ip-1-2-3.eu"}})
-            if url.endswith("/vrack"):
-                return _resp(json_data={"vrack": "pn-123", "mode": "routed", "taskState": "ready"})
-            if url.endswith("/features/ipmi"):
-                return _resp(json_data={"activated": True})
-            if url.endswith("/backupCloudOfferDetails"):
-                return _resp(json_data={"quotaUsed": 10, "quotaTotal": 100})
-            if "routedTo=" in url:
-                return _resp(json_data=[])
-            if "/ip/" in url and "/firewall" in url:
-                return _resp(json_data=[])
-            return _resp(json_data={})
+        def fake_get(path):
+            if path.endswith("/ips"):
+                return ["1.2.3.4"]
+            if "type=failover" in path:
+                return ["5.6.7.8/32"]
+            if "/ip/5.6.7.8" in path:
+                return {"routedTo": {"serviceName": "ns123456.ip-1-2-3.eu"}}
+            if path.endswith("/vrack"):
+                return {"vrack": "pn-123", "mode": "routed", "taskState": "ready"}
+            if path.endswith("/features/ipmi"):
+                return {"activated": True}
+            if path.endswith("/backupCloudOfferDetails"):
+                return {"quotaUsed": 10, "quotaTotal": 100}
+            if "routedTo=" in path:
+                return []
+            if "/ip/" in path and "/firewall" in path:
+                return []
+            return {}
 
-        with patch("requests.get", side_effect=fake_get):
-            result = _ovh_server_map(server, _config())
+        fake_ovh_module.Client.return_value = _mock_client(fake_get)
+
+        result = _ovh_server_map(server, _config())
 
         node_types = {n["type"] for n in result["nodes"]}
         assert "public_ip" in node_types
@@ -65,54 +99,68 @@ class TestOvhServerMapDedicated:
         assert "network_interface" in node_types
         assert len(result["edges"]) == len(result["nodes"])
 
-    def test_failed_primary_lookup_returns_empty_graph(self):
+    def test_failed_primary_lookup_returns_empty_graph(self, fake_ovh_module):
+        import ovh.exceptions as ovh_exc
+
         server = _server()
-        with patch("requests.get", return_value=_resp(ok=False)):
-            result = _ovh_server_map(server, _config())
+
+        def fake_get(path):
+            raise ovh_exc.ResourceNotFoundError("not found")
+
+        fake_ovh_module.Client.return_value = _mock_client(fake_get)
+
+        result = _ovh_server_map(server, _config())
         assert result == {"nodes": [], "edges": []}
 
-    def test_exception_during_fetch_returns_partial_graph_not_raise(self):
-        server = _server()
-        with patch("requests.get", side_effect=RuntimeError("network exploded")):
-            result = _ovh_server_map(server, _config())
+    def test_exception_during_fetch_returns_partial_graph_not_raise(self, fake_ovh_module):
+        def fake_get(path):
+            raise RuntimeError("network exploded")
+
+        fake_ovh_module.Client.return_value = _mock_client(fake_get)
+
+        result = _ovh_server_map(server=_server(), config=_config())
         assert result == {"nodes": [], "edges": []}
 
-    def test_failover_ip_not_routed_to_this_server_excluded(self):
+    def test_failover_ip_not_routed_to_this_server_excluded(self, fake_ovh_module):
+        import ovh.exceptions as ovh_exc
+
         server = _server()
 
-        def fake_get(url, headers=None, timeout=None):
-            if url.endswith("/ips"):
-                return _resp(json_data=[])
-            if "type=failover" in url:
-                return _resp(json_data=["9.9.9.9/32"])
-            if "/ip/9.9.9.9" in url:
-                return _resp(json_data={"routedTo": {"serviceName": "some-other-server"}})
-            return _resp(ok=False)
+        def fake_get(path):
+            if path.endswith("/ips"):
+                return []
+            if "type=failover" in path:
+                return ["9.9.9.9/32"]
+            if "/ip/9.9.9.9" in path:
+                return {"routedTo": {"serviceName": "some-other-server"}}
+            raise ovh_exc.ResourceNotFoundError("not found")
 
-        with patch("requests.get", side_effect=fake_get):
-            result = _ovh_server_map(server, _config())
+        fake_ovh_module.Client.return_value = _mock_client(fake_get)
+
+        result = _ovh_server_map(server, _config())
 
         assert not any(n["type"] == "elastic_ip" for n in result["nodes"])
 
 
 class TestOvhServerMapVps:
-    def test_vps_path_uses_vps_endpoints_not_dedicated(self):
+    def test_vps_path_uses_vps_endpoints_not_dedicated(self, fake_ovh_module):
         server = _server(instance_type="VPS-SSD-2")
         calls = []
 
-        def fake_get(url, headers=None, timeout=None):
-            calls.append(url)
-            if url.endswith("/snapshot"):
-                return _resp(json_data={"creationDate": "2026-01-01"})
-            if url.endswith("/option"):
-                return _resp(json_data=["automated-backup"])
-            if url.endswith("/ips") or "type=failover" in url:
-                return _resp(json_data=[])
+        def fake_get(path):
+            calls.append(path)
+            if path.endswith("/snapshot"):
+                return {"creationDate": "2026-01-01"}
+            if path.endswith("/option"):
+                return ["automated-backup"]
+            if path.endswith("/ips") or "type=failover" in path:
+                return []
             # primary resource lookup (/vps/{server_name}) and anything else: ok, empty
-            return _resp(json_data={})
+            return {}
 
-        with patch("requests.get", side_effect=fake_get):
-            result = _ovh_server_map(server, _config())
+        fake_ovh_module.Client.return_value = _mock_client(fake_get)
+
+        result = _ovh_server_map(server, _config())
 
         assert any("/vps/" in c for c in calls)
         assert not any("/dedicated/server/" in c and "/vrack" in c for c in calls)
