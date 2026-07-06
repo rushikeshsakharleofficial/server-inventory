@@ -1712,8 +1712,12 @@ def _ovh_server_map(server: models.Server, config: dict) -> dict:
     try:
         # Unrecognized endpoint values fall back to ovh-eu, matching the
         # previous raw-HTTP base_urls.get(endpoint, base_urls["ovh-eu"]).
+        # ENDPOINTS lives on ovh.client, not the top-level ovh module —
+        # `ovh_sdk.ENDPOINTS` raises AttributeError, silently caught below
+        # and returning empty topology for every OVH server regardless of
+        # endpoint. (Root cause of the "resource map not working" report.)
         endpoint = config.get("endpoint", "ovh-eu")
-        if endpoint not in ovh_sdk.ENDPOINTS:
+        if endpoint not in ovh_sdk.client.ENDPOINTS:
             endpoint = "ovh-eu"
         client = ovh_sdk.Client(
             endpoint=endpoint,
