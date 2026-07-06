@@ -733,8 +733,15 @@ function RevealTokenDialog({ name, token, onClose }: Readonly<{ name: string; to
     const a = document.createElement("a");
     a.href = url;
     a.download = `${name.replace(/[^a-z0-9_-]+/gi, "_")}.txt`;
+    // Must be attached to the DOM for click() to reliably trigger a download
+    // in every browser, and the object URL must outlive the (async) download
+    // start — revoking it synchronously right after click() raced the
+    // browser reading the blob, which is what produced the empty/garbage
+    // file: the URL was already dead by the time the download actually read it.
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   return (
