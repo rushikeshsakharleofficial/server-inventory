@@ -104,6 +104,11 @@ function RootShell({ children }: Readonly<{ children: ReactNode }>) {
   );
 }
 
+// Set VITE_DISABLE_AGENTATION=true in a local, gitignored .env.local to turn
+// this off just for your own browser — unset (the committed default) keeps
+// it on for every other build, VPS included.
+const AGENTATION_ENABLED = import.meta.env.VITE_DISABLE_AGENTATION !== "true";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const faviconUrl = useBrandingFavicon();
@@ -115,7 +120,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Agentation />
+      {AGENTATION_ENABLED && <Agentation />}
     </QueryClientProvider>
   );
 }
