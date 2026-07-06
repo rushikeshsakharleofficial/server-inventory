@@ -68,22 +68,30 @@ class CloudflareProvider(CloudProvider):
         zones/credentials can trip Cloudflare's rate limit even though each
         individual request is well-formed.
         """
-        import time
         import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util import Retry
+
+        session = requests.Session()
+        # total=3 → 3 retries after the initial attempt = 4 attempts total,
+        # matching the previous `for _ in range(4)` loop. raise_on_status=False
+        # so we still raise via resp.raise_for_status() below (same HTTPError
+        # as before) instead of urllib3's RetryError.
+        retry = Retry(
+            total=3,
+            status_forcelist=[429],
+            respect_retry_after_header=True,
+            backoff_factor=1,
+            raise_on_status=False,
+        )
+        session.mount("http://", HTTPAdapter(max_retries=retry))
+        session.mount("https://", HTTPAdapter(max_retries=retry))
 
         items: list[dict[str, Any]] = []
         page = 1
         while True:
-            for _ in range(4):
-                resp = requests.get(url, headers=headers, params={"per_page": per_page, "page": page}, timeout=30)
-                if resp.status_code == 429:
-                    wait = int(resp.headers.get("Retry-After", 5))
-                    time.sleep(wait)
-                    continue
-                resp.raise_for_status()
-                break
-            else:
-                resp.raise_for_status()  # exhausted retries — surface the last 429
+            resp = session.get(url, headers=headers, params={"per_page": per_page, "page": page}, timeout=30)
+            resp.raise_for_status()
             data = resp.json()
             items.extend(data.get("result") or [])
             info = data.get("result_info") or {}

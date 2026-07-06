@@ -58,10 +58,6 @@ FEATURE_ACTIONS: dict[str, list[str]] = {
 # Mirrors the existing hardcoded guards exactly so switching to require_perm()
 # doesn't change who can do what for users with no overlay.
 
-def _all_feature_read() -> dict[str, list[str]]:
-    return {f: ["read"] for f in FEATURES}
-
-
 def _all_feature_write() -> dict[str, list[str]]:
     """
     write role gets read+write+delete+sync on all features, but NOT admin-tier
@@ -75,14 +71,10 @@ def _all_feature_write() -> dict[str, list[str]]:
     return result
 
 
-def _all_feature_admin() -> dict[str, list[str]]:
-    return {f: list(FEATURE_ACTIONS[f]) for f in FEATURES}
-
-
 ROLE_BASELINE: dict[str, dict[str, list[str]]] = {
-    "read":  _all_feature_read(),
+    "read":  {f: ["read"] for f in FEATURES},
     "write": _all_feature_write(),
-    "admin": _all_feature_admin(),
+    "admin": {f: list(FEATURE_ACTIONS[f]) for f in FEATURES},
 }
 
 # ─── Effective permission resolver ─────────────────────────────────────────────

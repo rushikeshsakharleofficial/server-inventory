@@ -13,9 +13,17 @@ router = APIRouter(prefix="/api/crons", tags=["crons"])
 _CRON_NOT_FOUND = "Cron job not found"
 
 
+def _is_valid_cron(expr: str) -> bool:
+    from apscheduler.triggers.cron import CronTrigger
+    try:
+        CronTrigger.from_crontab(expr)
+        return True
+    except ValueError:
+        return False
+
+
 def _validate_cron(expr: str) -> None:
-    from croniter import croniter
-    if not croniter.is_valid(expr):
+    if not _is_valid_cron(expr):
         raise HTTPException(status_code=422, detail=f"Invalid cron expression: {expr!r}")
 
 

@@ -27,8 +27,6 @@ export function SmartPagination({
   totalPages,
   onPageChange,
   isLoading = false,
-  showJumpInput = true,
-  showFirstLast = true,
 }: Readonly<{
   currentPage: number;
   pageSize: number;
@@ -36,8 +34,6 @@ export function SmartPagination({
   totalPages: number;
   onPageChange: (page: number) => void;
   isLoading?: boolean;
-  showJumpInput?: boolean;
-  showFirstLast?: boolean;
 }>) {
   const [jump, setJump] = useState("");
   const clampedTotalPages = Math.max(1, totalPages);
@@ -64,16 +60,14 @@ export function SmartPagination({
       </span>
 
       <div className="flex items-center gap-1">
-        {showFirstLast && (
-          <button
-            className={`${btn} hidden sm:inline-flex items-center justify-center`}
-            disabled={isLoading || currentPage === 1}
-            onClick={() => go(1)}
-            title="First page"
-          >
-            <ChevronsLeft className="size-3.5" />
-          </button>
-        )}
+        <button
+          className={`${btn} hidden sm:inline-flex items-center justify-center`}
+          disabled={isLoading || currentPage === 1}
+          onClick={() => go(1)}
+          title="First page"
+        >
+          <ChevronsLeft className="size-3.5" />
+        </button>
         <button
           className={`${btn} inline-flex items-center justify-center`}
           disabled={isLoading || currentPage === 1}
@@ -112,36 +106,32 @@ export function SmartPagination({
         >
           <ChevronRight className="size-3.5" />
         </button>
-        {showFirstLast && (
-          <button
-            className={`${btn} hidden sm:inline-flex items-center justify-center`}
-            disabled={isLoading || currentPage === clampedTotalPages}
-            onClick={() => go(clampedTotalPages)}
-            title="Last page"
-          >
-            <ChevronsRight className="size-3.5" />
-          </button>
-        )}
+        <button
+          className={`${btn} hidden sm:inline-flex items-center justify-center`}
+          disabled={isLoading || currentPage === clampedTotalPages}
+          onClick={() => go(clampedTotalPages)}
+          title="Last page"
+        >
+          <ChevronsRight className="size-3.5" />
+        </button>
       </div>
 
       <div className="flex items-center gap-2 whitespace-nowrap">
         <span className="text-muted-foreground hidden md:inline">Rows/page: Auto {pageSize}</span>
-        {showJumpInput && (
-          <span className="flex items-center gap-1">
-            <span className="text-muted-foreground hidden sm:inline">Go to</span>
-            <input
-              type="number"
-              min={1}
-              max={clampedTotalPages}
-              value={jump}
-              onChange={(e) => setJump(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitJump()}
-              onBlur={() => jump && submitJump()}
-              placeholder={String(currentPage)}
-              className="w-12 px-1.5 py-1 border border-border rounded-md bg-background text-center focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </span>
-        )}
+        <span className="flex items-center gap-1">
+          <span className="text-muted-foreground hidden sm:inline">Go to</span>
+          <input
+            type="number"
+            min={1}
+            max={clampedTotalPages}
+            value={jump}
+            onChange={(e) => setJump(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submitJump()}
+            onBlur={() => jump && submitJump()}
+            placeholder={String(currentPage)}
+            className="w-12 px-1.5 py-1 border border-border rounded-md bg-background text-center focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </span>
       </div>
     </div>
   );
