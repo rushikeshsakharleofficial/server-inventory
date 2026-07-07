@@ -323,12 +323,17 @@ class OVHProvider(CloudProvider):
         return servers
 
     @staticmethod
-    def _ovh_cloud_instance_dict(inst: dict, project_id: str) -> dict[str, Any]:
+    def _ovh_cloud_instance_dict(
+        inst: dict, project_id: str, images_by_id: dict[str, dict], flavors_by_id: dict[str, dict]
+    ) -> dict[str, Any]:
         addrs      = inst.get("ipAddresses", [])
         public_ip  = next((a["ip"] for a in addrs if a.get("type") == "public"  and ":" not in a.get("ip", "")), None)
         private_ip = next((a["ip"] for a in addrs if a.get("type") == "private" and ":" not in a.get("ip", "")), None)
-        flavor     = inst.get("flavor") or {}
-        image      = inst.get("image")  or {}
+        # OVH's /cloud/project/{id}/instance only inlines flavor/image on some
+        # accounts — others (confirmed live) return bare flavorId/imageId and
+        # need a separate lookup, batched once per project below.
+        flavor = inst.get("flavor") or flavors_by_id.get(inst.get("flavorId"), {})
+        image  = inst.get("image")  or images_by_id.get(inst.get("imageId"), {})
         return {
             "cloud_id":      inst.get("id"),
             "name":          inst.get("name", inst.get("id", "")),
@@ -339,7 +344,7 @@ class OVHProvider(CloudProvider):
             "public_ip":     public_ip,
             "private_ip":    private_ip,
             "vcpu":          flavor.get("vcpus"),
-            "memory_gb":     round(flavor["ram"] / 1024, 1) if flavor.get("ram") else None,
+            "memory_gb":     flavor.get("ram"),  # OVH Public Cloud flavor.ram is already in GB, not MB
             "storage_gb":    flavor.get("disk"),
             "os":            _prettify_os(image.get("name") or image.get("id")),
             "tags":          {},
@@ -349,9 +354,33 @@ class OVHProvider(CloudProvider):
     def _ovh_fetch_one_cloud_project(self, client, project_id: str, errors: list[str]) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         try:
-            instances = client.get(f"/cloud/project/{project_id}/instance")
-            for inst in (instances or []):
-                results.append(self._ovh_cloud_instance_dict(inst, project_id))
+            instances = client.get(f"/cloud/project/{project_id}/instance") or []
+            if not instances:
+                return results
+            images_by_id: dict[str, dict] = {}
+            flavors_by_id: dict[str, dict] = {}
+            try:
+                images_by_id = {img["id"]: img for img in client.get(f"/cloud/project/{project_id}/image") or []}
+            except Exception:
+                pass
+            try:
+                flavors_by_id = {f["id"]: f for f in client.get(f"/cloud/project/{project_id}/flavor") or []}
+            except Exception:
+                pass
+            # The /image list omits deprecated/private images still in use by
+            # existing instances (confirmed live) — fall back to a direct GET
+            # per miss, not per instance, so this stays rare in practice.
+            missing_image_ids = {
+                iid for inst in instances
+                if not inst.get("image") and (iid := inst.get("imageId")) and iid not in images_by_id
+            }
+            for iid in missing_image_ids:
+                try:
+                    images_by_id[iid] = client.get(f"/cloud/project/{project_id}/image/{iid}")
+                except Exception:
+                    pass
+            for inst in instances:
+                results.append(self._ovh_cloud_instance_dict(inst, project_id, images_by_id, flavors_by_id))
         except Exception as e:
             errors.append(f"cloud/{project_id}: {e}")
         return results
