@@ -13,13 +13,17 @@ export function CustomSelect({
   options,
   placeholder = "— select —",
   className = "",
+  size = "md",
 }: Readonly<{
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label?: string }[];
   placeholder?: string;
   className?: string;
+  size?: "md" | "sm";
 }>) {
+  const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm";
+  const optPad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm";
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -57,7 +61,7 @@ export function CustomSelect({
         ref={btnRef}
         type="button"
         onClick={handleOpen}
-        className="w-full flex items-center justify-between px-3 py-2 text-sm bg-background border border-border rounded-md hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+        className={`w-full flex items-center justify-between ${pad} bg-background border border-border ${size === "sm" ? "rounded-full" : "rounded-md"} hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-1 focus:ring-ring`}
       >
         <span
           className={selected ? "text-foreground" : "text-muted-foreground"}
@@ -77,10 +81,10 @@ export function CustomSelect({
             width: dropStyle.width,
             zIndex: 9999,
           }}
-          className="bg-background border border-border rounded-md shadow-lg"
+          className="bg-background border border-border rounded-md shadow-lg overflow-hidden"
         >
           {!value && (
-            <div className="px-3 py-2 text-sm text-muted-foreground">
+            <div className={`${optPad} text-muted-foreground`}>
               {placeholder}
             </div>
           )}
@@ -92,7 +96,7 @@ export function CustomSelect({
                 onChange(o.value);
                 setOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted transition-colors text-left ${value === o.value ? "text-primary font-medium" : "text-foreground"}`}
+              className={`w-full flex items-center justify-between ${optPad} hover:bg-muted transition-colors text-left ${value === o.value ? "text-primary font-medium" : "text-foreground"}`}
             >
               {o.label ?? o.value}
               {value === o.value && <Check className="size-3.5 text-primary" />}
