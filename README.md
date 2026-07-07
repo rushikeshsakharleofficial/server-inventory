@@ -173,6 +173,7 @@ cp backend/.env.example .env
 | `DATABASE_URL` | Yes (local/no-Docker only) | Full PostgreSQL connection string |
 | `SECRET_KEY` | **Yes in prod** | JWT signing secret — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `CREDENTIAL_ENCRYPTION_KEY` | **Yes in prod** | Fernet key encrypting stored provider/SSH credentials at rest — generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `API_KEY_PEPPER` | **Yes to use the Public API** | HMAC key for hashing public API tokens — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`; without it, creating/rotating an API key fails |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | No | Optional non-interactive admin seed — the normal path is the `/setup` wizard above |
 | `ALLOWED_ORIGINS` | No | Comma-separated CORS origins for the frontend |
 | `VITE_API_URL` | No | Leave empty in most deployments — the frontend derives the backend host/port from the page it's served from |
