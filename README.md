@@ -32,6 +32,7 @@ Track servers, databases, Kubernetes clusters, block storage, and DNS records ac
 - [First-Run Setup](#first-run-setup)
 - [Environment Variables](#environment-variables)
 - [Cloud Provider Setup](#cloud-provider-setup)
+- [Public API & MCP Server](#public-api--mcp-server)
 - [Development](#development)
 - [Testing](#testing)
 - [Architecture](#architecture)
@@ -58,7 +59,7 @@ Most cloud asset inventory tools are paid SaaS products that require sending you
 
 ### Multi-Cloud Inventory
 
-- **Servers** — AWS EC2, GCP Compute Engine, Azure VMs, DigitalOcean Droplets, Linode instances, OVH bare metal/VPS/Public Cloud, plus manually-registered on-prem hosts
+- **Servers** — AWS EC2, GCP Compute Engine, Azure VMs, DigitalOcean Droplets, Linode instances, OVH bare metal/VPS/Public Cloud, Contabo VPS, plus manually-registered on-prem hosts
 - **Managed Databases** — AWS RDS, GCP Cloud SQL, Azure Database, DigitalOcean Managed DBs, Linode Database Clusters
 - **Kubernetes Clusters** — AWS EKS, GCP GKE, Azure AKS, DigitalOcean DOKS, Linode LKE
 - **Block Storage** — AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes
@@ -182,7 +183,18 @@ cp backend/.env.example .env
 
 ## Cloud Provider Setup
 
-Add credentials via **Cloud Providers → Add Credential** in the UI. Fields vary per provider; see the in-app form for the exact set required (access keys, service account JSON, subscription IDs, API tokens, etc.) for AWS, GCP, Azure, DigitalOcean, Linode, and OVH Cloud. DNS providers (currently Cloudflare) are configured separately under **DNS Providers**, keeping DNS credentials isolated from compute-sync credentials.
+Add credentials via **Cloud Providers → Add Credential** in the UI. Fields vary per provider; see the in-app form for the exact set required (access keys, service account JSON, subscription IDs, API tokens, etc.) for AWS, GCP, Azure, DigitalOcean, Linode, OVH Cloud, and Contabo. DNS providers (currently Cloudflare) are configured separately under **DNS Providers**, keeping DNS credentials isolated from compute-sync credentials.
+
+---
+
+## Public API & MCP Server
+
+A read/write REST API under `/public/v1`, separate from the browser-session JWT auth, for scripting against inventory data or wiring it into CI.
+
+- **API keys** — create, rotate, and revoke under **Access → API Keys**. A key is stamped with its creator's current permissions at creation time; every request re-checks `key scopes ∩ owner's live IAM permissions`, so revoking a permission from the owner immediately narrows every key they hold, without editing the key itself.
+- **Auth** — `Authorization: Bearer si_live_...`, no JWT involved.
+- **Coverage** — servers, IP inventory, databases, kubernetes, block storage, discovery jobs/run-once, sync trigger, per-server resource map.
+- **MCP server** — a standalone MCP server (`mcp-server/`, stdio transport) wraps the public API as tools, so an MCP-aware assistant can list servers, trigger a sync, or run discovery directly. Packaged as a Claude Code plugin (`plugins/server-inventory-mcp/`) with a bundled setup skill and a `/server-inventory-mcp:server-inventory-setup` guided-setup command — see `mcp-server/README.md` for standalone use.
 
 ---
 
