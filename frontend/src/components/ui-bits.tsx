@@ -235,6 +235,7 @@ export const PROVIDER_LOGOS: Record<string, string> = {
   ovh: "/providers/ovh.png",
   hivelocity: "/providers/hivelocity.png",
   cloudflare: "/providers/cloudflare.svg",
+  contabo: "/providers/contabo.svg",
 };
 
 export function ProviderBadge({ provider }: Readonly<{ provider: string }>) {
