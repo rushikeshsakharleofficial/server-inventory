@@ -33,6 +33,7 @@ import { Route as AppDiscoveryRouteImport } from './routes/_app.discovery'
 import { Route as AppDatabasesRouteImport } from './routes/_app.databases'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCronsRouteImport } from './routes/_app.crons'
+import { Route as AppCloudSmokeRouteImport } from './routes/_app.cloud-smoke'
 import { Route as AppCloudProvidersRouteImport } from './routes/_app.cloud-providers'
 import { Route as AppBlockStoragesRouteImport } from './routes/_app.block-storages'
 import { Route as AppApiKeysRouteImport } from './routes/_app.api-keys'
@@ -158,6 +159,11 @@ const AppCronsRoute = AppCronsRouteImport.update({
   path: '/crons',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCloudSmokeRoute = AppCloudSmokeRouteImport.update({
+  id: '/cloud-smoke',
+  path: '/cloud-smoke',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCloudProvidersRoute = AppCloudProvidersRouteImport.update({
   id: '/cloud-providers',
   path: '/cloud-providers',
@@ -191,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/api-keys': typeof AppApiKeysRoute
   '/block-storages': typeof AppBlockStoragesRoute
   '/cloud-providers': typeof AppCloudProvidersRoute
+  '/cloud-smoke': typeof AppCloudSmokeRoute
   '/crons': typeof AppCronsRoute
   '/dashboard': typeof AppDashboardRoute
   '/databases': typeof AppDatabasesRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/api-keys': typeof AppApiKeysRoute
   '/block-storages': typeof AppBlockStoragesRoute
   '/cloud-providers': typeof AppCloudProvidersRoute
+  '/cloud-smoke': typeof AppCloudSmokeRoute
   '/crons': typeof AppCronsRoute
   '/dashboard': typeof AppDashboardRoute
   '/databases': typeof AppDatabasesRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/_app/api-keys': typeof AppApiKeysRoute
   '/_app/block-storages': typeof AppBlockStoragesRoute
   '/_app/cloud-providers': typeof AppCloudProvidersRoute
+  '/_app/cloud-smoke': typeof AppCloudSmokeRoute
   '/_app/crons': typeof AppCronsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/databases': typeof AppDatabasesRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/block-storages'
     | '/cloud-providers'
+    | '/cloud-smoke'
     | '/crons'
     | '/dashboard'
     | '/databases'
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/block-storages'
     | '/cloud-providers'
+    | '/cloud-smoke'
     | '/crons'
     | '/dashboard'
     | '/databases'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '/_app/api-keys'
     | '/_app/block-storages'
     | '/_app/cloud-providers'
+    | '/_app/cloud-smoke'
     | '/_app/crons'
     | '/_app/dashboard'
     | '/_app/databases'
@@ -547,6 +559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCronsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cloud-smoke': {
+      id: '/_app/cloud-smoke'
+      path: '/cloud-smoke'
+      fullPath: '/cloud-smoke'
+      preLoaderRoute: typeof AppCloudSmokeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cloud-providers': {
       id: '/_app/cloud-providers'
       path: '/cloud-providers'
@@ -589,6 +608,7 @@ interface AppRouteChildren {
   AppApiKeysRoute: typeof AppApiKeysRoute
   AppBlockStoragesRoute: typeof AppBlockStoragesRoute
   AppCloudProvidersRoute: typeof AppCloudProvidersRoute
+  AppCloudSmokeRoute: typeof AppCloudSmokeRoute
   AppCronsRoute: typeof AppCronsRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDatabasesRoute: typeof AppDatabasesRoute
@@ -617,6 +637,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApiKeysRoute: AppApiKeysRoute,
   AppBlockStoragesRoute: AppBlockStoragesRoute,
   AppCloudProvidersRoute: AppCloudProvidersRoute,
+  AppCloudSmokeRoute: AppCloudSmokeRoute,
   AppCronsRoute: AppCronsRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDatabasesRoute: AppDatabasesRoute,

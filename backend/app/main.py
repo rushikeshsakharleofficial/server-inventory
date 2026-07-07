@@ -27,6 +27,7 @@ from .routers.discovery import router as discovery_router
 from .routers.branding import router as branding_router
 from .routers.api_keys import router as api_keys_router
 from .routers.public_api import router as public_api_router
+from .routers.cloud_smoke import router as cloud_smoke_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -256,6 +257,7 @@ app.include_router(discovery_router)
 app.include_router(branding_router)
 app.include_router(api_keys_router)
 app.include_router(public_api_router)
+app.include_router(cloud_smoke_router)
 
 
 def _apply_db_optimizations() -> None:
