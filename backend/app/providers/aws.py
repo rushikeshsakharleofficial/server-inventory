@@ -52,7 +52,16 @@ class AWSProvider(CloudProvider):
         )
 
     @staticmethod
-    def _aws_instance_to_server(instance: dict, region: str) -> dict[str, Any]:
+    def _aws_os_from_image(image: dict | None) -> str:
+        if not image:
+            return "unknown"
+        # AMI 'Platform' only ever appears for Windows; 'PlatformDetails' is
+        # always populated but coarse (e.g. "Linux/UNIX") — Name/Description
+        # carry the actual distro/version, AWS exposes no structured field for it.
+        return image.get("Name") or image.get("Description") or image.get("PlatformDetails") or "unknown"
+
+    @staticmethod
+    def _aws_instance_to_server(instance: dict, region: str, images_by_id: dict[str, dict]) -> dict[str, Any]:
         tags, name = _aws_tags_and_name(instance.get("Tags", []))
         state = instance.get("State", {}).get("Name", "unknown")
         return {
@@ -64,7 +73,7 @@ class AWSProvider(CloudProvider):
             "status": STATUS_MAP.get(state, "unknown"),
             "public_ip": instance.get("PublicIpAddress"),
             "private_ip": instance.get("PrivateIpAddress"),
-            "os": instance.get("Platform", "linux"),
+            "os": AWSProvider._aws_os_from_image(images_by_id.get(instance.get("ImageId"))),
             "tags": tags,
             "extra": {
                 "ami_id": instance.get("ImageId"),
@@ -74,14 +83,27 @@ class AWSProvider(CloudProvider):
             },
         }
 
+    @staticmethod
+    def _aws_describe_images(ec2, image_ids: set[str]) -> dict[str, dict]:
+        if not image_ids:
+            return {}
+        try:
+            resp = ec2.describe_images(ImageIds=list(image_ids))
+        except Exception:
+            return {}
+        return {img["ImageId"]: img for img in resp.get("Images", [])}
+
     def _aws_fetch_region_servers(self, ec2, region: str) -> list[dict[str, Any]]:
-        servers = []
+        instances = []
         paginator = ec2.get_paginator("describe_instances")
         for page in paginator.paginate():
             for reservation in page["Reservations"]:
-                for instance in reservation["Instances"]:
-                    servers.append(self._aws_instance_to_server(instance, region))
-        return servers
+                instances.extend(reservation["Instances"])
+
+        image_ids = {i["ImageId"] for i in instances if i.get("ImageId")}
+        images_by_id = self._aws_describe_images(ec2, image_ids)
+
+        return [self._aws_instance_to_server(i, region, images_by_id) for i in instances]
 
     def fetch_servers(self) -> list[dict[str, Any]]:
         try:

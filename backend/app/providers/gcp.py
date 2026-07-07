@@ -28,6 +28,18 @@ def _gcp_zone_and_region(zone_key: str) -> tuple[str | None, str | None]:
     return zone_name, region
 
 
+def _gcp_instance_os(inst) -> str:
+    # ponytail: boot disk license URL's trailing segment (e.g. "ubuntu-2204-lts")
+    # is available on the instance itself, zero extra API calls. Instances whose
+    # disk was created from a snapshot (not an image) have no license here —
+    # resolving that needs a disks.get call per instance, not worth it unless
+    # this ever measurably matters for a real fleet.
+    for disk in inst.disks:
+        for license_url in disk.licenses:
+            return license_url.rsplit("/", 1)[-1]
+    return "unknown"
+
+
 def _gcp_instance_ips(inst) -> tuple[str | None, str | None]:
     public_ip = None
     private_ip = None
@@ -69,7 +81,7 @@ class GCPProvider(CloudProvider):
             "status": STATUS_MAP.get(inst.status, "unknown"),
             "public_ip": public_ip,
             "private_ip": private_ip,
-            "os": "linux",
+            "os": _gcp_instance_os(inst),
             "tags": dict(inst.labels) if inst.labels else {},
             "extra": {
                 "project_id": project_id,

@@ -57,6 +57,14 @@ class AzureProvider(CloudProvider):
 
     @staticmethod
     def _vm_os_type(vm) -> str:
+        # image_reference (publisher/offer/sku) gives the actual distro/version,
+        # e.g. "Canonical/0001-com-ubuntu-server-jammy/22_04-lts" — available on
+        # the same VM object with no extra call; os_disk.os_type is a bare
+        # windows/linux fallback for images with no reference (e.g. custom images).
+        ref = vm.storage_profile.image_reference if vm.storage_profile else None
+        if ref and (ref.offer or ref.sku):
+            parts = [p for p in (ref.publisher, ref.offer, ref.sku) if p]
+            return "/".join(parts)
         if vm.storage_profile and vm.storage_profile.os_disk and vm.storage_profile.os_disk.os_type:
             return vm.storage_profile.os_disk.os_type.lower()
         return "unknown"
