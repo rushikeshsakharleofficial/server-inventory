@@ -112,13 +112,13 @@ Per-server network topology viewer showing connected cloud resources (VPCs, secu
 
 ## Quick Start
 
-### Docker (recommended)
+### Docker — build from source (recommended)
 
 ```bash
 git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
 cd server-inventory
-cp backend/.env.example .env   # edit POSTGRES_PASSWORD, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY
-docker compose up -d
+cp backend/.env.example .env   # edit POSTGRES_PASSWORD, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY, API_KEY_PEPPER
+docker compose up -d --build
 ```
 
 | URL | Purpose |
@@ -128,9 +128,15 @@ docker compose up -d
 
 No default admin account is seeded. On first load, the app detects that no admin exists and redirects to `/setup` to create one — see [First-Run Setup](#first-run-setup).
 
-> **Security:** Set a strong, unique `SECRET_KEY` and `CREDENTIAL_ENCRYPTION_KEY` before any production or internet-facing deployment. The backend refuses to start in production with a weak or placeholder `SECRET_KEY`.
+> **Security:** Set a strong, unique `SECRET_KEY`, `CREDENTIAL_ENCRYPTION_KEY`, and `API_KEY_PEPPER` before any production or internet-facing deployment. The backend refuses to start in production with a weak or placeholder `SECRET_KEY`.
 
-Every push to `main` also publishes prebuilt images to GHCR (`ghcr.io/rushikeshsakharleofficial/server-inventory-backend` and `-frontend`, tagged `latest` and by commit SHA) — swap `build:` for `image:` in `docker-compose.yml` to use them instead of building locally.
+### Docker — prebuilt images
+
+Every push to `main` publishes images to GHCR: `ghcr.io/rushikeshsakharleofficial/server-inventory-backend` and `-frontend`, tagged `latest` and by commit SHA. To run from these instead of building locally, in `docker-compose.yml`:
+
+- Replace `build: ./backend` with `image: ghcr.io/rushikeshsakharleofficial/server-inventory-backend:latest`, **and delete the `volumes: [./backend:/app]` line** under `backend:` — that bind-mount overlays the container's own `/app` with your local checkout, which is only correct when building locally and defeats the point of a prebuilt image otherwise.
+- Replace the `build:` block under `frontend:` with `image: ghcr.io/rushikeshsakharleofficial/server-inventory-frontend:latest`. The published frontend image already has `VITE_API_URL` baked in as empty (host-derived), so no `args:` needed.
+- Then `cp backend/.env.example .env` (edit the same three secrets) and `docker compose up -d` — no `--build` needed, it pulls instead.
 
 ### Local (no Docker)
 
@@ -138,7 +144,7 @@ Every push to `main` also publishes prebuilt images to GHCR (`ghcr.io/rushikeshs
 # Terminal 1 — Backend
 cd backend
 pip install -r requirements.txt
-cp .env.example .env   # edit DATABASE_URL, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY
+cp .env.example .env   # edit DATABASE_URL, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY, API_KEY_PEPPER
 uvicorn app.main:app --reload --port 8000
 ```
 
