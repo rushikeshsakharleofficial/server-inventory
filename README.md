@@ -114,29 +114,68 @@ Per-server network topology viewer showing connected cloud resources (VPCs, secu
 
 ### Docker — build from source (recommended)
 
-```bash
-git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
-cd server-inventory
-cp backend/.env.example .env   # edit POSTGRES_PASSWORD, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY, API_KEY_PEPPER
-docker compose up -d --build
-```
+Requires Docker Engine 24+ and Compose v2 (`docker compose`, not the standalone `docker-compose`).
+
+1. Clone the repo and enter it:
+   ```bash
+   git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
+   cd server-inventory
+   ```
+2. Create `.env` from the example and fill in the required secrets:
+   ```bash
+   cp backend/.env.example .env
+   ```
+   Edit `.env` and set at minimum `POSTGRES_PASSWORD`, `SECRET_KEY`, `CREDENTIAL_ENCRYPTION_KEY`, and `API_KEY_PEPPER` (see [Environment Variables](#environment-variables) for how to generate each).
+3. Build and start all three services (postgres, backend, frontend):
+   ```bash
+   docker compose up -d --build
+   ```
+4. Confirm all three are healthy:
+   ```bash
+   docker compose ps
+   ```
+5. Open http://localhost:3001 — it redirects to `/setup` since no admin exists yet. See [First-Run Setup](#first-run-setup).
 
 | URL | Purpose |
 |:----|:--------|
 | http://localhost:3001 | Frontend dashboard |
 | http://localhost:8001/docs | Backend API (Swagger UI) |
 
-No default admin account is seeded. On first load, the app detects that no admin exists and redirects to `/setup` to create one — see [First-Run Setup](#first-run-setup).
-
 > **Security:** Set a strong, unique `SECRET_KEY`, `CREDENTIAL_ENCRYPTION_KEY`, and `API_KEY_PEPPER` before any production or internet-facing deployment. The backend refuses to start in production with a weak or placeholder `SECRET_KEY`.
+
+To stop: `docker compose down` (add `-v` to also drop the Postgres volume — this deletes all data).
 
 ### Docker — prebuilt images
 
-Every push to `main` publishes images to GHCR: `ghcr.io/rushikeshsakharleofficial/server-inventory-backend` and `-frontend`, tagged `latest` and by commit SHA. To run from these instead of building locally, in `docker-compose.yml`:
+Skips the local build; pulls `ghcr.io/rushikeshsakharleofficial/server-inventory-backend` and `-frontend` (published on every push to `main`, tagged `latest` and by commit SHA).
 
-- Replace `build: ./backend` with `image: ghcr.io/rushikeshsakharleofficial/server-inventory-backend:latest`, **and delete the `volumes: [./backend:/app]` line** under `backend:` — that bind-mount overlays the container's own `/app` with your local checkout, which is only correct when building locally and defeats the point of a prebuilt image otherwise.
-- Replace the `build:` block under `frontend:` with `image: ghcr.io/rushikeshsakharleofficial/server-inventory-frontend:latest`. The published frontend image already has `VITE_API_URL` baked in as empty (host-derived), so no `args:` needed.
-- Then `cp backend/.env.example .env` (edit the same three secrets) and `docker compose up -d` — no `--build` needed, it pulls instead.
+1. Clone the repo (still needed for `docker-compose.yml` and `postgres`'s config) and enter it:
+   ```bash
+   git clone https://github.com/rushikeshsakharleofficial/server-inventory.git
+   cd server-inventory
+   ```
+2. Create `.env` the same way as above:
+   ```bash
+   cp backend/.env.example .env   # edit POSTGRES_PASSWORD, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY, API_KEY_PEPPER
+   ```
+3. Create `docker-compose.override.yml` next to `docker-compose.yml` to swap both app services to the published images — **do not edit `docker-compose.yml` directly**, since `backend`'s `volumes: [./backend:/app]` bind-mount must not carry over: it overlays the image's own `/app` with your local checkout, which is only correct when building locally.
+   ```yaml
+   services:
+     backend:
+       image: ghcr.io/rushikeshsakharleofficial/server-inventory-backend:latest
+       build: !reset null
+       volumes: !reset []
+     frontend:
+       image: ghcr.io/rushikeshsakharleofficial/server-inventory-frontend:latest
+       build: !reset null
+   ```
+   (The published frontend image already has `VITE_API_URL` baked in as empty/host-derived, so no build `args:` are needed.)
+4. Pull and start:
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
+5. Same as above: http://localhost:3001 redirects to `/setup` on first load.
 
 ### Local (no Docker)
 
