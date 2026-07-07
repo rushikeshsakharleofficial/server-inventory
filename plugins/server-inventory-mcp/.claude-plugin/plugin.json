@@ -1,0 +1,11 @@
+{
+  "name": "server-inventory-mcp",
+  "displayName": "Server Inventory MCP",
+  "version": "1.0.0",
+  "description": "Query the server-inventory dashboard (servers, IP inventory, databases, Kubernetes, block storage, discovery, sync, resource maps) directly from Claude via its public API. Bundles the MCP server connection plus setup/usage guidance.",
+  "author": { "name": "Rushikesh Sakharle" },
+  "homepage": "https://github.com/rushikeshsakharleofficial/server-inventory",
+  "repository": "https://github.com/rushikeshsakharleofficial/server-inventory",
+  "license": "MIT",
+  "keywords": ["server-inventory", "mcp", "infrastructure", "cloud", "dashboard"]
+}

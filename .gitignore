@@ -19,6 +19,7 @@ dist/
 .codex/
 .gemini/
 .mcp.json
+!plugins/server-inventory-mcp/.mcp.json
 AGENTS.md
 AGENTS.md.bak*
 GEMINI.md

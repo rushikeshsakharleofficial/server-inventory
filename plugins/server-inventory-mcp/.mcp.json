@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "server-inventory": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/server.py"],
+      "env": {
+        "SERVER_INVENTORY_BASE_URL": "",
+        "SERVER_INVENTORY_API_KEY": "",
+        "SERVER_INVENTORY_VERIFY_SSL": "true"
+      }
+    }
+  }
+}
