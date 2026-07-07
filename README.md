@@ -130,6 +130,8 @@ No default admin account is seeded. On first load, the app detects that no admin
 
 > **Security:** Set a strong, unique `SECRET_KEY` and `CREDENTIAL_ENCRYPTION_KEY` before any production or internet-facing deployment. The backend refuses to start in production with a weak or placeholder `SECRET_KEY`.
 
+Every push to `main` also publishes prebuilt images to GHCR (`ghcr.io/rushikeshsakharleofficial/server-inventory-backend` and `-frontend`, tagged `latest` and by commit SHA) — swap `build:` for `image:` in `docker-compose.yml` to use them instead of building locally.
+
 ### Local (no Docker)
 
 ```bash
