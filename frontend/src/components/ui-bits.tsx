@@ -340,6 +340,18 @@ const OS_META: Record<
     logo: "https://cdn.simpleicons.org/coreos/595959",
     label: "CoreOS",
   },
+  suse: {
+    bg: "bg-emerald-50",
+    color: "text-emerald-700",
+    logo: "/os/suse.svg",
+    label: "SUSE",
+  },
+  linux: {
+    bg: "bg-gray-50",
+    color: "text-gray-700",
+    logo: "/os/linux.svg",
+    label: "Linux",
+  },
 };
 
 function _osKey(os: string): string {
@@ -355,6 +367,8 @@ function _osKey(os: string): string {
   if (l.includes("freebsd")) return "freebsd";
   if (l.includes("windows") || l.includes("win")) return "windows";
   if (l.includes("coreos")) return "coreos";
+  if (l.includes("suse")) return "suse";
+  if (l.includes("linux") || l.includes("unix")) return "linux";
   return "";
 }
 
