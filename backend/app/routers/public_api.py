@@ -20,8 +20,10 @@ from sqlalchemy.orm import Session
 
 from .. import discovery_service, models, schemas
 from ..api_key_auth import IP_INVENTORY_FEATURE, ApiPrincipal, require_api_permission
+from ..crypto import decrypt_config
 from ..database import DATABASE_URL, get_db
 from ..limiter import limiter
+from .resource_map import _build_map, _cache_get, _cache_set, _get_cred_for_provider
 from .servers import _build_ip_rows
 from .sync import _run_sync, _run_sync_all_parallel
 
@@ -201,6 +203,30 @@ def public_discovery_run_once(
         payload.max_parallel, payload.timeout_seconds, DATABASE_URL,
     )
     return {"job_id": job.id, "message": "Discovery started"}
+
+
+# ─── Resource Map ───────────────────────────────────────────────────────────────
+
+@router.get("/resource-map/server/{server_id}", responses={404: {"description": _SERVER_NOT_FOUND}})
+@limiter.limit("300/minute", key_func=_api_key_id_key_func)
+def public_server_resource_map(
+    request: Request,
+    server_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    principal: Annotated[ApiPrincipal, Depends(require_api_permission("resource-map", "read"))],
+) -> dict:
+    key = f"server:{server_id}"
+    if cached := _cache_get(key):
+        return cached
+    server = db.query(models.Server).filter(models.Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
+    cred = _get_cred_for_provider(db, server.provider)
+    config = decrypt_config(cred.config or {}) if cred else {}
+    result = _build_map("server", server, server.provider, config)
+    payload = {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
+    _cache_set(key, payload)
+    return payload
 
 
 # ─── Sync ───────────────────────────────────────────────────────────────────────
