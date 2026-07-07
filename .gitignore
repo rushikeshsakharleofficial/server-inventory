@@ -38,7 +38,11 @@ QODER.md.bak*
 .stitch/
 *.bak
 .agent/
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/server-inventory-mcp/
+!.claude/skills/server-inventory-mcp/**
 # Added by code-review-graph
 .code-review-graph/
 
