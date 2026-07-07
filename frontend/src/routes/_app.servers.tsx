@@ -120,7 +120,7 @@ function AddServerDialog({ onClose }: Readonly<{ onClose: () => void }>) {
             <CustomSelect
               value={form.provider}
               onChange={(v) => setForm(f => ({ ...f, provider: v }))}
-              options={["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity"].map(p => ({ value: p }))}
+              options={["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity","contabo"].map(p => ({ value: p }))}
             />
           </div>
           <div>

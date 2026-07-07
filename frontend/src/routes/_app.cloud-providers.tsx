@@ -48,6 +48,11 @@ const PROVIDERS = [
     ],
   },
   { id: "hivelocity", name: "Hivelocity", fields: ["api_key"] },
+  {
+    id: "contabo",
+    name: "Contabo",
+    fields: ["client_id", "client_secret", "username", "password"],
+  },
 ];
 
 const FIELD_OPTIONS: Record<string, string[]> = {

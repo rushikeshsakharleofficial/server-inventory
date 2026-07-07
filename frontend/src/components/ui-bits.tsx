@@ -223,6 +223,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   ovh: "text-indigo-600",
   hivelocity: "text-amber-600",
   cloudflare: "text-orange-500",
+  contabo: "text-purple-600",
 };
 
 export const PROVIDER_LOGOS: Record<string, string> = {
