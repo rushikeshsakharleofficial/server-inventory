@@ -303,6 +303,7 @@ def create_server(
                   owner=user.username, message=f"provider={db_server.provider}")
     db.commit()
     db.refresh(db_server)
+    ws_manager.broadcast({"type": "server_list_changed", "server_id": db_server.id})
     return db_server
 
 
@@ -328,6 +329,7 @@ def update_server(
                       owner=user.username, message=", ".join(f"{k}={v}" for k, v in changed.items()))
     db.commit()
     db.refresh(server)
+    ws_manager.broadcast({"type": "server_list_changed", "server_id": server.id})
     return server
 
 
@@ -857,8 +859,10 @@ def delete_server(
         raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
     add_event_log(db, source="servers", resource=server.name, event="Server removed",
                   owner=user.username, message=f"provider={server.provider}, id={server.id}")
+    deleted_id = server.id
     db.delete(server)
     db.commit()
+    ws_manager.broadcast({"type": "server_list_changed", "server_id": deleted_id})
 
 
 from pydantic import BaseModel as _BM
@@ -882,6 +886,7 @@ def apply_ssh_assignment(db: Session, server_ids: list[int], ssh_credential_id: 
         if ssh_group is not None:
             svr.ssh_group = ssh_group
     db.commit()
+    ws_manager.broadcast({"type": "server_list_changed", "server_id": None})
     return len(servers)
 
 
@@ -902,6 +907,7 @@ def assign_ssh_to_server(
     if payload.ssh_group is not None:
         svr.ssh_group = payload.ssh_group
     db.commit()
+    ws_manager.broadcast({"type": "server_list_changed", "server_id": svr.id})
     return {"id": svr.id, "ssh_credential_id": svr.ssh_credential_id, "ssh_group": svr.ssh_group}
 
 

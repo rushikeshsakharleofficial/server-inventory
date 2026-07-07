@@ -33,6 +33,7 @@ const WsMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("discovery_progress"), job_id: z.number(), scanned_ips: z.number(), reachable_ssh: z.number(), authenticated: z.number(), servers_added: z.number(), servers_updated: z.number(), duplicates_merged: z.number(), failed: z.number() }),
   z.object({ type: z.literal("discovery_complete"), job_id: z.number(), status: z.string(), scanned_ips: z.number(), reachable_ssh: z.number(), authenticated: z.number(), servers_added: z.number(), servers_updated: z.number(), duplicates_merged: z.number(), failed: z.number(), error_message: z.string().nullable().optional() }),
   z.object({ type: z.literal("discovery_stopped"), job_id: z.number() }),
+  z.object({ type: z.literal("server_list_changed"), server_id: z.number().nullable().optional() }),
 ]);
 type WsMessage = z.infer<typeof WsMessage>;
 
@@ -91,6 +92,9 @@ export function useAppWebSocket() {
             qc.invalidateQueries({ queryKey: ["stats"] });
             qc.invalidateQueries({ queryKey: ["stats-history"] });
             qc.invalidateQueries({ queryKey: ["crons"] });
+            qc.invalidateQueries({ queryKey: ["servers"] });
+            qc.invalidateQueries({ queryKey: ["dbs"] });
+            qc.invalidateQueries({ queryKey: ["resourceMap"] });
             break;
           case "server_status_changed":
             qc.invalidateQueries({ queryKey: ["servers"] });
@@ -109,6 +113,12 @@ export function useAppWebSocket() {
             qc.invalidateQueries({ queryKey: ["discoveryResults"] });
             qc.invalidateQueries({ queryKey: ["servers"] });
             qc.invalidateQueries({ queryKey: ["stats"] });
+            qc.invalidateQueries({ queryKey: ["resourceMap"] });
+            break;
+          case "server_list_changed":
+            qc.invalidateQueries({ queryKey: ["servers"] });
+            qc.invalidateQueries({ queryKey: ["stats"] });
+            qc.invalidateQueries({ queryKey: ["resourceMap"] });
             break;
         }
       };
