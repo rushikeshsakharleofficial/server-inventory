@@ -83,7 +83,6 @@ const NAV: Array<{
       { to: "/cloud-providers", label: "Cloud Providers", icon: Cloud },
       { to: "/ssh-keys", label: "SSH Keys", icon: Terminal },
       { to: "/api-keys", label: "API Keys", icon: KeySquare },
-      { to: "/cloud-smoke", label: "Cloud API Verification", icon: Cloud },
       { to: "/users-groups", label: "Users & Groups", icon: UsersRound },
       { to: "/policies", label: "IAM Policies", icon: ShieldCheck },
       { to: "/settings", label: "Settings", icon: SettingsIcon },
