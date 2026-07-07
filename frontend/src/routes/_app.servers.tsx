@@ -404,7 +404,7 @@ function ServersPage() {
       header: "SSH Key",
       render: (s) => (
         <select
-          className="text-xs px-1.5 py-0.5 border border-border rounded bg-background max-w-[120px] truncate"
+          className="text-xs px-2 py-1 border border-border rounded-full bg-background max-w-[120px] truncate hover:border-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
           value={s.ssh_credential_id ?? ""}
           onClick={e => e.stopPropagation()}
           onChange={e => assignSSH.mutate({ serverId: s.id, sshCredentialId: e.target.value ? Number(e.target.value) : null })}
