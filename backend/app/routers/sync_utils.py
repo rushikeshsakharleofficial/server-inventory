@@ -32,7 +32,10 @@ def _fetch_for_credential(
 def _load_active_credentials(db: Any, provider_name: str | None) -> list[Any]:
     from .. import models
 
-    cred_query = db.query(models.Credential).filter(models.Credential.is_active.is_(True))
+    cred_query = db.query(models.Credential).filter(
+        models.Credential.is_active.is_(True),
+        models.Credential.cred_type == "api",
+    )
     if provider_name:
         cred_query = cred_query.filter(models.Credential.provider == provider_name)
     return cred_query.all()

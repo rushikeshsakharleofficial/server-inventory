@@ -64,7 +64,7 @@ _stop_events: dict[int, threading.Event] = {}
 def _get_active_providers(db: Session) -> list[str]:
     rows = (
         db.query(models.Credential.provider)
-        .filter(models.Credential.is_active.is_(True))
+        .filter(models.Credential.is_active.is_(True), models.Credential.cred_type == "api")
         .distinct()
         .all()
     )
@@ -241,7 +241,10 @@ def _run_sync(provider_name: str | None, db_url: str) -> None:
     db = sessionmaker(bind=engine)()
 
     try:
-        q = db.query(models.Credential).filter(models.Credential.is_active.is_(True))
+        q = db.query(models.Credential).filter(
+            models.Credential.is_active.is_(True),
+            models.Credential.cred_type == "api",
+        )
         if provider_name:
             q = q.filter(models.Credential.provider == provider_name)
 

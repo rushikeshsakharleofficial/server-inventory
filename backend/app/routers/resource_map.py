@@ -39,10 +39,11 @@ _NODE_POOL = "node pool"
 
 
 def _get_cred_for_provider(db: Session, provider: str) -> models.Credential | None:
-    """Return the first active credential for *provider*, or None."""
+    """Return the first active API credential for *provider*, or None."""
     return db.query(models.Credential).filter(
         models.Credential.provider == provider,
         models.Credential.is_active.is_(True),
+        models.Credential.cred_type == "api",
     ).first()
 
 
