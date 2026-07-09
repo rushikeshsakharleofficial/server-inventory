@@ -18,4 +18,4 @@ ovh>=1.2.0
 python-dotenv==1.2.2
 paramiko>=5.0.0
 apscheduler>=3.11.2
-slowapi>=0.1.9
+slowapi>=0.1.10
