@@ -13,7 +13,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
-from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, _new_client_with_host_keys
+from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, _new_client_with_host_keys, _open_jump_client_and_channel
 from ..ws_manager import manager as ws_manager
 from ..event_log_utils import add_event_log
 from .query_utils import escape_like
@@ -566,8 +566,12 @@ def _ssh_probe_host_key(host: str, ssh_cred):
     port = ssh_cred.port or 22
     sock = None
     transport = None
+    jump_client = None
     try:
-        sock = socket.create_connection((host, port), timeout=10)
+        if getattr(ssh_cred, "proxy_host", None):
+            jump_client, sock = _open_jump_client_and_channel(host, port, ssh_cred)
+        else:
+            sock = socket.create_connection((host, port), timeout=10)
         transport = paramiko.Transport(sock)
         transport.start_client(timeout=10)
         key = transport.get_remote_server_key()
@@ -580,6 +584,8 @@ def _ssh_probe_host_key(host: str, ssh_cred):
             transport.close()
         elif sock is not None:
             sock.close()
+        if jump_client is not None:
+            jump_client.close()
 
 
 def _ssh_trust_host_key(host: str, ssh_cred, expected_fingerprint: str) -> tuple[dict | None, str | None]:

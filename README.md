@@ -440,3 +440,22 @@ MIT — free to use, modify, distribute, and build on, including for commercial 
 [![Star History Chart](https://api.star-history.com/svg?repos=rushikeshsakharleofficial/server-inventory&type=Date)](https://star-history.com/#rushikeshsakharleofficial/server-inventory&Date)
 
 </div>
+
+### Hardened Docker deployment notes
+
+The production Compose stack exposes **only** a loopback-bound nginx listener on
+`127.0.0.1:3001`; backend, frontend and PostgreSQL remain on internal Docker
+networks. Terminate HTTPS at a trusted external reverse proxy and set
+`ALLOWED_ORIGINS` to the public HTTPS origin. Do not expose HTTP directly to
+the internet.
+
+Use `docker compose config`, `docker compose up -d --build --wait`, then
+`curl -fsS http://127.0.0.1:3001/health` for local verification. Keep
+`POSTGRES_PASSWORD` URL-safe (it is embedded into a PostgreSQL connection
+URL), at least 16 characters. `SECRET_KEY` and `API_KEY_PEPPER` must each
+contain 32 or more characters. Configure real values, not example placeholders.
+
+SSH host keys are stored persistently in the `ssh_known_hosts` volume. For
+jump/proxy SSH connections, verify and enrol the jump host key first. Host-key
+trust is explicitly approved using an independently verified SHA256
+fingerprint; unidentified hosts are rejected during automated discovery.
