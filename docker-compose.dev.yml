@@ -1,11 +1,16 @@
-# Development overrides — use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-# Enables hot-reload, mounts source, and exposes Postgres for local debugging.
+# Development only. Explicitly use both files:
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# The proxy still serves http://localhost:3001; Vite is also available on :5173.
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   backend:
+    environment:
+      ENVIRONMENT: development
+    ports:
+      - "127.0.0.1:8001:8000"
     volumes:
       - ./backend:/app
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
@@ -14,9 +19,11 @@ services:
     build:
       context: ./frontend
       target: build
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+    environment:
+      VITE_API_URL: http://localhost:8001
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules

@@ -12,7 +12,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 
 RUN useradd --system --create-home --shell /usr/sbin/nologin appuser \
-    && chown -R appuser:appuser /app
+    && mkdir -p /home/appuser/.ssh \
+    && touch /home/appuser/.ssh/known_hosts \
+    && chown -R appuser:appuser /app /home/appuser/.ssh \
+    && chmod 700 /home/appuser/.ssh \
+    && chmod 600 /home/appuser/.ssh/known_hosts
 USER appuser
 
 EXPOSE 8000

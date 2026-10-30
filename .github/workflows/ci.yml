@@ -1,0 +1,66 @@
+name: Build, Test and Docker Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r backend/requirements.txt pytest
+      - run: python -m compileall -q backend/app
+      - run: cd backend && python -m pytest -q tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: cd frontend && bun install --frozen-lockfile
+      - run: cd frontend && bun run build
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate throwaway CI-only secrets
+        run: |
+          python - <<'PY'
+          import base64
+          import os
+          import secrets
+          from pathlib import Path
+          entries = {
+              "POSTGRES_PASSWORD": secrets.token_urlsafe(24),
+              "SECRET_KEY": secrets.token_urlsafe(48),
+              "CREDENTIAL_ENCRYPTION_KEY": base64.urlsafe_b64encode(os.urandom(32)).decode(),
+              "API_KEY_PEPPER": secrets.token_urlsafe(48),
+              "ALLOWED_ORIGINS": "http://127.0.0.1:3001,http://localhost:3001",
+          }
+          Path(".env").write_text("".join(f"{key}={value}\n" for key, value in entries.items()))
+          PY
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Build and start production container stack
+        run: docker compose up --build --wait -d
+      - name: Smoke test API and frontend through nginx
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:3001/health
+          curl --fail --silent --show-error http://127.0.0.1:3001/api/setup/status
+          curl --fail --silent --show-error --location http://127.0.0.1:3001/ > /dev/null
+      - name: Diagnostics on failure
+        if: failure()
+        run: docker compose logs --tail=150
+      - name: Teardown
+        if: always()
+        run: docker compose down -v --remove-orphans

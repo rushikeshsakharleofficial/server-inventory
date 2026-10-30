@@ -13,7 +13,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
-from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey
+from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, _new_client_with_host_keys, _open_jump_client_and_channel
 from ..ws_manager import manager as ws_manager
 from ..event_log_utils import add_event_log
 from .query_utils import escape_like
@@ -376,8 +376,7 @@ def _ssh_open_jump_channel(host: str, port: int, ssh_cred):
     proxy_key = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
     proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
 
-    jump_client = paramiko.SSHClient()
-    jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    jump_client = _new_client_with_host_keys()
     jump_kwargs: dict = {
         "hostname": ssh_cred.proxy_host,
         "port": ssh_cred.proxy_port or 22,
@@ -469,15 +468,9 @@ def _ssh_sync_gather_facts(host: str, ssh_cred) -> tuple[dict | None, str | None
     the DB session directly."""
     import paramiko
 
-    client = paramiko.SSHClient()
+    client = _new_client_with_host_keys()
     jump_client = None
     try:
-        known_hosts = os.getenv("SSH_KNOWN_HOSTS")
-        if known_hosts:
-            client.load_host_keys(os.path.expanduser(known_hosts))
-        else:
-            client.load_system_host_keys()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         connect_kwargs = _ssh_build_connect_kwargs(host, ssh_cred)
         if isinstance(connect_kwargs, str):
@@ -564,45 +557,97 @@ async def ssh_sync_server(
     return server
 
 
-def _ssh_trust_host_key(host: str, ssh_cred) -> tuple[dict | None, str | None]:
-    """Connect via low-level Transport, read the remote host key, and persist it
-    to known_hosts. Returns (result, None) on success or (None, error) on failure.
-    Runs on a worker thread via run_in_executor — never touches the DB session."""
-    import paramiko, socket as _socket
+def _ssh_probe_host_key(host: str, ssh_cred):
+    """Fetch a candidate SSH server key without trusting or authenticating."""
+    import base64
+    import hashlib
+    import paramiko
+
+    port = ssh_cred.port or 22
+    sock = None
     transport = None
+    jump_client = None
     try:
-        port = ssh_cred.port or 22
-        sock = _socket.create_connection((host, port), timeout=10)
+        if getattr(ssh_cred, "proxy_host", None):
+            jump_client, sock = _open_jump_client_and_channel(host, port, ssh_cred)
+        else:
+            sock = socket.create_connection((host, port), timeout=10)
         transport = paramiko.Transport(sock)
         transport.start_client(timeout=10)
-
-        host_key = transport.get_remote_server_key()
-        key_type = host_key.get_name()
-        fingerprint_bytes = host_key.get_fingerprint()
-        fingerprint = ":".join(f"{b:02x}" for b in fingerprint_bytes)
-
-        transport.close()
-
-        # Persist host key to known_hosts file
-        known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
-        known_hosts_dir = os.path.dirname(os.path.abspath(known_hosts_path))
-        os.makedirs(known_hosts_dir, exist_ok=True)
-
-        known_hosts = paramiko.HostKeys()
-        if os.path.exists(known_hosts_path):
-            try:
-                known_hosts.load(known_hosts_path)
-            except Exception:  # noqa: BLE001
-                pass  # Start fresh if file is corrupt
-        known_hosts.add(host, key_type, host_key)
-        known_hosts.save(known_hosts_path)
-
-        return {"fingerprint": fingerprint, "key_type": key_type, "added": True}, None
-
+        key = transport.get_remote_server_key()
+        digest = base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")
+        return (key, f"SHA256:{digest}"), None
     except Exception as exc:  # noqa: BLE001
-        if transport:
+        return None, f"Could not retrieve SSH host key: {exc}"
+    finally:
+        if transport is not None:
             transport.close()
-        return None, f"Could not retrieve host key: {exc}"
+        elif sock is not None:
+            sock.close()
+        if jump_client is not None:
+            jump_client.close()
+
+
+def _ssh_trust_host_key(host: str, ssh_cred, expected_fingerprint: str) -> tuple[dict | None, str | None]:
+    """Only save a key after explicit SHA256 fingerprint verification by the operator."""
+    import hmac
+    import paramiko
+
+    observed, error = _ssh_probe_host_key(host, ssh_cred)
+    if error or not observed:
+        return None, error or "Could not retrieve SSH host key"
+    key, fingerprint = observed
+    if not hmac.compare_digest(expected_fingerprint.strip(), fingerprint):
+        return None, "Host key fingerprint mismatch. Nothing was trusted."
+
+    port = ssh_cred.port or 22
+    host_entry = f"[{host}]:{port}" if port != 22 else host
+    path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        trusted = paramiko.HostKeys()
+        if os.path.exists(path):
+            trusted.load(path)  # Malformed host-key databases fail closed.
+        existing = trusted.lookup(host_entry)
+        if existing and key.get_name() in existing and existing[key.get_name()] != key:
+            return None, "A different host key is already trusted. Investigate before replacing it."
+        trusted.add(host_entry, key.get_name(), key)
+        trusted.save(path)
+        os.chmod(path, 0o600)
+    except Exception as exc:  # noqa: BLE001
+        return None, f"Could not persist verified host key: {exc}"
+    return {"fingerprint": fingerprint, "key_type": key.get_name(), "added": True}, None
+
+
+@router.get(
+    "/{server_id}/host-key",
+    response_model=schemas.HostKeyTrustResponse,
+    responses={404: {"description": "Server or SSH credential not found"}, 502: {"description": "SSH key probe failed"}},
+)
+async def probe_host_key(
+    server_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_write)],
+    ssh_credential_id: Annotated[int, Query()],
+):
+    """Show the untrusted fingerprint so an operator can verify it independently."""
+    server = db.query(models.Server).filter(models.Server.id == server_id).first()
+    ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
+    if not server or not ssh_cred:
+        raise HTTPException(status_code=404, detail="Server or SSH credential not found")
+    host = server.public_ip or server.private_ip
+    if not host:
+        raise HTTPException(status_code=400, detail="Server has no IP address configured")
+    observed, error = await asyncio.get_running_loop().run_in_executor(
+        None, _ssh_probe_host_key, host, ssh_cred
+    )
+    if error or not observed:
+        raise HTTPException(status_code=502, detail=error or "SSH host key unavailable")
+    key, fingerprint = observed
+    return schemas.HostKeyTrustResponse(
+        fingerprint=fingerprint, key_type=key.get_name(), added=False,
+        message="Verify this SHA256 fingerprint independently before trusting",
+    )
 
 
 @router.post(
@@ -610,7 +655,7 @@ def _ssh_trust_host_key(host: str, ssh_cred) -> tuple[dict | None, str | None]:
     response_model=schemas.HostKeyTrustResponse,
     responses={
         404: {"description": "Server or SSH credential not found"},
-        400: {"description": "Server has no IP address configured"},
+        400: {"description": "Server has no IP address or fingerprint mismatch"},
         502: {"description": "Failed to trust host key"},
     },
 )
@@ -619,31 +664,26 @@ async def trust_host_key(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[models.User, Depends(require_write)],
     ssh_credential_id: Annotated[int, Query()],
+    expected_fingerprint: Annotated[str, Query(min_length=50, max_length=100)],
 ):
-    """Retrieve and trust the SSH host key for a server by connecting via low-level Transport."""
+    """Re-probe and compare the independently verified SHA256 fingerprint before saving."""
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
-
     host = server.public_ip or server.private_ip
     if not host:
         raise HTTPException(status_code=400, detail="Server has no IP address configured")
-
-    ssh_cred = (
-        db.query(models.SSHCredential)
-        .filter(models.SSHCredential.id == ssh_credential_id)
-        .first()
-    )
+    ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
     if not ssh_cred:
         raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
-
-    def _do_trust():
-        return _ssh_trust_host_key(host, ssh_cred)
-
-    result, err = await asyncio.get_running_loop().run_in_executor(None, _do_trust)
-    if err or not result:
-        raise HTTPException(status_code=502, detail=err or "Failed to trust host key")
-
+    result, error = await asyncio.get_running_loop().run_in_executor(
+        None, _ssh_trust_host_key, host, ssh_cred, expected_fingerprint
+    )
+    if error or not result:
+        raise HTTPException(
+            status_code=400 if error and ("mismatch" in error or "already trusted" in error) else 502,
+            detail=error or "Failed to trust host key",
+        )
     return schemas.HostKeyTrustResponse(**result)
 
 
@@ -735,8 +775,7 @@ def _stream_setup_jump_client(ssh_cred) -> tuple:
     if getattr(ssh_cred, "proxy_host", None):
         _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
         _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
-        jump_client = paramiko.SSHClient()
-        jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        jump_client = _new_client_with_host_keys()
         jk: dict = {
             "hostname": ssh_cred.proxy_host,
             "port":     ssh_cred.proxy_port or 22,

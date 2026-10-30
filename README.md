@@ -9,7 +9,6 @@ Track servers, databases, Kubernetes clusters, block storage, and DNS records ac
 [![License](https://img.shields.io/github/license/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/stargazers)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/rushikeshsakharleofficial/server-inventory/codeql.yml?style=for-the-badge&label=CodeQL)](https://github.com/rushikeshsakharleofficial/server-inventory/actions/workflows/codeql.yml)
-[![SonarCloud](https://img.shields.io/github/actions/workflow/status/rushikeshsakharleofficial/server-inventory/sonar.yml?style=for-the-badge&label=SonarCloud)](https://github.com/rushikeshsakharleofficial/server-inventory/actions/workflows/sonar.yml)
 [![Issues](https://img.shields.io/github/issues/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/issues)
 
 </div>
@@ -126,11 +125,11 @@ Requires Docker Engine 24+ and Compose v2 (`docker compose`, not the standalone 
    cp backend/.env.example .env
    ```
    Edit `.env` and set at minimum `POSTGRES_PASSWORD`, `SECRET_KEY`, `CREDENTIAL_ENCRYPTION_KEY`, and `API_KEY_PEPPER` (see [Environment Variables](#environment-variables) for how to generate each).
-3. Build and start all three services (postgres, backend, frontend):
+3. Build and start all four services (PostgreSQL, backend, frontend, nginx proxy):
    ```bash
    docker compose up -d --build
    ```
-4. Confirm all three are healthy:
+4. Confirm the backend, frontend and database are healthy:
    ```bash
    docker compose ps
    ```
@@ -139,11 +138,26 @@ Requires Docker Engine 24+ and Compose v2 (`docker compose`, not the standalone 
 | URL | Purpose |
 |:----|:--------|
 | http://localhost:3001 | Frontend dashboard |
-| http://localhost:8001/docs | Backend API (Swagger UI) |
+| http://localhost:3001/docs | Backend API (Swagger UI, via nginx proxy) |
 
 > **Security:** Set a strong, unique `SECRET_KEY`, `CREDENTIAL_ENCRYPTION_KEY`, and `API_KEY_PEPPER` before any production or internet-facing deployment. The backend refuses to start in production with a weak or placeholder `SECRET_KEY`.
 
-To stop: `docker compose down` (add `-v` to also drop the Postgres volume — this deletes all data).
+The default nginx port is bound only to `127.0.0.1:3001`. To publish securely,
+place an existing HTTPS reverse proxy in front of this port. Set
+`ALLOWED_ORIGINS=https://inventory.example.com` to match your external URL
+and preserve the original `Host` and `Origin` headers. Do not publish the
+proxy over plain HTTP to the internet. Backend, frontend and PostgreSQL have
+**no host port mappings** in the production Compose file.
+
+ServerInventory's SSH clients now require a trusted SSH host key. In the
+server-detail SSH sync dialog, inspect the host's SHA256 fingerprint, verify
+it independently (e.g. using the server console), then explicitly approve it.
+Trusted keys persist across container rebuilds in the `ssh_known_hosts` volume.
+Before CIDR discovery, pre-enrol/verify hosts or they will fail closed. The
+container's `SSH_KNOWN_HOSTS` path is `/home/appuser/.ssh/known_hosts`.
+
+To stop: `docker compose down` (add `-v` to **delete both PostgreSQL data
+and all enrolled SSH trusted keys**).
 
 ### Docker — prebuilt images
 
@@ -158,24 +172,26 @@ Skips the local build; pulls `ghcr.io/rushikeshsakharleofficial/server-inventory
    ```bash
    cp backend/.env.example .env   # edit POSTGRES_PASSWORD, SECRET_KEY, CREDENTIAL_ENCRYPTION_KEY, API_KEY_PEPPER
    ```
-3. Create `docker-compose.override.yml` next to `docker-compose.yml` to swap both app services to the published images — **do not edit `docker-compose.yml` directly**, since `backend`'s `volumes: [./backend:/app]` bind-mount must not carry over: it overlays the image's own `/app` with your local checkout, which is only correct when building locally.
+3. Create `docker-compose.override.yml` next to `docker-compose.yml` to swap both app services to the published images, leaving the persistent SSH known-hosts volume intact:
    ```yaml
    services:
      backend:
        image: ghcr.io/rushikeshsakharleofficial/server-inventory-backend:latest
        build: !reset null
-       volumes: !reset []
      frontend:
        image: ghcr.io/rushikeshsakharleofficial/server-inventory-frontend:latest
        build: !reset null
    ```
-   (The published frontend image already has `VITE_API_URL` baked in as empty/host-derived, so no build `args:` are needed.)
+   (The frontend image uses the same-origin proxy, so no custom build `args:` are needed.)
 4. Pull and start:
    ```bash
    docker compose pull
    docker compose up -d
    ```
 5. Same as above: http://localhost:3001 redirects to `/setup` on first load.
+
+**Important:** Use images built from a commit that includes this Compose/proxy layout.
+Older prebuilt images may retain the previous hardcoded API port.
 
 ### Local (no Docker)
 
@@ -223,7 +239,9 @@ cp backend/.env.example .env
 | `API_KEY_PEPPER` | **Yes to use the Public API** | HMAC key for hashing public API tokens — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`; without it, creating/rotating an API key fails |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | No | Optional non-interactive admin seed — the normal path is the `/setup` wizard above |
 | `ALLOWED_ORIGINS` | No | Comma-separated CORS origins for the frontend |
-| `VITE_API_URL` | No | Leave empty in most deployments — the frontend derives the backend host/port from the page it's served from |
+| `VITE_API_URL` | No | Leave empty behind the Docker nginx proxy — browser calls same-origin API paths |
+| `WEB_BIND_IP` / `WEB_PORT` | No | Default `127.0.0.1:3001` — use an external HTTPS terminator |
+| `INTERNAL_API_URL` | Docker-provided | Private SSR-to-backend URL; no external port required |
 
 > `SECRET_KEY` and `CREDENTIAL_ENCRYPTION_KEY` cannot be set from within the app itself — both are read once at process startup, before any HTTP route (including `/setup`) can be served.
 
@@ -338,7 +356,7 @@ pytest
 
 ```mermaid
 graph LR
-    Browser[React Frontend] -- REST + JWT --> API[FastAPI Backend]
+    Browser[React Frontend] -- same-origin nginx REST + JWT --> API[FastAPI Backend]
     Browser <-- WebSocket sync events --> API
     API --> Scheduler[APScheduler]
     API --> DB[(PostgreSQL 16)]
@@ -421,3 +439,22 @@ MIT — free to use, modify, distribute, and build on, including for commercial 
 [![Star History Chart](https://api.star-history.com/svg?repos=rushikeshsakharleofficial/server-inventory&type=Date)](https://star-history.com/#rushikeshsakharleofficial/server-inventory&Date)
 
 </div>
+
+### Hardened Docker deployment notes
+
+The production Compose stack exposes **only** a loopback-bound nginx listener on
+`127.0.0.1:3001`; backend, frontend and PostgreSQL remain on internal Docker
+networks. Terminate HTTPS at a trusted external reverse proxy and set
+`ALLOWED_ORIGINS` to the public HTTPS origin. Do not expose HTTP directly to
+the internet.
+
+Use `docker compose config`, `docker compose up -d --build --wait`, then
+`curl -fsS http://127.0.0.1:3001/health` for local verification. Keep
+`POSTGRES_PASSWORD` URL-safe (it is embedded into a PostgreSQL connection
+URL), at least 16 characters. `SECRET_KEY` and `API_KEY_PEPPER` must each
+contain 32 or more characters. Configure real values, not example placeholders.
+
+SSH host keys are stored persistently in the `ssh_known_hosts` volume. For
+jump/proxy SSH connections, verify and enrol the jump host key first. Host-key
+trust is explicitly approved using an independently verified SHA256
+fingerprint; unidentified hosts are rejected during automated discovery.

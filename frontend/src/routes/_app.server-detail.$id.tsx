@@ -103,11 +103,24 @@ function SshSyncDialog({ serverId, lastCredentialId, onClose, onDone }: Readonly
   const [error, setError] = useState<string | null>(null);
   const [hostKeyErr, setHostKeyErr] = useState(false);
   const [trusted, setTrusted] = useState(false);
+  const [candidateKey, setCandidateKey] = useState<{ fingerprint: string; key_type: string } | null>(null);
+  const [verifiedFingerprint, setVerifiedFingerprint] = useState("");
 
   const effectiveCredId = credId || defaultCred;
 
+  const inspectKey = useMutation({
+    mutationFn: () => api<{ fingerprint: string; key_type: string }>(
+      `/api/servers/${serverId}/host-key?ssh_credential_id=${effectiveCredId}`
+    ),
+    onSuccess: (key) => { setCandidateKey(key); setVerifiedFingerprint(""); },
+    onError: (e: Error) => setError(e.message),
+  });
+
   const trustKey = useMutation({
-    mutationFn: () => api(`/api/servers/${serverId}/trust-host-key?ssh_credential_id=${effectiveCredId}`, { method: "POST" }),
+    mutationFn: () => api(
+      `/api/servers/${serverId}/trust-host-key?ssh_credential_id=${effectiveCredId}&expected_fingerprint=${encodeURIComponent(verifiedFingerprint.trim())}`,
+      { method: "POST" },
+    ),
     onSuccess: () => { setTrusted(true); setHostKeyErr(false); setError(null); sync.mutate(); },
     onError: (e: Error) => setError(e.message),
   });
@@ -170,14 +183,29 @@ function SshSyncDialog({ serverId, lastCredentialId, onClose, onDone }: Readonly
           <div className={`text-xs rounded p-2 space-y-2 ${hostKeyErr ? "text-amber-700 bg-amber-50 border border-amber-200" : "text-red-600 bg-red-50 border border-red-200"}`}>
             <p>{error}</p>
             {hostKeyErr && (
-              <button
-                onClick={() => trustKey.mutate()}
-                disabled={trustKey.isPending}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50"
-              >
-                <ShieldCheck className="size-3" />
-                {trustKey.isPending ? "Trusting…" : "Trust & Sync"}
-              </button>
+              <>
+                {candidateKey && (
+                  <div className="space-y-2">
+                    <p>Untrusted {candidateKey.key_type} fingerprint:</p>
+                    <code className="block break-all select-all">{candidateKey.fingerprint}</code>
+                    <p>Compare against the host's SSH key fingerprint using a trusted console or administrator. Do not treat the displayed key as verified.</p>
+                    <label htmlFor="verified-host-fingerprint" className="block">Independently verified SHA256 fingerprint:</label>
+                    <input id="verified-host-fingerprint" type="text" autoComplete="off"
+                      value={verifiedFingerprint} onChange={(e) => setVerifiedFingerprint(e.target.value)}
+                      placeholder="SHA256:..." className="w-full rounded border border-border bg-background text-foreground p-1.5 text-xs" />
+                  </div>
+                )}
+                <button
+                  onClick={() => candidateKey ? trustKey.mutate() : inspectKey.mutate()}
+                  disabled={!effectiveCredId || inspectKey.isPending || trustKey.isPending ||
+                    (candidateKey !== null && verifiedFingerprint.trim() !== candidateKey.fingerprint)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50"
+                >
+                  <ShieldCheck className="size-3" />
+                  {inspectKey.isPending ? "Inspecting…" : trustKey.isPending ? "Saving…" :
+                    candidateKey ? "Confirm verified key & sync" : "Inspect host key"}
+                </button>
+              </>
             )}
           </div>
         )}

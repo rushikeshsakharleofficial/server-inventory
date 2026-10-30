@@ -12,14 +12,11 @@ function resolveApiBase(): string {
     while (end > 0 && configured[end - 1] === "/") end--;
     return configured.slice(0, end);
   }
-  if (globalThis.window !== undefined) {
-    // ponytail: HTTPS pages need the API's own TLS-terminated port (8444),
-    // not the plain-HTTP backend port (8001) — calling the latter from an
-    // HTTPS origin fails as mixed content / connection-refused.
-    const port = globalThis.location.protocol === "https:" ? 8444 : 8001;
-    return `${globalThis.location.protocol}//${globalThis.location.hostname}:${port}`;
-  }
-  return "http://localhost:8001";
+  // Docker proxy forwards /api, /public/v1 and /ws on the SAME origin.
+  // No browser mixed-content or hardcoded API port. SSR calls the backend
+  // over Docker's private app network instead.
+  if (globalThis.window !== undefined) return globalThis.location.origin;
+  return process.env.INTERNAL_API_URL || "http://localhost:8000";
 }
 
 export const API_BASE = resolveApiBase();
