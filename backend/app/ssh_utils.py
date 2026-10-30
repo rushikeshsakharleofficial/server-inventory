@@ -42,11 +42,10 @@ def _new_client_with_host_keys():
     import paramiko
     client = paramiko.SSHClient()
     known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
+    client.load_system_host_keys()
     if os.path.exists(known_hosts_path):
         client.load_host_keys(known_hosts_path)
-    else:
-        client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     return client
 
 
@@ -169,13 +168,7 @@ def fetch_ips_via_transport(
     """
     import paramiko
 
-    client = paramiko.SSHClient()
-    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
-    if os.path.exists(known_hosts_path):
-        client.load_host_keys(known_hosts_path)
-    else:
-        client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = _new_client_with_host_keys()
     try:
         sock = jump_transport.open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
         client.connect(

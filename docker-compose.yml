@@ -1,3 +1,5 @@
+# Production-ready multi-container stack. An HTTPS reverse proxy should terminate TLS
+# before this loopback-only entry point. See README for deployment instructions.
 services:
   postgres:
     image: postgres:16-alpine
@@ -5,51 +7,101 @@ services:
     environment:
       POSTGRES_DB: server_inventory
       POSTGRES_USER: inventory
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # Do NOT expose 5432 externally — backend reaches postgres via Docker bridge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - pg_data:/var/lib/postgresql/data
+    networks:
+      - data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inventory -d server_inventory"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
 
   backend:
     build: ./backend
-    ports:
-      - "8001:8000"
-    volumes:
-      - ./backend:/app
+    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://inventory:${POSTGRES_PASSWORD}@postgres:5432/server_inventory
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - SECRET_KEY=${SECRET_KEY}
-      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
-      - API_KEY_PEPPER=${API_KEY_PEPPER}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3001,http://localhost:5173,http://localhost:3000,http://127.0.0.1:3001}
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      DATABASE_URL: postgresql://inventory:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/server_inventory
+      ENVIRONMENT: production
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in .env}
+      API_KEY_PEPPER: ${API_KEY_PEPPER:?Set API_KEY_PEPPER in .env}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3001,http://127.0.0.1:3001}
+      SSH_KNOWN_HOSTS: /home/appuser/.ssh/known_hosts
+    volumes:
+      - ssh_known_hosts:/home/appuser/.ssh
+    expose:
+      - "8000"
+    networks:
+      - app
+      - data
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
 
   frontend:
     build:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-}
-    ports:
-      - "3001:3000"
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_URL: http://backend:8000
+    expose:
+      - "3000"
+    networks:
+      - app
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+
+  proxy:
+    image: nginx:stable-alpine
     restart: unless-stopped
+    ports:
+      - "${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-3001}:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - app
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  app:
+  data:
+    internal: true
 
 volumes:
   pg_data:
+  ssh_known_hosts:

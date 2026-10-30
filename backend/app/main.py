@@ -32,6 +32,9 @@ from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
 from .database import DATABASE_URL
 
+from .config import validate_production_config
+
+validate_production_config()
 Base.metadata.create_all(bind=engine)
 
 
