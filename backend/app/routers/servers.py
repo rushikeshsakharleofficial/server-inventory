@@ -13,7 +13,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
-from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey
+from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, new_ssh_client
 from ..ws_manager import manager as ws_manager
 from ..event_log_utils import add_event_log
 from .query_utils import escape_like
@@ -376,8 +376,7 @@ def _ssh_open_jump_channel(host: str, port: int, ssh_cred):
     proxy_key = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
     proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
 
-    jump_client = paramiko.SSHClient()
-    jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    jump_client = new_ssh_client()
     jump_kwargs: dict = {
         "hostname": ssh_cred.proxy_host,
         "port": ssh_cred.proxy_port or 22,
@@ -469,15 +468,9 @@ def _ssh_sync_gather_facts(host: str, ssh_cred) -> tuple[dict | None, str | None
     the DB session directly."""
     import paramiko
 
-    client = paramiko.SSHClient()
+    client = new_ssh_client()
     jump_client = None
     try:
-        known_hosts = os.getenv("SSH_KNOWN_HOSTS")
-        if known_hosts:
-            client.load_host_keys(os.path.expanduser(known_hosts))
-        else:
-            client.load_system_host_keys()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         connect_kwargs = _ssh_build_connect_kwargs(host, ssh_cred)
         if isinstance(connect_kwargs, str):
@@ -735,8 +728,7 @@ def _stream_setup_jump_client(ssh_cred) -> tuple:
     if getattr(ssh_cred, "proxy_host", None):
         _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
         _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
-        jump_client = paramiko.SSHClient()
-        jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        jump_client = new_ssh_client()
         jk: dict = {
             "hostname": ssh_cred.proxy_host,
             "port":     ssh_cred.proxy_port or 22,

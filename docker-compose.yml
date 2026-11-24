@@ -2,6 +2,18 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # Sized for a ~16GB single box shared with the app; durability settings (fsync, synchronous_commit) left on.
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=4GB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
+      -c random_page_cost=1.1
+      -c wal_compression=on
+      -c max_wal_size=2GB
+      -c checkpoint_completion_target=0.9
+      -c default_statistics_target=200
     environment:
       POSTGRES_DB: server_inventory
       POSTGRES_USER: inventory
@@ -26,6 +38,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
       - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
       - API_KEY_PEPPER=${API_KEY_PEPPER}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3001,http://localhost:5173,http://localhost:3000,http://127.0.0.1:3001}

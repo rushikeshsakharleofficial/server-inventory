@@ -38,16 +38,31 @@ def _load_pkey(key_str: str):
     raise ValueError("Unsupported SSH private key type")
 
 
-def _new_client_with_host_keys():
+_KNOWN_HOSTS_PATH = os.path.join(os.path.dirname(__file__), "..", ".ssh_known_hosts")
+
+
+def new_ssh_client():
+    """SSH client that trusts a host key on first sight, saves it, and rejects any later change.
+    shortcut: trust-on-first-use, no UI to approve a key up front; upgrade if you need pre-approval."""
     import paramiko
+    path = os.path.abspath(os.getenv("SSH_KNOWN_HOSTS") or _KNOWN_HOSTS_PATH)
+
+    class _Tofu(paramiko.AutoAddPolicy):
+        def missing_host_key(self, client, hostname, key):
+            super().missing_host_key(client, hostname, key)
+            try:
+                client.save_host_keys(path)
+            except OSError:
+                pass  # unwritable: still protected within this connection
+
     client = paramiko.SSHClient()
-    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
-    if os.path.exists(known_hosts_path):
-        client.load_host_keys(known_hosts_path)
-    else:
-        client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    if os.path.exists(path):
+        client.load_host_keys(path)
+    client.set_missing_host_key_policy(_Tofu())
     return client
+
+
+_new_client_with_host_keys = new_ssh_client
 
 
 def _build_target_connect_kwargs(host: str, ssh_cred: "models.SSHCredential", timeout: int, private_key: str | None, password: str | None) -> dict[str, Any]:
@@ -169,13 +184,7 @@ def fetch_ips_via_transport(
     """
     import paramiko
 
-    client = paramiko.SSHClient()
-    known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser(_DEFAULT_KNOWN_HOSTS)
-    if os.path.exists(known_hosts_path):
-        client.load_host_keys(known_hosts_path)
-    else:
-        client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = new_ssh_client()
     try:
         sock = jump_transport.open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
         client.connect(

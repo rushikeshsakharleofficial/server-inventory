@@ -60,3 +60,4 @@ frontend/vitest.config.ts
 frontend/**/*.test.ts
 frontend/**/*.test.tsx
 
+.ssh_known_hosts

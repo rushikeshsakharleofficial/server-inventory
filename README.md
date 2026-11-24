@@ -76,7 +76,7 @@ Per-server network topology viewer showing connected cloud resources (VPCs, secu
 ### IAM / Access Control
 
 - Per-user and per-group permissions across every feature area, with a live-computed super-admin bypass
-- JWT auth with 90-day remember-me tokens, TOTP-based MFA
+- JWT auth with 14-day remember-me tokens, TOTP-based MFA
 - First-run `/setup` wizard creates the initial administrator — no hardcoded default credentials
 
 ### Operational Tooling

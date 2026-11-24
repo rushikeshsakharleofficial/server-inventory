@@ -73,7 +73,7 @@ def validate_password(password: str, *, min_length: int = _MIN_PASSWORD_LEN) -> 
             detail="Password is too common — choose a unique password",
         )
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8          # 8 hours (default)
-ACCESS_TOKEN_EXPIRE_REMEMBER = 60 * 24 * 90  # 90 days (remember me)
+ACCESS_TOKEN_EXPIRE_REMEMBER = 60 * 24 * 14  # 14 days (remember me)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")

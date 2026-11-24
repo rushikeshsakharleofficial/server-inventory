@@ -52,15 +52,12 @@ def encrypt_str(value: str) -> str:
 
 
 def decrypt_str(value: str) -> str:
-    """Decrypt a Fernet-encrypted string. Returns raw value on failure and logs a warning."""
+    """Decrypt a Fernet-encrypted string. Raises InvalidToken on a wrong key or tampered data."""
     try:
         return _fernet.decrypt(value.encode()).decode()
     except InvalidToken:
         _log.error("decrypt_str: InvalidToken — possible key mismatch or tampered ciphertext")
-        return value
-    except Exception:
-        _log.exception("decrypt_str: unexpected decryption error")
-        return value
+        raise
 
 
 def encrypt_config(cfg: dict) -> dict:

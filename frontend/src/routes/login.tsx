@@ -35,7 +35,8 @@ function LoginPage() {
           return;
         }
       } catch {
-        // Fall through to normal login if setup status cannot be determined.
+        // Show the form but say why: a failed check can hide a fresh install's setup page.
+        if (active) setError(`Cannot reach the API at ${API_BASE}. Check the port is open and this address is in ALLOWED_ORIGINS.`);
       } finally {
         if (active) setCheckingSetup(false);
       }
@@ -275,7 +276,7 @@ function LoginPage() {
 
                 {/* Remember me */}
                 <div>
-                  <label htmlFor="login-remember" aria-label="Remember me for 90 days" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                  <label htmlFor="login-remember" aria-label="Remember me for 14 days" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
                     <input
                       id="login-remember"
                       type="checkbox"
@@ -284,7 +285,7 @@ function LoginPage() {
                       style={{ width: 15, height: 15, accentColor: "#3b82f6", borderRadius: 4, cursor: "pointer", flexShrink: 0 }}
                     />
                     <div>
-                      <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>Remember me for 90 days</span>
+                      <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>Remember me for 14 days</span>
                       <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 1 }}>Only use this on trusted devices.</div>
                     </div>
                   </label>

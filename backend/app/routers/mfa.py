@@ -1,9 +1,10 @@
 import pyotp
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..limiter import limiter
 from ..auth import get_current_user, create_access_token, verify_mfa_challenge_token
 from ..crypto import encrypt_str, decrypt_str
 
@@ -95,7 +96,9 @@ def mfa_disable(
         401: {"description": "User not found or inactive"},
     },
 )
+@limiter.limit("5/minute")
 def mfa_verify(
+    request: Request,
     payload: schemas.MfaVerifyRequest,
     db: Annotated[Session, Depends(get_db)],
 ) -> schemas.LoginResponse:

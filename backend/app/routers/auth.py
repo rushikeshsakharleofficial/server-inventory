@@ -2,6 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Form, Request
 from ..limiter import limiter
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
@@ -37,6 +38,8 @@ def bootstrap_admin(
     payload: schemas.InitialSetupRequest,
     db: Annotated[Session, Depends(get_db)],
 ) -> schemas.LoginResponse:
+    # Serialise concurrent setups: the lock is held until commit/rollback.
+    db.execute(text("SELECT pg_advisory_xact_lock(7001)"))
     if _admin_exists(db):
         raise HTTPException(status_code=409, detail="Initial setup is already complete")
 
@@ -75,7 +78,7 @@ def bootstrap_admin(
     "/api/auth/login",
     responses={401: {"description": "Invalid username or password"}},
 )
-@limiter.limit("100/minute")
+@limiter.limit("10/minute")
 def login(
     request: Request,
     form: Annotated[OAuth2PasswordRequestForm, Depends()],

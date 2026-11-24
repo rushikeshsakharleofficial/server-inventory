@@ -3,7 +3,7 @@ import json
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
 from sqlalchemy import text
@@ -216,7 +216,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
 
@@ -498,18 +497,17 @@ async def _ws_message_loop(ws: WebSocket) -> None:
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket, token: str | None = Query(None)) -> None:
+async def websocket_endpoint(ws: WebSocket) -> None:
     origin = ws.headers.get("origin", "")
     if origin and origin not in _cors_origins:
         await ws.close(code=4003)
         return
     await ws.accept()
 
-    if not token:
-        token = await _ws_receive_token_from_first_message(ws)
-        if token is None:
-            await ws.close(code=4001)
-            return
+    token = await _ws_receive_token_from_first_message(ws)
+    if token is None:
+        await ws.close(code=4001)
+        return
 
     username, token_exp = _ws_decode_token(token)
     if not username:
