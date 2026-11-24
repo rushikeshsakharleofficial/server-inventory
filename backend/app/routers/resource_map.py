@@ -1839,6 +1839,29 @@ def _append_ip_nodes(server: models.Server, result: dict) -> dict:
     return {**result, "nodes": nodes, "edges": edges}
 
 
+def _append_attached_volumes(db: Session, server: models.Server, result: dict) -> dict:
+    """Add a disk node per block-storage volume whose attachment is this server (by cloud id or name)."""
+    root_id = _ipnodes_find_root_id(result.get("nodes", []))
+    keys = [k for k in (server.cloud_id, server.name) if k]
+    if root_id is None or not keys:
+        return result
+    vols = db.query(models.BlockStorage).filter(
+        models.BlockStorage.provider == server.provider,
+        models.BlockStorage.attachment.in_(keys),
+    ).all()
+    nodes, edges = list(result["nodes"]), list(result["edges"])
+    seen = {n.get("label") for n in nodes}
+    for v in vols:
+        if v.name in seen:
+            continue
+        nid = f"volume-{v.id}"
+        nodes.append(_node(nid, "disk", "storage", v.name, {
+            "size_gb": v.size_gb, "status": v.status, "volume_type": v.volume_type, "region": v.region,
+        }))
+        edges.append(_edge(root_id, nid, "volume"))
+    return {**result, "nodes": nodes, "edges": edges}
+
+
 def _build_map(resource_type: str, resource, provider: str, config: dict) -> dict:
     dispatch = {
         ("aws", "server"):     _aws_server_map,
@@ -1888,6 +1911,7 @@ def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)],
     cred = _get_cred_for_provider(db, server.provider)
     config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("server", server, server.provider, config)
+    result = _append_attached_volumes(db, server, result)
     payload = {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
     _cache_set(key, payload)
     return payload

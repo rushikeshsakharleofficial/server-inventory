@@ -430,11 +430,39 @@ class BlockStorageResponse(BaseModel):
     size_gb: float | None = None
     status: str
     attachment: str | None = None
+    attached_server_id: int | None = None
+    attached_server_name: str | None = None
     volume_type: str | None = None
     tags: dict[str, Any] = Field(default_factory=dict)
     extra: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime | None = None
     last_synced: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ObjectStorageUser(BaseModel):
+    username: str = Field(min_length=1, max_length=128)
+    access: Literal["read", "write", "admin"] = "read"
+    quota_gb: float | None = Field(default=None, ge=0)
+    used_gb: float | None = Field(default=None, ge=0)
+
+    model_config = {"from_attributes": True}
+
+
+class ObjectStorageResponse(BaseModel):
+    id: int
+    cloud_id: str | None = None
+    name: str
+    provider: str
+    region: str | None = None
+    status: str
+    endpoint: str | None = None
+    tags: dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+    last_synced: datetime | None = None
+    user_count: int = 0
 
     model_config = {"from_attributes": True}
 

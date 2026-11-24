@@ -322,8 +322,30 @@ export interface BlockStorage {
   status: string;
   size_gb?: number | null;
   attachment?: string | null;
+  attached_server_id?: number | null;
+  attached_server_name?: string | null;
   volume_type?: string | null;
   last_synced?: string | null;
+}
+
+export interface ObjectStorage {
+  id: number;
+  cloud_id?: string | null;
+  name: string;
+  provider: string;
+  region?: string | null;
+  status: string;
+  endpoint?: string | null;
+  extra?: Record<string, unknown>;
+  last_synced?: string | null;
+  user_count?: number;
+}
+
+export interface ObjectStorageUser {
+  username: string;
+  access: "read" | "write" | "admin";
+  quota_gb?: number | null;
+  used_gb?: number | null;
 }
 
 export interface DnsRecord {

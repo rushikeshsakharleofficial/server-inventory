@@ -35,7 +35,22 @@ def list_block_storages(
         q = q.filter(models.BlockStorage.name.ilike(f"%{escape_like(search)}%", escape="\\"))
     total = q.count()
     items = q.order_by(models.BlockStorage.name).offset(offset).limit(limit).all()
-    return schemas.Page(total=total, limit=limit, offset=offset, items=items)
+    atts = {i.attachment for i in items if i.attachment}
+    servers = db.query(models.Server).filter(
+        (models.Server.cloud_id.in_(atts)) | (models.Server.name.in_(atts))
+    ).all() if atts else []
+    by_att = {}
+    for sv in servers:
+        by_att.setdefault((sv.provider, sv.cloud_id), sv)
+        by_att.setdefault((sv.provider, sv.name), sv)
+    out = []
+    for i in items:
+        r = schemas.BlockStorageResponse.model_validate(i)
+        sv = by_att.get((i.provider, i.attachment))
+        if sv:
+            r.attached_server_id, r.attached_server_name = sv.id, sv.name
+        out.append(r)
+    return schemas.Page(total=total, limit=limit, offset=offset, items=out)
 
 
 @router.post("/sync")

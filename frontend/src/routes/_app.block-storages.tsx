@@ -79,7 +79,7 @@ function BlockStoragePage() {
       key: "attachment",
       header: "Attached",
       className: "font-mono text-xs text-muted-foreground",
-      render: (v) => v.attachment ?? "—",
+      render: (v) => v.attached_server_name ?? v.attachment ?? "Unattached",
     },
     {
       key: "status",
