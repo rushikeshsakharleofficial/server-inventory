@@ -551,6 +551,19 @@ function ServerDetailPage() {
         ]} />
       </Section>
 
+      {Array.isArray(extra.nics) && extra.nics.length > 0 && (
+        <Section title="Network Interfaces">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-muted-foreground"><th>MAC</th><th>IPs</th><th>Subnet</th><th>Type</th></tr></thead>
+            <tbody>
+              {(extra.nics as { mac?: string; ips?: string[]; subnet?: string; type?: string }[]).map((n, i) => (
+                <tr key={n.mac ?? i}><td>{n.mac ?? "—"}</td><td>{n.ips?.join(", ") || "—"}</td><td>{n.subnet ?? "—"}</td><td>{n.type ?? "—"}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
+
       {/* Timestamps */}
       <Section title="Timestamps">
         <FieldGrid entries={[

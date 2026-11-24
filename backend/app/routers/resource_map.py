@@ -1862,6 +1862,24 @@ def _append_attached_volumes(db: Session, server: models.Server, result: dict) -
     return {**result, "nodes": nodes, "edges": edges}
 
 
+def _append_extra_nics(server: models.Server, result: dict) -> dict:
+    """Add a NIC node per entry in server.extra['nics'] (providers whose map has no NIC detail, e.g. Nutanix)."""
+    nics = (server.extra or {}).get("nics") or []
+    root_id = _ipnodes_find_root_id(result.get("nodes", []))
+    if root_id is None or not nics or any(n.get("type") == "network_interface" for n in result["nodes"]):
+        return result
+    nodes, edges = list(result["nodes"]), list(result["edges"])
+    for i, nic in enumerate(nics):
+        nid = f"nic-{server.id}-{i}"
+        label = f"NIC {nic.get('mac') or i}"
+        nodes.append(_node(nid, "network_interface", "network", label, {
+            "mac": nic.get("mac"), "ips": ", ".join(nic.get("ips") or []), "subnet": nic.get("subnet"),
+            "type": nic.get("type"), "connected": nic.get("connected"),
+        }))
+        edges.append(_edge(root_id, nid, "has NIC"))
+    return {**result, "nodes": nodes, "edges": edges}
+
+
 def _build_map(resource_type: str, resource, provider: str, config: dict) -> dict:
     dispatch = {
         ("aws", "server"):     _aws_server_map,
@@ -1912,6 +1930,7 @@ def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)],
     config = decrypt_config(cred.config or {}) if cred else {}
     result = _build_map("server", server, server.provider, config)
     result = _append_attached_volumes(db, server, result)
+    result = _append_extra_nics(server, result)
     payload = {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
     _cache_set(key, payload)
     return payload

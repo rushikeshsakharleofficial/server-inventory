@@ -180,6 +180,16 @@ class NutanixProvider(CloudProvider):
                     "cluster_uuid": (status.get("cluster_reference") or {}).get("uuid"),
                     "host": (res.get("host_reference") or {}).get("name"),
                     "all_ips": ips,
+                    "nics": [
+                        {
+                            "mac": nic.get("mac_address"),
+                            "ips": [ep["ip"] for ep in nic.get("ip_endpoint_list") or [] if ep.get("ip")],
+                            "subnet": (nic.get("subnet_reference") or {}).get("name"),
+                            "type": nic.get("nic_type"),
+                            "connected": nic.get("is_connected"),
+                        }
+                        for nic in res.get("nic_list") or []
+                    ],
                 },
             })
 
