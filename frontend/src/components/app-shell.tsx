@@ -5,6 +5,7 @@ import {
   Database,
   Boxes,
   HardDrive,
+  Archive,
   Network,
   RefreshCw,
   Clock,
@@ -51,6 +52,7 @@ const NAV: Array<{
       { to: "/kubernetes", label: "Kubernetes", icon: Boxes },
       { to: "/databases", label: "Databases", icon: Database },
       { to: "/block-storages", label: "Block Storage", icon: HardDrive },
+      { to: "/object-storages", label: "Object Storage", icon: Archive },
     ],
   },
   {

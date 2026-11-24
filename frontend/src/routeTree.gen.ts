@@ -24,6 +24,7 @@ import { Route as AppServerGroupsRouteImport } from './routes/_app.server-groups
 import { Route as AppResourceMapRouteImport } from './routes/_app.resource-map'
 import { Route as AppProviderCredentialsRouteImport } from './routes/_app.provider-credentials'
 import { Route as AppPoliciesRouteImport } from './routes/_app.policies'
+import { Route as AppObjectStoragesRouteImport } from './routes/_app.object-storages'
 import { Route as AppKubernetesRouteImport } from './routes/_app.kubernetes'
 import { Route as AppIpsRouteImport } from './routes/_app.ips'
 import { Route as AppEventLogsRouteImport } from './routes/_app.event-logs'
@@ -113,6 +114,11 @@ const AppPoliciesRoute = AppPoliciesRouteImport.update({
   path: '/policies',
   getParentRoute: () => AppRoute,
 } as any)
+const AppObjectStoragesRoute = AppObjectStoragesRouteImport.update({
+  id: '/object-storages',
+  path: '/object-storages',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppKubernetesRoute = AppKubernetesRouteImport.update({
   id: '/kubernetes',
   path: '/kubernetes',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/event-logs': typeof AppEventLogsRoute
   '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
+  '/object-storages': typeof AppObjectStoragesRoute
   '/policies': typeof AppPoliciesRoute
   '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
@@ -230,6 +237,7 @@ export interface FileRoutesByTo {
   '/event-logs': typeof AppEventLogsRoute
   '/ips': typeof AppIpsRoute
   '/kubernetes': typeof AppKubernetesRoute
+  '/object-storages': typeof AppObjectStoragesRoute
   '/policies': typeof AppPoliciesRoute
   '/provider-credentials': typeof AppProviderCredentialsRoute
   '/resource-map': typeof AppResourceMapRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/_app/event-logs': typeof AppEventLogsRoute
   '/_app/ips': typeof AppIpsRoute
   '/_app/kubernetes': typeof AppKubernetesRoute
+  '/_app/object-storages': typeof AppObjectStoragesRoute
   '/_app/policies': typeof AppPoliciesRoute
   '/_app/provider-credentials': typeof AppProviderCredentialsRoute
   '/_app/resource-map': typeof AppResourceMapRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/event-logs'
     | '/ips'
     | '/kubernetes'
+    | '/object-storages'
     | '/policies'
     | '/provider-credentials'
     | '/resource-map'
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/event-logs'
     | '/ips'
     | '/kubernetes'
+    | '/object-storages'
     | '/policies'
     | '/provider-credentials'
     | '/resource-map'
@@ -355,6 +366,7 @@ export interface FileRouteTypes {
     | '/_app/event-logs'
     | '/_app/ips'
     | '/_app/kubernetes'
+    | '/_app/object-storages'
     | '/_app/policies'
     | '/_app/provider-credentials'
     | '/_app/resource-map'
@@ -484,6 +496,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPoliciesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/object-storages': {
+      id: '/_app/object-storages'
+      path: '/object-storages'
+      fullPath: '/object-storages'
+      preLoaderRoute: typeof AppObjectStoragesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/kubernetes': {
       id: '/_app/kubernetes'
       path: '/kubernetes'
@@ -598,6 +617,7 @@ interface AppRouteChildren {
   AppEventLogsRoute: typeof AppEventLogsRoute
   AppIpsRoute: typeof AppIpsRoute
   AppKubernetesRoute: typeof AppKubernetesRoute
+  AppObjectStoragesRoute: typeof AppObjectStoragesRoute
   AppPoliciesRoute: typeof AppPoliciesRoute
   AppProviderCredentialsRoute: typeof AppProviderCredentialsRoute
   AppResourceMapRoute: typeof AppResourceMapRoute
@@ -626,6 +646,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEventLogsRoute: AppEventLogsRoute,
   AppIpsRoute: AppIpsRoute,
   AppKubernetesRoute: AppKubernetesRoute,
+  AppObjectStoragesRoute: AppObjectStoragesRoute,
   AppPoliciesRoute: AppPoliciesRoute,
   AppProviderCredentialsRoute: AppProviderCredentialsRoute,
   AppResourceMapRoute: AppResourceMapRoute,

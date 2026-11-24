@@ -120,7 +120,7 @@ function AddServerDialog({ onClose }: Readonly<{ onClose: () => void }>) {
             <CustomSelect
               value={form.provider}
               onChange={(v) => setForm(f => ({ ...f, provider: v }))}
-              options={["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity","contabo"].map(p => ({ value: p }))}
+              options={["custom","aws","gcp","azure","digitalocean","linode","ovh","hivelocity","contabo","nutanix"].map(p => ({ value: p }))}
             />
           </div>
           <div>
@@ -389,8 +389,9 @@ function ServersPage() {
       ),
     },
     { key: "provider", header: "Provider", render: (s) => <ProviderBadge provider={s.provider} /> },
-    { key: "region", header: "Region", className: "text-xs text-muted-foreground font-mono", render: (s) => s.region ?? "—" },
+    { key: "region", header: "Region / Cluster", className: "text-xs text-muted-foreground font-mono", render: (s) => s.region ?? "—" },
     { key: "public_ip", header: "Public IP", className: "font-mono text-xs text-muted-foreground", render: (s) => s.public_ip ?? "—" },
+    { key: "private_ip", header: "Private IP", className: "font-mono text-xs text-muted-foreground", render: (s) => s.private_ip ?? "—" },
     {
       key: "type",
       header: "Type",

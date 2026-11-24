@@ -228,6 +228,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   hivelocity: "text-amber-600",
   cloudflare: "text-orange-500",
   contabo: "text-purple-600",
+  nutanix: "text-blue-700",
 };
 
 export const PROVIDER_LOGOS: Record<string, string> = {
@@ -240,6 +241,7 @@ export const PROVIDER_LOGOS: Record<string, string> = {
   hivelocity: "/providers/hivelocity.png",
   cloudflare: "/providers/cloudflare.svg",
   contabo: "/providers/contabo.svg",
+  nutanix: "/providers/nutanix.svg",
 };
 
 export function ProviderBadge({ provider }: Readonly<{ provider: string }>) {

@@ -53,10 +53,16 @@ const PROVIDERS = [
     name: "Contabo",
     fields: ["client_id", "client_secret", "username", "password"],
   },
+  {
+    id: "nutanix",
+    name: "Nutanix",
+    fields: ["prism_url", "username", "password", "verify_ssl"],
+  },
 ];
 
 const FIELD_OPTIONS: Record<string, string[]> = {
   endpoint: ["ovh-eu", "ovh-us", "ovh-ca"],
+  verify_ssl: ["true", "false"],
   region: ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"],
 };
 

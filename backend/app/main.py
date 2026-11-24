@@ -18,6 +18,7 @@ from .routers.databases import router as databases_router
 from .routers.kubernetes_clusters import router as kubernetes_router
 from .routers.resource_map import router as resource_map_router
 from .routers.block_storages import router as block_storages_router
+from .routers.object_storages import router as object_storages_router
 from .routers.domains import router as domains_router
 from .routers.mfa import router as mfa_router
 from .routers.iam import router as iam_router
@@ -246,6 +247,7 @@ app.include_router(databases_router)
 app.include_router(kubernetes_router)
 app.include_router(resource_map_router)
 app.include_router(block_storages_router)
+app.include_router(object_storages_router)
 app.include_router(domains_router)
 app.include_router(mfa_router)
 app.include_router(iam_router)

@@ -31,6 +31,10 @@ class CloudProvider(ABC):
         """Fetch block storage volumes. Returns empty list if unsupported."""
         return []
 
+    def fetch_object_storages(self) -> list[dict[str, Any]]:
+        """Fetch object stores (S3-style). Returns empty list if unsupported."""
+        return []
+
     def fetch_domains(self) -> list[dict[str, Any]]:
         """Fetch DNS records. Returns empty list if unsupported."""
         return []

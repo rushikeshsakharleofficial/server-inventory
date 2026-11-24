@@ -376,6 +376,42 @@ class BlockStorage(Base):
     )
 
 
+class ObjectStorage(Base):
+    __tablename__ = "object_storages"
+
+    id          = Column(Integer, primary_key=True)
+    cloud_id    = Column(String(255), nullable=True)
+    name        = Column(String(255), nullable=False)
+    provider    = Column(String(64),  nullable=False)
+    region      = Column(String(128), nullable=True)
+    status      = Column(String(32),  default="unknown")
+    endpoint    = Column(String(255), nullable=True)   # S3 domain / hostname
+    tags        = Column(JSONB, default=_empty_json_dict)
+    extra       = Column(JSONB, default=_empty_json_dict)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_synced = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_object_provider_status", "provider", "status"),
+        Index("ix_object_cloud_id_provider", "cloud_id", "provider"),
+    )
+
+
+class ObjectStorageUser(Base):
+    """A user with access to an object store (managed here; survives provider syncs)."""
+    __tablename__ = "object_storage_users"
+
+    id         = Column(Integer, primary_key=True)
+    store_id   = Column(Integer, ForeignKey("object_storages.id", ondelete="CASCADE"), nullable=False, index=True)
+    username   = Column(String(128), nullable=False)
+    access     = Column(String(16), default="read", nullable=False)  # read | write | admin
+    quota_gb   = Column(Float, nullable=True)   # null = unlimited
+    used_gb    = Column(Float, nullable=True)
+
+    __table_args__ = (Index("uq_object_user", "store_id", "username", unique=True),)
+
+
 class DnsRecord(Base):
     __tablename__ = "dns_records"
 

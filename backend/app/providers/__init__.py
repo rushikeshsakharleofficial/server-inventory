@@ -10,6 +10,7 @@ from .gcp import GCPProvider
 from .generic_dns import GenericDnsProvider
 from .linode import LinodeProvider
 from .hivelocity import HivelocityProvider
+from .nutanix import NutanixProvider
 from .ovh import OVHProvider
 
 PROVIDER_MAP: dict[str, type[CloudProvider]] = {
@@ -23,6 +24,7 @@ PROVIDER_MAP: dict[str, type[CloudProvider]] = {
     "cloudflare":   CloudflareProvider,
     "generic-dns":  GenericDnsProvider,
     "contabo":      ContaboProvider,
+    "nutanix":      NutanixProvider,
 }
 
 
