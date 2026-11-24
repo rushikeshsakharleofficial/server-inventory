@@ -554,10 +554,10 @@ function ServerDetailPage() {
       {Array.isArray(extra.nics) && extra.nics.length > 0 && (
         <Section title="Network Interfaces">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-muted-foreground"><th>MAC</th><th>IPs</th><th>Subnet</th><th>Type</th></tr></thead>
+            <thead><tr className="text-left text-muted-foreground"><th>Subnet</th><th>Status</th><th>IPs</th><th>MAC</th></tr></thead>
             <tbody>
-              {(extra.nics as { mac?: string; ips?: string[]; subnet?: string; type?: string }[]).map((n, i) => (
-                <tr key={n.mac ?? i}><td>{n.mac ?? "—"}</td><td>{n.ips?.join(", ") || "—"}</td><td>{n.subnet ?? "—"}</td><td>{n.type ?? "—"}</td></tr>
+              {(extra.nics as { mac?: string; ips?: string[]; subnet?: string; connected?: boolean }[]).map((n, i) => (
+                <tr key={n.mac ?? i}><td>{n.subnet ?? "—"}</td><td>{n.connected ? "connected" : "disconnected"}</td><td>{n.ips?.join(", ") || "—"}</td><td>{n.mac ?? "—"}</td></tr>
               ))}
             </tbody>
           </table>

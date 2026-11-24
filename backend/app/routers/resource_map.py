@@ -1871,10 +1871,11 @@ def _append_extra_nics(server: models.Server, result: dict) -> dict:
     nodes, edges = list(result["nodes"]), list(result["edges"])
     for i, nic in enumerate(nics):
         nid = f"nic-{server.id}-{i}"
-        label = f"NIC {nic.get('mac') or i}"
+        label = nic.get("subnet") or f"NIC {nic.get('mac') or i}"
+        status = "connected" if nic.get("connected") else "disconnected"
         nodes.append(_node(nid, "network_interface", "network", label, {
             "mac": nic.get("mac"), "ips": ", ".join(nic.get("ips") or []), "subnet": nic.get("subnet"),
-            "type": nic.get("type"), "connected": nic.get("connected"),
+            "type": nic.get("type"), "status": status,
         }))
         edges.append(_edge(root_id, nid, "has NIC"))
     return {**result, "nodes": nodes, "edges": edges}
