@@ -186,10 +186,7 @@ class AWSProvider(CloudProvider):
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
             )
-            try:
-                cluster_names = eks.list_clusters().get("clusters", [])
-            except Exception:
-                continue
+            cluster_names = eks.list_clusters().get("clusters", [])
             for cluster_name in cluster_names:
                 try:
                     c = eks.describe_cluster(name=cluster_name)["cluster"]
@@ -263,8 +260,5 @@ class AWSProvider(CloudProvider):
         result = []
         for region in self._aws_regions():
             ec2 = self._aws_client("ec2", region)
-            try:
-                result.extend(self._aws_fetch_region_volumes(ec2, region))
-            except Exception:
-                continue
+            result.extend(self._aws_fetch_region_volumes(ec2, region))
         return result

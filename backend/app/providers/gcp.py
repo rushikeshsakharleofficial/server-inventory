@@ -128,23 +128,21 @@ class GCPProvider(CloudProvider):
         project_id = self._gcp_project_id()
         if not project_id:
             return []
-        try:
-            from google.oauth2 import service_account
-            from google.auth.transport.requests import Request as GRequest
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request as GRequest
 
-            creds = service_account.Credentials.from_service_account_info(
-                sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
-            )
-            creds.refresh(GRequest())
-            token = creds.token
-        except Exception:
-            return []
+        creds = service_account.Credentials.from_service_account_info(
+            sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
+        )
+        creds.refresh(GRequest())
+        token = creds.token
 
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://sqladmin.googleapis.com/v1/projects/{project_id}/instances"
         resp = requests.get(url, headers=headers, timeout=30)
-        if not resp.ok:
+        if resp.status_code == 404:
             return []
+        resp.raise_for_status()
 
         result = []
         status_map = {
@@ -186,23 +184,21 @@ class GCPProvider(CloudProvider):
         project_id = self._gcp_project_id()
         if not project_id:
             return []
-        try:
-            from google.oauth2 import service_account
-            from google.auth.transport.requests import Request as GRequest
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request as GRequest
 
-            creds = service_account.Credentials.from_service_account_info(
-                sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
-            )
-            creds.refresh(GRequest())
-            token = creds.token
-        except Exception:
-            return []
+        creds = service_account.Credentials.from_service_account_info(
+            sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
+        )
+        creds.refresh(GRequest())
+        token = creds.token
 
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://container.googleapis.com/v1/projects/{project_id}/locations/-/clusters"
         resp = requests.get(url, headers=headers, timeout=30)
-        if not resp.ok:
+        if resp.status_code == 404:
             return []
+        resp.raise_for_status()
 
         result = []
         status_map = {
@@ -282,14 +278,11 @@ class GCPProvider(CloudProvider):
         client = compute_v1.DisksClient(credentials=credentials) if credentials else compute_v1.DisksClient()
 
         result = []
-        try:
-            request = compute_v1.AggregatedListDisksRequest(project=project_id)
-            for zone_key, response in client.aggregated_list(request=request):
-                if not hasattr(response, "disks"):
-                    continue
-                for disk in response.disks:
-                    result.append(self._gcp_disk_dict(disk, zone_key))
-        except Exception:
-            pass
+        request = compute_v1.AggregatedListDisksRequest(project=project_id)
+        for zone_key, response in client.aggregated_list(request=request):
+            if not hasattr(response, "disks"):
+                continue
+            for disk in response.disks:
+                result.append(self._gcp_disk_dict(disk, zone_key))
 
         return result
