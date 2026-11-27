@@ -36,7 +36,7 @@ class AWSProvider(CloudProvider):
         return "aws"
 
     def _aws_regions(self) -> list[str]:
-        regions = self.config.get("regions", ["us-east-1"])
+        regions = self.config.get("regions") or self.config.get("region") or "us-east-1"
         if isinstance(regions, str):
             regions = [r.strip() for r in regions.split(",") if r.strip()]
         return regions
@@ -122,9 +122,7 @@ class AWSProvider(CloudProvider):
 
         access_key = self.config.get("access_key_id")
         secret_key = self.config.get("secret_access_key")
-        regions = self.config.get("regions", ["us-east-1"])
-        if isinstance(regions, str):
-            regions = [r.strip() for r in regions.split(",") if r.strip()]
+        regions = self._aws_regions()
 
         result = []
         for region in regions:
@@ -178,9 +176,7 @@ class AWSProvider(CloudProvider):
 
         access_key = self.config.get("access_key_id")
         secret_key = self.config.get("secret_access_key")
-        regions = self.config.get("regions", ["us-east-1"])
-        if isinstance(regions, str):
-            regions = [r.strip() for r in regions.split(",") if r.strip()]
+        regions = self._aws_regions()
 
         result = []
         for region in regions:
