@@ -80,7 +80,7 @@ class DigitalOceanProvider(CloudProvider):
             params={"per_page": 200},
             timeout=30,
         )
-        if resp.status_code == 404:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
         resp.raise_for_status()
         result = []
@@ -125,7 +125,7 @@ class DigitalOceanProvider(CloudProvider):
             params={"per_page": 200},
             timeout=30,
         )
-        if resp.status_code == 404:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
         resp.raise_for_status()
         result = []
@@ -201,7 +201,7 @@ class DigitalOceanProvider(CloudProvider):
 
         while url:
             resp = requests.get(url, headers=headers, params=params, timeout=30)
-            if resp.status_code == 404:
+            if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
                 break
             resp.raise_for_status()
             data = resp.json()

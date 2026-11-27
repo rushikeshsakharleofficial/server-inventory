@@ -84,7 +84,7 @@ class LinodeProvider(CloudProvider):
                     params={"page": page, "page_size": 100},
                     timeout=30,
                 )
-                if resp.status_code == 404:
+                if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
                     break
                 resp.raise_for_status()
                 data = resp.json()
@@ -137,7 +137,7 @@ class LinodeProvider(CloudProvider):
                 params={"page": page, "page_size": 100},
                 timeout=30,
             )
-            if resp.status_code == 404:
+            if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
                 break
             resp.raise_for_status()
             data = resp.json()
@@ -197,7 +197,7 @@ class LinodeProvider(CloudProvider):
                 params={"page": page, "page_size": 100},
                 timeout=30,
             )
-            if resp.status_code == 404:
+            if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
                 break
             resp.raise_for_status()
             data = resp.json()

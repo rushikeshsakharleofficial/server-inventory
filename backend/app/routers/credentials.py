@@ -48,7 +48,7 @@ def _drop_placeholders(config: dict) -> dict:
 
 def _require_secrets_on_destination_change(existing: dict, incoming: dict) -> None:
     moved = any(
-        k in incoming and str(incoming[k]) != str(existing.get(k, "true" if k == "verify_ssl" else ""))
+        k in incoming and str(incoming[k]).lower() != str(existing.get(k, "true" if k == "verify_ssl" else "")).lower()
         for k in _DESTINATION_FIELDS
     )
     missing = [k for k, v in existing.items() if v and _field_is_secret(k) and k not in incoming]

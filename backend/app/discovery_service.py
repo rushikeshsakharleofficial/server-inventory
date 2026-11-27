@@ -671,6 +671,18 @@ def run_discovery(
             "failed": job.failed,
             "error_message": job.error_message,
         })
+    except Exception as exc:
+        # A job left queued/running would block every rerun of this range.
+        db.rollback()
+        db.query(models.DiscoveryJob).filter(
+            models.DiscoveryJob.id == job_id,
+            models.DiscoveryJob.status.in_(["queued", "running"]),
+        ).update(
+            {"status": "failed", "error_message": str(exc), "completed_at": datetime.now(timezone.utc)},
+            synchronize_session=False,
+        )
+        db.commit()
+        raise
     finally:
         _stop_events.pop(job_id, None)
         db.close()

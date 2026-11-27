@@ -143,7 +143,7 @@ class AzureProvider(CloudProvider):
             ),
         ]:
             resp = requests.get(api_path, headers=headers, timeout=30)
-            if resp.status_code == 404:
+            if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
                 continue
             resp.raise_for_status()
             for srv in resp.json().get("value", []):
@@ -182,6 +182,8 @@ class AzureProvider(CloudProvider):
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://management.azure.com/subscriptions/{sub}/providers/Microsoft.ContainerService/managedClusters?api-version=2023-08-01"
         resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
+            return []
         resp.raise_for_status()
         result = []
         for cluster in resp.json().get("value", []):

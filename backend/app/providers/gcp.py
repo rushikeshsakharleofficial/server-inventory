@@ -140,7 +140,7 @@ class GCPProvider(CloudProvider):
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://sqladmin.googleapis.com/v1/projects/{project_id}/instances"
         resp = requests.get(url, headers=headers, timeout=30)
-        if resp.status_code == 404:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
         resp.raise_for_status()
 
@@ -196,7 +196,7 @@ class GCPProvider(CloudProvider):
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://container.googleapis.com/v1/projects/{project_id}/locations/-/clusters"
         resp = requests.get(url, headers=headers, timeout=30)
-        if resp.status_code == 404:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
         resp.raise_for_status()
 
@@ -274,6 +274,8 @@ class GCPProvider(CloudProvider):
             return []
 
         project_id = self._gcp_project_id()
+        if not project_id:
+            return []
         credentials = self._gcp_disk_credentials(service_account)
         client = compute_v1.DisksClient(credentials=credentials) if credentials else compute_v1.DisksClient()
 

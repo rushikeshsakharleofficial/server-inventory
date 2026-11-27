@@ -16,13 +16,14 @@ def _response(status):
 
 
 @pytest.mark.parametrize("method", ["fetch_databases", "fetch_kubernetes", "fetch_block_storages"])
-def test_api_error_raises_but_404_is_empty(monkeypatch, method):
+def test_api_error_raises_but_unavailable_service_is_empty(monkeypatch, method):
     provider = DigitalOceanProvider({"api_token": "t"})
     monkeypatch.setattr(requests, "get", lambda *a, **k: _response(401))
     with pytest.raises(requests.HTTPError):
         getattr(provider, method)()
-    monkeypatch.setattr(requests, "get", lambda *a, **k: _response(404))
-    assert getattr(provider, method)() == []
+    for status in (403, 404):
+        monkeypatch.setattr(requests, "get", lambda *a, status=status, **k: _response(status))
+        assert getattr(provider, method)() == []
 
 
 def test_hung_provider_times_out(monkeypatch):
@@ -39,3 +40,26 @@ def test_hung_provider_times_out(monkeypatch):
     with pytest.raises(RuntimeError, match="timed out"):
         sync._fetch_provider_servers(cred, threading.Event())
     assert time.monotonic() - started < 2
+
+
+def test_crashed_discovery_job_is_not_left_blocking(monkeypatch):
+    from app import discovery_service, models
+    from app.database import DATABASE_URL, Base, SessionLocal, engine
+
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    job = models.DiscoveryJob(network_id=None, cidr="10.0.0.0/30", status="queued")
+    db.add(job)
+    db.commit()
+
+    def boom(*a):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(discovery_service, "_get_ssh_credential", boom)
+    with pytest.raises(RuntimeError):
+        discovery_service.run_discovery(job.id, job.cidr, None, 1, 1, DATABASE_URL)
+    db.refresh(job)
+    assert job.status == "failed"
+    db.delete(job)
+    db.commit()
+    db.close()
