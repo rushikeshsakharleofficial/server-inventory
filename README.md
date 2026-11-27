@@ -82,7 +82,7 @@ Per-server network topology viewer showing connected cloud resources (VPCs, secu
 
 ### Operational Tooling
 
-- **Live sync via WebSocket** — real-time batch progress, cancellable mid-run
+- **Live sync via WebSocket** — real-time batch progress; a running sync can be stopped with `POST /api/sync/stop`
 - **Cron scheduler** — APScheduler-backed jobs with a calendar+time picker or raw cron expression, run-now/disable/delete
 - **Event log** — structured audit trail across settings, credentials, sync, and discovery
 - **Custom branding** — upload a logo and favicon (PNG/JPEG/WEBP/animated GIF), served publicly so the login page picks it up before auth
@@ -165,7 +165,8 @@ Skips the local build; pulls `ghcr.io/rushikeshsakharleofficial/server-inventory
      backend:
        image: ghcr.io/rushikeshsakharleofficial/server-inventory-backend:latest
        build: !reset null
-       volumes: !reset []
+       volumes: !override
+         - ssh_known_hosts:/data
      frontend:
        image: ghcr.io/rushikeshsakharleofficial/server-inventory-frontend:latest
        build: !reset null
@@ -222,7 +223,8 @@ cp backend/.env.example .env
 | `SECRET_KEY` | **Yes in prod** | JWT signing secret — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `CREDENTIAL_ENCRYPTION_KEY` | **Yes in prod** | Fernet key encrypting stored provider/SSH credentials at rest — generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `API_KEY_PEPPER` | **Yes to use the Public API** | HMAC key for hashing public API tokens — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`; without it, creating/rotating an API key fails |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | No | Optional non-interactive admin seed — the normal path is the `/setup` wizard above |
+| `AUTO_SEED_ADMIN` / `ADMIN_USERNAME` / `ADMIN_PASSWORD` | No | Optional non-interactive admin seed, used only when `AUTO_SEED_ADMIN=true` — the normal path is the `/setup` wizard above |
+| `SSH_KNOWN_HOSTS` | No | File that stores trusted SSH host keys. Docker Compose sets it to a persistent volume |
 | `ALLOWED_ORIGINS` | No | Comma-separated CORS origins for the frontend |
 | `VITE_API_URL` | No | Leave empty in most deployments — the frontend derives the backend host/port from the page it's served from |
 
@@ -327,21 +329,28 @@ uvicorn app.main:app --reload --port 8000
 
 ## Testing
 
-Backend tests are pytest-based, covering auth policy, credential encryption/masking, TOTP, schemas, and the on-prem discovery identity-resolution logic:
+Backend tests are pytest-based and need Python 3.11 and a running PostgreSQL. Some tests start the app and run its startup migrations, so point `DATABASE_URL` at a throwaway database, never at production.
 
 ```bash
 cd backend
-pytest
+pip install -r requirements.txt pytest httpx
+DATABASE_URL=postgresql://user:pass@localhost:5432/inventory_test python -m pytest tests
 ```
 
 | Suite | Covers |
 |:------|:-------|
-| `test_auth_policy.py` | Role/permission enforcement |
-| `test_credential_masking.py` | Credentials never leak in API responses |
-| `test_crypto.py` | Fernet encryption/decryption of stored config |
-| `test_discovery_service.py` | CIDR validation, identity-signal priority, host dedup |
-| `test_schemas.py` | Pydantic schema validation |
-| `test_totp_encryption.py` | MFA secret storage |
+| `test_core.py` | Encryption round trip and rejected tokens |
+| `test_credential_security.py` | Secret masking and re-entry on destination change |
+| `test_route_permissions.py` | Every route has a feature permission; role access is unchanged |
+| `test_known_hosts.py` | SSH host key storage and changed-key rejection |
+| `test_provider_config.py` | Provider settings as the UI saves them |
+| `test_sync_failures.py` | Provider errors and timeouts surface |
+| `test_resource_map_root.py` | Server node in cloud resource maps |
+| `test_ignored_inputs.py` | Server region edits |
+| `test_nutanix_provider.py` | Nutanix provider |
+| `test_object_storage_users.py` | Object store users |
+
+The frontend type check runs as part of `bun run build`.
 
 ---
 
