@@ -53,42 +53,6 @@ class StatsOut(BaseModel):
     volume: list[dict]  # [{hour, count}]
 
 
-_DEMO_EVENTS = {
-    "Login failed for admin — 5 consecutive attempts",
-    "API key rotation overdue by 30 days",
-    "Credential vault decryption error",
-    "Cloud sync auth token expired",
-    "Cloud sync failed for OVH Cloud",
-    "Credential copy rejected — insufficient role",
-    "User session invalidated unexpectedly",
-    "Cron job missed scheduled window",
-    "MFA not enabled for provider credential",
-    "Password not rotated in 90+ days",
-    "Sync returned 0 servers — possible auth issue",
-    "Duplicate IP detected across providers",
-    "User logged in",
-    "Cloud sync completed — 124 servers updated",
-    "Provider credential added",
-    "Password revealed by admin",
-    "Credential copied",
-    "Server added manually",
-    "Cron sync triggered",
-    "User password changed",
-    "Settings updated",
-    "New user created",
-}
-
-
-def _purge_demo_events(db: Session) -> None:
-    deleted = (
-        db.query(models.EventLog)
-        .filter(models.EventLog.event.in_(_DEMO_EVENTS))
-        .delete(synchronize_session=False)
-    )
-    if deleted:
-        db.commit()
-
-
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=StatsOut)
@@ -97,7 +61,6 @@ def event_stats(
     _: Annotated[models.User, Depends(get_current_user)],
     hours: Annotated[int, Query(ge=1, le=720)] = 24,
 ):
-    _purge_demo_events(db)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -153,7 +116,6 @@ def list_events(
     limit:    Annotated[int, Query(ge=1, le=200)] = 10,
     offset:   Annotated[int, Query(ge=0)] = 0,
 ):
-    _purge_demo_events(db)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     qry = db.query(models.EventLog).filter(models.EventLog.timestamp >= since)
     if severity:

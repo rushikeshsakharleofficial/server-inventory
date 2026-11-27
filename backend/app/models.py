@@ -27,7 +27,7 @@ class Server(Base):
     __tablename__ = "servers"
 
     id            = Column(Integer, primary_key=True)
-    cloud_id      = Column(String(128), nullable=True)
+    cloud_id      = Column(String(255), nullable=True)
     name          = Column(String(255), nullable=False)
     provider      = Column(String(64),  nullable=False)
     region        = Column(String(128), nullable=True)

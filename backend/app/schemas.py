@@ -40,8 +40,27 @@ class ServerCreate(ServerBase):
     pass
 
 
+class ServerIpAddressResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    server_id: int
+    address: str
+    cidr: str | None = None
+    ip_version: int | None = None
+    interface_name: str | None = None
+    mac_address: str | None = None
+    scope: str | None = None
+    is_primary: bool | None = False
+    discovered_from_ip: str | None = None
+    source: str | None = None
+    first_seen_at: datetime | None = None
+    last_seen_at: datetime | None = None
+
+
 class ServerUpdate(BaseModel):
     name: str | None = None
+    region: str | None = None
     status: str | None = None
     public_ip: str | None = None
     private_ip: str | None = None
@@ -328,29 +347,6 @@ class SSHCredentialUpdate(BaseModel):
     proxy_auth_method: Literal["password", "key"] | None = None
     proxy_password:    str | None = None
     proxy_private_key: str | None = None
-
-
-class ServerSnapshotResponse(BaseModel):
-    id: int | None = None
-    date: str
-    total: int
-    running: int
-    stopped: int
-    by_provider: dict[str, int] = Field(default_factory=dict)
-    created_at: datetime | None = None
-
-    model_config = {"from_attributes": True}
-
-
-class AppSettingResponse(BaseModel):
-    key: str
-    value: str | None = None
-
-    model_config = {"from_attributes": True}
-
-
-class SettingUpdate(BaseModel):
-    value: str
 
 
 class CronJobCreate(BaseModel):

@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from .base import CloudProvider
 
@@ -56,8 +57,17 @@ class GCPProvider(CloudProvider):
     def provider_name(self) -> str:
         return "gcp"
 
+    def _gcp_service_account_info(self) -> dict[str, Any]:
+        sa = self.config.get("service_account_json")
+        if not sa:
+            return {}
+        return json.loads(sa) if isinstance(sa, str) else sa
+
+    def _gcp_project_id(self) -> str | None:
+        return self._gcp_service_account_info().get("project_id") or self.config.get("project_id")
+
     def _gcp_credentials(self, service_account):
-        sa_info = self.config.get("service_account_json")
+        sa_info = self._gcp_service_account_info()
         if not sa_info:
             return None
         return service_account.Credentials.from_service_account_info(
@@ -96,7 +106,9 @@ class GCPProvider(CloudProvider):
         except ImportError:
             raise RuntimeError("google-cloud-compute not installed. Run: pip install google-cloud-compute")
 
-        project_id = self.config.get("project_id")
+        project_id = self._gcp_project_id()
+        if not project_id:
+            raise RuntimeError("GCP credential has no project_id")
         credentials = self._gcp_credentials(service_account)
         client = compute_v1.InstancesClient(credentials=credentials) if credentials else compute_v1.InstancesClient()
 
@@ -110,32 +122,27 @@ class GCPProvider(CloudProvider):
         return servers
 
     def fetch_databases(self) -> list[dict[str, Any]]:
-        import json
         import requests
 
-        sa = self.config.get("service_account_json", {})
-        if isinstance(sa, str):
-            sa = json.loads(sa)
-        project_id = sa.get("project_id") or self.config.get("project_id")
+        sa = self._gcp_service_account_info()
+        project_id = self._gcp_project_id()
         if not project_id:
             return []
-        try:
-            from google.oauth2 import service_account
-            from google.auth.transport.requests import Request as GRequest
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request as GRequest
 
-            creds = service_account.Credentials.from_service_account_info(
-                sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
-            )
-            creds.refresh(GRequest())
-            token = creds.token
-        except Exception:
-            return []
+        creds = service_account.Credentials.from_service_account_info(
+            sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
+        )
+        creds.refresh(GRequest())
+        token = creds.token
 
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://sqladmin.googleapis.com/v1/projects/{project_id}/instances"
         resp = requests.get(url, headers=headers, timeout=30)
-        if not resp.ok:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
+        resp.raise_for_status()
 
         result = []
         status_map = {
@@ -171,32 +178,27 @@ class GCPProvider(CloudProvider):
         return result
 
     def fetch_kubernetes(self) -> list[dict[str, Any]]:
-        import json
         import requests
 
-        sa = self.config.get("service_account_json", {})
-        if isinstance(sa, str):
-            sa = json.loads(sa)
-        project_id = sa.get("project_id") or self.config.get("project_id")
+        sa = self._gcp_service_account_info()
+        project_id = self._gcp_project_id()
         if not project_id:
             return []
-        try:
-            from google.oauth2 import service_account
-            from google.auth.transport.requests import Request as GRequest
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request as GRequest
 
-            creds = service_account.Credentials.from_service_account_info(
-                sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
-            )
-            creds.refresh(GRequest())
-            token = creds.token
-        except Exception:
-            return []
+        creds = service_account.Credentials.from_service_account_info(
+            sa, scopes=[_GCP_CLOUD_PLATFORM_SCOPE]
+        )
+        creds.refresh(GRequest())
+        token = creds.token
 
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://container.googleapis.com/v1/projects/{project_id}/locations/-/clusters"
         resp = requests.get(url, headers=headers, timeout=30)
-        if not resp.ok:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
+        resp.raise_for_status()
 
         result = []
         status_map = {
@@ -227,12 +229,9 @@ class GCPProvider(CloudProvider):
         return result
 
     def _gcp_disk_credentials(self, service_account):
-        sa_info = self.config.get("service_account_json")
+        sa_info = self._gcp_service_account_info()
         if not sa_info:
             return None
-        import json
-        if isinstance(sa_info, str):
-            sa_info = json.loads(sa_info)
         return service_account.Credentials.from_service_account_info(
             sa_info,
             scopes=[_GCP_CLOUD_PLATFORM_SCOPE],
@@ -274,19 +273,18 @@ class GCPProvider(CloudProvider):
         except ImportError:
             return []
 
-        project_id = self.config.get("project_id")
+        project_id = self._gcp_project_id()
+        if not project_id:
+            return []
         credentials = self._gcp_disk_credentials(service_account)
         client = compute_v1.DisksClient(credentials=credentials) if credentials else compute_v1.DisksClient()
 
         result = []
-        try:
-            request = compute_v1.AggregatedListDisksRequest(project=project_id)
-            for zone_key, response in client.aggregated_list(request=request):
-                if not hasattr(response, "disks"):
-                    continue
-                for disk in response.disks:
-                    result.append(self._gcp_disk_dict(disk, zone_key))
-        except Exception:
-            pass
+        request = compute_v1.AggregatedListDisksRequest(project=project_id)
+        for zone_key, response in client.aggregated_list(request=request):
+            if not hasattr(response, "disks"):
+                continue
+            for disk in response.disks:
+                result.append(self._gcp_disk_dict(disk, zone_key))
 
         return result

@@ -67,7 +67,7 @@ const FIELD_OPTIONS: Record<string, string[]> = {
 };
 
 function isSecret(f: string) {
-  return /secret|token|key|password|private|auth/.test(f) && f !== "endpoint";
+  return /secret|token|key|password|private|auth|service_account/.test(f) && f !== "endpoint";
 }
 
 function buildCpFields(items: Credential[]) {

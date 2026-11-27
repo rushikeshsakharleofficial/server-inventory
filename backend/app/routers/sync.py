@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from .. import models, schemas
 from ..database import get_db, DATABASE_URL
 from ..providers import get_provider
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..crypto import decrypt_config
 from ..event_log_utils import add_event_log
 from ..ssh_utils import fetch_ssh_ips
@@ -22,6 +22,7 @@ _SYNC_STOPPED_MSG = "Sync stopped by user"
 SYNC_BATCH_SIZE: int = 25
 SYNC_BATCH_DELAY_S: float = 0.15
 SYNC_PROVIDER_PARALLELISM: int = 8
+FETCH_TIMEOUT_S: int = 300
 
 
 def _get_default_ssh(db):
@@ -71,19 +72,28 @@ def _get_active_providers(db: Session) -> list[str]:
     return [provider for (provider,) in rows if provider]
 
 
-def _fetch_provider_servers(cred, stop_event) -> list:
-    """Fetches the provider's server list with a 300s timeout, raising
+def _fetch_provider_servers(cred, stop_event) -> tuple[list, list[str]]:
+    """Returns (servers, warnings) with a 300s timeout, raising
     RuntimeError on a stop request or timeout."""
     if stop_event.is_set():
         raise RuntimeError(_SYNC_STOPPED_MSG)
 
     provider = get_provider(cred.provider, decrypt_config(cred.config or {}))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+    # No `with`: leaving the block would wait for a hung call and defeat the timeout.
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
         future = ex.submit(provider.fetch_servers)
-        try:
-            return future.result(timeout=300)
-        except concurrent.futures.TimeoutError:
-            raise RuntimeError("Provider fetch timed out after 300 seconds")
+        deadline = time.monotonic() + FETCH_TIMEOUT_S
+        while True:
+            try:
+                return future.result(timeout=min(1.0, FETCH_TIMEOUT_S)), provider.warnings
+            except concurrent.futures.TimeoutError:
+                if stop_event.is_set():
+                    raise RuntimeError(_SYNC_STOPPED_MSG)
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"Provider fetch timed out after {FETCH_TIMEOUT_S} seconds")
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
 
 
 def _load_existing_servers_by_cloud_id(db, srv_list: list, provider_name: str) -> dict:
@@ -144,6 +154,8 @@ def _upsert_servers_in_batches(db, log, cred, srv_list: list, existing_map: dict
 
         for srv in srv_list[batch_start : batch_start + SYNC_BATCH_SIZE]:
             was_update, new_srv = _upsert_one_server(db, srv, existing_map, allowed_cols)
+            if new_srv is not None and new_srv.cloud_id:
+                existing_map[new_srv.cloud_id] = new_srv  # same id twice in one fetch
             if was_update:
                 updated += 1
             else:
@@ -179,9 +191,10 @@ def _sync_one_credential(db, cred) -> None:
     manager.broadcast({"type": "sync_started", "log_id": log.id, "provider": cred.provider})
 
     added = updated = 0
+    warnings: list[str] = []
     error = None
     try:
-        srv_list = _fetch_provider_servers(cred, stop_event)
+        srv_list, warnings = _fetch_provider_servers(cred, stop_event)
         if stop_event.is_set():
             raise RuntimeError(_SYNC_STOPPED_MSG)
 
@@ -191,7 +204,7 @@ def _sync_one_credential(db, cred) -> None:
         )
 
         # SSH IP fetch — best-effort, runs after provider sync
-        _ssh_fetch_ips(db, list(existing_map.values()) + new_servers)
+        _ssh_fetch_ips(db, list(dict.fromkeys([*existing_map.values(), *new_servers])))
 
         try:
             take_snapshot(db)
@@ -211,13 +224,13 @@ def _sync_one_credential(db, cred) -> None:
     log.completed_at = datetime.now(timezone.utc)
     add_event_log(
         db,
-        severity="error" if error else "info",
+        severity="error" if error else "warning" if warnings else "info",
         source="sync",
         resource=cred.provider,
         event="Provider sync failed" if error else "Provider sync completed",
         status="open" if error else "resolved",
         owner="system",
-        message=error or f"servers_added={added}, servers_updated={updated}",
+        message=error or "; ".join([f"servers_added={added}, servers_updated={updated}", *warnings]),
         tags=[cred.provider],
     )
     db.commit()
@@ -279,7 +292,7 @@ def _run_sync_all_parallel(db_url: str) -> None:
 def trigger_sync(
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("sync", "write"))],
     provider: str | None = None,
 ) -> dict[str, str]:
     add_event_log(
@@ -301,7 +314,7 @@ def trigger_sync(
 @router.post("/stop")
 def stop_sync(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("sync", "write"))],
     log_id: Annotated[int | None, Query()] = None,
 ) -> dict[str, list[int]]:
     """Stop one or all running syncs."""
@@ -363,7 +376,7 @@ def trigger_ssh_sync(
     payload: SSHSyncRequest,
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("sync", "write"))],
 ) -> dict:
     """Trigger SSH-only sync for specific servers or a group."""
     background_tasks.add_task(_run_ssh_sync, payload.server_ids, payload.ssh_group, DATABASE_URL)
@@ -374,7 +387,7 @@ def trigger_ssh_sync(
 @router.get("/logs", response_model=list[schemas.SyncLogResponse])
 def get_sync_logs(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("sync", "read"))],
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[models.SyncLog]:
     return (

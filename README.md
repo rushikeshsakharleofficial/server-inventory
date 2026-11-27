@@ -4,7 +4,7 @@
 
 ### Self-hosted multi-cloud server inventory and infrastructure operations console
 
-Track servers, databases, Kubernetes clusters, block storage, and DNS records across AWS, GCP, Azure, DigitalOcean, Linode, OVH, and on-premise hosts — from one dashboard, with no vendor lock-in.
+Track servers, databases, Kubernetes clusters, block and object storage, and DNS records across AWS, GCP, Azure, DigitalOcean, Linode, OVH, Nutanix, and on-premise hosts — from one dashboard, with no vendor lock-in.
 
 [![License](https://img.shields.io/github/license/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/stargazers)
@@ -48,7 +48,7 @@ Track servers, databases, Kubernetes clusters, block storage, and DNS records ac
 Most cloud asset inventory tools are paid SaaS products that require sending your credentials and topology to a third party. ServerInventory runs entirely on infrastructure you control:
 
 - **Self-hosted** — credentials and server data never leave your own PostgreSQL instance
-- **Multi-cloud from day one** — AWS, GCP, Azure, DigitalOcean, Linode, OVH, plus manually-registered on-prem hosts
+- **Multi-cloud from day one** — AWS, GCP, Azure, DigitalOcean, Linode, OVH, Nutanix, plus manually-registered on-prem hosts
 - **No agent required** — cloud resources sync via provider APIs; on-prem hosts are discovered and enriched over SSH
 - **RBAC built in** — per-user and per-group permissions across every feature, JWT auth, optional TOTP MFA
 - **Free and open source** — MIT licensed, fork it, self-host it, modify it
@@ -59,11 +59,12 @@ Most cloud asset inventory tools are paid SaaS products that require sending you
 
 ### Multi-Cloud Inventory
 
-- **Servers** — AWS EC2, GCP Compute Engine, Azure VMs, DigitalOcean Droplets, Linode instances, OVH bare metal/VPS/Public Cloud, Contabo VPS, plus manually-registered on-prem hosts
+- **Servers** — AWS EC2, GCP Compute Engine, Azure VMs, DigitalOcean Droplets, Linode instances, OVH bare metal/VPS/Public Cloud, Contabo VPS, Nutanix VMs, plus manually-registered on-prem hosts
 - **Managed Databases** — AWS RDS, GCP Cloud SQL, Azure Database, DigitalOcean Managed DBs, Linode Database Clusters
 - **Kubernetes Clusters** — AWS EKS, GCP GKE, Azure AKS, DigitalOcean DOKS, Linode LKE
-- **Block Storage** — AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes
-- **DNS / Domain Inventory** — Cloudflare DNS record sync plus generic DNS resolution, kept separate from cloud provider credentials
+- **Block Storage** — AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes, Nutanix volume groups and VM disks
+- **Object Storage** — Nutanix Objects stores, refreshed with **Sync object stores** on the Object Storage page. Per-store users, access levels and quotas are records kept in ServerInventory; they are not read from or pushed to Nutanix
+- **DNS / Domain Inventory** — Cloudflare DNS record sync plus public DNS lookup for domains with no API (common record types and subdomain names; not a full zone listing), kept separate from cloud provider credentials
 
 ### On-Prem Network Discovery
 
@@ -71,7 +72,7 @@ Scan an IPv4 CIDR range over SSH, authenticate with a saved credential, and regi
 
 ### Resource Topology Map
 
-Per-server network topology viewer showing connected cloud resources (VPCs, security groups, NICs, firewalls, load balancers) with click-to-navigate deep links.
+Per-server network topology viewer showing connected cloud resources (VPCs, security groups, NICs, firewalls, load balancers) with click-to-navigate deep links. Block storage volumes attached to a server appear as disk nodes. Nutanix servers also show their NICs with subnet name and connection status.
 
 ### IAM / Access Control
 
@@ -81,7 +82,7 @@ Per-server network topology viewer showing connected cloud resources (VPCs, secu
 
 ### Operational Tooling
 
-- **Live sync via WebSocket** — real-time batch progress, cancellable mid-run
+- **Live sync via WebSocket** — real-time batch progress; a running sync can be stopped with `POST /api/sync/stop`
 - **Cron scheduler** — APScheduler-backed jobs with a calendar+time picker or raw cron expression, run-now/disable/delete
 - **Event log** — structured audit trail across settings, credentials, sync, and discovery
 - **Custom branding** — upload a logo and favicon (PNG/JPEG/WEBP/animated GIF), served publicly so the login page picks it up before auth
@@ -164,7 +165,8 @@ Skips the local build; pulls `ghcr.io/rushikeshsakharleofficial/server-inventory
      backend:
        image: ghcr.io/rushikeshsakharleofficial/server-inventory-backend:latest
        build: !reset null
-       volumes: !reset []
+       volumes: !override
+         - ssh_known_hosts:/data
      frontend:
        image: ghcr.io/rushikeshsakharleofficial/server-inventory-frontend:latest
        build: !reset null
@@ -221,7 +223,8 @@ cp backend/.env.example .env
 | `SECRET_KEY` | **Yes in prod** | JWT signing secret — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `CREDENTIAL_ENCRYPTION_KEY` | **Yes in prod** | Fernet key encrypting stored provider/SSH credentials at rest — generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `API_KEY_PEPPER` | **Yes to use the Public API** | HMAC key for hashing public API tokens — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`; without it, creating/rotating an API key fails |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | No | Optional non-interactive admin seed — the normal path is the `/setup` wizard above |
+| `AUTO_SEED_ADMIN` / `ADMIN_USERNAME` / `ADMIN_PASSWORD` | No | Optional non-interactive admin seed, used only when `AUTO_SEED_ADMIN=true` — the normal path is the `/setup` wizard above |
+| `SSH_KNOWN_HOSTS` | No | File that stores trusted SSH host keys. Docker Compose sets it to a persistent volume |
 | `ALLOWED_ORIGINS` | No | Comma-separated CORS origins for the frontend |
 | `VITE_API_URL` | No | Leave empty in most deployments — the frontend derives the backend host/port from the page it's served from |
 
@@ -231,7 +234,17 @@ cp backend/.env.example .env
 
 ## Cloud Provider Setup
 
-Add credentials via **Cloud Providers → Add Credential** in the UI. Fields vary per provider; see the in-app form for the exact set required (access keys, service account JSON, subscription IDs, API tokens, etc.) for AWS, GCP, Azure, DigitalOcean, Linode, OVH Cloud, and Contabo. DNS providers (currently Cloudflare) are configured separately under **DNS Providers**, keeping DNS credentials isolated from compute-sync credentials.
+Add credentials via **Cloud Providers → Add Credential** in the UI. Fields vary per provider; see the in-app form for the exact set required (access keys, service account JSON, subscription IDs, API tokens, etc.) for AWS, GCP, Azure, DigitalOcean, Linode, OVH Cloud, Contabo, and Nutanix. DNS providers (currently Cloudflare) are configured separately under **DNS Providers**, keeping DNS credentials isolated from compute-sync credentials.
+
+### Nutanix
+
+| Field | Value |
+|:------|:------|
+| `prism_url` | Prism Central URL, for example `https://prism.example.com:9440`. It must start with `https://` |
+| `username` / `password` | Prism account used for API calls (basic auth) |
+| `verify_ssl` | `true` by default. `false` disables TLS certificate verification, which exposes the password to interception; use it only on a trusted network |
+
+Servers and block storage sync through the Prism v3 API. Object stores use the Objects v4.0 API. If that API returns `503`, for example because Objects is not enabled, the sync returns no object stores and logs no error.
 
 ---
 
@@ -316,21 +329,33 @@ uvicorn app.main:app --reload --port 8000
 
 ## Testing
 
-Backend tests are pytest-based, covering auth policy, credential encryption/masking, TOTP, schemas, and the on-prem discovery identity-resolution logic:
+Backend tests are pytest-based and need Python 3.11 and a running PostgreSQL. Some tests start the app and run its startup migrations, so point `DATABASE_URL` at a throwaway database, never at production.
 
 ```bash
 cd backend
-pytest
+pip install -r requirements.txt pytest httpx
+DATABASE_URL=postgresql://user:pass@localhost:5432/inventory_test python -m pytest tests
 ```
 
 | Suite | Covers |
 |:------|:-------|
-| `test_auth_policy.py` | Role/permission enforcement |
-| `test_credential_masking.py` | Credentials never leak in API responses |
-| `test_crypto.py` | Fernet encryption/decryption of stored config |
-| `test_discovery_service.py` | CIDR validation, identity-signal priority, host dedup |
-| `test_schemas.py` | Pydantic schema validation |
-| `test_totp_encryption.py` | MFA secret storage |
+| `test_core.py` | Encryption round trip and rejected tokens |
+| `test_credential_security.py` | Secret masking and re-entry on destination change |
+| `test_route_permissions.py` | Every route has a feature permission; role access is unchanged |
+| `test_known_hosts.py` | SSH host key storage and changed-key rejection |
+| `test_provider_config.py` | Provider settings as the UI saves them |
+| `test_sync_failures.py` | Provider errors and timeouts surface |
+| `test_resource_map_root.py` | Server node in cloud resource maps |
+| `test_ignored_inputs.py` | Server region edits |
+| `test_admin_seed.py` | Optional admin seed startup path |
+| `test_sync_warnings.py` | Partial sync failures log one warning |
+| `test_nutanix_provider.py` | Nutanix provider |
+| `test_generic_dns.py` | Domain (no API) record discovery |
+| `test_cron_dns.py` | Cron jobs sync DNS records |
+| `test_domain_delete.py` | Deleting a DNS credential removes its records |
+| `test_object_storage_users.py` | Object store users |
+
+The frontend type check runs as part of `bun run build`.
 
 ---
 
@@ -343,7 +368,7 @@ graph LR
     API --> Scheduler[APScheduler]
     API --> DB[(PostgreSQL 16)]
     Scheduler --> API
-    API -- cloud provider APIs --> Cloud[AWS / GCP / Azure / DO / Linode / OVH]
+    API -- cloud provider APIs --> Cloud[AWS / GCP / Azure / DO / Linode / OVH / Nutanix]
     API -- SSH --> OnPrem[On-Prem Hosts]
 ```
 
@@ -354,6 +379,7 @@ graph LR
 | `Server` | Multi-cloud + on-prem VM inventory |
 | `ServerIpAddress` | Per-interface IP addresses, deduped across discovery + legacy sync paths |
 | `DatabaseInstance` / `KubernetesCluster` / `BlockStorage` | Managed cloud resources |
+| `ObjectStorage` / `ObjectStorageUser` | Object stores and their locally managed users |
 | `Credential` | Provider credentials (encrypted config JSON) |
 | `SSHCredential` | SSH key/password credentials for on-prem hosts |
 | `DiscoveryNetwork` / `DiscoveryJob` / `DiscoveryResult` | On-prem CIDR scan definitions and run history |

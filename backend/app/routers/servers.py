@@ -6,14 +6,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Annotated, Literal
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..crypto import decrypt_str
-from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, new_ssh_client
+from ..ssh_utils import new_ssh_client, save_host_key
 from ..ws_manager import manager as ws_manager
 from ..event_log_utils import add_event_log
 from .query_utils import escape_like
@@ -39,7 +38,7 @@ _SORT_COLS: dict[str, object] = {
 @router.get("")
 def list_servers(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
     provider: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
@@ -84,7 +83,7 @@ def list_servers(
 @router.get("/stats")
 def get_stats(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ) -> schemas.StatsResponse:
     total: int = db.query(func.count(models.Server.id)).scalar() or 0
     by_provider: dict[str, int] = dict(
@@ -201,7 +200,7 @@ def _rdns_setting_enabled(db: Session) -> bool:
 @router.get("/ip-inventory")
 def ip_inventory(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
     search: Annotated[str, Query(alias="q")] = "",
     ip_type: Annotated[str, Query(alias="type")] = "",
 ) -> dict:
@@ -235,7 +234,7 @@ def ip_inventory(
 @router.get("/ip-inventory/rdns")
 def ip_inventory_rdns(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ) -> dict[str, str | None]:
     """Fast follow-up call: return whatever RDNS is already cached from the
     last sync. Never triggers a live DNS lookup itself — sync.py is the only
@@ -256,7 +255,7 @@ def ip_inventory_rdns(
 @router.post("/ip-inventory/rdns/refresh")
 def refresh_ip_inventory_rdns(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> dict:
     """Manual on-demand RDNS resolution — the only request-path trigger for
     live DNS lookups (everything else only runs during sync). Synchronous by
@@ -283,7 +282,7 @@ def refresh_ip_inventory_rdns(
 def get_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
@@ -295,7 +294,7 @@ def get_server(
 def create_server(
     server: schemas.ServerCreate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> models.Server:
     db_server = models.Server(**server.model_dump())
     db.add(db_server)
@@ -307,6 +306,22 @@ def create_server(
     return db_server
 
 
+@router.get("/{server_id}/ip-addresses", responses={404: {"description": _SERVER_NOT_FOUND}})
+def list_server_ip_addresses(
+    server_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
+) -> list[schemas.ServerIpAddressResponse]:
+    if not db.get(models.Server, server_id):
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
+    return (
+        db.query(models.ServerIpAddress)
+        .filter(models.ServerIpAddress.server_id == server_id)
+        .order_by(models.ServerIpAddress.interface_name, models.ServerIpAddress.address)
+        .all()
+    )
+
+
 @router.put(
     "/{server_id}",
     response_model=schemas.ServerResponse,
@@ -316,7 +331,7 @@ def update_server(
     server_id: int,
     update: schemas.ServerUpdate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
@@ -445,6 +460,8 @@ def _ssh_parse_facts(client, ssh_cred) -> dict:
 def _ssh_map_exception(exc: Exception) -> str:
     """Translates a raw paramiko/socket exception into a user-facing message."""
     import paramiko
+    if isinstance(exc, paramiko.BadHostKeyException):
+        return "Host key changed: it does not match the trusted host key"
     if isinstance(exc, paramiko.AuthenticationException):
         return "Authentication failed — check username and credentials"
     if isinstance(exc, (paramiko.SSHException, OSError)):
@@ -519,7 +536,7 @@ def _apply_ssh_facts_to_server(server, ssh_info: dict) -> None:
 async def ssh_sync_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "sync"))],
     ssh_credential_id: Annotated[int, Query()],
 ):
     """Connect via SSH and gather live data from a Custom DC server."""
@@ -576,19 +593,8 @@ def _ssh_trust_host_key(host: str, ssh_cred) -> tuple[dict | None, str | None]:
 
         transport.close()
 
-        # Persist host key to known_hosts file
-        known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
-        known_hosts_dir = os.path.dirname(os.path.abspath(known_hosts_path))
-        os.makedirs(known_hosts_dir, exist_ok=True)
-
-        known_hosts = paramiko.HostKeys()
-        if os.path.exists(known_hosts_path):
-            try:
-                known_hosts.load(known_hosts_path)
-            except Exception:  # noqa: BLE001
-                pass  # Start fresh if file is corrupt
-        known_hosts.add(host, key_type, host_key)
-        known_hosts.save(known_hosts_path)
+        # An explicit "trust" replaces any stored key. Non-22 ports use paramiko's "[host]:port" form.
+        save_host_key(host if port == 22 else f"[{host}]:{port}", host_key, replace=True)
 
         return {"fingerprint": fingerprint, "key_type": key_type, "added": True}, None
 
@@ -610,7 +616,7 @@ def _ssh_trust_host_key(host: str, ssh_cred) -> tuple[dict | None, str | None]:
 async def trust_host_key(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
     ssh_credential_id: Annotated[int, Query()],
 ):
     """Retrieve and trust the SSH host key for a server by connecting via low-level Transport."""
@@ -640,202 +646,6 @@ async def trust_host_key(
     return schemas.HostKeyTrustResponse(**result)
 
 
-def _resolve_ssh_credential_or_default(db: Session, ssh_credential_id: int | None):
-    """Return the requested SSH credential, or the default one when no id is given.
-    Raises HTTPException(404) for a missing requested id and HTTPException(400)
-    when neither an id nor a configured default is available."""
-    if ssh_credential_id:
-        ssh_cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == ssh_credential_id).first()
-        if not ssh_cred:
-            raise HTTPException(status_code=404, detail=_SSH_CREDENTIAL_NOT_FOUND)
-    else:
-        ssh_cred = (
-            db.query(models.SSHCredential)
-            .filter(models.SSHCredential.is_default.is_(True))
-            .first()
-        )
-    if not ssh_cred:
-        raise HTTPException(status_code=400, detail="No SSH credential selected and no default configured")
-    return ssh_cred
-
-
-def _collect_ssh_ips(servers, ssh_cred) -> list[dict]:
-    """SSH into each server concurrently, stamp discovered IPs onto ssh_info, and
-    return one result row per server that yielded any addresses."""
-    def _fetch_one(srv: models.Server) -> tuple[models.Server, list[str]]:
-        host = srv.public_ip or srv.private_ip
-        ips = fetch_ssh_ips(host, ssh_cred) if host else []
-        return srv, ips
-
-    results = []
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        futures = {ex.submit(_fetch_one, srv): srv for srv in servers}
-        for fut in as_completed(futures):
-            try:
-                srv, ips = fut.result()
-                if ips:
-                    srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
-                    results.append({
-                        "server_id":  srv.id,
-                        "server_name": srv.name,
-                        "provider":   srv.provider,
-                        "host":       srv.public_ip or srv.private_ip,
-                        "ips":        ips,
-                    })
-            except Exception:  # noqa: BLE001
-                pass
-    return results
-
-
-@router.post(
-    "/ssh-fetch-all-ips",
-    responses={
-        404: {"description": "SSH credential not found"},
-        400: {"description": "No SSH credential selected and no default configured"},
-    },
-)
-def ssh_fetch_all_ips(
-    db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
-    ssh_credential_id: Annotated[int | None, Query()] = None,
-) -> list[dict]:
-    """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
-    ssh_cred = _resolve_ssh_credential_or_default(db, ssh_credential_id)
-
-    servers = (
-        db.query(models.Server)
-        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
-        .all()
-    )
-
-    results = _collect_ssh_ips(servers, ssh_cred)
-
-    if results:
-        db.commit()
-
-    return results
-
-
-def _stream_setup_jump_client(ssh_cred) -> tuple:
-    """Open the jump-host connection (if configured) and load the target private key.
-    Returns (jump_client, jump_transport, pkey)."""
-    import paramiko
-
-    jump_client = None
-    jump_transport = None
-    pkey = None
-
-    if getattr(ssh_cred, "proxy_host", None):
-        _proxy_pass = decrypt_str(ssh_cred.proxy_password) if ssh_cred.proxy_password else None
-        _proxy_key  = decrypt_str(ssh_cred.proxy_private_key) if ssh_cred.proxy_private_key else None
-        jump_client = new_ssh_client()
-        jk: dict = {
-            "hostname": ssh_cred.proxy_host,
-            "port":     ssh_cred.proxy_port or 22,
-            "username": ssh_cred.proxy_username or "root",
-            "timeout":  15,
-        }
-        if getattr(ssh_cred, "proxy_auth_method", "password") == "key" and _proxy_key:
-            jk["pkey"] = _load_pkey(_proxy_key)
-        elif _proxy_pass:
-            jk["password"]      = _proxy_pass
-            jk["look_for_keys"] = False
-            jk["allow_agent"]   = False
-        jump_client.connect(**jk)
-        jump_transport = jump_client.get_transport()
-
-    if ssh_cred.private_key:
-        pkey = _load_pkey(decrypt_str(ssh_cred.private_key))
-
-    return jump_client, jump_transport, pkey
-
-
-def _stream_fetch_one(srv, ssh_cred, jump_transport, pkey) -> tuple:
-    host = srv.public_ip or srv.private_ip
-    if not host:
-        return srv, []
-    if jump_transport and pkey:
-        ips = fetch_ips_via_transport(host, ssh_cred.port or 22, ssh_cred.username, pkey, jump_transport)
-    else:
-        ips = fetch_ssh_ips(host, ssh_cred)
-    return srv, ips
-
-
-def _stream_result_payload(srv, ips: list[str]) -> dict:
-    return {
-        "type":        "ip_fetch_result",
-        "server_id":   srv.id,
-        "server_name": srv.name,
-        "provider":    srv.provider,
-        "host":        srv.public_ip or srv.private_ip or "",
-        "ips":         ips,
-        "success":     bool(ips),
-    }
-
-
-def _stream_ip_results(db: Session, servers, ssh_cred):
-    """Generator yielding one NDJSON line per server as its SSH IP fetch completes,
-    broadcasting each result over the websocket and committing changes at the end."""
-    import json
-
-    try:
-        jump_client, jump_transport, pkey = _stream_setup_jump_client(ssh_cred)
-    except Exception as exc:  # noqa: BLE001
-        yield json.dumps({"error": f"Jump/key setup failed: {exc}"}) + "\n"
-        return
-
-    changed: list[models.Server] = []
-    try:
-        with ThreadPoolExecutor(max_workers=20) as ex:
-            futures = {
-                ex.submit(_stream_fetch_one, srv, ssh_cred, jump_transport, pkey): srv
-                for srv in servers
-            }
-            for fut in as_completed(futures):
-                try:
-                    srv, ips = fut.result()
-                    srv.ssh_info = {**(srv.ssh_info or {}), "all_ips": ips}
-                    changed.append(srv)
-                    _result = _stream_result_payload(srv, ips)
-                    ws_manager.broadcast(_result)
-                    yield json.dumps(_result) + "\n"
-                except Exception:  # noqa: BLE001
-                    pass
-    finally:
-        if changed:
-            db.commit()
-        if jump_client:
-            try: jump_client.close()
-            except Exception: pass  # noqa: BLE001
-
-
-@router.post(
-    "/ssh-fetch-ips-stream",
-    responses={
-        404: {"description": "SSH credential not found"},
-        400: {"description": "No SSH credential selected and no default configured"},
-    },
-)
-def ssh_fetch_ips_stream(
-    db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
-    ssh_credential_id: Annotated[int | None, Query()] = None,
-) -> StreamingResponse:
-    """Stream SSH IP results as NDJSON — one line per server as it completes."""
-    ssh_cred = _resolve_ssh_credential_or_default(db, ssh_credential_id)
-
-    servers = (
-        db.query(models.Server)
-        .filter((models.Server.public_ip != None) | (models.Server.private_ip != None))  # noqa: E711
-        .all()
-    )
-
-    return StreamingResponse(
-        _stream_ip_results(db, servers, ssh_cred),
-        media_type="application/x-ndjson",
-    )
-
-
 @router.delete(
     "/{server_id}",
     status_code=204,
@@ -844,7 +654,7 @@ def ssh_fetch_ips_stream(
 def delete_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "delete"))],
 ) -> None:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
@@ -890,12 +700,13 @@ def assign_ssh_to_server(
     server_id: int,
     payload: AssignSSHRequest,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> dict:
     svr = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not svr:
         raise HTTPException(404, "Server not found")
-    svr.ssh_credential_id = payload.ssh_credential_id
+    if "ssh_credential_id" in payload.model_fields_set:  # a group-only call must not clear the key
+        svr.ssh_credential_id = payload.ssh_credential_id
     if payload.ssh_group is not None:
         svr.ssh_group = payload.ssh_group
     db.commit()
@@ -907,7 +718,7 @@ def assign_ssh_to_server(
 def bulk_assign_ssh(
     payload: BulkAssignSSHRequest,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> dict:
     updated = apply_ssh_assignment(db, payload.server_ids, payload.ssh_credential_id, payload.ssh_group)
     return {"updated": updated}

@@ -80,8 +80,9 @@ class DigitalOceanProvider(CloudProvider):
             params={"per_page": 200},
             timeout=30,
         )
-        if not resp.ok:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
+        resp.raise_for_status()
         result = []
         status_map = {
             "online": "running",
@@ -124,8 +125,9 @@ class DigitalOceanProvider(CloudProvider):
             params={"per_page": 200},
             timeout=30,
         )
-        if not resp.ok:
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
+        resp.raise_for_status()
         result = []
         status_map = {
             "running": "running",
@@ -199,8 +201,9 @@ class DigitalOceanProvider(CloudProvider):
 
         while url:
             resp = requests.get(url, headers=headers, params=params, timeout=30)
-            if not resp.ok:
+            if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
                 break
+            resp.raise_for_status()
             data = resp.json()
 
             for vol in data.get("volumes", []):

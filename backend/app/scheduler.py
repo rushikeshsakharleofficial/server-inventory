@@ -30,11 +30,22 @@ def _next_fire(cron_expr: str) -> datetime | None:
         return None
 
 
+def run_job_sync(target: str | None, db_url: str) -> None:
+    """Run what a cron job targets: "dns", a provider name, or None for everything."""
+    from .routers import domains, sync
+
+    if target in ("dns", "cloudflare", "generic-dns"):
+        domains._sync_domains(None if target == "dns" else target, db_url)
+        return
+    sync._run_sync(target, db_url)
+    if target is None:
+        domains._sync_domains(None, db_url)
+
+
 def _run_cron(job_id: int, db_url: str) -> None:
-    """Executed by APScheduler in a thread — mirrors _run_sync logic."""
+    """Executed by APScheduler in a thread."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    from .routers.sync import _run_sync
     from . import models
 
     engine = create_engine(db_url, pool_pre_ping=True)
@@ -61,7 +72,7 @@ def _run_cron(job_id: int, db_url: str) -> None:
 
     # Run the actual sync (reuse existing logic, separate DB session inside)
     try:
-        _run_sync(job_provider, db_url)
+        run_job_sync(job_provider, db_url)
         status = "success"
     except Exception:
         status = "failed"

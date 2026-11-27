@@ -155,18 +155,6 @@ def get_current_user(
     return user
 
 
-def require_write(user: models.User = Depends(get_current_user)) -> models.User:
-    if user.role not in ("admin", "write"):
-        raise HTTPException(status_code=403, detail="Write permission required")
-    return user
-
-
-def require_admin(user: models.User = Depends(get_current_user)) -> models.User:
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin permission required")
-    return user
-
-
 def require_perm(feature: str, action: str):
     """
     Dependency factory for granular per-feature/action guards.

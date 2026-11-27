@@ -36,7 +36,7 @@ class AWSProvider(CloudProvider):
         return "aws"
 
     def _aws_regions(self) -> list[str]:
-        regions = self.config.get("regions", ["us-east-1"])
+        regions = self.config.get("regions") or self.config.get("region") or "us-east-1"
         if isinstance(regions, str):
             regions = [r.strip() for r in regions.split(",") if r.strip()]
         return regions
@@ -122,9 +122,7 @@ class AWSProvider(CloudProvider):
 
         access_key = self.config.get("access_key_id")
         secret_key = self.config.get("secret_access_key")
-        regions = self.config.get("regions", ["us-east-1"])
-        if isinstance(regions, str):
-            regions = [r.strip() for r in regions.split(",") if r.strip()]
+        regions = self._aws_regions()
 
         result = []
         for region in regions:
@@ -178,9 +176,7 @@ class AWSProvider(CloudProvider):
 
         access_key = self.config.get("access_key_id")
         secret_key = self.config.get("secret_access_key")
-        regions = self.config.get("regions", ["us-east-1"])
-        if isinstance(regions, str):
-            regions = [r.strip() for r in regions.split(",") if r.strip()]
+        regions = self._aws_regions()
 
         result = []
         for region in regions:
@@ -190,10 +186,7 @@ class AWSProvider(CloudProvider):
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
             )
-            try:
-                cluster_names = eks.list_clusters().get("clusters", [])
-            except Exception:
-                continue
+            cluster_names = eks.list_clusters().get("clusters", [])
             for cluster_name in cluster_names:
                 try:
                     c = eks.describe_cluster(name=cluster_name)["cluster"]
@@ -267,8 +260,5 @@ class AWSProvider(CloudProvider):
         result = []
         for region in self._aws_regions():
             ec2 = self._aws_client("ec2", region)
-            try:
-                result.extend(self._aws_fetch_region_volumes(ec2, region))
-            except Exception:
-                continue
+            result.extend(self._aws_fetch_region_volumes(ec2, region))
         return result

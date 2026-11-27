@@ -31,6 +31,7 @@ from .routers.public_api import router as public_api_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
+from .config import _is_production
 from .database import DATABASE_URL
 
 Base.metadata.create_all(bind=engine)
@@ -175,6 +176,18 @@ def _migrate_api_key_audit_response_time() -> None:
         conn.commit()
 
 
+def _migrate_server_cloud_id_length() -> None:
+    """Azure resource ids exceed 128 chars. Widening only, so older code still runs."""
+    with engine.connect() as conn:
+        length = conn.execute(text(
+            "SELECT character_maximum_length FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = 'servers' AND column_name = 'cloud_id'"
+        )).scalar()
+        if length and length < 255:
+            conn.execute(text("ALTER TABLE servers ALTER COLUMN cloud_id TYPE VARCHAR(255)"))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
@@ -187,6 +200,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_group_super_admin()
     _migrate_discovery_server_columns()
     _migrate_api_key_audit_response_time()
+    _migrate_server_cloud_id_length()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -332,7 +346,7 @@ def _cleanup_stale_discovery_jobs() -> None:
     from datetime import datetime, timezone
     db = SessionLocal()
     try:
-        stale = db.query(models.DiscoveryJob).filter(models.DiscoveryJob.status == "running").all()
+        stale = db.query(models.DiscoveryJob).filter(models.DiscoveryJob.status.in_(["queued", "running"])).all()
         for job in stale:
             job.status = "failed"
             job.error_message = "Server restarted — discovery orphaned"
@@ -345,9 +359,6 @@ def _cleanup_stale_discovery_jobs() -> None:
 
 def _seed_default_settings() -> None:
     DEFAULTS = {
-        "sync_timeout":       "300",
-        "ssh_default_port":   "22",
-        "appearance_compact": "false",
         "rdns_lookup_enabled": "true",
     }
     db = SessionLocal()

@@ -242,6 +242,7 @@ export const PROVIDER_LOGOS: Record<string, string> = {
   cloudflare: "/providers/cloudflare.svg",
   contabo: "/providers/contabo.svg",
   nutanix: "/providers/nutanix.svg",
+  "generic-dns": "/providers/generic-dns.svg",
 };
 
 export function ProviderBadge({ provider }: Readonly<{ provider: string }>) {

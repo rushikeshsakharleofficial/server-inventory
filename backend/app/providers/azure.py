@@ -142,38 +142,36 @@ class AzureProvider(CloudProvider):
                 f"https://management.azure.com/subscriptions/{sub}/providers/Microsoft.DBforMySQL/flexibleServers?api-version=2021-05-01",
             ),
         ]:
-            try:
-                resp = requests.get(api_path, headers=headers, timeout=30)
-                if not resp.ok:
-                    continue
-                for srv in resp.json().get("value", []):
-                    props = srv.get("properties", {})
-                    state_map = {
-                        "Ready": "running",
-                        "Stopped": "stopped",
-                        "Starting": "pending",
-                        "Stopping": "pending",
-                        "Updating": "pending",
-                    }
-                    result.append({
-                        "cloud_id": srv["id"],
-                        "name": srv["name"],
-                        "provider": "azure",
-                        "region": srv.get("location"),
-                        "engine": engine,
-                        "engine_version": props.get("version"),
-                        "status": state_map.get(props.get("state", ""), "unknown"),
-                        "endpoint": props.get("fullyQualifiedDomainName"),
-                        "port": None,
-                        "storage_gb": props.get("storage", {}).get("storageSizeGB"),
-                        "instance_type": props.get("sku", {}).get("name") if "sku" in srv else None,
-                        "tags": srv.get("tags", {}),
-                        "extra": {
-                            "resource_group": srv["id"].split("/")[4] if "/" in srv["id"] else "",
-                        },
-                    })
-            except Exception:
+            resp = requests.get(api_path, headers=headers, timeout=30)
+            if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
                 continue
+            resp.raise_for_status()
+            for srv in resp.json().get("value", []):
+                props = srv.get("properties", {})
+                state_map = {
+                    "Ready": "running",
+                    "Stopped": "stopped",
+                    "Starting": "pending",
+                    "Stopping": "pending",
+                    "Updating": "pending",
+                }
+                result.append({
+                    "cloud_id": srv["id"],
+                    "name": srv["name"],
+                    "provider": "azure",
+                    "region": srv.get("location"),
+                    "engine": engine,
+                    "engine_version": props.get("version"),
+                    "status": state_map.get(props.get("state", ""), "unknown"),
+                    "endpoint": props.get("fullyQualifiedDomainName"),
+                    "port": None,
+                    "storage_gb": props.get("storage", {}).get("storageSizeGB"),
+                    "instance_type": props.get("sku", {}).get("name") if "sku" in srv else None,
+                    "tags": srv.get("tags", {}),
+                    "extra": {
+                        "resource_group": srv["id"].split("/")[4] if "/" in srv["id"] else "",
+                    },
+                })
         return result
 
     def fetch_kubernetes(self) -> list[dict[str, Any]]:
@@ -183,11 +181,10 @@ class AzureProvider(CloudProvider):
         token = self._az_token()
         headers: dict[str, str | bytes] = {"Authorization": f"Bearer {token}"}
         url = f"https://management.azure.com/subscriptions/{sub}/providers/Microsoft.ContainerService/managedClusters?api-version=2023-08-01"
-        try:
-            resp = requests.get(url, headers=headers, timeout=30)
-            resp.raise_for_status()
-        except Exception:
+        resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code in (403, 404):  # optional service: not enabled or out of scope
             return []
+        resp.raise_for_status()
         result = []
         for cluster in resp.json().get("value", []):
             props = cluster.get("properties", {})
@@ -271,7 +268,4 @@ class AzureProvider(CloudProvider):
         subscription_id = self.config["subscription_id"]
         compute = ComputeManagementClient(credential, subscription_id)
 
-        try:
-            return [self._map_disk(disk) for disk in compute.disks.list()]
-        except Exception:
-            return []
+        return [self._map_disk(disk) for disk in compute.disks.list()]

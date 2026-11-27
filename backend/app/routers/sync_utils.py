@@ -78,6 +78,8 @@ def _upsert_one_item(db: Any, model_cls: Any, item: dict, existing_map: dict[str
     obj = model_cls(**{k: v for k, v in item.items() if hasattr(model_cls, k)})
     obj.last_synced = now
     db.add(obj)
+    if cloud_id:
+        existing_map[cloud_id] = obj  # same id twice in one fetch
     return True
 
 
@@ -110,6 +112,15 @@ def _apply_one_credential_result(db: Any, model_cls: Any, resource_label: str, c
     if not items:
         return
 
+    if resource_label == "dns_records":
+        from .. import models
+
+        # Deleted while we were fetching: do not bring its records back.
+        if not db.query(models.Credential.id).filter(models.Credential.id == cred.id).first():
+            return
+        # The stamp lets credential deletion remove its records.
+        items = [{**item, "extra": {**(item.get("extra") or {}), "credential_id": cred.id}} for item in items]
+
     existing_map = _existing_items_by_cloud_id(db, model_cls, items, cred.provider)
     added, updated = _upsert_items_in_batches(db, model_cls, items, existing_map)
 
@@ -129,6 +140,8 @@ def _sync_resources(
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
+    from ..ws_manager import manager
+
     engine = create_engine(db_url, pool_pre_ping=True)
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
@@ -137,6 +150,11 @@ def _sync_resources(
         creds = _load_active_credentials(db, provider_name)
         fetch_results = _fetch_all_credentials_concurrently(creds, fetch_method_name)
         for cred, items, error in fetch_results:
-            _apply_one_credential_result(db, model_cls, resource_label, cred, items, error)
+            try:
+                _apply_one_credential_result(db, model_cls, resource_label, cred, items, error)
+            except Exception as e:  # noqa: BLE001 — one bad credential must not stop the rest
+                db.rollback()
+                _apply_one_credential_result(db, model_cls, resource_label, cred, [], f"{type(e).__name__}: {e}")
     finally:
         db.close()
+        manager.broadcast({"type": "resources_changed", "resource": resource_label})

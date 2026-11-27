@@ -4,7 +4,8 @@ import { useState } from "react";
 import { api, type Page, type DatabaseInstance } from "@/lib/api";
 import { Card, PageHeader, ProviderBadge, StatusPill, EmptyState } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
-import { RefreshCw } from "lucide-react";
+import { Network, RefreshCw } from "lucide-react";
+import { ResourceMapDialog } from "@/components/resource-map-dialog";
 import { toast } from "sonner";
 import { AdvancedFilter, emptyFilterState, type FilterState } from "@/components/advanced-filter";
 
@@ -28,6 +29,7 @@ function buildFields(items: DatabaseInstance[]) {
 function DatabasesPage() {
   const qc = useQueryClient();
   const [fs, setFs] = useState<FilterState>(emptyFilterState);
+  const [mapFor, setMapFor] = useState<DatabaseInstance | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
@@ -98,6 +100,15 @@ function DatabasesPage() {
       className: "text-right",
       render: (d) => <StatusPill status={d.status} />,
     },
+    {
+      key: "map",
+      header: "Map",
+      render: (d) => (
+        <button onClick={() => setMapFor(d)} aria-label={`Resource map of ${d.name}`} title="Resource map" className="text-muted-foreground hover:text-foreground">
+          <Network className="size-4" />
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -121,6 +132,8 @@ function DatabasesPage() {
           searchPlaceholder="Search name, endpoint, region…"
         />
       </Card>
+
+      {mapFor && <ResourceMapDialog kind="database" id={mapFor.id} name={mapFor.name} onClose={() => setMapFor(null)} />}
 
       <SmartTable
         columns={columns}

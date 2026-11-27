@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write, require_admin, require_perm
+from ..auth import require_perm
 from ..crypto import encrypt_str, decrypt_str
 from ..event_log_utils import add_event_log
 
@@ -42,7 +42,7 @@ def _mask(cred: models.SSHCredential) -> schemas.SSHCredentialResponse:
 @router.get("")
 def list_ssh_credentials(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("ssh-credentials", "read"))],
 ) -> list[schemas.SSHCredentialResponse]:
     creds = db.query(models.SSHCredential).order_by(models.SSHCredential.name).all()
     return [_mask(c) for c in creds]
@@ -52,7 +52,7 @@ def list_ssh_credentials(
 def create_ssh_credential(
     payload: schemas.SSHCredentialCreate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("ssh-credentials", "write"))],
 ) -> schemas.SSHCredentialResponse:
     # If this one is being set as default, unset all others first
     if payload.is_default:
@@ -87,7 +87,7 @@ def update_ssh_credential(
     if not cred:
         raise HTTPException(status_code=404, detail=_SSH_CRED_NOT_FOUND)
 
-    updates = payload.model_dump(exclude_unset=True)
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v != "***"}
 
     # If promoting to default, unset all others first
     if updates.get("is_default"):
@@ -137,7 +137,7 @@ def reveal_ssh_secret(
     cred_id: int,
     payload: RevealFieldRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_admin)],
+    user: Annotated[models.User, Depends(require_perm("ssh-credentials", "admin"))],
 ) -> dict:
     """Admin-only: returns a single decrypted secret field. Audit-logged."""
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
@@ -156,7 +156,7 @@ def reveal_ssh_secret(
 def set_default_ssh_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("ssh-credentials", "write"))],
 ) -> schemas.SSHCredentialResponse:
     cred = db.query(models.SSHCredential).filter(models.SSHCredential.id == cred_id).first()
     if not cred:

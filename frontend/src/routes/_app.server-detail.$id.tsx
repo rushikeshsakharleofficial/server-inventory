@@ -335,10 +335,6 @@ function SshInfoSection({ sshInfo }: Readonly<{ sshInfo: Record<string, unknown>
 }
 
 // ── discovered networks section (server_ip_addresses, best-effort) ─────────────
-// NOTE: no `GET /api/servers/{id}/ip-addresses` endpoint exists yet on the
-// backend at time of writing (not in the discovery router's 10 endpoints).
-// This queries it defensively — a 404 renders the empty state below instead
-// of an error, so this section is a no-op until that endpoint ships.
 
 // Union with the legacy IP sources (public_ip/private_ip/ssh_info.all_ips) so
 // servers never scanned by discovery still show their known addresses here,
@@ -550,6 +546,19 @@ function ServerDetailPage() {
           ["Hostname",   server.hostname ?? "—"],
         ]} />
       </Section>
+
+      {Array.isArray(extra.nics) && extra.nics.length > 0 && (
+        <Section title="Network Interfaces">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-muted-foreground"><th>Subnet</th><th>Status</th><th>IPs</th><th>MAC</th></tr></thead>
+            <tbody>
+              {(extra.nics as { mac?: string; ips?: string[]; subnet?: string; connected?: boolean }[]).map((n, i) => (
+                <tr key={n.mac ?? i}><td>{n.subnet ?? "—"}</td><td>{n.connected ? "connected" : "disconnected"}</td><td>{n.ips?.join(", ") || "—"}</td><td>{n.mac ?? "—"}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
 
       {/* Timestamps */}
       <Section title="Timestamps">

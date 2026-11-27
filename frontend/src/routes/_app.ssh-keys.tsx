@@ -180,7 +180,8 @@ function SshDialog({ onClose, credential }: Readonly<{ onClose: () => void; cred
         proxy_private_key: secretField(proxyAuthMethod === "key", proxyKey),
       };
     } else {
-      proxyFields = isEdit ? {} : { proxy_host: null };
+      // null clears a stored proxy on edit
+      proxyFields = { proxy_host: null, proxy_username: null, proxy_password: null, proxy_private_key: null };
     }
 
     return {

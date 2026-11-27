@@ -21,6 +21,15 @@ function debInvalidate(qc: QueryClient, key: unknown[], ms = 800) {
   _dbt.set(k, setTimeout(() => { qc.invalidateQueries({ queryKey: key }); _dbt.delete(k); }, ms));
 }
 
+// Backend table name → query key of the page listing it
+const RESOURCE_QUERY_KEYS: Record<string, string> = {
+  dns_records: "domains",
+  database_instances: "dbs",
+  kubernetes_clusters: "k8s",
+  block_storages: "bs",
+  object_storages: "os",
+};
+
 // Fix 2 — Zod schema
 const WsMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("active_syncs"), syncs: z.array(z.object({ log_id: z.number(), provider: z.string().nullable(), status: z.string(), started_at: z.string().nullable().optional() })) }),
@@ -34,6 +43,7 @@ const WsMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("discovery_complete"), job_id: z.number(), status: z.string(), scanned_ips: z.number(), reachable_ssh: z.number(), authenticated: z.number(), servers_added: z.number(), servers_updated: z.number(), duplicates_merged: z.number(), failed: z.number(), error_message: z.string().nullable().optional() }),
   z.object({ type: z.literal("discovery_stopped"), job_id: z.number() }),
   z.object({ type: z.literal("server_list_changed"), server_id: z.number().nullable().optional() }),
+  z.object({ type: z.literal("resources_changed"), resource: z.string() }),
 ]);
 type WsMessage = z.infer<typeof WsMessage>;
 
@@ -112,6 +122,11 @@ export function useAppWebSocket() {
             qc.invalidateQueries({ queryKey: ["discoveryJobs"] });
             qc.invalidateQueries({ queryKey: ["discoveryResults"] });
             qc.invalidateQueries({ queryKey: ["servers"] });
+            qc.invalidateQueries({ queryKey: ["stats"] });
+            qc.invalidateQueries({ queryKey: ["resourceMap"] });
+            break;
+          case "resources_changed":
+            qc.invalidateQueries({ queryKey: [RESOURCE_QUERY_KEYS[msg.resource] ?? msg.resource] });
             qc.invalidateQueries({ queryKey: ["stats"] });
             qc.invalidateQueries({ queryKey: ["resourceMap"] });
             break;

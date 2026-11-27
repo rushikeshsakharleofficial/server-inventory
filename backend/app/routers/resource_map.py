@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..auth import get_current_user
+from ..auth import require_perm
 from ..database import get_db
 from ..providers import get_provider
 from ..crypto import decrypt_config
@@ -1862,6 +1862,25 @@ def _append_attached_volumes(db: Session, server: models.Server, result: dict) -
     return {**result, "nodes": nodes, "edges": edges}
 
 
+def _append_extra_nics(server: models.Server, result: dict) -> dict:
+    """Add a NIC node per entry in server.extra['nics'] (providers whose map has no NIC detail, e.g. Nutanix)."""
+    nics = (server.extra or {}).get("nics") or []
+    root_id = _ipnodes_find_root_id(result.get("nodes", []))
+    if root_id is None or not nics or any(n.get("type") == "network_interface" for n in result["nodes"]):
+        return result
+    nodes, edges = list(result["nodes"]), list(result["edges"])
+    for i, nic in enumerate(nics):
+        nid = f"nic-{server.id}-{i}"
+        label = nic.get("subnet") or f"NIC {nic.get('mac') or i}"
+        status = "connected" if nic.get("connected") else "disconnected"
+        nodes.append(_node(nid, "network_interface", "network", label, {
+            "mac": nic.get("mac"), "ips": ", ".join(nic.get("ips") or []), "subnet": nic.get("subnet"),
+            "type": nic.get("type"), "status": status,
+        }))
+        edges.append(_edge(root_id, nid, "has NIC"))
+    return {**result, "nodes": nodes, "edges": edges}
+
+
 def _build_map(resource_type: str, resource, provider: str, config: dict) -> dict:
     dispatch = {
         ("aws", "server"):     _aws_server_map,
@@ -1894,31 +1913,47 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
         fn = _inventory_server_map
     result = fn(resource, config)
     if resource_type == "server":
-        result = _append_ip_nodes(resource, result)
+        result = _append_ip_nodes(resource, _with_server_root(resource, result))
     return result
+
+
+def _with_server_root(server: models.Server, result: dict) -> dict:
+    """Cloud map builders emit edges from server-{id} but not the node itself; extras attach to it."""
+    root_id = f"server-{server.id}"
+    nodes = result.get("nodes", [])
+    if any(n.get("id") == root_id for n in nodes):
+        return result
+    root = _node(root_id, "server", "compute", server.name, {"provider": server.provider, "region": server.region or ""})
+    return {**result, "nodes": [root, *nodes], "edges": result.get("edges", [])}
+
+
+def server_map_payload(db: Session, server: models.Server) -> dict:
+    """The one server map, shared by the UI and public endpoints (they share a cache key)."""
+    cred = _get_cred_for_provider(db, server.provider)
+    config = decrypt_config(cred.config or {}) if cred else {}
+    result = _build_map("server", server, server.provider, config)
+    result = _append_attached_volumes(db, server, result)
+    result = _append_extra_nics(server, result)
+    return {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/server/{server_id}", responses={404: {"description": "Not found"}})
-def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(require_perm("resource-map", "read"))]):
     key = f"server:{server_id}"
     if cached := _cache_get(key):
         return cached
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(404, "Server not found")
-    cred = _get_cred_for_provider(db, server.provider)
-    config = decrypt_config(cred.config or {}) if cred else {}
-    result = _build_map("server", server, server.provider, config)
-    result = _append_attached_volumes(db, server, result)
-    payload = {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
+    payload = server_map_payload(db, server)
     _cache_set(key, payload)
     return payload
 
 
 @router.get("/database/{db_id}", responses={404: {"description": "Not found"}})
-def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(require_perm("resource-map", "read"))]):
     key = f"database:{db_id}"
     if cached := _cache_get(key):
         return cached
@@ -1934,7 +1969,7 @@ def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _
 
 
 @router.get("/kubernetes/{cluster_id}", responses={404: {"description": "Not found"}})
-def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(require_perm("resource-map", "read"))]):
     key = f"kubernetes:{cluster_id}"
     if cached := _cache_get(key):
         return cached

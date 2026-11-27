@@ -24,6 +24,8 @@ function buildCronExpr(date: Date, mode: RepeatMode): string {
   return `${minute} ${hour} ${date.getDate()} ${date.getMonth() + 1} *`;
 }
 
+const DNS_ONLY = ["cloudflare", "generic-dns"];
+
 export const Route = createFileRoute("/_app/crons")({
   head: () => ({ meta: [{ title: "Crons — System Control" }] }),
   component: CronsPage,
@@ -52,15 +54,20 @@ function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: Cron
   }
 
   const { data: creds } = useQuery({
-    queryKey: ["creds"],
-    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100 } }),
+    queryKey: ["creds", "api"],
+    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100, cred_type: "api" } }),
   });
 
   const providerOptions = [
     { value: "", label: "All providers (sync everything)" },
-    ...Array.from(new Set((creds?.items ?? []).filter(c => c.is_active).map(c => c.provider)))
+    { value: "dns", label: "DNS records (all domains)" },
+    ...Array.from(new Set((creds?.items ?? []).filter(c => c.is_active && !DNS_ONLY.includes(c.provider)).map(c => c.provider)))
       .map(p => ({ value: p, label: p.toUpperCase() })),
   ];
+  // an existing job must keep showing its own provider, even one no longer offered
+  if (form.provider && !providerOptions.some(o => o.value === form.provider)) {
+    providerOptions.push({ value: form.provider, label: form.provider.toUpperCase() });
+  }
 
   const save = useMutation({
     mutationFn: (payload: CronJobCreate) =>
@@ -202,11 +209,11 @@ function CronsPage() {
   });
 
   const { data: creds } = useQuery({
-    queryKey: ["creds"],
-    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100 } }),
+    queryKey: ["creds", "api"],
+    queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100, cred_type: "api" } }),
   });
   const allProviders = Array.from(
-    new Set((creds?.items ?? []).filter((c) => c.is_active).map((c) => c.provider))
+    new Set((creds?.items ?? []).filter((c) => c.is_active && !DNS_ONLY.includes(c.provider)).map((c) => c.provider))
   );
 
   const providerFieldOptions = Array.from(

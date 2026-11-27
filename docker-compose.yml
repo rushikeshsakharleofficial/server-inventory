@@ -33,8 +33,11 @@ services:
       - "8001:8000"
     volumes:
       - ./backend:/app
+      - ssh_known_hosts:/data
     environment:
+      - SSH_KNOWN_HOSTS=/data/known_hosts
       - DATABASE_URL=postgresql://inventory:${POSTGRES_PASSWORD}@postgres:5432/server_inventory
+      - AUTO_SEED_ADMIN=${AUTO_SEED_ADMIN:-false}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - SECRET_KEY=${SECRET_KEY}
@@ -66,3 +69,4 @@ services:
 
 volumes:
   pg_data:
+  ssh_known_hosts:

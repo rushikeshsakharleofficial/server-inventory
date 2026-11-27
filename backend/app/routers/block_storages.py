@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..database import DATABASE_URL, get_db
 from .query_utils import escape_like
 from .sync_utils import _sync_resources
@@ -19,7 +19,7 @@ def _sync_block_storages(provider_name: str | None, db_url: str) -> None:
 @router.get("")
 def list_block_storages(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("block-storages", "read"))],
     provider: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
@@ -57,7 +57,7 @@ def list_block_storages(
 def sync_block_storages(
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("block-storages", "sync"))],
     provider: Annotated[str | None, Query()] = None,
 ) -> dict[str, str]:
     background_tasks.add_task(_sync_block_storages, provider, DATABASE_URL)
