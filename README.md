@@ -4,7 +4,7 @@
 
 ### Self-hosted multi-cloud server inventory and infrastructure operations console
 
-Track servers, databases, Kubernetes clusters, block storage, and DNS records across AWS, GCP, Azure, DigitalOcean, Linode, OVH, and on-premise hosts — from one dashboard, with no vendor lock-in.
+Track servers, databases, Kubernetes clusters, block and object storage, and DNS records across AWS, GCP, Azure, DigitalOcean, Linode, OVH, Nutanix, and on-premise hosts — from one dashboard, with no vendor lock-in.
 
 [![License](https://img.shields.io/github/license/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/rushikeshsakharleofficial/server-inventory?style=for-the-badge)](https://github.com/rushikeshsakharleofficial/server-inventory/stargazers)
@@ -48,7 +48,7 @@ Track servers, databases, Kubernetes clusters, block storage, and DNS records ac
 Most cloud asset inventory tools are paid SaaS products that require sending your credentials and topology to a third party. ServerInventory runs entirely on infrastructure you control:
 
 - **Self-hosted** — credentials and server data never leave your own PostgreSQL instance
-- **Multi-cloud from day one** — AWS, GCP, Azure, DigitalOcean, Linode, OVH, plus manually-registered on-prem hosts
+- **Multi-cloud from day one** — AWS, GCP, Azure, DigitalOcean, Linode, OVH, Nutanix, plus manually-registered on-prem hosts
 - **No agent required** — cloud resources sync via provider APIs; on-prem hosts are discovered and enriched over SSH
 - **RBAC built in** — per-user and per-group permissions across every feature, JWT auth, optional TOTP MFA
 - **Free and open source** — MIT licensed, fork it, self-host it, modify it
@@ -59,10 +59,11 @@ Most cloud asset inventory tools are paid SaaS products that require sending you
 
 ### Multi-Cloud Inventory
 
-- **Servers** — AWS EC2, GCP Compute Engine, Azure VMs, DigitalOcean Droplets, Linode instances, OVH bare metal/VPS/Public Cloud, Contabo VPS, plus manually-registered on-prem hosts
+- **Servers** — AWS EC2, GCP Compute Engine, Azure VMs, DigitalOcean Droplets, Linode instances, OVH bare metal/VPS/Public Cloud, Contabo VPS, Nutanix VMs, plus manually-registered on-prem hosts
 - **Managed Databases** — AWS RDS, GCP Cloud SQL, Azure Database, DigitalOcean Managed DBs, Linode Database Clusters
 - **Kubernetes Clusters** — AWS EKS, GCP GKE, Azure AKS, DigitalOcean DOKS, Linode LKE
-- **Block Storage** — AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes
+- **Block Storage** — AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes, Nutanix volume groups and VM disks
+- **Object Storage** — Nutanix Objects stores, refreshed with **Sync object stores** on the Object Storage page. Per-store users, access levels and quotas are records kept in ServerInventory; they are not read from or pushed to Nutanix
 - **DNS / Domain Inventory** — Cloudflare DNS record sync plus generic DNS resolution, kept separate from cloud provider credentials
 
 ### On-Prem Network Discovery
@@ -71,7 +72,7 @@ Scan an IPv4 CIDR range over SSH, authenticate with a saved credential, and regi
 
 ### Resource Topology Map
 
-Per-server network topology viewer showing connected cloud resources (VPCs, security groups, NICs, firewalls, load balancers) with click-to-navigate deep links.
+Per-server network topology viewer showing connected cloud resources (VPCs, security groups, NICs, firewalls, load balancers) with click-to-navigate deep links. Block storage volumes attached to a server appear as disk nodes. Nutanix servers also show their NICs with subnet name and connection status.
 
 ### IAM / Access Control
 
@@ -231,7 +232,17 @@ cp backend/.env.example .env
 
 ## Cloud Provider Setup
 
-Add credentials via **Cloud Providers → Add Credential** in the UI. Fields vary per provider; see the in-app form for the exact set required (access keys, service account JSON, subscription IDs, API tokens, etc.) for AWS, GCP, Azure, DigitalOcean, Linode, OVH Cloud, and Contabo. DNS providers (currently Cloudflare) are configured separately under **DNS Providers**, keeping DNS credentials isolated from compute-sync credentials.
+Add credentials via **Cloud Providers → Add Credential** in the UI. Fields vary per provider; see the in-app form for the exact set required (access keys, service account JSON, subscription IDs, API tokens, etc.) for AWS, GCP, Azure, DigitalOcean, Linode, OVH Cloud, Contabo, and Nutanix. DNS providers (currently Cloudflare) are configured separately under **DNS Providers**, keeping DNS credentials isolated from compute-sync credentials.
+
+### Nutanix
+
+| Field | Value |
+|:------|:------|
+| `prism_url` | Prism Central URL, for example `https://prism.example.com:9440`. It must start with `https://` |
+| `username` / `password` | Prism account used for API calls (basic auth) |
+| `verify_ssl` | `true` by default. `false` disables TLS certificate verification, which exposes the password to interception; use it only on a trusted network |
+
+Servers and block storage sync through the Prism v3 API. Object stores use the Objects v4.0 API. If that API returns `503`, for example because Objects is not enabled, the sync returns no object stores and logs no error.
 
 ---
 
@@ -343,7 +354,7 @@ graph LR
     API --> Scheduler[APScheduler]
     API --> DB[(PostgreSQL 16)]
     Scheduler --> API
-    API -- cloud provider APIs --> Cloud[AWS / GCP / Azure / DO / Linode / OVH]
+    API -- cloud provider APIs --> Cloud[AWS / GCP / Azure / DO / Linode / OVH / Nutanix]
     API -- SSH --> OnPrem[On-Prem Hosts]
 ```
 
@@ -354,6 +365,7 @@ graph LR
 | `Server` | Multi-cloud + on-prem VM inventory |
 | `ServerIpAddress` | Per-interface IP addresses, deduped across discovery + legacy sync paths |
 | `DatabaseInstance` / `KubernetesCluster` / `BlockStorage` | Managed cloud resources |
+| `ObjectStorage` / `ObjectStorageUser` | Object stores and their locally managed users |
 | `Credential` | Provider credentials (encrypted config JSON) |
 | `SSHCredential` | SSH key/password credentials for on-prem hosts |
 | `DiscoveryNetwork` / `DiscoveryJob` / `DiscoveryResult` | On-prem CIDR scan definitions and run history |
