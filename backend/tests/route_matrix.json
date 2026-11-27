@@ -88,8 +88,6 @@
  "POST /api/servers": "write,admin",
  "POST /api/servers/bulk-assign-ssh": "write,admin",
  "POST /api/servers/ip-inventory/rdns/refresh": "write,admin",
- "POST /api/servers/ssh-fetch-all-ips": "write,admin",
- "POST /api/servers/ssh-fetch-ips-stream": "write,admin",
  "POST /api/servers/{server_id}/ssh-sync": "write,admin",
  "POST /api/servers/{server_id}/trust-host-key": "write,admin",
  "POST /api/setup/bootstrap": "public",

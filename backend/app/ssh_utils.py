@@ -197,38 +197,6 @@ def fetch_ssh_ips(host: str, ssh_cred: "models.SSHCredential") -> list[str]:
             except Exception: pass  # noqa: BLE001
 
 
-def fetch_ips_via_transport(
-    host: str,
-    port: int,
-    username: str,
-    pkey: Any,
-    jump_transport: Any,
-) -> list[str]:
-    """Fetch IPs using a shared pre-established jump transport.
-
-    No per-call jump handshake — opens only a new channel.
-    """
-    import paramiko
-
-    client = new_ssh_client()
-    try:
-        sock = jump_transport.open_channel("direct-tcpip", (host, port), ("127.0.0.1", 0))
-        client.connect(
-            host,
-            username=username,
-            pkey=pkey,
-            sock=sock,
-            timeout=8,
-            banner_timeout=8,
-        )
-        return _run_ip_cmd(client)
-    except Exception:  # noqa: BLE001
-        return []
-    finally:
-        try: client.close()
-        except Exception: pass  # noqa: BLE001
-
-
 def _run_ip_cmd(client: Any) -> list[str]:
     """Run `ip -br a` (compact) with fallback to `ip a`; parse all non-loopback IPs."""
     _, stdout, _ = client.exec_command(
