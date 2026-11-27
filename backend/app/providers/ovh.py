@@ -412,5 +412,6 @@ class OVHProvider(CloudProvider):
 
         if not servers and errors:
             raise RuntimeError("; ".join(errors[:5]))
+        self.warnings = errors[:5]
 
         return servers

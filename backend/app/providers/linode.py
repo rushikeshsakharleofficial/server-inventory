@@ -84,8 +84,9 @@ class LinodeProvider(CloudProvider):
                     params={"page": page, "page_size": 100},
                     timeout=30,
                 )
-                if not resp.ok:
+                if resp.status_code == 404:
                     break
+                resp.raise_for_status()
                 data = resp.json()
                 status_map = {
                     "active": "running",
@@ -136,8 +137,9 @@ class LinodeProvider(CloudProvider):
                 params={"page": page, "page_size": 100},
                 timeout=30,
             )
-            if not resp.ok:
+            if resp.status_code == 404:
                 break
+            resp.raise_for_status()
             data = resp.json()
             status_map = {
                 "ready": "running",
@@ -195,8 +197,9 @@ class LinodeProvider(CloudProvider):
                 params={"page": page, "page_size": 100},
                 timeout=30,
             )
-            if not resp.ok:
+            if resp.status_code == 404:
                 break
+            resp.raise_for_status()
             data = resp.json()
 
             for vol in data.get("data", []):

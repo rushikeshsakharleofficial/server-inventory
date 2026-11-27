@@ -7,6 +7,7 @@ class CloudProvider(ABC):
 
     def __init__(self, config: dict[str, Any]) -> None:
         self.config: dict[str, Any] = config
+        self.warnings: list[str] = []  # partial failures a successful fetch still reports
 
     @abstractmethod
     def fetch_servers(self) -> list[dict[str, Any]]:

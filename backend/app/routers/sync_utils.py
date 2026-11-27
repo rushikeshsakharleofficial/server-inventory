@@ -78,6 +78,8 @@ def _upsert_one_item(db: Any, model_cls: Any, item: dict, existing_map: dict[str
     obj = model_cls(**{k: v for k, v in item.items() if hasattr(model_cls, k)})
     obj.last_synced = now
     db.add(obj)
+    if cloud_id:
+        existing_map[cloud_id] = obj  # same id twice in one fetch
     return True
 
 
@@ -137,6 +139,10 @@ def _sync_resources(
         creds = _load_active_credentials(db, provider_name)
         fetch_results = _fetch_all_credentials_concurrently(creds, fetch_method_name)
         for cred, items, error in fetch_results:
-            _apply_one_credential_result(db, model_cls, resource_label, cred, items, error)
+            try:
+                _apply_one_credential_result(db, model_cls, resource_label, cred, items, error)
+            except Exception as e:  # noqa: BLE001 — one bad credential must not stop the rest
+                db.rollback()
+                _apply_one_credential_result(db, model_cls, resource_label, cred, [], f"{type(e).__name__}: {e}")
     finally:
         db.close()
