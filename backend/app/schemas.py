@@ -349,29 +349,6 @@ class SSHCredentialUpdate(BaseModel):
     proxy_private_key: str | None = None
 
 
-class ServerSnapshotResponse(BaseModel):
-    id: int | None = None
-    date: str
-    total: int
-    running: int
-    stopped: int
-    by_provider: dict[str, int] = Field(default_factory=dict)
-    created_at: datetime | None = None
-
-    model_config = {"from_attributes": True}
-
-
-class AppSettingResponse(BaseModel):
-    key: str
-    value: str | None = None
-
-    model_config = {"from_attributes": True}
-
-
-class SettingUpdate(BaseModel):
-    value: str
-
-
 class CronJobCreate(BaseModel):
     name: str
     cron_expr: str
