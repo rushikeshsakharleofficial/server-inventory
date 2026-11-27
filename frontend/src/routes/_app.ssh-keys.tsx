@@ -181,7 +181,7 @@ function SshDialog({ onClose, credential }: Readonly<{ onClose: () => void; cred
       };
     } else {
       // null clears a stored proxy on edit
-      proxyFields = { proxy_host: null };
+      proxyFields = { proxy_host: null, proxy_username: null, proxy_password: null, proxy_private_key: null };
     }
 
     return {

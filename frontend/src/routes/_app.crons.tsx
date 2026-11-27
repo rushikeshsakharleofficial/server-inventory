@@ -63,6 +63,10 @@ function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: Cron
     ...Array.from(new Set((creds?.items ?? []).filter(c => c.is_active && !DNS_ONLY.includes(c.provider)).map(c => c.provider)))
       .map(p => ({ value: p, label: p.toUpperCase() })),
   ];
+  // an existing job must keep showing its own provider, even one no longer offered
+  if (form.provider && !providerOptions.some(o => o.value === form.provider)) {
+    providerOptions.push({ value: form.provider, label: form.provider.toUpperCase() });
+  }
 
   const save = useMutation({
     mutationFn: (payload: CronJobCreate) =>
