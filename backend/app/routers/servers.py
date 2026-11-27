@@ -13,7 +13,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, require_write
 from ..crypto import decrypt_str
-from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, new_ssh_client
+from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, new_ssh_client, save_host_key
 from ..ws_manager import manager as ws_manager
 from ..event_log_utils import add_event_log
 from .query_utils import escape_like
@@ -445,6 +445,8 @@ def _ssh_parse_facts(client, ssh_cred) -> dict:
 def _ssh_map_exception(exc: Exception) -> str:
     """Translates a raw paramiko/socket exception into a user-facing message."""
     import paramiko
+    if isinstance(exc, paramiko.BadHostKeyException):
+        return "Host key changed: it does not match the trusted host key"
     if isinstance(exc, paramiko.AuthenticationException):
         return "Authentication failed — check username and credentials"
     if isinstance(exc, (paramiko.SSHException, OSError)):
@@ -576,19 +578,8 @@ def _ssh_trust_host_key(host: str, ssh_cred) -> tuple[dict | None, str | None]:
 
         transport.close()
 
-        # Persist host key to known_hosts file
-        known_hosts_path = os.getenv("SSH_KNOWN_HOSTS") or os.path.expanduser("~/.ssh/known_hosts")
-        known_hosts_dir = os.path.dirname(os.path.abspath(known_hosts_path))
-        os.makedirs(known_hosts_dir, exist_ok=True)
-
-        known_hosts = paramiko.HostKeys()
-        if os.path.exists(known_hosts_path):
-            try:
-                known_hosts.load(known_hosts_path)
-            except Exception:  # noqa: BLE001
-                pass  # Start fresh if file is corrupt
-        known_hosts.add(host, key_type, host_key)
-        known_hosts.save(known_hosts_path)
+        # An explicit "trust" replaces any stored key. Non-22 ports use paramiko's "[host]:port" form.
+        save_host_key(host if port == 22 else f"[{host}]:{port}", host_key, replace=True)
 
         return {"fingerprint": fingerprint, "key_type": key_type, "added": True}, None
 

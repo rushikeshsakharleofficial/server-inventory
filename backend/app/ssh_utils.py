@@ -1,14 +1,16 @@
 """Shared SSH utilities used by both the sync pipeline and on-demand endpoints."""
 import io
+import logging
 import os
 import re
 import socket
+import threading
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from . import models
 
-_DEFAULT_KNOWN_HOSTS = "~/.ssh/known_hosts"
+_log = logging.getLogger(__name__)
 
 
 def probe_port(host: str, port: int = 22, timeout: float = 2.0) -> bool:
@@ -41,19 +43,43 @@ def _load_pkey(key_str: str):
 _KNOWN_HOSTS_PATH = os.path.join(os.path.dirname(__file__), "..", ".ssh_known_hosts")
 
 
+_KNOWN_HOSTS_LOCK = threading.Lock()
+
+
+def known_hosts_path() -> str:
+    return os.path.abspath(os.getenv("SSH_KNOWN_HOSTS") or _KNOWN_HOSTS_PATH)
+
+
+def save_host_key(hostname: str, key, replace: bool = False) -> None:
+    """Merge one key into the shared file. A different stored key is rejected unless *replace*."""
+    import paramiko
+    path = known_hosts_path()
+    with _KNOWN_HOSTS_LOCK:
+        keys = paramiko.HostKeys()
+        if os.path.exists(path):
+            keys.load(path)
+        stored = (keys.lookup(hostname) or {}).get(key.get_name())
+        if stored is not None and stored != key and not replace:
+            raise paramiko.BadHostKeyException(hostname, key, stored)
+        keys.add(hostname, key.get_name(), key)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            keys.save(path + ".tmp")
+            os.replace(path + ".tmp", path)
+        except OSError:
+            _log.warning("cannot write %s: host keys are not remembered", path)
+
+
 def new_ssh_client():
     """SSH client that trusts a host key on first sight, saves it, and rejects any later change.
     shortcut: trust-on-first-use, no UI to approve a key up front; upgrade if you need pre-approval."""
     import paramiko
-    path = os.path.abspath(os.getenv("SSH_KNOWN_HOSTS") or _KNOWN_HOSTS_PATH)
+    path = known_hosts_path()
 
-    class _Tofu(paramiko.AutoAddPolicy):
+    class _Tofu(paramiko.MissingHostKeyPolicy):
         def missing_host_key(self, client, hostname, key):
-            super().missing_host_key(client, hostname, key)
-            try:
-                client.save_host_keys(path)
-            except OSError:
-                pass  # unwritable: still protected within this connection
+            save_host_key(hostname, key)
+            client.get_host_keys().add(hostname, key.get_name(), key)
 
     client = paramiko.SSHClient()
     if os.path.exists(path):

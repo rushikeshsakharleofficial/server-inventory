@@ -8,6 +8,7 @@ import {
   Handle, Position, MarkerType, BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { toast } from "sonner";
 import { api, type Page, type Server } from "@/lib/api";
 import type { SshCredential } from "@/lib/api";
 import { apiToFlow, type RmApiData, type RmNodeData } from "@/lib/resource-map-layout";
@@ -410,12 +411,12 @@ function ResourceMapPage() {
     for (const s of serverList) {
       if (syncAbortRef.current) break;
       try {
-        await api(`/api/servers/${s.id}/trust-host-key?ssh_credential_id=${credId}`, { method: "POST" }).catch(() => {});
         await api(`/api/servers/${s.id}/ssh-sync?ssh_credential_id=${credId}`, { method: "POST" });
         done++;
       } catch { skipped++; }
     }
     syncRunningRef.current = false;
+    if (skipped) toast.error(`SSH sync failed for ${skipped} of ${done + skipped} servers`);
     if (!syncAbortRef.current) qc.invalidateQueries({ queryKey: ["servers"] });
   }, [qc]);
 
