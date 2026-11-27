@@ -26,14 +26,15 @@ function buildFields(items: ObjectStorage[]) {
 export function UsersPanel({ store, onClose }: { store: ObjectStorage; onClose: () => void }) {
   const qc = useQueryClient();
   const key = ["os-users", store.id];
-  const { data } = useQuery({ queryKey: key, queryFn: () => api<ObjectStorageUser[]>(`/api/object-storages/${store.id}/users`) });
+  const { data, isError } = useQuery({ queryKey: key, queryFn: () => api<ObjectStorageUser[]>(`/api/object-storages/${store.id}/users`) });
   const [draft, setDraft] = useState<ObjectStorageUser>({ username: "", access: "read", quota_gb: null });
   const save = useMutation({
     mutationFn: (users: ObjectStorageUser[]) => api(`/api/object-storages/${store.id}/users`, { method: "PUT", json: users }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: key }); setDraft({ username: "", access: "read", quota_gb: null }); },
+    onSuccess: () => { setDraft({ username: "", access: "read", quota_gb: null }); return qc.invalidateQueries({ queryKey: key }); },
     onError: (e: Error) => toast.error(e.message),
   });
   const users = data ?? [];
+  const ready = data !== undefined && !isError && !save.isPending;
   const inp = "px-2 py-1 text-sm border rounded-md bg-background";
   return (
     <Card className="p-4 space-y-3">
@@ -41,6 +42,7 @@ export function UsersPanel({ store, onClose }: { store: ObjectStorage; onClose: 
         <h3 className="font-medium">Users with access to {store.name}</h3>
         <button onClick={onClose} className="text-sm text-muted-foreground">Close</button>
       </div>
+      {isError && <p className="text-sm text-red-500">Failed to load users.</p>}
       <table className="w-full text-sm">
         <thead className="text-left text-muted-foreground"><tr><th>User</th><th>Access</th><th>Quota</th><th>Used</th><th /></tr></thead>
         <tbody>
@@ -55,7 +57,7 @@ export function UsersPanel({ store, onClose }: { store: ObjectStorage; onClose: 
                   {u.used_gb ?? 0} GB
                   {u.quota_gb ? <div className="h-1.5 w-24 bg-muted rounded"><div className={`h-full rounded ${pct >= 90 ? "bg-red-500" : "bg-primary"}`} style={{ width: `${pct}%` }} /></div> : null}
                 </td>
-                <td className="text-right"><button className="text-red-500" onClick={() => save.mutate(users.filter((x) => x.username !== u.username))}>Remove</button></td>
+                <td className="text-right"><button className="text-red-500 disabled:opacity-60" disabled={!ready} onClick={() => save.mutate(users.filter((x) => x.username !== u.username))}>Remove</button></td>
               </tr>
             );
           })}
@@ -69,7 +71,7 @@ export function UsersPanel({ store, onClose }: { store: ObjectStorage; onClose: 
         </select>
         <input className={`${inp} w-28`} type="number" min={0} step="any" placeholder="Quota GB" value={draft.quota_gb ?? ""} onChange={(e) => setDraft({ ...draft, quota_gb: e.target.value === "" ? null : Number(e.target.value) })} />
         <input className={`${inp} w-28`} type="number" min={0} step="any" placeholder="Used GB" value={draft.used_gb ?? ""} onChange={(e) => setDraft({ ...draft, used_gb: e.target.value === "" ? null : Number(e.target.value) })} />
-        <button className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md">Add / update</button>
+        <button disabled={!ready} className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md disabled:opacity-60">Add / update</button>
       </form>
     </Card>
   );
