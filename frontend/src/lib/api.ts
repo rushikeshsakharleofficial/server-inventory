@@ -104,7 +104,9 @@ function redirectToLoginOn401(status: number): void {
 
 function errorMessageFromBody(data: unknown, statusText: string): string {
   if (typeof data === "object" && data && "detail" in data) {
-    return String((data as { detail: unknown }).detail);
+    const detail = (data as { detail: unknown }).detail;
+    if (Array.isArray(detail)) return detail.map((d) => String((d as { msg?: unknown })?.msg ?? d)).join("; ");
+    return String(detail);
   }
   if (typeof data === "string") return data;
   return statusText;
