@@ -31,6 +31,7 @@ from .routers.public_api import router as public_api_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
+from .config import _is_production
 from .database import DATABASE_URL
 
 Base.metadata.create_all(bind=engine)
