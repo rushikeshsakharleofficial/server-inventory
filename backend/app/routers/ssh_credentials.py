@@ -87,7 +87,7 @@ def update_ssh_credential(
     if not cred:
         raise HTTPException(status_code=404, detail=_SSH_CRED_NOT_FOUND)
 
-    updates = payload.model_dump(exclude_unset=True)
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v != "***"}
 
     # If promoting to default, unset all others first
     if updates.get("is_default"):

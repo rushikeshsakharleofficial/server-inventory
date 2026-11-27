@@ -15,7 +15,7 @@ CREDENTIAL_NOT_FOUND = "Credential not found"
 
 _SECRET_KEYWORDS = frozenset({
     "secret", "password", "token", "key", "credential",
-    "private", "auth", "api_key", "client_secret", "access_key",
+    "private", "auth", "api_key", "client_secret", "access_key", "service_account",
 })
 
 
@@ -34,6 +34,25 @@ def _mask_config(config: Any) -> Any:
     if isinstance(config, list):
         return [_mask_config(item) for item in config]
     return config
+
+
+# Changing where or how credentials are sent must not reuse a stored secret.
+_DESTINATION_FIELDS = ("prism_url", "verify_ssl")
+
+
+def _drop_placeholders(config: dict) -> dict:
+    """Never store the masked "***" value, or a blank, over a real secret."""
+    return {k: v for k, v in config.items() if not (_field_is_secret(k) and v in ("***", ""))}
+
+
+def _require_secrets_on_destination_change(existing: dict, incoming: dict) -> None:
+    moved = any(
+        k in incoming and str(incoming[k]) != str(existing.get(k, "true" if k == "verify_ssl" else ""))
+        for k in _DESTINATION_FIELDS
+    )
+    missing = [k for k, v in existing.items() if v and _field_is_secret(k) and k not in incoming]
+    if moved and missing:
+        raise HTTPException(status_code=400, detail=f"Re-enter {', '.join(missing)} when changing the connection settings")
 
 
 def _build_response(c: models.Credential) -> dict:
@@ -71,7 +90,11 @@ def create_credential(
     user: Annotated[models.User, Depends(require_write)],
 ) -> dict:
     data = cred.model_dump()
-    data["config"] = encrypt_config(data.get("config") or {})
+    config = _drop_placeholders(data.get("config") or {})
+    status = config.pop("status", None)
+    if status is not None:
+        data["is_active"] = status == "active"
+    data["config"] = encrypt_config(config)
     db_cred = models.Credential(**data)
     db.add(db_cred)
     add_event_log(db, source="credentials", resource=db_cred.name, event="Credential added",
@@ -110,8 +133,10 @@ def update_credential(
         cred.name = payload.name
     if payload.config is not None:
         existing = decrypt_config(cred.config or {})
-        status = payload.config.pop("status", None)
-        merged = {**existing, **payload.config}
+        incoming = _drop_placeholders(payload.config)
+        status = incoming.pop("status", None)
+        _require_secrets_on_destination_change(existing, incoming)
+        merged = {**existing, **incoming}
         cred.config = encrypt_config(merged)
         if status is not None:
             cred.is_active = status == "active"
