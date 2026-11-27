@@ -1913,8 +1913,28 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
         fn = _inventory_server_map
     result = fn(resource, config)
     if resource_type == "server":
-        result = _append_ip_nodes(resource, result)
+        result = _append_ip_nodes(resource, _with_server_root(resource, result))
     return result
+
+
+def _with_server_root(server: models.Server, result: dict) -> dict:
+    """Cloud map builders emit edges from server-{id} but not the node itself; extras attach to it."""
+    root_id = f"server-{server.id}"
+    nodes = result.get("nodes", [])
+    if any(n.get("id") == root_id for n in nodes):
+        return result
+    root = _node(root_id, "server", "compute", server.name, {"provider": server.provider, "region": server.region or ""})
+    return {**result, "nodes": [root, *nodes], "edges": result.get("edges", [])}
+
+
+def server_map_payload(db: Session, server: models.Server) -> dict:
+    """The one server map, shared by the UI and public endpoints (they share a cache key)."""
+    cred = _get_cred_for_provider(db, server.provider)
+    config = decrypt_config(cred.config or {}) if cred else {}
+    result = _build_map("server", server, server.provider, config)
+    result = _append_attached_volumes(db, server, result)
+    result = _append_extra_nics(server, result)
+    return {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
@@ -1927,12 +1947,7 @@ def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)],
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
         raise HTTPException(404, "Server not found")
-    cred = _get_cred_for_provider(db, server.provider)
-    config = decrypt_config(cred.config or {}) if cred else {}
-    result = _build_map("server", server, server.provider, config)
-    result = _append_attached_volumes(db, server, result)
-    result = _append_extra_nics(server, result)
-    payload = {"resource": {"id": server.id, "name": server.name, "type": "server", "provider": server.provider, "region": server.region}, **result}
+    payload = server_map_payload(db, server)
     _cache_set(key, payload)
     return payload
 
