@@ -345,7 +345,7 @@ def _cleanup_stale_discovery_jobs() -> None:
     from datetime import datetime, timezone
     db = SessionLocal()
     try:
-        stale = db.query(models.DiscoveryJob).filter(models.DiscoveryJob.status == "running").all()
+        stale = db.query(models.DiscoveryJob).filter(models.DiscoveryJob.status.in_(["queued", "running"])).all()
         for job in stale:
             job.status = "failed"
             job.error_message = "Server restarted — discovery orphaned"

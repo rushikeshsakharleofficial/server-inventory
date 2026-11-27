@@ -113,7 +113,7 @@ def delete_network(
     db.commit()
 
 
-@router.post("/networks/{network_id}/run", responses={404: {"description": "Discovery network not found"}, 400: {"description": "Invalid CIDR"}})
+@router.post("/networks/{network_id}/run", responses={404: {"description": "Discovery network not found"}, 400: {"description": "Invalid CIDR"}, 409: {"description": "Discovery already queued or running"}})
 @limiter.limit("10/minute")
 def run_network(
     request: Request,
@@ -130,6 +130,12 @@ def run_network(
         discovery_service.validate_cidr(network.cidr)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if db.query(models.DiscoveryJob).filter(
+        models.DiscoveryJob.network_id == network.id,
+        models.DiscoveryJob.status.in_(("queued", "running")),
+    ).first():
+        raise HTTPException(status_code=409, detail="Discovery already queued or running for this network")
 
     job = models.DiscoveryJob(network_id=network.id, cidr=network.cidr, status="queued")
     db.add(job)
@@ -153,7 +159,7 @@ def run_network(
 
 # ─── Run-once (ad-hoc CIDR, not saved) ─────────────────────────────────────────
 
-@router.post("/run-once", responses={400: {"description": "Invalid CIDR"}})
+@router.post("/run-once", responses={400: {"description": "Invalid CIDR"}, 409: {"description": "Discovery already queued or running"}})
 @limiter.limit("10/minute")
 def run_once(
     request: Request,
@@ -166,6 +172,12 @@ def run_once(
         discovery_service.validate_cidr(payload.cidr)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if db.query(models.DiscoveryJob).filter(
+        models.DiscoveryJob.cidr == payload.cidr,
+        models.DiscoveryJob.status.in_(("queued", "running")),
+    ).first():
+        raise HTTPException(status_code=409, detail="Discovery already queued or running for this CIDR")
 
     job = models.DiscoveryJob(network_id=None, cidr=payload.cidr, status="queued")
     db.add(job)
