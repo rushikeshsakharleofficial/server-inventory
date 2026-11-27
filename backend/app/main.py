@@ -175,6 +175,18 @@ def _migrate_api_key_audit_response_time() -> None:
         conn.commit()
 
 
+def _migrate_server_cloud_id_length() -> None:
+    """Azure resource ids exceed 128 chars. Widening only, so older code still runs."""
+    with engine.connect() as conn:
+        length = conn.execute(text(
+            "SELECT character_maximum_length FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = 'servers' AND column_name = 'cloud_id'"
+        )).scalar()
+        if length and length < 255:
+            conn.execute(text("ALTER TABLE servers ALTER COLUMN cloud_id TYPE VARCHAR(255)"))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
@@ -187,6 +199,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_group_super_admin()
     _migrate_discovery_server_columns()
     _migrate_api_key_audit_response_time()
+    _migrate_server_cloud_id_length()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
