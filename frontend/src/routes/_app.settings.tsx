@@ -52,7 +52,10 @@ function SettingsPage() {
 
   // branding_* keys hold base64 image blobs — internal to the Branding card's
   // own upload endpoint, not generic user-editable preferences.
-  const genericEntries = Object.entries(draft).filter(([k]) => !k.startsWith("branding_"));
+  // Older installs still hold rows for removed settings that nothing reads.
+  const genericEntries = Object.entries(draft).filter(
+    ([k]) => !k.startsWith("branding_") && !["appearance_compact", "ssh_default_port", "sync_timeout"].includes(k),
+  );
 
   return (
     <div className="p-6 space-y-4">
@@ -70,32 +73,6 @@ function SettingsPage() {
                   <label className="text-xs font-mono text-muted-foreground">{k}</label>
                   <div className="col-span-2">
                     {(() => {
-                      if (k === "appearance_compact") {
-                        return (
-                          <CustomSelect
-                            value={v}
-                            onChange={(val) => setDraftValue(k, val)}
-                            options={[
-                              { value: "false", label: "Off (default)" },
-                              { value: "true",  label: "On" },
-                            ]}
-                          />
-                        );
-                      }
-                      if (k === "ssh_default_port") {
-                        return (
-                          <CustomSelect
-                            value={v}
-                            onChange={(val) => setDraftValue(k, val)}
-                            options={[
-                              { value: "22",    label: "22 (standard)" },
-                              { value: "2222",  label: "2222" },
-                              { value: "2200",  label: "2200" },
-                              { value: "22222", label: "22222" },
-                            ]}
-                          />
-                        );
-                      }
                       if (k === "rdns_lookup_enabled") {
                         return (
                           <CustomSelect
@@ -104,21 +81,6 @@ function SettingsPage() {
                             options={[
                               { value: "true",  label: "On (default)" },
                               { value: "false", label: "Off — hide RDNS column" },
-                            ]}
-                          />
-                        );
-                      }
-                      if (k === "sync_timeout") {
-                        return (
-                          <CustomSelect
-                            value={v}
-                            onChange={(val) => setDraftValue(k, val)}
-                            options={[
-                              { value: "60",  label: "1 min" },
-                              { value: "120", label: "2 min" },
-                              { value: "300", label: "5 min (default)" },
-                              { value: "600", label: "10 min" },
-                              { value: "900", label: "15 min" },
                             ]}
                           />
                         );

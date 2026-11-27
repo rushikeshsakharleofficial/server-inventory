@@ -307,6 +307,22 @@ def create_server(
     return db_server
 
 
+@router.get("/{server_id}/ip-addresses", responses={404: {"description": _SERVER_NOT_FOUND}})
+def list_server_ip_addresses(
+    server_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
+) -> list[schemas.ServerIpAddressResponse]:
+    if not db.get(models.Server, server_id):
+        raise HTTPException(status_code=404, detail=_SERVER_NOT_FOUND)
+    return (
+        db.query(models.ServerIpAddress)
+        .filter(models.ServerIpAddress.server_id == server_id)
+        .order_by(models.ServerIpAddress.interface_name, models.ServerIpAddress.address)
+        .all()
+    )
+
+
 @router.put(
     "/{server_id}",
     response_model=schemas.ServerResponse,
@@ -886,7 +902,8 @@ def assign_ssh_to_server(
     svr = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not svr:
         raise HTTPException(404, "Server not found")
-    svr.ssh_credential_id = payload.ssh_credential_id
+    if "ssh_credential_id" in payload.model_fields_set:  # a group-only call must not clear the key
+        svr.ssh_credential_id = payload.ssh_credential_id
     if payload.ssh_group is not None:
         svr.ssh_group = payload.ssh_group
     db.commit()

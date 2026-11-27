@@ -193,4 +193,5 @@ def assign_ssh_to_group(
     updated = apply_ssh_assignment(db, server_ids, body.ssh_credential_id, body.ssh_group)
     add_event_log(db, source="server-groups", resource=g.name, event="SSH key assigned to group",
                   owner=user.username, message=f"servers_updated={updated}")
+    db.commit()
     return {"updated": updated}

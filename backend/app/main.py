@@ -358,9 +358,6 @@ def _cleanup_stale_discovery_jobs() -> None:
 
 def _seed_default_settings() -> None:
     DEFAULTS = {
-        "sync_timeout":       "300",
-        "ssh_default_port":   "22",
-        "appearance_compact": "false",
         "rdns_lookup_enabled": "true",
     }
     db = SessionLocal()

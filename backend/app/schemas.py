@@ -40,8 +40,27 @@ class ServerCreate(ServerBase):
     pass
 
 
+class ServerIpAddressResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    server_id: int
+    address: str
+    cidr: str | None = None
+    ip_version: int | None = None
+    interface_name: str | None = None
+    mac_address: str | None = None
+    scope: str | None = None
+    is_primary: bool | None = False
+    discovered_from_ip: str | None = None
+    source: str | None = None
+    first_seen_at: datetime | None = None
+    last_seen_at: datetime | None = None
+
+
 class ServerUpdate(BaseModel):
     name: str | None = None
+    region: str | None = None
     status: str | None = None
     public_ip: str | None = None
     private_ip: str | None = None

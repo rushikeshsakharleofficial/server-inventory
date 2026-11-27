@@ -335,10 +335,6 @@ function SshInfoSection({ sshInfo }: Readonly<{ sshInfo: Record<string, unknown>
 }
 
 // ── discovered networks section (server_ip_addresses, best-effort) ─────────────
-// NOTE: no `GET /api/servers/{id}/ip-addresses` endpoint exists yet on the
-// backend at time of writing (not in the discovery router's 10 endpoints).
-// This queries it defensively — a 404 renders the empty state below instead
-// of an error, so this section is a no-op until that endpoint ships.
 
 // Union with the legacy IP sources (public_ip/private_ip/ssh_info.all_ips) so
 // servers never scanned by discovery still show their known addresses here,

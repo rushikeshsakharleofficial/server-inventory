@@ -118,7 +118,7 @@ function CardHeader({ title, right }: Readonly<{ title: string; right?: React.Re
 function Dashboard() {
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => api<Stats>("/api/servers/stats") });
   const logs = useQuery({ queryKey: ["syncLogs", "dash"], queryFn: () => api<SyncLog[]>("/api/sync/logs", { query: { limit: 6 } }) });
-  const creds = useQuery({ queryKey: ["creds"], queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 20 } }) });
+  const creds = useQuery({ queryKey: ["creds", "api"], queryFn: () => api<Page<Credential>>("/api/credentials", { query: { limit: 100, cred_type: "api" } }) });
 
   const data = stats.data;
   const providers = data ? Object.entries(data.by_provider) : [];
