@@ -60,6 +60,7 @@ function CronDialog({ onClose, job }: Readonly<{ onClose: () => void; job?: Cron
 
   const providerOptions = [
     { value: "", label: "All providers (sync everything)" },
+    { value: "dns", label: "DNS records (all domains)" },
     ...Array.from(new Set((creds?.items ?? []).filter(c => c.is_active && !DNS_ONLY.includes(c.provider)).map(c => c.provider)))
       .map(p => ({ value: p, label: p.toUpperCase() })),
   ];

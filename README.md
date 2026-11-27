@@ -64,7 +64,7 @@ Most cloud asset inventory tools are paid SaaS products that require sending you
 - **Kubernetes Clusters** — AWS EKS, GCP GKE, Azure AKS, DigitalOcean DOKS, Linode LKE
 - **Block Storage** — AWS EBS, Azure Managed Disks, GCP Persistent Disks, DigitalOcean Volumes, Linode Volumes, Nutanix volume groups and VM disks
 - **Object Storage** — Nutanix Objects stores, refreshed with **Sync object stores** on the Object Storage page. Per-store users, access levels and quotas are records kept in ServerInventory; they are not read from or pushed to Nutanix
-- **DNS / Domain Inventory** — Cloudflare DNS record sync plus generic DNS resolution, kept separate from cloud provider credentials
+- **DNS / Domain Inventory** — Cloudflare DNS record sync plus public DNS lookup for domains with no API (common record types and subdomain names; not a full zone listing), kept separate from cloud provider credentials
 
 ### On-Prem Network Discovery
 
@@ -350,6 +350,9 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/inventory_test python -m pyte
 | `test_admin_seed.py` | Optional admin seed startup path |
 | `test_sync_warnings.py` | Partial sync failures log one warning |
 | `test_nutanix_provider.py` | Nutanix provider |
+| `test_generic_dns.py` | Domain (no API) record discovery |
+| `test_cron_dns.py` | Cron jobs sync DNS records |
+| `test_domain_delete.py` | Deleting a DNS credential removes its records |
 | `test_object_storage_users.py` | Object store users |
 
 The frontend type check runs as part of `bun run build`.

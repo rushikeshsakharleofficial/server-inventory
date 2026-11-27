@@ -193,7 +193,7 @@ function DomainCredentialsPage() {
                 </button>
                 <button
                   onClick={async () =>
-                    (await confirmAsync(`Delete ${c.name}?`)) &&
+                    (await confirmAsync(`Delete ${c.name} and its DNS records?`)) &&
                     del.mutate(c.id)
                   }
                   className="p-1.5 hover:bg-muted rounded-md text-red-600"

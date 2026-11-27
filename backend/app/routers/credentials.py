@@ -9,6 +9,7 @@ from ..auth import require_perm
 from ..crypto import encrypt_config, decrypt_config
 from ..permissions import has_perm
 from ..event_log_utils import add_event_log
+from ..ws_manager import manager
 
 router = APIRouter(prefix="/api/credentials", tags=["credentials"])
 
@@ -116,8 +117,13 @@ def delete_credential(
         raise HTTPException(status_code=404, detail=CREDENTIAL_NOT_FOUND)
     add_event_log(db, source="credentials", resource=cred.name, event="Credential removed",
                   owner=user.username, message=f"provider={cred.provider}, type={cred.cred_type}")
+    removed = db.query(models.DnsRecord).filter(
+        models.DnsRecord.extra["credential_id"].as_integer() == cred.id
+    ).delete(synchronize_session=False)
     db.delete(cred)
     db.commit()
+    if removed:
+        manager.broadcast({"type": "resources_changed", "resource": "dns_records"})
 
 
 @router.put("/{cred_id}", response_model=schemas.CredentialResponse, responses={404: {"description": CREDENTIAL_NOT_FOUND}})

@@ -112,6 +112,15 @@ def _apply_one_credential_result(db: Any, model_cls: Any, resource_label: str, c
     if not items:
         return
 
+    if resource_label == "dns_records":
+        from .. import models
+
+        # Deleted while we were fetching: do not bring its records back.
+        if not db.query(models.Credential.id).filter(models.Credential.id == cred.id).first():
+            return
+        # The stamp lets credential deletion remove its records.
+        items = [{**item, "extra": {**(item.get("extra") or {}), "credential_id": cred.id}} for item in items]
+
     existing_map = _existing_items_by_cloud_id(db, model_cls, items, cred.provider)
     added, updated = _upsert_items_in_batches(db, model_cls, items, existing_map)
 
@@ -131,6 +140,8 @@ def _sync_resources(
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
+    from ..ws_manager import manager
+
     engine = create_engine(db_url, pool_pre_ping=True)
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
@@ -146,3 +157,4 @@ def _sync_resources(
                 _apply_one_credential_result(db, model_cls, resource_label, cred, [], f"{type(e).__name__}: {e}")
     finally:
         db.close()
+        manager.broadcast({"type": "resources_changed", "resource": resource_label})

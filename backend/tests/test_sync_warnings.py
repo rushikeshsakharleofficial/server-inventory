@@ -1,7 +1,8 @@
 """Partial failures stay on the one completion event."""
 from app import models
-from app.database import Base, SessionLocal, engine
-from app.routers import sync
+from app.database import DATABASE_URL, Base, SessionLocal, engine
+from app.routers import sync, sync_utils
+from app.ws_manager import manager
 
 
 def test_partial_failure_makes_one_resolved_warning(monkeypatch):
@@ -15,3 +16,12 @@ def test_partial_failure_makes_one_resolved_warning(monkeypatch):
     assert [(e.severity, e.status) for e in events] == [("warning", "resolved")]
     assert "vps/x: boom" in events[0].message
     db.close()
+
+
+def test_resource_sync_tells_clients_when_done(monkeypatch):
+    Base.metadata.create_all(bind=engine)
+    sent = []
+    monkeypatch.setattr(manager, "broadcast", sent.append)
+    monkeypatch.setattr(sync_utils, "_load_active_credentials", lambda *a: [])
+    sync_utils._sync_resources(None, DATABASE_URL, models.DnsRecord, "fetch_domains")
+    assert sent == [{"type": "resources_changed", "resource": "dns_records"}]

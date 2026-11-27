@@ -145,7 +145,6 @@ def run_cron_now(
 ) -> models.CronJob:
     """Trigger a cron job immediately, outside its schedule."""
     from fastapi.concurrency import run_in_threadpool
-    from ..routers.sync import _run_sync
 
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
@@ -155,7 +154,7 @@ def run_cron_now(
     import threading
     def _go() -> None:
         try:
-            _run_sync(job.provider, DATABASE_URL)
+            sched_module.run_job_sync(job.provider, DATABASE_URL)
             run_status = "success"
         except Exception:  # noqa: BLE001 — any sync error marks the run as failed
             run_status = "failed"
