@@ -41,7 +41,7 @@ def get_catalog(_user: Annotated[models.User, Depends(get_current_user)]):
 @router.get("/groups", response_model=list[schemas.GroupResponse])
 def list_groups(
     db: Annotated[Session, Depends(get_db)],
-    _user: Annotated[models.User, Depends(get_current_user)],
+    _user: Annotated[models.User, Depends(require_perm("users", "read"))],
 ):
     groups = db.query(models.Group).order_by(models.Group.name).all()
     result = []
@@ -239,7 +239,7 @@ def get_my_effective_permissions(
 def get_effective_permissions(
     user_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _user: Annotated[models.User, Depends(get_current_user)],
+    _user: Annotated[models.User, Depends(require_perm("users", "read"))],
 ):
     u = db.get(models.User, user_id)
     if not u:

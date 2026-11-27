@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from .. import models, schemas
 from ..database import get_db, DATABASE_URL
 from ..providers import get_provider
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..crypto import decrypt_config
 from ..event_log_utils import add_event_log
 from ..ssh_utils import fetch_ssh_ips
@@ -279,7 +279,7 @@ def _run_sync_all_parallel(db_url: str) -> None:
 def trigger_sync(
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("sync", "write"))],
     provider: str | None = None,
 ) -> dict[str, str]:
     add_event_log(
@@ -301,7 +301,7 @@ def trigger_sync(
 @router.post("/stop")
 def stop_sync(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("sync", "write"))],
     log_id: Annotated[int | None, Query()] = None,
 ) -> dict[str, list[int]]:
     """Stop one or all running syncs."""
@@ -363,7 +363,7 @@ def trigger_ssh_sync(
     payload: SSHSyncRequest,
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("sync", "write"))],
 ) -> dict:
     """Trigger SSH-only sync for specific servers or a group."""
     background_tasks.add_task(_run_ssh_sync, payload.server_ids, payload.ssh_group, DATABASE_URL)
@@ -374,7 +374,7 @@ def trigger_ssh_sync(
 @router.get("/logs", response_model=list[schemas.SyncLogResponse])
 def get_sync_logs(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("sync", "read"))],
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[models.SyncLog]:
     return (

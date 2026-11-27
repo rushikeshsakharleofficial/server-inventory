@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..database import DATABASE_URL, get_db
 from .query_utils import escape_like
 from .sync_utils import _sync_resources
@@ -20,7 +20,7 @@ def _sync_object_storages(provider_name: str | None, db_url: str) -> None:
 @router.get("")
 def list_object_storages(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("object-storages", "read"))],
     provider: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
@@ -50,7 +50,7 @@ def list_object_storages(
 def sync_object_storages(
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("object-storages", "sync"))],
     provider: Annotated[str | None, Query()] = None,
 ) -> dict[str, str]:
     background_tasks.add_task(_sync_object_storages, provider, DATABASE_URL)
@@ -68,7 +68,7 @@ def _store_or_404(db: Session, store_id: int) -> models.ObjectStorage:
 def list_object_storage_users(
     store_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("object-storages", "read"))],
 ) -> list[schemas.ObjectStorageUser]:
     _store_or_404(db, store_id)
     return db.query(models.ObjectStorageUser).filter_by(store_id=store_id).order_by(models.ObjectStorageUser.username).all()
@@ -79,7 +79,7 @@ def set_object_storage_users(
     store_id: int,
     users: list[schemas.ObjectStorageUser],
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("object-storages", "write"))],
 ) -> list[schemas.ObjectStorageUser]:
     """Replace the store's user list (access level + per-user quota)."""
     _store_or_404(db, store_id)

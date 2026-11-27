@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from .. import models
 from ..database import get_db
 from ..event_log_utils import add_event_log
-from ..auth import get_current_user, require_admin
+from ..auth import require_perm
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -25,7 +25,7 @@ class SettingValue(BaseModel):
 @router.get("")
 def get_all_settings(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("settings", "read"))],
 ) -> dict[str, str]:
     """Return all application settings as a flat {key: value} dict."""
     settings = db.query(models.AppSetting).order_by(models.AppSetting.key).all()
@@ -37,7 +37,7 @@ def upsert_setting(
     key: str,
     body: SettingValue,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_perm("settings", "admin"))],
 ) -> dict[str, str]:
     """Create or update a single application setting by key."""
     setting = db.query(models.AppSetting).filter(models.AppSetting.key == key).first()

@@ -3,8 +3,7 @@ Permission vocabulary and RBAC helpers for the additive-overlay IAM system.
 
 The legacy `role` string (read/write/admin) is expanded to a per-feature permission
 map via ROLE_BASELINE. Group and per-user permission JSON overlays are then merged on
-top. Existing role checks (require_write / require_admin) in other routers continue
-to work unchanged — this module only powers the IAM router and require_perm().
+top. Every router checks the result through require_perm().
 """
 from __future__ import annotations
 
@@ -40,7 +39,7 @@ ACTIONS: list[str] = ["read", "write", "delete", "sync", "admin", "manage_all"]
 FEATURE_ACTIONS: dict[str, list[str]] = {
     "servers":         ["read", "write", "delete", "sync"],
     "credentials":     ["read", "write", "delete", "admin"],
-    "ssh-credentials": ["read", "write", "delete"],
+    "ssh-credentials": ["read", "write", "delete", "admin"],
     "sync":            ["read", "write"],
     "stats":           ["read", "write"],
     "settings":        ["read", "admin"],
@@ -48,7 +47,7 @@ FEATURE_ACTIONS: dict[str, list[str]] = {
     "databases":       ["read", "sync"],
     "kubernetes":      ["read", "sync"],
     "block-storages":  ["read", "sync"],
-    "object-storages": ["read", "sync"],
+    "object-storages": ["read", "write", "sync"],
     "domains":         ["read", "sync"],
     "resource-map":    ["read"],
     "users":           ["read", "admin"],
@@ -64,7 +63,7 @@ def _all_feature_write() -> dict[str, list[str]]:
     """
     write role gets read+write+delete+sync on all features, but NOT admin-tier
     actions (settings update, credential delete, user management, managing
-    other users' API keys) — mirrors require_write.
+    other users' API keys).
     """
     result: dict[str, list[str]] = {}
     for f in FEATURES:

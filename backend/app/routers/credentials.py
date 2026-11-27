@@ -5,8 +5,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write, require_admin, require_perm
+from ..auth import require_perm
 from ..crypto import encrypt_config, decrypt_config
+from ..permissions import has_perm
 from ..event_log_utils import add_event_log
 
 router = APIRouter(prefix="/api/credentials", tags=["credentials"])
@@ -70,7 +71,7 @@ def _build_response(c: models.Credential) -> dict:
 @router.get("")
 def list_credentials(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("credentials", "read"))],
     limit: Annotated[int, Query(ge=1, le=schemas._MAX_PAGE_SIZE)] = schemas._DEFAULT_PAGE_SIZE,
     offset: Annotated[int, Query(ge=0)] = 0,
     cred_type: Annotated[str | None, Query()] = None,
@@ -87,7 +88,7 @@ def list_credentials(
 def create_credential(
     cred: schemas.CredentialCreate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("credentials", "write"))],
 ) -> dict:
     data = cred.model_dump()
     config = _drop_placeholders(data.get("config") or {})
@@ -108,7 +109,7 @@ def create_credential(
 def delete_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_admin)],
+    user: Annotated[models.User, Depends(require_perm("credentials", "admin"))],
 ) -> None:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
@@ -151,7 +152,7 @@ def update_credential(
 def toggle_credential(
     cred_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("credentials", "write"))],
 ) -> dict:
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
     if not cred:
@@ -173,7 +174,7 @@ def reveal_secret(
     cred_id: int,
     payload: RevealRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_admin)],
+    user: Annotated[models.User, Depends(require_perm("credentials", "admin"))],
 ) -> dict:
     """Admin-only: returns a single decrypted secret field. Audit-logged."""
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
@@ -211,7 +212,7 @@ def copy_secret(
     cred_id: int,
     payload: RevealRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(get_current_user)],
+    user: Annotated[models.User, Depends(require_perm("credentials", "read"))],
 ) -> dict:
     """Any authenticated user can copy — returns masked value except for admins."""
     cred = db.query(models.Credential).filter(models.Credential.id == cred_id).first()
@@ -221,7 +222,7 @@ def copy_secret(
     value = config.get(payload.field)
     if value is None:
         raise HTTPException(status_code=404, detail=f"Field '{payload.field}' not found")
-    is_admin = getattr(user, "role", "") == "admin"
+    is_admin = has_perm(user, "credentials", "admin")
     if _field_is_secret(payload.field) and not is_admin:
         raise HTTPException(status_code=403, detail="Admin role required to copy secrets")
     # Audit

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..database import get_db
 from ..stats_utils import take_snapshot
 
@@ -32,7 +32,7 @@ class SnapshotResponse(BaseModel):
 @router.get("/history")
 def get_snapshot_history(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("stats", "read"))],
     days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> list[SnapshotResponse]:
     """Return the last N days of ServerSnapshot records ordered by date ascending."""
@@ -59,7 +59,7 @@ def get_snapshot_history(
 @router.post("/snapshot")
 def trigger_snapshot(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("stats", "write"))],
 ) -> SnapshotResponse:
     """Manually compute and persist today's server snapshot."""
     result = take_snapshot(db)

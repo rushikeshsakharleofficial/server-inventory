@@ -11,7 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..crypto import decrypt_str
 from ..ssh_utils import fetch_ssh_ips, fetch_ips_via_transport, _load_pkey, new_ssh_client, save_host_key
 from ..ws_manager import manager as ws_manager
@@ -39,7 +39,7 @@ _SORT_COLS: dict[str, object] = {
 @router.get("")
 def list_servers(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
     provider: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
@@ -84,7 +84,7 @@ def list_servers(
 @router.get("/stats")
 def get_stats(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ) -> schemas.StatsResponse:
     total: int = db.query(func.count(models.Server.id)).scalar() or 0
     by_provider: dict[str, int] = dict(
@@ -201,7 +201,7 @@ def _rdns_setting_enabled(db: Session) -> bool:
 @router.get("/ip-inventory")
 def ip_inventory(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
     search: Annotated[str, Query(alias="q")] = "",
     ip_type: Annotated[str, Query(alias="type")] = "",
 ) -> dict:
@@ -235,7 +235,7 @@ def ip_inventory(
 @router.get("/ip-inventory/rdns")
 def ip_inventory_rdns(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ) -> dict[str, str | None]:
     """Fast follow-up call: return whatever RDNS is already cached from the
     last sync. Never triggers a live DNS lookup itself — sync.py is the only
@@ -256,7 +256,7 @@ def ip_inventory_rdns(
 @router.post("/ip-inventory/rdns/refresh")
 def refresh_ip_inventory_rdns(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> dict:
     """Manual on-demand RDNS resolution — the only request-path trigger for
     live DNS lookups (everything else only runs during sync). Synchronous by
@@ -283,7 +283,7 @@ def refresh_ip_inventory_rdns(
 def get_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
@@ -295,7 +295,7 @@ def get_server(
 def create_server(
     server: schemas.ServerCreate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> models.Server:
     db_server = models.Server(**server.model_dump())
     db.add(db_server)
@@ -316,7 +316,7 @@ def update_server(
     server_id: int,
     update: schemas.ServerUpdate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> models.Server:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
@@ -521,7 +521,7 @@ def _apply_ssh_facts_to_server(server, ssh_info: dict) -> None:
 async def ssh_sync_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "sync"))],
     ssh_credential_id: Annotated[int, Query()],
 ):
     """Connect via SSH and gather live data from a Custom DC server."""
@@ -601,7 +601,7 @@ def _ssh_trust_host_key(host: str, ssh_cred) -> tuple[dict | None, str | None]:
 async def trust_host_key(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
     ssh_credential_id: Annotated[int, Query()],
 ):
     """Retrieve and trust the SSH host key for a server by connecting via low-level Transport."""
@@ -687,7 +687,7 @@ def _collect_ssh_ips(servers, ssh_cred) -> list[dict]:
 )
 def ssh_fetch_all_ips(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
     ssh_credential_id: Annotated[int | None, Query()] = None,
 ) -> list[dict]:
     """SSH into every server concurrently and collect all IPv4/IPv6 addresses."""
@@ -809,7 +809,7 @@ def _stream_ip_results(db: Session, servers, ssh_cred):
 )
 def ssh_fetch_ips_stream(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
     ssh_credential_id: Annotated[int | None, Query()] = None,
 ) -> StreamingResponse:
     """Stream SSH IP results as NDJSON — one line per server as it completes."""
@@ -835,7 +835,7 @@ def ssh_fetch_ips_stream(
 def delete_server(
     server_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "delete"))],
 ) -> None:
     server = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not server:
@@ -881,7 +881,7 @@ def assign_ssh_to_server(
     server_id: int,
     payload: AssignSSHRequest,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> dict:
     svr = db.query(models.Server).filter(models.Server.id == server_id).first()
     if not svr:
@@ -898,7 +898,7 @@ def assign_ssh_to_server(
 def bulk_assign_ssh(
     payload: BulkAssignSSHRequest,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> dict:
     updated = apply_ssh_assignment(db, payload.server_ids, payload.ssh_credential_id, payload.ssh_group)
     return {"updated": updated}

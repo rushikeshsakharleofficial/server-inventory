@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from .. import models, schemas
 from ..database import get_db, DATABASE_URL
-from ..auth import get_current_user, require_write, require_admin
+from ..auth import require_perm
 from .. import scheduler as sched_module
 from ..event_log_utils import add_event_log
 
@@ -30,7 +30,7 @@ def _validate_cron(expr: str) -> None:
 @router.get("", response_model=list[schemas.CronJobResponse])
 def list_crons(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("crons", "read"))],
 ) -> list[models.CronJob]:
     return db.query(models.CronJob).order_by(models.CronJob.name).all()
 
@@ -40,7 +40,7 @@ def list_crons(
 def create_cron(
     payload: schemas.CronJobCreate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("crons", "write"))],
 ) -> models.CronJob:
     _validate_cron(payload.cron_expr)
     job = models.CronJob(**payload.model_dump())
@@ -68,7 +68,7 @@ def update_cron(
     job_id: int,
     payload: schemas.CronJobUpdate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("crons", "write"))],
 ) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
@@ -100,7 +100,7 @@ def update_cron(
 def delete_cron(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("crons", "delete"))],
 ) -> None:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
@@ -116,7 +116,7 @@ def delete_cron(
 def toggle_cron(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("crons", "write"))],
 ) -> models.CronJob:
     job = db.query(models.CronJob).filter(models.CronJob.id == job_id).first()
     if not job:
@@ -141,7 +141,7 @@ def toggle_cron(
 def run_cron_now(
     job_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_write)],
+    _: Annotated[models.User, Depends(require_perm("crons", "write"))],
 ) -> models.CronJob:
     """Trigger a cron job immediately, outside its schedule."""
     from fastapi.concurrency import run_in_threadpool

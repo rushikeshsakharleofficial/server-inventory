@@ -9,7 +9,7 @@ from ..database import get_db
 from ..event_log_utils import add_event_log
 from ..auth import (
     verify_password, hash_password, create_access_token,
-    get_current_user, require_admin, create_mfa_challenge_token, validate_password,
+    get_current_user, require_perm, create_mfa_challenge_token, validate_password,
 )
 
 router = APIRouter(tags=["auth & users"])
@@ -127,7 +127,7 @@ def me(current_user: Annotated[models.User, Depends(get_current_user)]) -> model
 
 @router.get("/api/users")
 def list_users(
-    _: Annotated[models.User, Depends(require_admin)],
+    _: Annotated[models.User, Depends(require_perm("users", "admin"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[schemas.UserResponse]:
     users = db.query(models.User).order_by(models.User.created_at).all()
@@ -147,7 +147,7 @@ def list_users(
 )
 def create_user(
     payload: schemas.UserCreate,
-    current_user: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_perm("users", "admin"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     validate_password(payload.password)
@@ -177,7 +177,7 @@ def create_user(
 )
 def delete_user(
     user_id: int,
-    current_user: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_perm("users", "admin"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> None:
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -203,7 +203,7 @@ def delete_user(
 def update_user(
     user_id: int,
     payload: schemas.UserUpdate,
-    current_user: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_perm("users", "admin"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -232,7 +232,7 @@ def update_user(
 )
 def toggle_user(
     user_id: int,
-    current_user: Annotated[models.User, Depends(require_admin)],
+    current_user: Annotated[models.User, Depends(require_perm("users", "admin"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> models.User:
     user = db.query(models.User).filter(models.User.id == user_id).first()

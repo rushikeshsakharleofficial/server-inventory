@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..auth import get_current_user
+from ..auth import require_perm
 from ..database import get_db
 from ..providers import get_provider
 from ..crypto import decrypt_config
@@ -1920,7 +1920,7 @@ def _build_map(resource_type: str, resource, provider: str, config: dict) -> dic
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/server/{server_id}", responses={404: {"description": "Not found"}})
-def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(require_perm("resource-map", "read"))]):
     key = f"server:{server_id}"
     if cached := _cache_get(key):
         return cached
@@ -1938,7 +1938,7 @@ def server_resource_map(server_id: int, db: Annotated[Session, Depends(get_db)],
 
 
 @router.get("/database/{db_id}", responses={404: {"description": "Not found"}})
-def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(require_perm("resource-map", "read"))]):
     key = f"database:{db_id}"
     if cached := _cache_get(key):
         return cached
@@ -1954,7 +1954,7 @@ def database_resource_map(db_id: int, db: Annotated[Session, Depends(get_db)], _
 
 
 @router.get("/kubernetes/{cluster_id}", responses={404: {"description": "Not found"}})
-def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(get_current_user)]):
+def kubernetes_resource_map(cluster_id: int, db: Annotated[Session, Depends(get_db)], _: Annotated[models.User, Depends(require_perm("resource-map", "read"))]):
     key = f"kubernetes:{cluster_id}"
     if cached := _cache_get(key):
         return cached

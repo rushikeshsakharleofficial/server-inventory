@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user, require_write
+from ..auth import require_perm
 from ..event_log_utils import add_event_log
 from .servers import apply_ssh_assignment
 
@@ -46,7 +46,7 @@ def _to_response(g: models.ServerGroup) -> schemas.ServerGroupResponse:
 @router.get("", response_model=list[schemas.ServerGroupResponse])
 def list_server_groups(
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ):
     _sync_provider_groups(db)
     groups = db.query(models.ServerGroup).order_by(
@@ -64,7 +64,7 @@ def list_server_groups(
 def create_server_group(
     body: schemas.ServerGroupCreate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ):
     if db.query(models.ServerGroup).filter_by(name=body.name).first():
         raise HTTPException(400, detail="Group name already exists")
@@ -88,7 +88,7 @@ def update_server_group(
     group_id: int,
     body: schemas.ServerGroupUpdate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ):
     g = db.get(models.ServerGroup, group_id)
     if not g:
@@ -121,7 +121,7 @@ def update_server_group(
 def delete_server_group(
     group_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "delete"))],
 ):
     g = db.get(models.ServerGroup, group_id)
     if not g:
@@ -140,7 +140,7 @@ def delete_server_group(
 def get_server_group_members(
     group_id: int,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(get_current_user)],
+    _: Annotated[models.User, Depends(require_perm("servers", "read"))],
 ) -> list[int]:
     g = db.get(models.ServerGroup, group_id)
     if not g:
@@ -160,7 +160,7 @@ def set_server_group_members(
     group_id: int,
     body: schemas.ServerMembersUpdate,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ):
     g = db.get(models.ServerGroup, group_id)
     if not g:
@@ -184,7 +184,7 @@ def assign_ssh_to_group(
     group_id: int,
     body: schemas.GroupAssignSSHRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(require_write)],
+    user: Annotated[models.User, Depends(require_perm("servers", "write"))],
 ) -> dict:
     g = db.get(models.ServerGroup, group_id)
     if not g:

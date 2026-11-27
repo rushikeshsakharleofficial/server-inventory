@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Respons
 from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
-from ..auth import require_admin
+from ..auth import require_perm
 
 router = APIRouter(prefix="/api/branding", tags=["branding"])
 
@@ -44,7 +44,7 @@ def get_branding_asset(slot: str, db: Annotated[Session, Depends(get_db)]) -> Re
 async def upload_branding_asset(
     slot: str,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_admin)],
+    _: Annotated[models.User, Depends(require_perm("settings", "admin"))],
     file: Annotated[UploadFile, File(...)],
 ) -> dict[str, bool]:
     if slot not in SLOTS:
@@ -70,7 +70,7 @@ async def upload_branding_asset(
 def reset_branding_asset(
     slot: str,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[models.User, Depends(require_admin)],
+    _: Annotated[models.User, Depends(require_perm("settings", "admin"))],
 ) -> dict[str, bool]:
     if slot not in SLOTS:
         raise HTTPException(404)
