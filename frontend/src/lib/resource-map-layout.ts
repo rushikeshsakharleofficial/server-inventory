@@ -58,8 +58,8 @@ export function apiToFlow(rmData: RmApiData): { nodes: Node[]; edges: Edge[] } {
   const allNodes: RmApiNode[] = nodeIds.has(rootId) ? rmData.nodes : [
     {
       id: rootId,
-      type: "server",
-      category: "compute",
+      type: rmData.resource.type,
+      category: rmData.resource.type === "server" ? "compute" : rmData.resource.type,
       label: rmData.resource.name,
       properties: { provider: rmData.resource.provider, region: rmData.resource.region ?? "" },
     },

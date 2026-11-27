@@ -174,7 +174,7 @@ function ServerGroupsPage() {
 
   const assignSSH = useMutation({
     mutationFn: ({ id, sshCredentialId }: { id: number; sshCredentialId: number }) =>
-      api(`/api/server-groups/${id}/assign-ssh`, { method: "POST", json: { ssh_credential_id: sshCredentialId } }),
+      api<{ updated: number }>(`/api/server-groups/${id}/assign-ssh`, { method: "POST", json: { ssh_credential_id: sshCredentialId } }),
     onSuccess: (res: { updated: number }) => {
       toast.success(`SSH key assigned to ${res.updated} servers`);
       qc.invalidateQueries({ queryKey: ["servers"] });
@@ -190,7 +190,7 @@ function ServerGroupsPage() {
       className: "font-medium",
       render: (g) => (
         <div className="flex items-center gap-1.5">
-          {g.is_auto && <Cloud className="size-3.5 text-muted-foreground" title="Provider auto-group" />}
+          {g.is_auto && <span title="Provider auto-group"><Cloud className="size-3.5 text-muted-foreground" /></span>}
           {g.name}
         </div>
       ),

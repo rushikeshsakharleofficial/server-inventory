@@ -178,8 +178,7 @@ function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={providerChartData} barCategoryGap="40%" margin={{ top: 20, right: 8, left: -10, bottom: 0 }}>
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={28}
-                    gridLine={{ stroke: "#f1f5f9" }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f8fafc" }} />
                   <Bar dataKey="count" name="Servers" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={900}
                     label={{ position: "top", fontSize: 11, fill: "#374151", fontWeight: 600 }}>
