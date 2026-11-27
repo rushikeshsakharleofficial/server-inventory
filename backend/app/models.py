@@ -20,6 +20,7 @@ user_groups = Table(
     Base.metadata,
     Column("user_id",  Integer, ForeignKey("users.id",  ondelete="CASCADE"), primary_key=True),
     Column("group_id", Integer, ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True),
+    Column("source",   String(8), nullable=False, server_default="manual"),
 )
 
 
@@ -164,6 +165,9 @@ class User(Base):
     totp_enabled    = Column(Boolean,     default=False)
     # Direct per-user permission overlay (additive on top of role baseline + groups)
     permissions     = Column(JSONB, default=_empty_json_dict, nullable=False, server_default="{}")
+    auth_source     = Column(String(8), nullable=False, default="local", server_default="local")
+    ldap_dn         = Column(String(512), nullable=True)
+    ldap_cached_at  = Column(DateTime(timezone=True), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
     groups          = relationship("Group", secondary="user_groups", back_populates="members")
@@ -171,6 +175,38 @@ class User(Base):
     __table_args__ = (
         Index("ix_users_username", "username", unique=True),
     )
+
+
+class LdapConfig(Base):
+    __tablename__ = "ldap_config"
+
+    id                = Column(Integer, primary_key=True)
+    enabled           = Column(Boolean, nullable=False, default=False, server_default="false")
+    server_url        = Column(String(512), nullable=True)
+    start_tls         = Column(Boolean, nullable=False, default=False, server_default="false")
+    ca_cert_pem       = Column(Text, nullable=True)
+    bind_dn           = Column(String(512), nullable=True)
+    bind_password_enc = Column(Text, nullable=True)
+    user_base_dn      = Column(String(512), nullable=True)
+    user_filter       = Column(String(255), nullable=False, default="(uid={username})", server_default="(uid={username})")
+    group_base_dn     = Column(String(512), nullable=True)
+    group_filter      = Column(String(255), nullable=False, default="(member={user_dn})", server_default="(member={user_dn})")
+    username_attr     = Column(String(64), nullable=False, default="uid", server_default="uid")
+    fullname_attr     = Column(String(64), nullable=False, default="cn", server_default="cn")
+    default_role      = Column(String(16), nullable=False, default="read", server_default="read")
+    cache_ttl_hours   = Column(Integer, nullable=False, default=72, server_default="72")
+    timeout_s         = Column(Integer, nullable=False, default=5, server_default="5")
+    updated_at        = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class LdapGroupMapping(Base):
+    __tablename__ = "ldap_group_mappings"
+
+    id            = Column(Integer, primary_key=True)
+    ldap_group_dn = Column(String(512), nullable=False)
+    group_id      = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
+
+    __table_args__ = (Index("uq_ldap_group_mapping", "ldap_group_dn", "group_id", unique=True),)
 
 
 class SyncLog(Base):

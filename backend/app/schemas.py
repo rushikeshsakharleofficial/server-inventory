@@ -141,6 +141,8 @@ class UserResponse(BaseModel):
     is_active: bool
     permissions: dict = {}
     group_ids: list[int] = []
+    auth_source: str = "local"
+    ldap_group_ids: list[int] = []
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
@@ -150,6 +152,8 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     full_name: str | None = None
     username: str | None = None
+    auth_source: Literal["local", "ldap"] | None = None
+    password: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):

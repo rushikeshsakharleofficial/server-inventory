@@ -28,6 +28,7 @@ from .routers.discovery import router as discovery_router
 from .routers.branding import router as branding_router
 from .routers.api_keys import router as api_keys_router
 from .routers.public_api import router as public_api_router
+from .routers.ldap import router as ldap_router
 from .ws_manager import manager
 from . import models, scheduler as sched_module
 from .auth import SECRET_KEY
@@ -188,6 +189,20 @@ def _migrate_server_cloud_id_length() -> None:
         conn.commit()
 
 
+def _migrate_ldap() -> None:
+    with engine.connect() as conn:
+        for table, col, definition in [
+            ("users",       "auth_source",    "VARCHAR(8) NOT NULL DEFAULT 'local'"),
+            ("users",       "ldap_dn",        "VARCHAR(512)"),
+            ("users",       "ldap_cached_at", "TIMESTAMPTZ"),
+            ("user_groups", "source",         "VARCHAR(8) NOT NULL DEFAULT 'manual'"),
+        ]:
+            conn.execute(text(
+                f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {definition}"
+            ))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_mfa_columns()
@@ -201,6 +216,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _migrate_discovery_server_columns()
     _migrate_api_key_audit_response_time()
     _migrate_server_cloud_id_length()
+    _migrate_ldap()
     manager.set_loop(asyncio.get_running_loop())
     _apply_db_optimizations()
     _seed_admin()
@@ -271,6 +287,7 @@ app.include_router(discovery_router)
 app.include_router(branding_router)
 app.include_router(api_keys_router)
 app.include_router(public_api_router)
+app.include_router(ldap_router)
 
 
 def _apply_db_optimizations() -> None:

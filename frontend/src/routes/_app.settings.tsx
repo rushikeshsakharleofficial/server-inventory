@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, API_BASE } from "@/lib/api";
+import { api, API_BASE, ApiError } from "@/lib/api";
 import { Card, PageHeader, CustomSelect } from "@/components/ui-bits";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -106,6 +106,7 @@ function SettingsPage() {
 
           <BrandingCard />
           <ChangePasswordCard />
+          <LdapCard />
         </div>
 
         <div className="space-y-4">
@@ -312,6 +313,8 @@ function MfaCard() {
 }
 
 function ChangePasswordCard() {
+  // LDAP passwords live in the directory; the API rejects changes for those users.
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api<{ auth_source?: string }>("/api/auth/me") });
   const [cur, setCur] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -324,6 +327,8 @@ function ChangePasswordCard() {
 
   const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
   const valid = cur && next && next === confirm && next.length >= 8;
+
+  if (me.data?.auth_source === "ldap") return null;
 
   return (
     <Card className="overflow-hidden">
@@ -350,6 +355,189 @@ function ChangePasswordCard() {
           {change.isPending ? "Saving…" : "Change password"}
         </button>
       </div>
+    </Card>
+  );
+}
+
+const LDAP_TEXT_FIELDS = [
+  ["server_url", "Server URL (ldap:// or ldaps://)"],
+  ["bind_dn", "Bind DN"],
+  ["user_base_dn", "User base DN"],
+  ["user_filter", "User filter"],
+  ["group_base_dn", "Group base DN"],
+  ["group_filter", "Group filter"],
+  ["username_attr", "Username attribute"],
+  ["fullname_attr", "Full name attribute"],
+] as const;
+
+type LdapConfig = Record<(typeof LDAP_TEXT_FIELDS)[number][0], string | null> & {
+  enabled: boolean;
+  start_tls: boolean;
+  ca_cert_pem: string | null;
+  default_role: string;
+  cache_ttl_hours: number | string;
+  timeout_s: number | string;
+  has_bind_password: boolean;
+};
+
+interface LdapTestResult {
+  ok: boolean;
+  message: string;
+  group_dns: string[];
+  iam_groups: { id: number; name: string }[];
+}
+
+function LdapCard() {
+  const qc = useQueryClient();
+  const config = useQuery({
+    queryKey: ["ldapConfig"],
+    queryFn: () => api<LdapConfig>("/api/ldap/config"),
+    retry: false,
+  });
+  const [draft, setDraft] = useState<LdapConfig | null>(null);
+  const [bindPassword, setBindPassword] = useState("");
+  const [testUser, setTestUser] = useState("");
+  const [testPassword, setTestPassword] = useState("");
+  useEffect(() => { if (config.data) setDraft(config.data); }, [config.data]);
+
+  const save = useMutation({
+    mutationFn: (d: LdapConfig) => {
+      const num = (v: number | string) => (v === "" ? null : Number(v));
+      return api<LdapConfig>("/api/ldap/config", {
+        method: "PUT",
+        json: {
+          ...Object.fromEntries(LDAP_TEXT_FIELDS.map(([k]) => [k, (d[k] ?? "").trim() || null])),
+          enabled: d.enabled,
+          start_tls: d.start_tls,
+          ca_cert_pem: d.ca_cert_pem?.trim() || null,
+          default_role: d.default_role,
+          cache_ttl_hours: num(d.cache_ttl_hours),
+          timeout_s: num(d.timeout_s),
+          bind_password: bindPassword || null,
+        },
+      });
+    },
+    onSuccess: (saved) => {
+      toast.success("LDAP settings saved");
+      setBindPassword("");
+      setDraft(saved);
+      qc.setQueryData(["ldapConfig"], saved);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const testConnection = useMutation({
+    mutationFn: () => api<LdapTestResult>("/api/ldap/test", { method: "POST", json: {} }),
+    onSuccess: (r) => { (r.ok ? toast.success : toast.error)(r.message); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const testLogin = useMutation({
+    mutationFn: () => api<LdapTestResult>("/api/ldap/test", { method: "POST", json: { username: testUser, password: testPassword } }),
+    onSuccess: () => setTestPassword(""),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (config.error instanceof ApiError && config.error.status === 403) return null;
+
+  const inp = "w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring";
+  const lbl = "text-xs text-muted-foreground font-medium block mb-1";
+  const btn = "px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted disabled:opacity-50";
+  const set = <K extends keyof LdapConfig>(k: K, v: LdapConfig[K]) => setDraft((d) => d && { ...d, [k]: v });
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="px-3 py-2 border-b border-border bg-surface-muted">
+        <h3 className="text-sm font-semibold">LDAP</h3>
+      </div>
+      {config.error && <p role="alert" className="p-3 text-xs text-red-500">{config.error.message}</p>}
+      {draft && (
+        <div className="p-3 space-y-3">
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(draft); }}>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={draft.enabled} onChange={(e) => set("enabled", e.target.checked)} />
+              Enable LDAP
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={draft.start_tls} onChange={(e) => set("start_tls", e.target.checked)} />
+              Use StartTLS
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {LDAP_TEXT_FIELDS.map(([k, label]) => (
+                <div key={k}>
+                  <label htmlFor={`ldap-${k}`} className={lbl}>{label}</label>
+                  <input id={`ldap-${k}`} className={`${inp} font-mono`} value={draft[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
+                </div>
+              ))}
+              <div>
+                <label htmlFor="ldap-bind-password" className={lbl}>Bind password</label>
+                <input id="ldap-bind-password" type="password" autoComplete="new-password" className={inp}
+                  placeholder={draft.has_bind_password ? "Saved — leave blank to keep" : "Not set"}
+                  value={bindPassword} onChange={(e) => setBindPassword(e.target.value)} />
+              </div>
+              <div role="group" aria-labelledby="ldap-default-role">
+                <span id="ldap-default-role" className={lbl}>Default role</span>
+                <CustomSelect value={draft.default_role} onChange={(v) => set("default_role", v)}
+                  options={[{ value: "read" }, { value: "write" }]} />
+              </div>
+              <div>
+                <label htmlFor="ldap-cache-ttl" className={lbl}>Cached login TTL (hours, 0–720)</label>
+                <input id="ldap-cache-ttl" type="number" min={0} max={720} required className={inp}
+                  value={draft.cache_ttl_hours} onChange={(e) => set("cache_ttl_hours", e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="ldap-timeout" className={lbl}>Timeout (seconds, 1–30)</label>
+                <input id="ldap-timeout" type="number" min={1} max={30} required className={inp}
+                  value={draft.timeout_s} onChange={(e) => set("timeout_s", e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="ldap-ca-cert" className={lbl}>CA certificate (PEM)</label>
+              <textarea id="ldap-ca-cert" rows={5} className={`${inp} font-mono`} value={draft.ca_cert_pem ?? ""}
+                onChange={(e) => set("ca_cert_pem", e.target.value)} />
+            </div>
+            <button type="submit" disabled={save.isPending}
+              className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md disabled:opacity-50">
+              {save.isPending ? "Saving…" : "Save LDAP settings"}
+            </button>
+          </form>
+
+          <div className="border-t border-border pt-3 space-y-3">
+            <p className="text-xs text-muted-foreground">Tests use the saved configuration. Save changes first.</p>
+            <button type="button" onClick={() => testConnection.mutate()} disabled={testConnection.isPending} className={btn}>
+              {testConnection.isPending ? "Testing…" : "Test connection"}
+            </button>
+            <form className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end" onSubmit={(e) => { e.preventDefault(); testLogin.mutate(); }}>
+              <div>
+                <label htmlFor="ldap-test-username" className={lbl}>Test username</label>
+                <input id="ldap-test-username" autoComplete="off" required className={inp} value={testUser} onChange={(e) => setTestUser(e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="ldap-test-password" className={lbl}>Test password</label>
+                <input id="ldap-test-password" type="password" autoComplete="new-password" required className={inp}
+                  value={testPassword} onChange={(e) => setTestPassword(e.target.value)} />
+              </div>
+              <button type="submit" disabled={testLogin.isPending} className={btn}>
+                {testLogin.isPending ? "Testing…" : "Test login"}
+              </button>
+            </form>
+            {testLogin.data && (
+              <div role="status" className="text-xs space-y-1 break-all">
+                <p className={testLogin.data.ok ? "text-emerald-700" : "text-red-500"}>{testLogin.data.message}</p>
+                {testLogin.data.ok && (
+                  <>
+                    <p className="font-medium">Group DNs</p>
+                    {testLogin.data.group_dns.length === 0 && <p>None</p>}
+                    <ul className="font-mono">
+                      {testLogin.data.group_dns.map((dn) => <li key={dn}>{dn}</li>)}
+                    </ul>
+                    <p className="font-medium">Mapped IAM groups</p>
+                    <p>{testLogin.data.iam_groups.map((g) => g.name).join(", ") || "None"}</p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

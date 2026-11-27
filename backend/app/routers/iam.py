@@ -5,11 +5,12 @@ All write endpoints require admin permission; reads require an authenticated use
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..auth import get_current_user, require_perm
-from .. import models, schemas
+from .. import ldap_auth, models, schemas
 from ..permissions import (
     FEATURES, ACTIONS, FEATURE_ACTIONS, ROLE_BASELINE, effective_permissions
 )
@@ -21,6 +22,21 @@ _require_admin = require_perm("users", "admin")
 
 GROUP_NOT_FOUND = "Group not found"
 USER_NOT_FOUND = "User not found"
+
+
+def _user_response(db: Session, u: models.User) -> schemas.UserResponse:
+    resp = schemas.UserResponse.model_validate(u)
+    resp.group_ids = [g.id for g in u.groups]
+    resp.ldap_group_ids = ldap_auth.ldap_group_ids(db, u.id)
+    return resp
+
+
+def _replace_manual_memberships(db: Session, where, rows: list[dict]) -> None:
+    """Replace only source='manual' rows; LDAP-sourced rows are owned by directory sync."""
+    table = models.user_groups
+    db.execute(table.delete().where(where, table.c.source == "manual"))
+    if rows:
+        db.execute(insert(table).values(rows).on_conflict_do_nothing())
 
 
 # ─── Permission catalog ────────────────────────────────────────────────────────
@@ -152,7 +168,10 @@ def set_group_members(
     if not g:
         raise HTTPException(404, detail=GROUP_NOT_FOUND)
     users = db.query(models.User).filter(models.User.id.in_(body.group_ids)).all()
-    g.members = users
+    _replace_manual_memberships(
+        db, models.user_groups.c.group_id == g.id,
+        [{"user_id": u.id, "group_id": g.id, "source": "manual"} for u in users],
+    )
     add_event_log(db, source="iam", resource=g.name, event="Group members updated",
                   owner=user.username, message=f"members={[u.username for u in users]}")
     db.commit()
@@ -187,9 +206,7 @@ def set_user_permissions(
     add_event_log(db, source="iam", resource=u.username, event="User permissions changed", owner=user.username)
     db.commit()
     db.refresh(u)
-    resp = schemas.UserResponse.model_validate(u)
-    resp.group_ids = [g.id for g in u.groups]
-    return resp
+    return _user_response(db, u)
 
 
 @router.put(
@@ -212,14 +229,15 @@ def set_user_groups(
     if u.role == "admin":
         raise HTTPException(status_code=400, detail="Cannot change admin user's groups")
     groups = db.query(models.Group).filter(models.Group.id.in_(body.group_ids)).all()
-    u.groups = groups
+    _replace_manual_memberships(
+        db, models.user_groups.c.user_id == u.id,
+        [{"user_id": u.id, "group_id": g.id, "source": "manual"} for g in groups],
+    )
     add_event_log(db, source="iam", resource=u.username, event="User groups changed",
                   owner=user.username, message=f"groups={[g.name for g in groups]}")
     db.commit()
     db.refresh(u)
-    resp = schemas.UserResponse.model_validate(u)
-    resp.group_ids = [g.id for g in u.groups]
-    return resp
+    return _user_response(db, u)
 
 
 @router.get("/me/effective")
