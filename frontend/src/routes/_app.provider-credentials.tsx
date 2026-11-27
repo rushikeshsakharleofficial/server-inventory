@@ -419,7 +419,7 @@ function CredModal({ initial, onClose, onSave }: Readonly<{
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Provider type">
               <select value={form.provider_type} onChange={set("provider_type")}>
-                {["Cloud","VPS","Hosting","IP Lease","IP / DC","Colocation","Domain","SMTP","Other"].map(o => <option key={o}>{o}</option>)}
+                {["Cloud","VPS","Hosting","IP Lease","IP / DC","Colocation","Domain","SMTP","SSH/RDP","Other"].map(o => <option key={o}>{o}</option>)}
               </select>
             </Field>
             <Field label="MFA enabled">
@@ -430,7 +430,7 @@ function CredModal({ initial, onClose, onSave }: Readonly<{
             </Field>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Owner"><input value={form.owner} onChange={set("owner")} placeholder="Ayush Jain" /></Field>
+            <Field label="Owner"><input value={form.owner} onChange={set("owner")} placeholder="Rushikesh" /></Field>
             <Field label="Status">
               <select value={form.status} onChange={set("status")}>
                 <option value="active">Active</option>
