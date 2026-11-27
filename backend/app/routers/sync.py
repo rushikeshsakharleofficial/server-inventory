@@ -191,13 +191,10 @@ def _sync_one_credential(db, cred) -> None:
     manager.broadcast({"type": "sync_started", "log_id": log.id, "provider": cred.provider})
 
     added = updated = 0
+    warnings: list[str] = []
     error = None
     try:
         srv_list, warnings = _fetch_provider_servers(cred, stop_event)
-        if warnings:
-            add_event_log(db, severity="warning", source="sync", resource=cred.provider,
-                          event="Provider sync incomplete", status="open", owner="system",
-                          message="; ".join(warnings), tags=[cred.provider])
         if stop_event.is_set():
             raise RuntimeError(_SYNC_STOPPED_MSG)
 
@@ -227,13 +224,13 @@ def _sync_one_credential(db, cred) -> None:
     log.completed_at = datetime.now(timezone.utc)
     add_event_log(
         db,
-        severity="error" if error else "info",
+        severity="error" if error else "warning" if warnings else "info",
         source="sync",
         resource=cred.provider,
         event="Provider sync failed" if error else "Provider sync completed",
         status="open" if error else "resolved",
         owner="system",
-        message=error or f"servers_added={added}, servers_updated={updated}",
+        message=error or "; ".join([f"servers_added={added}, servers_updated={updated}", *warnings]),
         tags=[cred.provider],
     )
     db.commit()

@@ -348,6 +348,7 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/inventory_test python -m pyte
 | `test_resource_map_root.py` | Server node in cloud resource maps |
 | `test_ignored_inputs.py` | Server region edits |
 | `test_admin_seed.py` | Optional admin seed startup path |
+| `test_sync_warnings.py` | Partial sync failures log one warning |
 | `test_nutanix_provider.py` | Nutanix provider |
 | `test_object_storage_users.py` | Object store users |
 
