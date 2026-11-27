@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, type Page, type Server } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
 import { confirmAsync } from "@/components/ui-bits";
 import { SmartTable, type SmartTableColumn } from "@/components/SmartTable";
@@ -241,13 +241,17 @@ function DetailsDrawer({ cred, isAdmin, onClose, onEdit }: Readonly<{
         {tab === "details" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <DrawerRow label="Login URL">
-              <a href={cfg.login_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>{cfg.login_url}</a>
-              <div style={{ display: "flex", gap: 4 }}>
-                <CopyBtn value={cfg.login_url} title="Copy URL" small />
-                <a href={cfg.login_url} target="_blank" rel="noreferrer" style={{ padding: "2px 4px", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
-                  <ExternalLink style={{ width: 11, height: 11 }} />
-                </a>
-              </div>
+              {isSshRdp(cfg) ? <span style={{ fontSize: 12, color: "#9ca3af" }}>N/A</span> : (
+                <>
+                  <a href={cfg.login_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>{cfg.login_url}</a>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <CopyBtn value={cfg.login_url} title="Copy URL" small />
+                    <a href={cfg.login_url} target="_blank" rel="noreferrer" style={{ padding: "2px 4px", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
+                      <ExternalLink style={{ width: 11, height: 11 }} />
+                    </a>
+                  </div>
+                </>
+              )}
             </DrawerRow>
             <DrawerRow label="Username / Email">
               <span style={{ fontSize: 12, color: "#374151" }}>{cfg.username ?? "—"}</span>
@@ -262,6 +266,11 @@ function DetailsDrawer({ cred, isAdmin, onClose, onEdit }: Readonly<{
                 <CopyBtn title="Copy Password" isSecret credId={cred.id} field="password" isAdmin={isAdmin} small />
               </div>
             </DrawerRow>
+            {isSshRdp(cfg) && (
+              <DrawerRow label="Applies to">
+                <VmScopeValue config={cfg} />
+              </DrawerRow>
+            )}
             <DrawerRow label="MFA Status">
               <MfaBadge enabled={mfaOn} />
             </DrawerRow>
@@ -304,11 +313,15 @@ function DetailsDrawer({ cred, isAdmin, onClose, onEdit }: Readonly<{
 
       {/* Footer actions */}
       <div style={{ padding: "12px 16px", borderTop: "1px solid #f1f5f9", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <a href={cfg.login_url} target="_blank" rel="noreferrer"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff", textDecoration: "none", color: "#374151", fontSize: 12, fontWeight: 600 }}>
-          <ExternalLink style={{ width: 13, height: 13 }} /> Open Login
-        </a>
-        <CopyBtn value={cfg.login_url} title="URL" label="Copy URL" small={false} />
+        {!isSshRdp(cfg) && (
+          <>
+            <a href={cfg.login_url} target="_blank" rel="noreferrer"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff", textDecoration: "none", color: "#374151", fontSize: 12, fontWeight: 600 }}>
+              <ExternalLink style={{ width: 13, height: 13 }} /> Open Login
+            </a>
+            <CopyBtn value={cfg.login_url} title="URL" label="Copy URL" small={false} />
+          </>
+        )}
         <CopyBtn value={cfg.username} title="Username" label="Copy Username" small={false} />
         <CopyBtn title="Copy Password" isSecret credId={cred.id} field="password" isAdmin={isAdmin} label="Copy Password" />
       </div>
@@ -331,17 +344,76 @@ function DrawerRow({ label, children }: Readonly<{ label: string; children: Reac
   );
 }
 
+// ─── VM scope (SSH/RDP) ───────────────────────────────────────────────────────
+
+const isSshRdp = (c: { provider_type?: string }) => c.provider_type === "SSH/RDP";
+const parseIds = (csv?: string) => (csv ?? "").split(",").filter(Boolean).map(Number);
+
+// shortcut: first 500 servers only (API page maximum), add server-side search past that.
+function useServerList() {
+  return useQuery({
+    queryKey: ["provider-creds-servers"],
+    queryFn: () => api<Page<Server>>("/api/servers", { query: { limit: 500 } }),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+function VmPicker({ value, onChange }: Readonly<{ value: string; onChange: (csv: string) => void }>) {
+  const serversQ = useServerList();
+  const [search, setSearch] = useState("");
+  const selected = new Set(parseIds(value));
+  const q = search.toLowerCase();
+  const shown = (serversQ.data?.items ?? []).filter(s => `${s.name} ${s.public_ip ?? ""} ${s.private_ip ?? ""}`.toLowerCase().includes(q));
+
+  if (serversQ.isLoading) return <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Loading VMs…</p>;
+  if (serversQ.isError) return <p style={{ fontSize: 12, color: "#ef4444", margin: 0 }}>Could not load the server list. You may not have access to it.</p>;
+
+  return (
+    <Field label={`VMs (${selected.size} selected)`}>
+      <input aria-label="Search VMs" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or IP…" />
+      <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 8, marginTop: 6, padding: "4px 10px" }}>
+        {shown.map(s => (
+          <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
+            <input type="checkbox" style={{ width: "auto" }} checked={selected.has(s.id)} onChange={e => {
+              const next = new Set(selected);
+              if (e.target.checked) next.add(s.id); else next.delete(s.id);
+              onChange([...next].join(","));
+            }} />
+            <span>{s.name}</span>
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>{s.public_ip ?? s.private_ip}</span>
+          </label>
+        ))}
+        {shown.length === 0 && <p style={{ fontSize: 12, color: "#9ca3af", margin: "6px 0" }}>No VMs found.</p>}
+      </div>
+    </Field>
+  );
+}
+
+function VmScopeValue({ config }: Readonly<{ config: Record<string, string> }>) {
+  const serversQ = useServerList();
+  const ids = parseIds(config.server_ids);
+  let text = "All VMs (common)";
+  if (config.scope === "specific") {
+    const names = (serversQ.data?.items ?? []).filter(s => ids.includes(s.id)).map(s => s.name);
+    text = serversQ.data ? names.join(", ") || "No matching VMs" : `${ids.length} selected VM(s)`;
+  }
+  return <span style={{ fontSize: 12, color: "#374151" }}>{text}</span>;
+}
+
 // ─── Add/Edit Modal ───────────────────────────────────────────────────────────
 
 interface CredForm {
   name: string; provider: string; login_url: string; username: string;
   password: string; provider_type: string; owner: string; tags: string;
   notes: string; mfa_enabled: string; status: string; logo_url: string; logo_data: string;
+  scope: string; server_ids: string;
 }
 
 const EMPTY_FORM: CredForm = {
   name: "", provider: "", login_url: "", username: "", password: "",
   provider_type: "Cloud", owner: "", tags: "", notes: "", mfa_enabled: "false", status: "active", logo_url: "", logo_data: "",
+  scope: "common", server_ids: "",
 };
 
 function CredModal({ initial, onClose, onSave }: Readonly<{
@@ -358,6 +430,7 @@ function CredModal({ initial, onClose, onSave }: Readonly<{
       provider_type: c.provider_type ?? "Cloud", owner: c.owner ?? "",
       tags: c.tags ?? "", notes: c.notes ?? "", mfa_enabled: c.mfa_enabled ?? "false",
       status: initial.is_active ? "active" : "disabled", logo_url: c.logo_url ?? "", logo_data: c.logo_data ?? "",
+      scope: c.scope ?? "common", server_ids: c.server_ids ?? "",
     };
   });
   const [showPw, setShowPw] = useState(false);
@@ -368,6 +441,11 @@ function CredModal({ initial, onClose, onSave }: Readonly<{
     e.preventDefault();
     const { name, provider, password, ...rest } = form;
     const config: Record<string, string> = { ...rest };
+    const specific = isSshRdp(rest) && rest.scope === "specific";
+    if (specific && !rest.server_ids) { toast.error("Select at least one VM"); return; }
+    // Always sent: the backend merges config, so an omitted key would keep stale VMs.
+    if (!specific) config.server_ids = "";
+    if (isSshRdp(rest)) config.login_url = "";
     if (password) config.password = password;
     onSave({ name, provider: provider.toLowerCase(), config });
   }
@@ -382,7 +460,7 @@ function CredModal({ initial, onClose, onSave }: Readonly<{
         <form onSubmit={submit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Platform name *"><input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, provider: f.provider || e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "") }))} placeholder="OVH Cloud" /></Field>
-            <Field label="Login URL"><input value={form.login_url} onChange={set("login_url")} placeholder="https://..." /></Field>
+            <Field label="Login URL"><input value={isSshRdp(form) ? "" : form.login_url} onChange={set("login_url")} disabled={isSshRdp(form)} placeholder={isSshRdp(form) ? "N/A" : "https://..."} /></Field>
           </div>
           <Field label="Logo">
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -429,6 +507,17 @@ function CredModal({ initial, onClose, onSave }: Readonly<{
               </select>
             </Field>
           </div>
+          {isSshRdp(form) && (
+            <>
+              <Field label="Applies to">
+                <select value={form.scope} onChange={set("scope")}>
+                  <option value="common">Common (all VMs)</option>
+                  <option value="specific">Specific VMs only</option>
+                </select>
+              </Field>
+              {form.scope === "specific" && <VmPicker value={form.server_ids} onChange={server_ids => setForm(f => ({ ...f, server_ids }))} />}
+            </>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Owner"><input value={form.owner} onChange={set("owner")} placeholder="Rushikesh" /></Field>
             <Field label="Status">
@@ -497,6 +586,7 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       header: "Login URL",
       render: (cred) => {
         const cfg = cred.config;
+        if (isSshRdp(cfg)) return <span style={{ fontSize: 12, color: "#9ca3af" }}>N/A</span>;
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <a href={cfg.login_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
@@ -582,9 +672,11 @@ function buildColumns(isAdmin: boolean, setEditCred: (c: Cred) => void, deleteMu
       header: "Actions",
       render: (cred) => (
         <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()}>
-          <a href={cred.config.login_url} target="_blank" rel="noreferrer" title="Open login" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
+          {!isSshRdp(cred.config) && (
+            <a href={cred.config.login_url} target="_blank" rel="noreferrer" title="Open login" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex" }}>
             <ExternalLink style={{ width: 12, height: 12 }} />
           </a>
+          )}
           {isAdmin && (
             <button onClick={() => setEditCred(cred)} title="Edit" style={{ padding: "4px", borderRadius: 5, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer" }}>
               <Pencil style={{ width: 12, height: 12 }} />

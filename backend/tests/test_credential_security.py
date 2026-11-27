@@ -19,3 +19,8 @@ def test_new_prism_url_needs_password():
         c._require_secrets_on_destination_change(stored, {"prism_url": "https://evil", "username": "u"})
     c._require_secrets_on_destination_change(stored, {"prism_url": "https://b", "password": "p"})
     c._require_secrets_on_destination_change(stored, {"prism_url": "https://a", "verify_ssl": "true"})
+
+
+def test_vm_scope_fields_are_not_masked():
+    config = {"scope": "specific", "server_ids": "1,2"}
+    assert c._mask_config(config) == config
